@@ -1,9 +1,8 @@
 import json
 import re
 import shutil
-from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Annotated, Any, List, NotRequired, Optional, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, List, NotRequired, Optional, TypedDict
 
 import yaml  # noqa
 from anyio import Path as AsyncPath
@@ -17,14 +16,18 @@ from langchain.agents.middleware.types import (
     ResponseT,
     ToolCallRequest,
 )
-from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
-from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from app.agent.middleware.utils import append_to_system_message
 from app.agent.tools.tags import ToolTag
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.runnables import RunnableConfig
+    from langgraph.runtime import Runtime
 
 # 磁盘读取上限与模型返回上限分离，避免异常大的 Skill 文件撑爆内存或上下文。
 MAX_SKILL_FILE_SIZE = 1 * 1024 * 1024

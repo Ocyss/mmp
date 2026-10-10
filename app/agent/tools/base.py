@@ -2,16 +2,14 @@ import asyncio
 import json
 import threading
 from abc import ABCMeta, abstractmethod
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 from langchain_core.tools import BaseTool
 from pydantic import PrivateAttr
 
-from app.agent import StreamingHandler
 from app.agent.tools.tags import ToolTag
 from app.chain import ChainBase
 from app.core.config import settings
@@ -20,6 +18,11 @@ from app.helper.service import ServiceConfigHelper
 from app.log import logger
 from app.schemas import Notification
 from app.schemas.types import MessageChannel, NotificationType
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.agent import StreamingHandler
 
 
 class ToolChain(ChainBase):

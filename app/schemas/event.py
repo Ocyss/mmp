@@ -1,11 +1,13 @@
 from collections.abc import Callable, Iterable
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.file import FileItem
-from app.schemas.message import MessageChannel
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from app.schemas.file import FileItem
+    from app.schemas.message import MessageChannel
 
 
 class Event(BaseModel):
@@ -44,13 +46,13 @@ class ConfigChangeEventData(BaseEventData):
         elif isinstance(v, str):
             return {v}
         elif isinstance(v, dict):
-            return set(str(k) for k in v.keys())
+            return {str(k) for k in v.keys()}
         elif isinstance(v, (list, tuple)):
-            return set(str(item) for item in v)
+            return {str(item) for item in v}
         elif isinstance(v, set):
-            return set(str(item) for item in v)
+            return {str(item) for item in v}
         elif isinstance(v, Iterable):
-            return set(str(item) for item in v)
+            return {str(item) for item in v}
         else:
             return {str(v)}
 

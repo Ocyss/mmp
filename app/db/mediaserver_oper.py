@@ -1,9 +1,10 @@
-from typing import Optional
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Optional
 
 from app.db import DbOper
 from app.db.models.mediaserver import MediaServerItem
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class MediaServerOper(DbOper):

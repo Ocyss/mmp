@@ -2,8 +2,7 @@ import hashlib
 from collections import deque
 from collections.abc import Generator, Mapping
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, urlparse
 
 from app import schemas
@@ -13,6 +12,9 @@ from app.modules.ugreen.api import Api
 from app.schemas import MediaType
 from app.schemas.types import SystemConfigKey
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class Ugreen:

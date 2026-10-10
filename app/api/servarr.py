@@ -1,8 +1,6 @@
-from typing import Annotated, Any, List
+from typing import TYPE_CHECKING, Annotated, Any, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain.media import MediaChain
@@ -15,6 +13,10 @@ from app.db.models.subscribe import Subscribe
 from app.schemas import RadarrMovie, SonarrSeries
 from app.schemas.types import MediaType
 from version import APP_VERSION
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 arr_router = APIRouter(tags=["servarr"])
 

@@ -2,10 +2,8 @@ import json
 import re
 from abc import ABCMeta, abstractmethod
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin, urlsplit
-
-from requests import Session
 
 from app.core.config import settings
 from app.helper.cloudflare import under_challenge
@@ -13,6 +11,9 @@ from app.log import logger
 from app.utils.http import RequestUtils
 from app.utils.site import SiteUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from requests import Session
 
 
 # 站点框架

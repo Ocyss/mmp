@@ -1,9 +1,8 @@
 """MoviePilot 自定义工具筛选中间件。"""
 
 import json
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
-from typing import Annotated, Any, NotRequired
+from typing import TYPE_CHECKING, Annotated, Any, NotRequired
 
 from langchain.agents.middleware.tool_selection import (
     DEFAULT_SYSTEM_PROMPT,
@@ -17,16 +16,20 @@ from langchain.agents.middleware.types import (
     PrivateStateAttr,  # noqa
     ResponseT,
 )
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import BaseTool
-from langgraph.runtime import Runtime
 from typing_extensions import TypedDict  # noqa
 
 from app.agent.llm import LLMHelper
 from app.agent.tools.tags import ToolTag
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.runnables import RunnableConfig
+    from langchain_core.tools import BaseTool
+    from langgraph.runtime import Runtime
 
 MIN_SELECTED_TOOL_COUNT = 4
 RECENT_SELECTION_CONTEXT_MESSAGE_LIMIT = 6
@@ -234,13 +237,10 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         valid_tool_names: list[str],
     ) -> list[tuple[str, list[str]]]:
         """返回已选工具命中的标签能力组。"""
-        groups_by_tag = {
-            tag: tool_names
-            for tag, tool_names in cls._build_tool_groups(
+        groups_by_tag = dict(cls._build_tool_groups(
                 available_tools=available_tools,
                 valid_tool_names=valid_tool_names,
-            )
-        }
+            ))
         tools_by_name = {tool.name: tool for tool in available_tools if getattr(tool, "name", None)}
         matched_groups: list[tuple[str, list[str]]] = []
         seen_tags = set()

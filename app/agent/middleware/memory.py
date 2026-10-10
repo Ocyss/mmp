@@ -1,5 +1,4 @@
-from collections.abc import Awaitable, Callable
-from typing import Annotated, Dict, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Annotated, Dict, NotRequired, TypedDict
 
 from anyio import Path as AsyncPath
 from langchain.agents.middleware.types import (
@@ -11,11 +10,15 @@ from langchain.agents.middleware.types import (
     PrivateStateAttr,  # noqa
     ResponseT,
 )
-from langchain_core.runnables import RunnableConfig
-from langgraph.runtime import Runtime
 
 from app.agent.middleware.utils import append_to_system_message
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.runnables import RunnableConfig
+    from langgraph.runtime import Runtime
 
 # 记忆文件最大限制为 100KB，防止单文件过大导致上下文溢出
 MAX_MEMORY_FILE_SIZE = 100 * 1024

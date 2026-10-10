@@ -7,13 +7,12 @@ import hashlib
 import io
 import pickle
 import threading
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from PIL import Image
 
 from app.core.cache import FileCache
 from app.core.config import settings
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.modules.qqbot.api import (
@@ -25,6 +24,9 @@ from app.modules.qqbot.api import (
 from app.modules.qqbot.gateway import run_gateway
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 # QQ Markdown 图片展示尺寸限制，避免竖版海报被客户端拉伸变形
 _DEFAULT_IMAGE_SIZE: tuple[int, int] = (208, 320)
@@ -90,7 +92,7 @@ class QQBot:
             if content:
                 data = pickle.loads(content)
                 if isinstance(data, (list, set)):
-                    self._known_targets = set(tuple(x) for x in data)
+                    self._known_targets = {tuple(x) for x in data}
         except Exception as e:
             logger.debug(f"QQ Bot 加载 known_targets 失败: {e}")
 

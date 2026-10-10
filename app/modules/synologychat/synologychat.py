@@ -1,14 +1,16 @@
 import json
 import re
 from threading import Lock
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from urllib.parse import quote
 
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 lock = Lock()
 
@@ -68,10 +70,10 @@ class SynologyChat:
                 if not text:
                     text = "\n".join(titles[1:])
                 else:
-                    text = "%s\n%s" % ("\n".join(titles[1:]), text)
+                    text = "{}\n{}".format("\n".join(titles[1:]), text)
 
             if text:
-                caption = "*%s*\n%s" % (title, text.replace("\n\n", "\n"))
+                caption = "*{}*\n{}".format(title, text.replace("\n\n", "\n"))
             else:
                 caption = title
 
@@ -109,12 +111,12 @@ class SynologyChat:
         try:
             if not title or not isinstance(medias, list):
                 return False
-            index, image, caption = 1, "", "*%s*" % title
+            index, image, caption = 1, "", f"*{title}*"
             for media in medias:
                 if not image:
                     image = media.get_message_image()
                 if media.vote_average:
-                    caption = "%s\n%s. <%s|%s>\n_%s，%s_" % (
+                    caption = "{}\n{}. <{}|{}>\n_{}，{}_".format(
                         caption,
                         index,
                         media.detail_link,
@@ -123,7 +125,7 @@ class SynologyChat:
                         f"评分：{media.vote_average}",
                     )
                 else:
-                    caption = "%s\n%s. <%s|%s>\n_%s_" % (
+                    caption = "{}\n{}. <{}|{}>\n_{}_".format(
                         caption,
                         index,
                         media.detail_link,
@@ -156,7 +158,7 @@ class SynologyChat:
             return False
 
         try:
-            index, caption = 1, "*%s*" % title
+            index, caption = 1, f"*{title}*"
             for context in torrents:
                 torrent = context.torrent_info
                 site_name = torrent.site_name

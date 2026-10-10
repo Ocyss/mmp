@@ -157,8 +157,8 @@ class WordsMatcher(metaclass=Singleton):
         正则替换
         """
         try:
-            replaced_re = _compile_custom_word_regex(r"%s" % replaced)
-            title, count = replaced_re.subn(r"%s" % replace, title)
+            replaced_re = _compile_custom_word_regex(rf"{replaced}")
+            title, count = replaced_re.subn(rf"{replace}", title)
             return title, "", count > 0
         except Exception as err:
             logger.warn(
@@ -172,12 +172,12 @@ class WordsMatcher(metaclass=Singleton):
         集数偏移
         """
         try:
-            if back and not _compile_custom_word_regex(r"%s" % back).search(title):
+            if back and not _compile_custom_word_regex(rf"{back}").search(title):
                 return title, "", False
-            if front and not _compile_custom_word_regex(r"%s" % front).search(title):
+            if front and not _compile_custom_word_regex(rf"{front}").search(title):
                 return title, "", False
             offset_word_info_re = _compile_custom_word_regex(
-                r"(?<=%s.*?)[0-9一二三四五六七八九十]+(?=.*?%s)" % (front, back)
+                rf"(?<={front}.*?)[0-9一二三四五六七八九十]+(?=.*?{back})"
             )
             episode_nums_str = offset_word_info_re.findall(title)
             if not episode_nums_str:
@@ -195,7 +195,7 @@ class WordsMatcher(metaclass=Singleton):
                     offset_order_flag = False
                 episode_num_offset_str = _format_episode_offset(episode_num_str, episode_num_offset_int)
                 episode_nums_offset_str.append(episode_num_offset_str)
-            episode_nums_dict = dict(zip(episode_nums_str, episode_nums_offset_str))
+            episode_nums_dict = dict(zip(episode_nums_str, episode_nums_offset_str, strict=False))
             # 集数向前偏移，集数按升序处理
             if offset_order_flag:
                 episode_nums_list = sorted(episode_nums_dict.items(), key=lambda x: x[1])
@@ -203,8 +203,8 @@ class WordsMatcher(metaclass=Singleton):
             else:
                 episode_nums_list = sorted(episode_nums_dict.items(), key=lambda x: x[1], reverse=True)
             for episode_num in episode_nums_list:
-                episode_offset_re = _compile_custom_word_regex(r"(?<=%s.*?)%s(?=.*?%s)" % (front, episode_num[0], back))
-                title = episode_offset_re.sub(r"%s" % episode_num[1], title)
+                episode_offset_re = _compile_custom_word_regex(rf"(?<={front}.*?){episode_num[0]}(?=.*?{back})")
+                title = episode_offset_re.sub(rf"{episode_num[1]}", title)
             return title, "", True
         except Exception as err:
             logger.warn(

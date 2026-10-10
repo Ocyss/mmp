@@ -47,7 +47,7 @@ def migrate_postgresql_userid(connection):
         # 1. 创建临时列
         connection.execute(
             sa.text("""
-            ALTER TABLE siteuserdata 
+            ALTER TABLE siteuserdata
             ADD COLUMN userid_new VARCHAR
         """)
         )
@@ -55,7 +55,7 @@ def migrate_postgresql_userid(connection):
         # 2. 将现有数据转换为字符串并复制到新列
         connection.execute(
             sa.text("""
-            UPDATE siteuserdata 
+            UPDATE siteuserdata
             SET userid_new = CAST(userid AS VARCHAR)
             WHERE userid IS NOT NULL
         """)
@@ -64,7 +64,7 @@ def migrate_postgresql_userid(connection):
         # 3. 删除旧列
         connection.execute(
             sa.text("""
-            ALTER TABLE siteuserdata 
+            ALTER TABLE siteuserdata
             DROP COLUMN userid
         """)
         )
@@ -72,7 +72,7 @@ def migrate_postgresql_userid(connection):
         # 4. 重命名新列
         connection.execute(
             sa.text("""
-            ALTER TABLE siteuserdata 
+            ALTER TABLE siteuserdata
             RENAME COLUMN userid_new TO userid
         """)
         )

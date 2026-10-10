@@ -1,8 +1,7 @@
-import builtins
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import smbclient
 from smbclient import ClientConfig, register_session, reset_connection_cache
@@ -19,6 +18,9 @@ from app.modules.filemanager import StorageBase
 from app.modules.filemanager.storages import transfer_process
 from app.schemas.types import StorageSchema
 from app.utils.singleton import WeakSingleton
+
+if TYPE_CHECKING:
+    import builtins
 
 lock = threading.Lock()
 

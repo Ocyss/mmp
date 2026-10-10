@@ -1,8 +1,7 @@
 import gzip
 import hmac
 import json
-from collections.abc import Callable
-from typing import Annotated, Any, Dict, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Dict, Optional
 
 import aiofiles
 from anyio import Path as AsyncPath
@@ -10,10 +9,14 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path, Reque
 from fastapi.responses import PlainTextResponse
 from fastapi.routing import APIRoute
 
-from app import schemas
 from app.core.config import settings
 from app.log import logger
 from app.utils.crypto import CryptoJsUtils, HashUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app import schemas
 
 
 class GzipRequest(Request):

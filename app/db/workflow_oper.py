@@ -1,9 +1,11 @@
-import builtins
-from collections.abc import Coroutine, Sequence
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 from app.db import DbOper
 from app.db.models.workflow import Workflow
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Coroutine, Sequence
 
 
 class WorkflowOper(DbOper):

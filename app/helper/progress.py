@@ -1,9 +1,11 @@
 from enum import Enum
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.core.cache import TTLCache
 from app.helper.locale import LocaleHelper
-from app.schemas.types import ProgressKey
+
+if TYPE_CHECKING:
+    from app.schemas.types import ProgressKey
 
 
 class ProgressHelper:

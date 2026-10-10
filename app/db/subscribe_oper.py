@@ -1,12 +1,15 @@
-import builtins
 import time
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
-from app.core.context import MediaInfo
 from app.db import DbOper
 from app.db.models.subscribe import Subscribe
 from app.db.models.subscribehistory import SubscribeHistory
 from app.utils.media import resolve_media_identity
+
+if TYPE_CHECKING:
+    import builtins
+
+    from app.core.context import MediaInfo
 
 INTEGER_FLAG_FIELDS = ("best_version", "best_version_full", "search_imdbid", "manual_total_episode")
 

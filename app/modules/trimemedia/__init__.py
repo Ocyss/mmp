@@ -1,14 +1,17 @@
-from collections.abc import Generator
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from app import schemas
-from app.core.context import MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
 from app.modules import _MediaServerBase, _ModuleBase
 from app.modules.trimemedia.trimemedia import TrimeMedia
 from app.schemas import AuthCredentials, AuthInterceptCredentials
 from app.schemas.types import ChainEventType, MediaServerType, MediaType, ModuleType
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from app.core.context import MediaInfo
 
 
 class TrimeMediaModule(_ModuleBase, _MediaServerBase[TrimeMedia]):

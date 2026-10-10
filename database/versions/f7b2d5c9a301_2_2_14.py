@@ -6,10 +6,14 @@ Revises: e6a1c4b8d2f0
 Create Date: 2026-07-21
 """
 
-from collections.abc import Iterable
+
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 revision = "f7b2d5c9a301"
 down_revision = "e6a1c4b8d2f0"

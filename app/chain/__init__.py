@@ -3,20 +3,14 @@ import inspect
 import pickle
 import traceback
 from abc import ABCMeta
-from collections.abc import Callable
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
 from fastapi.concurrency import run_in_threadpool
-from qbittorrentapi import TorrentFilesList
-from transmission_rpc import File
 
 from app.core.cache import AsyncFileCache, FileCache, async_fresh, fresh
 from app.core.config import settings
-from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
 from app.core.event import EventManager
-from app.core.meta import MetaBase
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
 from app.db.message_oper import MessageOper
@@ -40,7 +34,6 @@ from app.schemas import (
     TransferInfo,
     WebhookEventInfo,
 )
-from app.schemas.category import CategoryConfig
 from app.schemas.message import ChannelCapability, ChannelCapabilityManager
 from app.schemas.types import (
     EventType,
@@ -53,6 +46,17 @@ from app.schemas.types import (
 from app.utils.identity import normalize_internal_user_id
 from app.utils.media import normalize_media_source
 from app.utils.object import ObjectUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from qbittorrentapi import TorrentFilesList
+    from transmission_rpc import File
+
+    from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
+    from app.core.meta import MetaBase
+    from app.schemas.category import CategoryConfig
 
 
 class ChainBase(metaclass=ABCMeta):

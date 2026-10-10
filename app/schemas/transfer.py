@@ -1,14 +1,16 @@
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.schemas.context import MediaInfo, MetaInfo
-from app.schemas.file import FileItem
-from app.schemas.history import DownloadHistory
-from app.schemas.system import TransferDirectoryConf
-from app.schemas.tmdb import TmdbEpisode
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from app.schemas.context import MediaInfo, MetaInfo
+    from app.schemas.file import FileItem
+    from app.schemas.history import DownloadHistory
+    from app.schemas.system import TransferDirectoryConf
+    from app.schemas.tmdb import TmdbEpisode
 
 
 class DownloaderTorrent(BaseModel):

@@ -76,7 +76,7 @@ class BangumiApi:
         """
         搜索媒体信息
         """
-        result = self.__invoke("search/subject/%s" % name)
+        result = self.__invoke(f"search/subject/{name}")
         if result:
             return result.get("list")
         return []
@@ -85,7 +85,7 @@ class BangumiApi:
         """
         搜索媒体信息（异步版本）
         """
-        result = await self.__async_invoke("search/subject/%s" % name)
+        result = await self.__async_invoke(f"search/subject/{name}")
         if result:
             return result.get("list")
         return []

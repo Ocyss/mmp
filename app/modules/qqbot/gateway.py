@@ -7,12 +7,14 @@ import json
 import re
 import threading
 import time
-from collections.abc import Callable
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import websocket
 
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # QQ Bot intents
 INTENT_GROUP_AND_C2C = 1 << 25  # 群聊和 C2C 私聊

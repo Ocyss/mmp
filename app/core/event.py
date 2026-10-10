@@ -6,19 +6,22 @@ import threading
 import time
 import traceback
 import uuid
-from collections.abc import Callable
 from queue import Empty, PriorityQueue
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import global_vars
 from app.helper.thread import ThreadHelper
 from app.log import logger
-from app.schemas import ChainEventData
 from app.schemas.types import ChainEventType, EventType
 from app.utils.limit import ExponentialBackoffRateLimiter
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.schemas import ChainEventData
 
 DEFAULT_EVENT_PRIORITY = 10  # 事件的默认优先级
 MIN_EVENT_CONSUMER_THREADS = 1  # 最小事件消费者线程数
@@ -323,7 +326,7 @@ class EventManager(metaclass=Singleton):
             return cls.__get_handler_identifier(handler.__self__.__class__)
 
         # 对于类实例（实现了 __call__ 方法）
-        if not inspect.isfunction(handler) and hasattr(handler, "__call__"):
+        if not inspect.isfunction(handler) and callable(handler):
             handler_cls = handler.__class__  # noqa
             return cls.__get_handler_identifier(handler_cls)
 
@@ -400,7 +403,7 @@ class EventManager(metaclass=Singleton):
             return False
 
         self.__log_event_lifecycle(event, "Started")
-        for handler_id, (priority, handler) in enabled_handlers.items():
+        for (priority, handler) in enabled_handlers.values():
             start_time = time.time()
             self.__safe_invoke_handler(handler, event)
             logger.debug(
@@ -432,7 +435,7 @@ class EventManager(metaclass=Singleton):
             return False
 
         self.__log_event_lifecycle(event, "Started")
-        for handler_id, (priority, handler) in enabled_handlers.items():
+        for (priority, handler) in enabled_handlers.values():
             start_time = time.time()
             await self.__safe_invoke_handler_async(handler, event)
             logger.debug(

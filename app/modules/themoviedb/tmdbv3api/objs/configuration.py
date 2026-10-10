@@ -14,7 +14,7 @@ class Configuration(TMDb):
     }
 
     def info(self):
-        warnings.warn("info method is deprecated use tmdbv3api.Configuration().api_configuration()", DeprecationWarning)
+        warnings.warn("info method is deprecated use tmdbv3api.Configuration().api_configuration()", DeprecationWarning, stacklevel=2)
         return self.api_configuration()
 
     def api_configuration(self):

@@ -4,9 +4,8 @@ import json
 import re
 import threading
 import time
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from urllib.parse import quote, urljoin
 
 from app.modules.telegram.compat import ensure_urllib3_header_param_compat
@@ -38,7 +37,6 @@ except ImportError:
     from telegramify_markdown.type import ContentTypes, File, Photo, Text  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
-from app.core.context import Context, MediaInfo  # noqa: E402
 from app.core.metainfo import MetaInfo  # noqa: E402
 from app.helper.image import ImageHelper  # noqa: E402
 from app.helper.thread import ThreadHelper  # noqa: E402
@@ -46,6 +44,11 @@ from app.log import logger  # noqa: E402
 from app.utils.common import retry  # noqa: E402
 from app.utils.http import RequestUtils  # noqa: E402
 from app.utils.string import StringUtils  # noqa: E402
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.core.context import Context, MediaInfo
 
 TELEGRAM_PARSE_MODE_MARKDOWN = "MarkdownV2"
 TELEGRAM_PARSE_MODE_HTML = "HTML"

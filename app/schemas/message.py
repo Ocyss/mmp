@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Dict, List, Optional, Set, Union
 
 from pydantic import BaseModel, Field, field_validator
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.schemas.types import ContentType, MessageChannel, NotificationType
 
 
-class NotificationClearScope(str, Enum):
+class NotificationClearScope(StrEnum):
     """
     通知中心清理范围。
     """

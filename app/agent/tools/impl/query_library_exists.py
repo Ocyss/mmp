@@ -176,7 +176,7 @@ class QueryLibraryExistsTool(MoviePilotTool):
                 ]
             )
 
-            for service_name, existsinfo in zip(service_names, server_checks):
+            for service_name, existsinfo in zip(service_names, server_checks, strict=False):
                 if not existsinfo:
                     continue
 

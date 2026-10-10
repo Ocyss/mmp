@@ -74,6 +74,6 @@ class FetchDownloadsAction(BaseAction):
                 else:
                     logger.info(f"下载任务 {download.download_id} 未完成")
                     download.completed = False
-        if all([d.completed for d in self._downloads]):
+        if all(d.completed for d in self._downloads):
             self.job_done("下载任务已全部完成")
         return context

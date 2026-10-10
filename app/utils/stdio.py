@@ -5,7 +5,10 @@ import logging
 import sys
 import threading
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class RotatingLineStream(io.TextIOBase):

@@ -1,9 +1,6 @@
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-from starlette.background import BackgroundTasks
 
 from app import schemas
 from app.api.endpoints.plugin import register_plugin_api
@@ -14,7 +11,6 @@ from app.core.event import eventmanager
 from app.core.plugin import PluginManager
 from app.core.security import verify_token
 from app.db import get_async_db, get_db
-from app.db.models import User
 from app.db.models.site import Site
 from app.db.models.siteicon import SiteIcon
 from app.db.models.sitestatistic import SiteStatistic
@@ -32,6 +28,13 @@ from app.log import logger
 from app.scheduler import Scheduler
 from app.schemas.types import EventType, SystemConfigKey
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+    from starlette.background import BackgroundTasks
+
+    from app.db.models import User
 
 router = APIRouter()
 

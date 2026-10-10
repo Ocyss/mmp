@@ -1,6 +1,5 @@
 import inspect
 import sys
-from collections.abc import Callable
 
 from app.helper.redis import AsyncRedisHelper, RedisHelper
 
@@ -12,6 +11,8 @@ except ImportError as e:
     error_message = f"错误: {str(e)}\n站点认证及索引相关资源导入失败，请尝试重建容器或手动拉取资源"
     print(error_message, file=sys.stderr)
     sys.exit(1)
+
+from typing import TYPE_CHECKING
 
 from app.command import CommandChain
 from app.core.config import settings
@@ -30,6 +31,9 @@ from app.schemas import Notification, NotificationType
 from app.schemas.types import SystemConfigKey
 from app.startup.agent_initializer import init_agent, stop_agent
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def start_frontend():

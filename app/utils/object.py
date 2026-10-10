@@ -2,9 +2,11 @@ import ast
 import dis
 import inspect
 import textwrap
-from collections.abc import Callable
-from types import FunctionType
-from typing import Any, get_type_hints
+from typing import TYPE_CHECKING, Any, get_type_hints
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import FunctionType
 
 
 class ObjectUtils:
@@ -103,7 +105,7 @@ class ObjectUtils:
             type_hints = get_type_hints(func)
         except TypeError:
             type_hints = {}
-        for arg, (param_name, param) in zip(args, parameters.items()):
+        for arg, (param_name, param) in zip(args, parameters.items(), strict=False):
             # 优先使用解析后的类型提示
             param_type = type_hints.get(param_name, None)
             if param_type is None:

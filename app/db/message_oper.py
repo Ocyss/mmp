@@ -1,12 +1,14 @@
 import time
-from typing import Optional, Union
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.db import DbOper
 from app.db.models.message import Message
-from app.schemas import MessageChannel, NotificationType
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+
+    from app.schemas import MessageChannel, NotificationType
 
 
 class MessageOper(DbOper):

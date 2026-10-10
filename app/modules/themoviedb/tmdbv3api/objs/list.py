@@ -27,7 +27,7 @@ class List(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(self._urls["check_status"] % list_id, params="movie_id=%s" % movie_id)["item_present"]
+        return self._request_obj(self._urls["check_status"] % list_id, params=f"movie_id={movie_id}")["item_present"]
 
     def create_list(self, name, description):
         """
@@ -38,7 +38,7 @@ class List(TMDb):
         """
         return self._request_obj(
             self._urls["create"],
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"name": name, "description": description, "language": self.language},
         ).list_id
@@ -51,7 +51,7 @@ class List(TMDb):
         """
         self._request_obj(
             self._urls["add_movie"] % list_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"media_id": movie_id},
         )
@@ -64,7 +64,7 @@ class List(TMDb):
         """
         self._request_obj(
             self._urls["remove_movie"] % list_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"media_id": movie_id},
         )
@@ -75,7 +75,7 @@ class List(TMDb):
         :param list_id: int
         """
         self._request_obj(
-            self._urls["clear_list"] % list_id, params="session_id=%s&confirm=true" % self.session_id, method="POST"
+            self._urls["clear_list"] % list_id, params=f"session_id={self.session_id}&confirm=true", method="POST"
         )
 
     def delete_list(self, list_id):
@@ -84,7 +84,7 @@ class List(TMDb):
         :param list_id: int
         """
         self._request_obj(
-            self._urls["delete_list"] % list_id, params="session_id=%s" % self.session_id, method="DELETE"
+            self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE"
         )
 
     # 异步版本方法
@@ -103,7 +103,7 @@ class List(TMDb):
         :param movie_id: int
         :return:
         """
-        result = await self._async_request_obj(self._urls["check_status"] % list_id, params="movie_id=%s" % movie_id)
+        result = await self._async_request_obj(self._urls["check_status"] % list_id, params=f"movie_id={movie_id}")
         return result["item_present"]
 
     async def async_create_list(self, name, description):
@@ -115,7 +115,7 @@ class List(TMDb):
         """
         result = await self._async_request_obj(
             self._urls["create"],
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"name": name, "description": description, "language": self.language},
         )
@@ -129,7 +129,7 @@ class List(TMDb):
         """
         await self._async_request_obj(
             self._urls["add_movie"] % list_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"media_id": movie_id},
         )
@@ -142,7 +142,7 @@ class List(TMDb):
         """
         await self._async_request_obj(
             self._urls["remove_movie"] % list_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"media_id": movie_id},
         )
@@ -153,7 +153,7 @@ class List(TMDb):
         :param list_id: int
         """
         await self._async_request_obj(
-            self._urls["clear_list"] % list_id, params="session_id=%s&confirm=true" % self.session_id, method="POST"
+            self._urls["clear_list"] % list_id, params=f"session_id={self.session_id}&confirm=true", method="POST"
         )
 
     async def async_delete_list(self, list_id):
@@ -162,5 +162,5 @@ class List(TMDb):
         :param list_id: int
         """
         await self._async_request_obj(
-            self._urls["delete_list"] % list_id, params="session_id=%s" % self.session_id, method="DELETE"
+            self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE"
         )

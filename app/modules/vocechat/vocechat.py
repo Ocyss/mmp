@@ -1,15 +1,17 @@
 import base64
 import re
 import threading
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 from urllib.parse import quote
 
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.common import retry
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 lock = threading.Lock()
 
@@ -167,10 +169,10 @@ class VoceChat:
             return None
 
         try:
-            index, caption = 1, "**%s**" % title
+            index, caption = 1, f"**{title}**"
             for media in medias:
                 if media.vote_average:
-                    caption = "%s\n%s. [%s](%s)\n_%s，%s_" % (
+                    caption = "{}\n{}. [{}]({})\n_{}，{}_".format(
                         caption,
                         index,
                         media.title_year,
@@ -179,7 +181,7 @@ class VoceChat:
                         f"评分：{media.vote_average}",
                     )
                 else:
-                    caption = "%s\n%s. [%s](%s)\n_%s_" % (
+                    caption = "{}\n{}. [{}]({})\n_{}_".format(
                         caption,
                         index,
                         media.title_year,
@@ -215,7 +217,7 @@ class VoceChat:
             return False
 
         try:
-            index, caption = 1, "**%s**" % title
+            index, caption = 1, f"**{title}**"
             for context in torrents:
                 torrent = context.torrent_info
                 site_name = torrent.site_name

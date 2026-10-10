@@ -9,9 +9,11 @@
 """
 
 import sys
-from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @contextmanager

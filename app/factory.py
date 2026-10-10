@@ -1,6 +1,5 @@
 import json
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +10,9 @@ from app.core.config import settings
 from app.helper.locale import LocaleHelper
 from app.startup.lifecycle import lifespan
 from version import APP_VERSION
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 
 def _get_http_exception_message(detail: Any) -> str:

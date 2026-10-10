@@ -1,6 +1,5 @@
-from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import app.modules.trimemedia.api as fnapi
 from app import schemas
@@ -8,6 +7,9 @@ from app.log import logger
 from app.schemas import MediaType
 from app.utils.security import SecurityUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class TrimeMedia:

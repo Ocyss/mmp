@@ -10,10 +10,9 @@ import asyncio
 import json
 import os
 import re
-from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any, NotRequired, Optional, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, NotRequired, Optional, TypedDict
 
 import anyio
 from anyio import Path as AsyncPath
@@ -29,12 +28,16 @@ from langchain.agents.middleware.types import (
 )
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import StructuredTool
-from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from app.agent.middleware.utils import append_to_system_message
 from app.agent.tools.tags import ToolTag
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langgraph.runtime import Runtime
 
 # 活动日志保留天数
 DEFAULT_RETENTION_DAYS = 7

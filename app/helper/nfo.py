@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
-from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class NfoReader:

@@ -296,13 +296,7 @@ class TMDb:
             raise TMDbException("TheMovieDb API Key 未设置！")
 
     def _build_url(self, action, params=""):
-        return "https://%s/3%s?api_key=%s&%s&language=%s" % (
-            self.domain,
-            action,
-            self.api_key,
-            params,
-            self.language,
-        )
+        return f"https://{self.domain}/3{action}?api_key={self.api_key}&{params}&language={self.language}"
 
     def _handle_headers(self, headers):
         normalized_headers = {str(key).lower(): value for key, value in dict(headers or {}).items()}

@@ -1,9 +1,11 @@
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.types import MediaType
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from app.schemas.types import MediaType
 
 
 class ExistMediaInfo(BaseModel):

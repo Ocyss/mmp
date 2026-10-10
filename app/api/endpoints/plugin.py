@@ -1,7 +1,7 @@
 import asyncio
 import mimetypes
 import shutil
-from typing import Annotated, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Dict, List, Optional
 
 import aiofiles
 from anyio import Path as AsyncPath
@@ -23,7 +23,6 @@ from app.core.security import (
     verify_resource_token,
     verify_token,
 )
-from app.db.models import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import (
     get_current_active_superuser,
@@ -36,6 +35,9 @@ from app.log import logger
 from app.scheduler import Scheduler
 from app.schemas.event import PluginDataResetEventData
 from app.schemas.types import ChainEventType, SystemConfigKey
+
+if TYPE_CHECKING:
+    from app.db.models import User
 
 PROTECTED_ROUTES = {
     "/api/v1/openapi.json",

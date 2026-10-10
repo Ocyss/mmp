@@ -23,7 +23,7 @@ class Season(TMDb):
         :return:
         """
         return self._request_obj(
-            self._urls["details"] % (tv_id, season_num), params="append_to_response=%s" % append_to_response
+            self._urls["details"] % (tv_id, season_num), params=f"append_to_response={append_to_response}"
         )
 
     def account_states(self, tv_id, season_num):
@@ -34,7 +34,7 @@ class Season(TMDb):
         :return:
         """
         return self._request_obj(
-            self._urls["account_states"] % (tv_id, season_num), params="session_id=%s" % self.session_id, key="results"
+            self._urls["account_states"] % (tv_id, season_num), params=f"session_id={self.session_id}", key="results"
         )
 
     def aggregate_credits(self, tv_id, season_num):
@@ -58,11 +58,11 @@ class Season(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if start_date:
-            params += "&start_date=%s" % start_date
+            params += f"&start_date={start_date}"
         if end_date:
-            params += "&end_date=%s" % end_date
+            params += f"&end_date={end_date}"
         return self._request_obj(self._urls["changes"] % season_id, params=params, key="changes")
 
     def credits(self, tv_id, season_num):
@@ -93,7 +93,7 @@ class Season(TMDb):
         """
         return self._request_obj(
             self._urls["images"] % (tv_id, season_num),
-            params="include_image_language=%s" % include_image_language if include_image_language else "",
+            params=f"include_image_language={include_image_language}" if include_image_language else "",
             key="posters",
         )
 
@@ -114,9 +114,9 @@ class Season(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if include_video_language:
-            params += "&include_video_language=%s" % include_video_language
+            params += f"&include_video_language={include_video_language}"
         return self._request_obj(self._urls["videos"] % (tv_id, season_num), params=params)
 
     # 异步版本方法
@@ -129,7 +129,7 @@ class Season(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["details"] % (tv_id, season_num), params="append_to_response=%s" % append_to_response
+            self._urls["details"] % (tv_id, season_num), params=f"append_to_response={append_to_response}"
         )
 
     async def async_account_states(self, tv_id, season_num):
@@ -140,7 +140,7 @@ class Season(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["account_states"] % (tv_id, season_num), params="session_id=%s" % self.session_id, key="results"
+            self._urls["account_states"] % (tv_id, season_num), params=f"session_id={self.session_id}", key="results"
         )
 
     async def async_aggregate_credits(self, tv_id, season_num):
@@ -164,11 +164,11 @@ class Season(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if start_date:
-            params += "&start_date=%s" % start_date
+            params += f"&start_date={start_date}"
         if end_date:
-            params += "&end_date=%s" % end_date
+            params += f"&end_date={end_date}"
         return await self._async_request_obj(self._urls["changes"] % season_id, params=params, key="changes")
 
     async def async_credits(self, tv_id, season_num):
@@ -199,7 +199,7 @@ class Season(TMDb):
         """
         return await self._async_request_obj(
             self._urls["images"] % (tv_id, season_num),
-            params="include_image_language=%s" % include_image_language if include_image_language else "",
+            params=f"include_image_language={include_image_language}" if include_image_language else "",
             key="posters",
         )
 
@@ -220,7 +220,7 @@ class Season(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if include_video_language:
-            params += "&include_video_language=%s" % include_video_language
+            params += f"&include_video_language={include_video_language}"
         return await self._async_request_obj(self._urls["videos"] % (tv_id, season_num), params=params)

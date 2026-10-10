@@ -1,13 +1,15 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
-from app.core.context import Context, MediaInfo
 from app.log import logger
 from app.modules import _MessageBase, _ModuleBase
 from app.modules.vocechat.vocechat import VoceChat
 from app.schemas import CommingMessage, MessageChannel, Notification
 from app.schemas.types import ModuleType
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):

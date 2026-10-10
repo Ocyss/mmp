@@ -5,11 +5,10 @@ import re
 import traceback
 import uuid
 import warnings
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import Enum, StrEnum
+from typing import TYPE_CHECKING, Any
 
 from fastapi.concurrency import run_in_threadpool
 from langchain.agents import create_agent
@@ -21,9 +20,6 @@ from langchain_core.messages import (  # noqa: F401
     HumanMessage,
     SystemMessage,
 )
-
-warnings.filterwarnings("ignore", message=".*allowed_objects.*")
-
 from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agent.callback import StreamingHandler
@@ -66,6 +62,11 @@ from app.schemas import AgentLLMProviderEventData, AgentTokensUsageEventData, No
 from app.schemas.message import ChannelCapability, ChannelCapabilityManager
 from app.schemas.types import ChainEventType, EventType, MessageChannel
 from app.utils.identity import SYSTEM_INTERNAL_USER_ID
+
+warnings.filterwarnings("ignore", message=".*allowed_objects.*")
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class AgentChain(ChainBase):
@@ -258,7 +259,7 @@ class _ThinkTagStripper:
             self.buffer = ""
 
 
-class ReplyMode(str, Enum):
+class ReplyMode(StrEnum):
     """
     Agent 最终回复处理模式。
     """
@@ -268,9 +269,7 @@ class ReplyMode(str, Enum):
 
 
 HEARTBEAT_SESSION_PREFIX = "__agent_heartbeat_"
-UNSUPPORTED_IMAGE_INPUT_MESSAGE = (
-    "当前模型不支持图片输入，请更换支持图片输入的模型，或在系统设置中关闭图片输入支持后重试。"
-)
+UNSUPPORTED_IMAGE_INPUT_MESSAGE = "当前模型不支持图片输入，请更换支持图片输入的模型，或在系统设置中关闭图片输入支持后重试。"
 AGENT_EXECUTION_ERROR_PREFIX = "智能助手执行失败"
 AGENT_EXECUTION_ERROR_MESSAGE = "智能助手执行失败，请稍后重试。"
 AGENT_DISPLAY_HISTORY_SKIP_CHANNELS = {MessageChannel.WebAgent.value}
@@ -520,9 +519,7 @@ class MoviePilotAgent:
             return None
         if isinstance(profile, dict):
             return cls._coerce_int(profile.get("max_input_tokens") or profile.get("input_token_limit"))
-        return cls._coerce_int(
-            getattr(profile, "max_input_tokens", None) or getattr(profile, "input_token_limit", None)
-        )
+        return cls._coerce_int(getattr(profile, "max_input_tokens", None) or getattr(profile, "input_token_limit", None))
 
     def _sync_model_profile(self, model: Any) -> None:
         model_name = self._get_model_name(model)
@@ -775,30 +772,21 @@ class MoviePilotAgent:
         api_key = self._clean_optional_text(self._get_event_value(resolved_data, "api_key")) or settings.LLM_API_KEY
         base_url = self._clean_optional_text(self._get_event_value(resolved_data, "base_url")) or settings.LLM_BASE_URL
         base_url_preset = (
-            self._clean_optional_text(self._get_event_value(resolved_data, "base_url_preset"))
-            or settings.LLM_BASE_URL_PRESET
+            self._clean_optional_text(self._get_event_value(resolved_data, "base_url_preset")) or settings.LLM_BASE_URL_PRESET
         )
-        user_agent = (
-            self._clean_optional_text(self._get_event_value(resolved_data, "user_agent")) or settings.LLM_USER_AGENT
-        )
+        user_agent = self._clean_optional_text(self._get_event_value(resolved_data, "user_agent")) or settings.LLM_USER_AGENT
         use_proxy = self._get_event_value(resolved_data, "use_proxy")
         if use_proxy is None:
             use_proxy = settings.LLM_USE_PROXY
         thinking_level = (
-            self._clean_optional_text(self._get_event_value(resolved_data, "thinking_level"))
-            or settings.LLM_THINKING_LEVEL
+            self._clean_optional_text(self._get_event_value(resolved_data, "thinking_level")) or settings.LLM_THINKING_LEVEL
         )
-        api_protocol = (
-            self._clean_optional_text(self._get_event_value(resolved_data, "api_protocol")) or settings.LLM_API_PROTOCOL
-        )
+        api_protocol = self._clean_optional_text(self._get_event_value(resolved_data, "api_protocol")) or settings.LLM_API_PROTOCOL
         web_search_mode = (
-            self._clean_optional_text(self._get_event_value(resolved_data, "web_search_mode"))
-            or settings.LLM_WEB_SEARCH_MODE
+            self._clean_optional_text(self._get_event_value(resolved_data, "web_search_mode")) or settings.LLM_WEB_SEARCH_MODE
         )
         selected_provider_id = self._clean_optional_text(self._get_event_value(resolved_data, "selected_provider_id"))
-        selected_provider_name = self._clean_optional_text(
-            self._get_event_value(resolved_data, "selected_provider_name")
-        )
+        selected_provider_name = self._clean_optional_text(self._get_event_value(resolved_data, "selected_provider_name"))
         source = self._clean_optional_text(self._get_event_value(resolved_data, "source"))
 
         self._llm_provider_selection = {
@@ -1237,14 +1225,10 @@ class MoviePilotAgent:
                     if getattr(tool, "name", None) in {SUBAGENT_TASK_TOOL_NAME, SUBAGENT_CONTROL_TOOL_NAME}
                 )
             if skill_tools:
-                always_include_tools.extend(
-                    tool.name for tool in skill_tools if getattr(tool, "name", None) == SKILL_TOOL_NAME
-                )
+                always_include_tools.extend(tool.name for tool in skill_tools if getattr(tool, "name", None) == SKILL_TOOL_NAME)
             if activity_log_tools:
                 always_include_tools.extend(
-                    tool.name
-                    for tool in activity_log_tools
-                    if getattr(tool, "name", None) == QUERY_ACTIVITY_LOG_TOOL_NAME
+                    tool.name for tool in activity_log_tools if getattr(tool, "name", None) == QUERY_ACTIVITY_LOG_TOOL_NAME
                 )
 
             # 中间件
@@ -1705,9 +1689,7 @@ class AgentManager:
             status = {
                 "session_id": session_id,
                 "model": settings.LLM_MODEL,
-                "context_window_tokens": settings.LLM_MAX_CONTEXT_TOKENS * 1000
-                if settings.LLM_MAX_CONTEXT_TOKENS
-                else None,
+                "context_window_tokens": settings.LLM_MAX_CONTEXT_TOKENS * 1000 if settings.LLM_MAX_CONTEXT_TOKENS else None,
                 "last_input_tokens": 0,
                 "last_output_tokens": 0,
                 "last_total_tokens": 0,
@@ -1749,7 +1731,7 @@ class AgentManager:
         for task in list(self._session_workers.values()):
             task.cancel()
         # 等待所有worker结束
-        for session_id, task in list(self._session_workers.items()):
+        for _session_id, task in list(self._session_workers.items()):
             try:
                 await task
             except asyncio.CancelledError:

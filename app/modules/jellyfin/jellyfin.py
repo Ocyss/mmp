@@ -1,10 +1,7 @@
 import json
 import posixpath
-from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-from requests import Response
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.core.config import settings
@@ -12,6 +9,11 @@ from app.log import logger
 from app.schemas import MediaServerItem, MediaType
 from app.utils.http import RequestUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from requests import Response
 
 
 class Jellyfin:
@@ -772,7 +774,7 @@ class Jellyfin:
             eventItem.item_type = "TV"
             eventItem.season_id = message.get("SeasonNumber")
             eventItem.episode_id = message.get("EpisodeNumber")
-            eventItem.item_name = "%s %s%s %s" % (
+            eventItem.item_name = "{} {}{} {}".format(
                 message.get("SeriesName"),
                 "S" + str(eventItem.season_id),
                 "E" + str(eventItem.episode_id),
@@ -787,7 +789,7 @@ class Jellyfin:
         else:
             # 电影
             eventItem.item_type = "MOV"
-            eventItem.item_name = "%s %s" % (message.get("Name"), "(" + str(message.get("Year")) + ")")
+            eventItem.item_name = "{} {}".format(message.get("Name"), "(" + str(message.get("Year")) + ")")
 
         playback_position_ticks = message.get("PlaybackPositionTicks")
         runtime_ticks = message.get("RunTimeTicks")
@@ -990,7 +992,7 @@ class Jellyfin:
         """
         if not self._host or not self._apikey:
             return ""
-        return "%sItems/%s/Images/Primary" % (self._host, item_id)
+        return f"{self._host}Items/{item_id}/Images/Primary"
 
     def get_backdrop_url(self, item_id: str, image_tag: str, remote: bool | None = False) -> str:
         """
@@ -1155,5 +1157,5 @@ class Jellyfin:
         for library in self.get_jellyfin_virtual_folders() or []:
             if self._sync_libraries and library.get("Id") not in self._sync_libraries:
                 continue
-            library_folders += [folder for folder in library.get("Path")]
+            library_folders += list(library.get("Path"))
         return library_folders

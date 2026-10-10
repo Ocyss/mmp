@@ -4,9 +4,8 @@ import random
 import re
 import threading
 import time
-from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.chain import ChainBase
@@ -17,9 +16,7 @@ from app.chain.search import SearchChain
 from app.chain.tmdb import TmdbChain
 from app.chain.torrents import TorrentsChain
 from app.core.config import global_vars, settings
-from app.core.context import Context, MediaInfo, TorrentInfo
 from app.core.event import Event, eventmanager
-from app.core.meta import MetaBase
 from app.core.meta.words import WordsMatcher
 from app.core.metainfo import MetaInfo
 from app.db.downloadhistory_oper import DownloadHistoryOper
@@ -60,6 +57,12 @@ from app.utils.media import (
     parse_media_key,
     resolve_media_identity,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.core.context import Context, MediaInfo, TorrentInfo
+    from app.core.meta import MetaBase
 
 subscribe_interaction_manager = SlashInteractionManager()
 

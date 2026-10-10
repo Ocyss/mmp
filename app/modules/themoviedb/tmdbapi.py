@@ -463,7 +463,7 @@ class TmdbApi:
             return None
 
         if (tvs is None) or (len(tvs) == 0):
-            logger.debug("%s 未找到季%s相关信息!" % (name, season_number))
+            logger.debug(f"{name} 未找到季{season_number}相关信息!")
             return {}
         else:
             # 按年份降序排列
@@ -878,7 +878,7 @@ class TmdbApi:
         if not self.movie:
             return {}
         try:
-            logger.debug("正在查询TMDB电影：%s ..." % tmdbid)
+            logger.debug(f"正在查询TMDB电影：{tmdbid} ...")
             tmdbinfo = self.movie.details(tmdbid, append_to_response)
             if tmdbinfo:
                 logger.debug(f"{tmdbid} 查询结果：{tmdbinfo.get('title')}")
@@ -1065,7 +1065,7 @@ class TmdbApi:
         if not self.tv:
             return {}
         try:
-            logger.debug("正在查询TMDB电视剧：%s ..." % tmdbid)
+            logger.debug(f"正在查询TMDB电视剧：{tmdbid} ...")
             tmdbinfo = self.tv.details(tv_id=tmdbid, append_to_response=append_to_response)
             if tmdbinfo:
                 logger.debug(f"{tmdbid} 查询结果：{tmdbinfo.get('name')}")
@@ -1141,7 +1141,7 @@ class TmdbApi:
         if not self.season_obj:
             return {}
         try:
-            logger.debug("正在查询TMDB电视剧：%s，季：%s ..." % (tmdbid, season))
+            logger.debug(f"正在查询TMDB电视剧：{tmdbid}，季：{season} ...")
             tmdbinfo = self.season_obj.details(tv_id=tmdbid, season_num=season)
             return tmdbinfo or {}
         except Exception as e:
@@ -1158,7 +1158,7 @@ class TmdbApi:
         if not self.episode_obj:
             return {}
         try:
-            logger.debug("正在查询TMDB集详情：%s，季：%s，集：%s ..." % (tmdbid, season, episode))
+            logger.debug(f"正在查询TMDB集详情：{tmdbid}，季：{season}，集：{episode} ...")
             tmdbinfo = self.episode_obj.details(tv_id=tmdbid, season_num=season, episode_num=episode)
             return tmdbinfo or {}
         except Exception as e:
@@ -1613,7 +1613,7 @@ class TmdbApi:
             return None
 
         if (tvs is None) or (len(tvs) == 0):
-            logger.debug("%s 未找到季%s相关信息!" % (name, season_number))
+            logger.debug(f"{name} 未找到季{season_number}相关信息!")
             return {}
         else:
             # 按年份降序排列
@@ -1647,7 +1647,7 @@ class TmdbApi:
         if not self.movie:
             return {}
         try:
-            logger.debug("正在查询TMDB电影：%s ..." % tmdbid)
+            logger.debug(f"正在查询TMDB电影：{tmdbid} ...")
             tmdbinfo = await self.movie.async_details(tmdbid, append_to_response)
             if tmdbinfo:
                 logger.debug(f"{tmdbid} 查询结果：{tmdbinfo.get('title')}")
@@ -1675,7 +1675,7 @@ class TmdbApi:
         if not self.tv:
             return {}
         try:
-            logger.debug("正在查询TMDB电视剧：%s ..." % tmdbid)
+            logger.debug(f"正在查询TMDB电视剧：{tmdbid} ...")
             tmdbinfo = await self.tv.async_details(tv_id=tmdbid, append_to_response=append_to_response)
             if tmdbinfo:
                 logger.debug(f"{tmdbid} 查询结果：{tmdbinfo.get('name')}")
@@ -1958,7 +1958,7 @@ class TmdbApi:
         if not self.season_obj:
             return {}
         try:
-            logger.debug("正在查询TMDB电视剧：%s，季：%s ..." % (tmdbid, season))
+            logger.debug(f"正在查询TMDB电视剧：{tmdbid}，季：{season} ...")
             tmdbinfo = await self.season_obj.async_details(tv_id=tmdbid, season_num=season)
             return tmdbinfo or {}
         except Exception as e:
@@ -1975,7 +1975,7 @@ class TmdbApi:
         if not self.episode_obj:
             return {}
         try:
-            logger.debug("正在查询TMDB集详情：%s，季：%s，集：%s ..." % (tmdbid, season, episode))
+            logger.debug(f"正在查询TMDB集详情：{tmdbid}，季：{season}，集：{episode} ...")
             tmdbinfo = await self.episode_obj.async_details(tv_id=tmdbid, season_num=season, episode_num=episode)
             return tmdbinfo or {}
         except Exception as e:

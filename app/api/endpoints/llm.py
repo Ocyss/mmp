@@ -1,5 +1,5 @@
 import re
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -13,12 +13,14 @@ from app.agent.llm import (
     render_auth_result_html,
 )
 from app.core.config import settings
-from app.db.models import User
 from app.db.user_oper import (
     get_current_active_superuser_async,
     get_current_active_user_async,
 )
 from app.log import logger
+
+if TYPE_CHECKING:
+    from app.db.models import User
 
 router = APIRouter()
 

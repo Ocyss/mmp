@@ -10,7 +10,7 @@ class Trending(TMDb):
         """
         return self._request_obj(
             self._urls["trending"] % (media_type, time_window),
-            params="page=%s" % page,
+            params=f"page={page}",
             key="results",
             call_cached=False,
         )
@@ -86,7 +86,7 @@ class Trending(TMDb):
         """
         return await self._async_request_obj(
             self._urls["trending"] % (media_type, time_window),
-            params="page=%s" % page,
+            params=f"page={page}",
             key="results",
             call_cached=False,
         )

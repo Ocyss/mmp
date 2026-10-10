@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from app.chain import ChainBase
 from app.helper.interaction import (
@@ -12,7 +12,9 @@ from app.helper.interaction import (
 )
 from app.helper.skill import SkillHelper, SkillInfo
 from app.schemas import Notification
-from app.schemas.types import MessageChannel
+
+if TYPE_CHECKING:
+    from app.schemas.types import MessageChannel
 
 
 class SkillsChain(ChainBase):

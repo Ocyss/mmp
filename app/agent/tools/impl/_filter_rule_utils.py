@@ -2,8 +2,7 @@
 
 import copy
 import re
-from collections.abc import Iterable
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from app.core.event import eventmanager
 from app.db.subscribe_oper import SubscribeOper
@@ -14,6 +13,9 @@ from app.modules.filter.RuleParser import RuleParser
 from app.schemas import CustomRule, FilterRuleGroup
 from app.schemas.event import ConfigChangeEventData
 from app.schemas.types import EventType, SystemConfigKey
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 RULE_ID_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
 RULE_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]*|[0-9][A-Za-z0-9]+")

@@ -1,16 +1,19 @@
 import math
 import uuid
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.schemas import Notification
 from app.schemas.message import ChannelCapabilityManager
 from app.schemas.types import MessageChannel
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
 
 
 @dataclass

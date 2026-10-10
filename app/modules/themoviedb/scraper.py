@@ -1,13 +1,15 @@
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 from xml.dom import minidom
 
 from app.core.config import settings
-from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.modules.themoviedb.tmdbapi import TmdbApi
 from app.schemas.types import MediaType
 from app.utils.dom import DomUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
 
 
 class TmdbScraper:
@@ -339,7 +341,7 @@ class TmdbScraper:
         xoutline = DomUtils.add_node(doc, root, "outline")
         xoutline.appendChild(doc.createCDATASection(seasoninfo.get("overview") or ""))
         # 标题
-        DomUtils.add_node(doc, root, "title", seasoninfo.get("name") or "季 %s" % season)
+        DomUtils.add_node(doc, root, "title", seasoninfo.get("name") or f"季 {season}")
         # 发行日期
         DomUtils.add_node(doc, root, "premiered", seasoninfo.get("air_date") or "")
         DomUtils.add_node(doc, root, "releasedate", seasoninfo.get("air_date") or "")
@@ -374,7 +376,7 @@ class TmdbScraper:
         # 应与uniqueid一致 使用剧集id 否则jellyfin/emby会将此id覆盖上面的uniqueid
         DomUtils.add_node(doc, root, "tmdbid", str(episodeinfo.get("id")))
         # 标题
-        DomUtils.add_node(doc, root, "title", episodeinfo.get("name") or "第 %s 集" % episode)
+        DomUtils.add_node(doc, root, "title", episodeinfo.get("name") or f"第 {episode} 集")
         # 简介
         xplot = DomUtils.add_node(doc, root, "plot")
         xplot.appendChild(doc.createCDATASection(episodeinfo.get("overview") or ""))

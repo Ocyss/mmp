@@ -1,14 +1,17 @@
 import json
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from app.schemas.response import Response
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from fastapi import FastAPI, Request
 
 API_V2_STR = "/api/v2"
 OPENAPI_V2_PATH = f"{API_V2_STR}/openapi.json"

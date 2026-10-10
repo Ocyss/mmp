@@ -1,11 +1,9 @@
 import asyncio
 import time
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.agent import ReplyMode, agent_manager
@@ -18,7 +16,6 @@ from app.core.config import global_vars, settings
 from app.core.event import eventmanager
 from app.core.security import verify_token
 from app.db import get_async_db, get_db
-from app.db.models import User
 from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
 from app.db.models.transferhistory import TransferHistory
 from app.db.user_oper import (
@@ -29,6 +26,12 @@ from app.db.user_oper import (
 from app.helper.progress import ProgressHelper
 from app.schemas.types import EventType
 from app.utils.jieba import cut as jieba_cut
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+
+    from app.db.models import User
 
 router = APIRouter()
 

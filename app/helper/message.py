@@ -7,24 +7,27 @@ import queue
 import re
 import threading
 import time
-from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
 from jinja2 import Template
 
 from app.core.cache import TTLCache
 from app.core.config import global_vars
-from app.core.context import MediaInfo, TorrentInfo
-from app.core.meta import MetaBase
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas.message import Notification
-from app.schemas.tmdb import TmdbEpisode
-from app.schemas.transfer import TransferInfo
 from app.schemas.types import SystemConfigKey
 from app.utils.singleton import Singleton, SingletonClass
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.core.context import MediaInfo, TorrentInfo
+    from app.core.meta import MetaBase
+    from app.schemas.tmdb import TmdbEpisode
+    from app.schemas.transfer import TransferInfo
 
 
 class TemplateContextBuilder:
@@ -193,7 +196,7 @@ class TemplateContextBuilder:
             # 年份
             "year": meta.year,
             # 名字 + 年份
-            "title_year": context.get("title_year") or "%s (%s)" % (meta.name, meta.year) if meta.year else meta.name,
+            "title_year": context.get("title_year") or f"{meta.name} ({meta.year})" if meta.year else meta.name,
             # 季号
             "season": meta.season_seq,
             # Sxx
@@ -203,7 +206,7 @@ class TemplateContextBuilder:
             # 当前季总集数
             "total_episodes": len(episodes) if episodes else 0,
             # 季集 SxxExx
-            "season_episode": "%s%s" % (meta.season, meta.episode),
+            "season_episode": f"{meta.season}{meta.episode}",
             # 段/节
             "part": meta.part,
             # 自定义占位符

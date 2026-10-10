@@ -1,9 +1,6 @@
 import asyncio
 import inspect
-from collections.abc import Callable
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
 
 # urllib3-future 覆盖 urllib3 命名空间后删除了 format_header_param，导致 telebot 崩溃，需在加载模块前打补丁
 try:
@@ -13,6 +10,8 @@ try:
         _urllib3_fields.format_header_param = _urllib3_fields.format_header_param_rfc2231
 except Exception:
     pass
+
+from typing import TYPE_CHECKING
 
 from app.chain.system import SystemChain
 from app.core.config import global_vars, settings
@@ -31,6 +30,11 @@ from app.startup.scheduler_initializer import (
 )
 from app.startup.workflow_initializer import init_workflow, stop_workflow
 from app.utils.http import aclose_shared_async_transports
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi import FastAPI
 
 
 async def init_extra():

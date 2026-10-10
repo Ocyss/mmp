@@ -30,14 +30,14 @@ class Account(TMDb):
         Get your account details.
         :return:
         """
-        return self._request_obj(self._urls["details"], params="session_id=%s" % self.session_id)
+        return self._request_obj(self._urls["details"], params=f"session_id={self.session_id}")
 
     async def async_details(self):
         """
         Get your account details.（异步版本）
         :return:
         """
-        return await self._async_request_obj(self._urls["details"], params="session_id=%s" % self.session_id)
+        return await self._async_request_obj(self._urls["details"], params=f"session_id={self.session_id}")
 
     def created_lists(self, page=1):
         """
@@ -47,7 +47,7 @@ class Account(TMDb):
         """
         return self._request_obj(
             self._urls["created_lists"] % self.account_id,
-            params="session_id=%s&page=%s" % (self.session_id, page),
+            params=f"session_id={self.session_id}&page={page}",
             key="results",
         )
 
@@ -59,18 +59,18 @@ class Account(TMDb):
         """
         return await self._async_request_obj(
             self._urls["created_lists"] % self.account_id,
-            params="session_id=%s&page=%s" % (self.session_id, page),
+            params=f"session_id={self.session_id}&page={page}",
             key="results",
         )
 
     def _get_list(self, url, asc_sort=True, page=1):
-        params = "session_id=%s&page=%s" % (self.session_id, page)
+        params = f"session_id={self.session_id}&page={page}"
         if asc_sort is False:
             params += "&sort_by=created_at.desc"
         return self._request_obj(self._urls[url] % self.account_id, params=params, key="results")
 
     async def _async_get_list(self, url, asc_sort=True, page=1):
-        params = "session_id=%s&page=%s" % (self.session_id, page)
+        params = f"session_id={self.session_id}&page={page}"
         if asc_sort is False:
             params += "&sort_by=created_at.desc"
         return await self._async_request_obj(self._urls[url] % self.account_id, params=params, key="results")
@@ -122,7 +122,7 @@ class Account(TMDb):
             raise TMDbException("Media Type should be tv or movie.")
         self._request_obj(
             self._urls["favorite"] % self.account_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={
                 "media_type": media_type,
@@ -142,7 +142,7 @@ class Account(TMDb):
             raise TMDbException("Media Type should be tv or movie.")
         await self._async_request_obj(
             self._urls["favorite"] % self.account_id,
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={
                 "media_type": media_type,
@@ -268,7 +268,7 @@ class Account(TMDb):
             raise TMDbException("Media Type should be tv or movie.")
         self._request_obj(
             self._urls["watchlist"] % self.account_id,
-            "session_id=%s" % self.session_id,
+            f"session_id={self.session_id}",
             method="POST",
             json={
                 "media_type": media_type,
@@ -288,7 +288,7 @@ class Account(TMDb):
             raise TMDbException("Media Type should be tv or movie.")
         await self._async_request_obj(
             self._urls["watchlist"] % self.account_id,
-            "session_id=%s" % self.session_id,
+            f"session_id={self.session_id}",
             method="POST",
             json={
                 "media_type": media_type,

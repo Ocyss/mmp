@@ -1,10 +1,12 @@
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from xml.dom import minidom
 
-from app.core.context import MediaInfo
 from app.schemas.types import MediaType
 from app.utils.dom import DomUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
 
 
 class DoubanScraper:
@@ -127,7 +129,7 @@ class DoubanScraper:
         xoutline = DomUtils.add_node(doc, root, "outline")
         xoutline.appendChild(doc.createCDATASection(mediainfo.overview or ""))
         # 标题
-        DomUtils.add_node(doc, root, "title", "季 %s" % season)
+        DomUtils.add_node(doc, root, "title", f"季 {season}")
         # 发行日期
         DomUtils.add_node(doc, root, "premiered", mediainfo.release_date or "")
         DomUtils.add_node(doc, root, "releasedate", mediainfo.release_date or "")

@@ -1,10 +1,12 @@
 import os
 import platform
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from app.log import logger
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def count_directory_entries(directory: Path, max_check: int = 10000) -> tuple[int, int]:

@@ -1,8 +1,7 @@
 import asyncio
 import json
 import time
-from collections.abc import AsyncIterator, Iterator
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, Request
@@ -21,6 +20,9 @@ from app.schemas import MediaRecognizeConvertEventData
 from app.schemas.types import ChainEventType, MediaType
 from app.utils.media import parse_media_key, resolve_media_identity
 from app.utils.security import SecurityUtils
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Iterator
 
 router = APIRouter()
 

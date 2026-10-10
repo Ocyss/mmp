@@ -6,15 +6,17 @@ import re
 import shutil
 import threading
 import time
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import yaml
 
 from app.core.config import settings
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 CURRENT_PERSONA_FILE = "CURRENT_PERSONA.md"
 SYSTEM_RUNTIME_DIR = "runtime"

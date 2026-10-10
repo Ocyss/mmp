@@ -3,8 +3,7 @@ import datetime
 import hashlib
 import random
 import re
-from collections.abc import Generator
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 from urllib import parse
 
 import cn2an
@@ -12,6 +11,9 @@ import dateparser
 import dateutil.parser
 
 from app.schemas.types import MediaType
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 _special_domains = ["u2.dmhy.org", "pt.ecust.pp.ua", "pt.gtkpw.xyz", "pt.gtk.pw"]
 
@@ -203,7 +205,7 @@ class StringUtils:
             text = re.sub(
                 r"[\u200B-\u200D\uFEFF]",
                 "",
-                re.sub(r"%s" % CONVERT_EMPTY_CHARS, replace_word, text),
+                re.sub(rf"{CONVERT_EMPTY_CHARS}", replace_word, text),
                 flags=re.IGNORECASE,
             )
             if not allow_space:
@@ -365,7 +367,7 @@ class StringUtils:
         random_str = ""
         base_str = "ABCDEFGHIGKLMNOPQRSTUVWXYZabcdefghigklmnopqrstuvwxyz0123456789"
         length = len(base_str) - 1
-        for i in range(randomlength):
+        for _i in range(randomlength):
             random_str += base_str[random.randint(0, length)]
         return random_str
 
@@ -497,9 +499,9 @@ class StringUtils:
         hours = minutes // 60
         minutes = minutes % 60
         if hours:
-            return "%s小时%s分" % (hours, minutes)
+            return f"{hours}小时{minutes}分"
         else:
-            return "%s分钟" % minutes
+            return f"{minutes}分钟"
 
     @staticmethod
     def str_amount(amount: object, curr="$") -> str:
@@ -861,7 +863,7 @@ class StringUtils:
             v2_list += [0] * (max_length - len(v2_list))
 
             ver_comparison, ver_comparison_err = None, None
-            for v1_value, v2_value in zip(v1_list, v2_list):
+            for v1_value, v2_value in zip(v1_list, v2_list, strict=False):
                 # 来源==目标
                 if compare_type in {"eq", "=="}:
                     if v1_value != v2_value:

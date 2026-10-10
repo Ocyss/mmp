@@ -11,10 +11,9 @@ import sys
 import threading
 import time
 import traceback
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
 from starlette import status
@@ -37,6 +36,9 @@ from app.utils.object import ObjectUtils
 from app.utils.singleton import Singleton
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class PluginManager(ConfigReloadMixin, metaclass=Singleton):
@@ -174,7 +176,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         else:
             logger.info("正在停止所有插件...")
             plugins = self._running_plugins
-        for plugin_id, plugin in plugins.items():
+        for plugin in plugins.values():
             eventmanager.disable_event_handler(type(plugin))
             self.__stop_plugin(plugin)
         # 清空对象

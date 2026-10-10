@@ -26,7 +26,7 @@ class Episode(TMDb):
         """
         return self._request_obj(
             self._urls["details"] % (tv_id, season_num, episode_num),
-            params="append_to_response=%s" % append_to_response,
+            params=f"append_to_response={append_to_response}",
         )
 
     def account_states(self, tv_id, season_num, episode_num):
@@ -38,7 +38,7 @@ class Episode(TMDb):
         :return:
         """
         return self._request_obj(
-            self._urls["account_states"] % (tv_id, season_num, episode_num), params="session_id=%s" % self.session_id
+            self._urls["account_states"] % (tv_id, season_num, episode_num), params=f"session_id={self.session_id}"
         )
 
     def changes(self, episode_id, start_date=None, end_date=None, page=1):
@@ -51,11 +51,11 @@ class Episode(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if start_date:
-            params += "&start_date=%s" % start_date
+            params += f"&start_date={start_date}"
         if end_date:
-            params += "&end_date=%s" % end_date
+            params += f"&end_date={end_date}"
         return self._request_obj(self._urls["changes"] % episode_id, params=params, key="changes")
 
     def credits(self, tv_id, season_num, episode_num):
@@ -89,7 +89,7 @@ class Episode(TMDb):
         """
         return self._request_obj(
             self._urls["images"] % (tv_id, season_num, episode_num),
-            params="include_image_language=%s" % include_image_language if include_image_language else "",
+            params=f"include_image_language={include_image_language}" if include_image_language else "",
             key="stills",
         )
 
@@ -113,7 +113,7 @@ class Episode(TMDb):
         """
         self._request_obj(
             self._urls["rate_tv_episode"] % (tv_id, season_num, episode_num),
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"value": rating},
         )
@@ -127,7 +127,7 @@ class Episode(TMDb):
         """
         self._request_obj(
             self._urls["delete_rating"] % (tv_id, season_num, episode_num),
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="DELETE",
         )
 
@@ -142,7 +142,7 @@ class Episode(TMDb):
         """
         params = ""
         if include_video_language:
-            params += "&include_video_language=%s" % include_video_language
+            params += f"&include_video_language={include_video_language}"
         return self._request_obj(self._urls["videos"] % (tv_id, season_num, episode_num), params=params)
 
     # 异步版本方法
@@ -159,7 +159,7 @@ class Episode(TMDb):
         """
         return await self._async_request_obj(
             self._urls["details"] % (tv_id, season_num, episode_num),
-            params="append_to_response=%s" % append_to_response,
+            params=f"append_to_response={append_to_response}",
         )
 
     async def async_account_states(self, tv_id, season_num, episode_num):
@@ -171,7 +171,7 @@ class Episode(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["account_states"] % (tv_id, season_num, episode_num), params="session_id=%s" % self.session_id
+            self._urls["account_states"] % (tv_id, season_num, episode_num), params=f"session_id={self.session_id}"
         )
 
     async def async_changes(self, episode_id, start_date=None, end_date=None, page=1):
@@ -184,11 +184,11 @@ class Episode(TMDb):
         :param page: int
         :return:
         """
-        params = "page=%s" % page
+        params = f"page={page}"
         if start_date:
-            params += "&start_date=%s" % start_date
+            params += f"&start_date={start_date}"
         if end_date:
-            params += "&end_date=%s" % end_date
+            params += f"&end_date={end_date}"
         return await self._async_request_obj(self._urls["changes"] % episode_id, params=params, key="changes")
 
     async def async_credits(self, tv_id, season_num, episode_num):
@@ -222,7 +222,7 @@ class Episode(TMDb):
         """
         return await self._async_request_obj(
             self._urls["images"] % (tv_id, season_num, episode_num),
-            params="include_image_language=%s" % include_image_language if include_image_language else "",
+            params=f"include_image_language={include_image_language}" if include_image_language else "",
             key="stills",
         )
 
@@ -248,7 +248,7 @@ class Episode(TMDb):
         """
         await self._async_request_obj(
             self._urls["rate_tv_episode"] % (tv_id, season_num, episode_num),
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="POST",
             json={"value": rating},
         )
@@ -262,7 +262,7 @@ class Episode(TMDb):
         """
         await self._async_request_obj(
             self._urls["delete_rating"] % (tv_id, season_num, episode_num),
-            params="session_id=%s" % self.session_id,
+            params=f"session_id={self.session_id}",
             method="DELETE",
         )
 
@@ -277,5 +277,5 @@ class Episode(TMDb):
         """
         params = ""
         if include_video_language:
-            params += "&include_video_language=%s" % include_video_language
+            params += f"&include_video_language={include_video_language}"
         return await self._async_request_obj(self._urls["videos"] % (tv_id, season_num, episode_num), params=params)

@@ -1,10 +1,12 @@
 import random
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from app import schemas
 from app.chain import ChainBase
-from app.core.context import MediaInfo
-from app.schemas import MediaType
+
+if TYPE_CHECKING:
+    from app import schemas
+    from app.core.context import MediaInfo
+    from app.schemas import MediaType
 
 
 class TmdbChain(ChainBase):

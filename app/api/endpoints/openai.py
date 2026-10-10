@@ -2,12 +2,10 @@ import asyncio
 import json
 import time
 import uuid
-from collections.abc import AsyncIterator
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from fastapi import APIRouter, Request, Security
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials
 
 from app import schemas
 from app.agent import MoviePilotAgent, StreamingHandler
@@ -20,6 +18,11 @@ from app.api.openai_utils import (
 from app.core.config import settings
 from app.core.security import openai_bearer_scheme
 from app.schemas.types import MessageChannel
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from fastapi.security import HTTPAuthorizationCredentials
 
 router = APIRouter()
 

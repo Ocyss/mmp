@@ -39,7 +39,7 @@ class MetaAnime(MetaBase):
     )
     _fps_re = r"(\d{2,3})(?=FPS)"
     _name_nostring_pattern = re.compile(_name_nostring_re, re.IGNORECASE)
-    _fps_pattern = re.compile(r"(%s)" % _fps_re, re.IGNORECASE)
+    _fps_pattern = re.compile(rf"({_fps_re})", re.IGNORECASE)
 
     @staticmethod
     def _parse_season_number(value):
@@ -99,14 +99,14 @@ class MetaAnime(MetaBase):
                                 word = word[:-1]
                             if word.isdigit():
                                 if lastword_type == "cn":
-                                    self.cn_name = "%s %s" % (self.cn_name or "", word)
+                                    self.cn_name = "{} {}".format(self.cn_name or "", word)
                                 elif lastword_type == "en":
-                                    self.en_name = "%s %s" % (self.en_name or "", word)
+                                    self.en_name = "{} {}".format(self.en_name or "", word)
                             elif StringUtils.is_chinese(word):
-                                self.cn_name = "%s %s" % (self.cn_name or "", word)
+                                self.cn_name = "{} {}".format(self.cn_name or "", word)
                                 lastword_type = "cn"
                             else:
-                                self.en_name = "%s %s" % (self.en_name or "", word)
+                                self.en_name = "{} {}".format(self.en_name or "", word)
                                 lastword_type = "en"
                 if self.cn_name:
                     _, self.cn_name, _, _, _, _ = StringUtils.get_keyword(self.cn_name)
@@ -267,9 +267,9 @@ class MetaAnime(MetaBase):
                     name = name[1:]
                 if name and name.find("/") != -1:
                     if name.split("/")[-1].strip():
-                        titles.append("%s%s" % (left_char, name.split("/")[-1].strip()))
+                        titles.append("{}{}".format(left_char, name.split("/")[-1].strip()))
                     else:
-                        titles.append("%s%s" % (left_char, name.split("/")[0].strip()))
+                        titles.append("{}{}".format(left_char, name.split("/")[0].strip()))
                 elif name:
                     if StringUtils.is_chinese(name) and not StringUtils.is_all_chinese(name):
                         if not NUMERIC_BRACKET_RE.search(name):
@@ -279,6 +279,6 @@ class MetaAnime(MetaBase):
                     if name == "[":
                         titles.append("")
                     else:
-                        titles.append("%s%s" % (left_char, name.strip()))
+                        titles.append(f"{left_char}{name.strip()}")
             return "]".join(titles)
         return title

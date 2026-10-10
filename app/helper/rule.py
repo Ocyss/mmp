@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from app.core.context import MediaInfo
 from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas import CustomRule, FilterRuleGroup
 from app.schemas.types import SystemConfigKey
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
 
 
 class RuleHelper:

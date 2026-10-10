@@ -4,11 +4,10 @@ import shutil
 import tempfile
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, Union
 
 import aiofiles
 import aioshutil
@@ -20,6 +19,9 @@ from cachetools.keys import hashkey
 from app.core.config import settings
 from app.helper.redis import AsyncRedisHelper, RedisHelper
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 # 默认缓存区
 DEFAULT_CACHE_REGION = "DEFAULT"
@@ -70,8 +72,7 @@ class CacheBackend(ABC):
         """
         返回缓存的迭代器，类似 iter(dict)
         """
-        for key, _ in self.items():
-            yield key
+        yield from self.keys()
 
     def __len__(self) -> int:
         """
@@ -149,15 +150,13 @@ class CacheBackend(ABC):
         """
         获取所有缓存键，类似 dict.keys()
         """
-        for key, _ in self.items(region=region):
-            yield key
+        yield from self.keys(region=region)
 
     def values(self, region: str | None = DEFAULT_CACHE_REGION) -> Generator[Any]:
         """
         获取所有缓存值，类似 dict.values()
         """
-        for _, value in self.items(region=region):
-            yield value
+        yield from self.values(region=region)
 
     def update(
         self, other: dict[str, Any], region: str | None = DEFAULT_CACHE_REGION, ttl: int | None = None, **kwargs
@@ -300,14 +299,14 @@ class AsyncCacheBackend(CacheBackend):
         """
         获取所有缓存键，类似 dict.keys()（异步）
         """
-        async for key, _ in self.items(region=region):
+        async for key in self.keys(region=region):
             yield key
 
     async def values(self, region: str | None = DEFAULT_CACHE_REGION) -> AsyncGenerator[Any]:
         """
         获取所有缓存值，类似 dict.values()（异步）
         """
-        async for _, value in self.items(region=region):
+        async for value in self.values(region=region):
             yield value
 
     async def update(
@@ -537,8 +536,7 @@ class MemoryBackend(CacheBackend):
         with self._lock:
             # 创建快照避免并发修改问题
             items_snapshot = list(region_cache.items())
-        for item in items_snapshot:
-            yield item
+        yield from items_snapshot
 
     def close(self) -> None:
         """
@@ -1394,8 +1392,7 @@ class CacheProxy:
         """
         返回缓存的迭代器
         """
-        for key, _ in self._cache_backend.items(region=self._region):
-            yield key
+        yield from self._cache_backend.keys(region=self._region)
 
     def __len__(self):
         """

@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 from torrentool.torrent import Torrent
-from transmission_rpc import File
 
 from app import schemas
 from app.core.cache import FileCache
@@ -20,6 +19,9 @@ from app.schemas.types import (
     TorrentStatus,
 )
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from transmission_rpc import File
 
 _TRANSMISSION_DOWNLOADING_STATES = {
     "download_pending",

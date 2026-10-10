@@ -352,9 +352,9 @@ class MetaBase:
         """
         if self.begin_season is not None:
             return (
-                "S%s" % str(self.begin_season).rjust(2, "0")
+                "S{}".format(str(self.begin_season).rjust(2, "0"))
                 if self.end_season is None
-                else "S%s-S%s" % (str(self.begin_season).rjust(2, "0"), str(self.end_season).rjust(2, "0"))
+                else "S{}-S{}".format(str(self.begin_season).rjust(2, "0"), str(self.end_season).rjust(2, "0"))
             )
         else:
             if self.type == MediaType.TV:
@@ -396,7 +396,7 @@ class MetaBase:
             else:
                 return []
         elif self.end_season is not None:
-            return [season for season in range(self.begin_season, self.end_season + 1)]
+            return list(range(self.begin_season, self.end_season + 1))
         else:
             return [self.begin_season]
 
@@ -407,9 +407,9 @@ class MetaBase:
         """
         if self.begin_episode is not None:
             return (
-                "E%s" % str(self.begin_episode).rjust(2, "0")
+                "E{}".format(str(self.begin_episode).rjust(2, "0"))
                 if self.end_episode is None
-                else "E%s-E%s" % (str(self.begin_episode).rjust(2, "0"), str(self.end_episode).rjust(2, "0"))
+                else "E{}-E{}".format(str(self.begin_episode).rjust(2, "0"), str(self.end_episode).rjust(2, "0"))
             )
         else:
             return ""
@@ -422,7 +422,7 @@ class MetaBase:
         if self.begin_episode is None:
             return []
         elif self.end_episode is not None:
-            return [episode for episode in range(self.begin_episode, self.end_episode + 1)]
+            return list(range(self.begin_episode, self.end_episode + 1))
         else:
             return [self.begin_episode]
 
@@ -431,7 +431,7 @@ class MetaBase:
         """
         返回集的并列表达方式，用于支持单文件多集
         """
-        return "E%s" % "E".join(str(episode).rjust(2, "0") for episode in self.episode_list)
+        return "E{}".format("E".join(str(episode).rjust(2, "0") for episode in self.episode_list))
 
     @property
     def episode_seqs(self) -> str:
@@ -444,7 +444,7 @@ class MetaBase:
             if len(episodes) == 1:
                 return str(episodes[0])
             else:
-                return "%s-%s" % (episodes[0], episodes[-1])
+                return f"{episodes[0]}-{episodes[-1]}"
         else:
             return ""
 
@@ -468,11 +468,11 @@ class MetaBase:
             seaion = self.season
             episode = self.episode
             if seaion and episode:
-                return "%s %s" % (seaion, episode)
+                return f"{seaion} {episode}"
             elif seaion:
-                return "%s" % seaion
+                return f"{seaion}"
             elif episode:
-                return "%s" % episode
+                return f"{episode}"
         else:
             return ""
         return ""

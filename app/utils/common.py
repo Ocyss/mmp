@@ -1,11 +1,13 @@
 import asyncio
 import inspect
 import time
-from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.schemas import ImmediateException
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def retry(ExceptionToCheck: Any, tries: int = 3, delay: int = 3, backoff: int = 2, logger: Any = None):

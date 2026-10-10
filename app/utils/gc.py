@@ -6,12 +6,14 @@
 import functools
 import gc
 import os
-from collections.abc import Callable
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import psutil
 
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def memory_gc(force_collect: bool = True, log_memory_usage: bool = False) -> Callable:

@@ -5,8 +5,7 @@ import re
 import zipfile
 from collections import deque
 from datetime import datetime
-from pathlib import Path
-from typing import Annotated, Any, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 import aiofiles
@@ -26,7 +25,6 @@ from app.core.event import eventmanager
 from app.core.metainfo import MetaInfo
 from app.core.module import ModuleManager
 from app.core.security import verify_apitoken, verify_resource_token, verify_token
-from app.db.models import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import (
     get_current_active_superuser,
@@ -57,6 +55,11 @@ from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.security import SecurityUtils
 from app.utils.url import UrlUtils
 from version import APP_VERSION
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from app.db.models import User
 
 router = APIRouter()
 

@@ -1,5 +1,5 @@
 import json
-from typing import Tuple, Union
+from typing import TYPE_CHECKING, Tuple, Union
 
 from pywebpush import WebPushException, webpush
 
@@ -7,8 +7,10 @@ from app.core.config import global_vars, settings
 from app.helper.webpush import is_webpush_subscription_gone, webpush_options_for_endpoint
 from app.log import logger
 from app.modules import _MessageBase, _ModuleBase
-from app.schemas import Notification
 from app.schemas.types import MessageChannel, ModuleType
+
+if TYPE_CHECKING:
+    from app.schemas import Notification
 
 
 class WebPushModule(_ModuleBase, _MessageBase):

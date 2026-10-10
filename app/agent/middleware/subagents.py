@@ -3,11 +3,10 @@
 import asyncio
 import json
 import uuid
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
-from typing import Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from langchain.agents import create_agent
 from langchain.agents.middleware.types import (
@@ -18,7 +17,6 @@ from langchain.agents.middleware.types import (
     ResponseT,
     ToolCallRequest,
 )
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, Field
@@ -28,6 +26,11 @@ from app.agent.middleware.utils import append_to_system_message
 from app.agent.runtime import SubAgentDefinition, agent_runtime_manager
 from app.agent.tools.tags import ToolTag
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.language_models.chat_models import BaseChatModel
 
 SUBAGENT_TASK_TOOL_NAME = "task"
 SUBAGENT_CONTROL_TOOL_NAME = "subagent_task"

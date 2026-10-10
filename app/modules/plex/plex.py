@@ -1,7 +1,6 @@
 import json
-from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 from plexapi.exceptions import NotFound
@@ -15,6 +14,9 @@ from app.log import logger
 from app.schemas import MediaServerItem, MediaType
 from app.utils.http import RequestUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class Plex:
@@ -751,7 +753,7 @@ class Plex:
         if message.get("Metadata"):
             if message.get("Metadata", {}).get("type") == "episode":
                 eventItem.item_type = "TV"
-                eventItem.item_name = "%s %s%s %s" % (
+                eventItem.item_name = "{} {}{} {}".format(
                     message.get("Metadata", {}).get("grandparentTitle"),
                     "S" + str(message.get("Metadata", {}).get("parentIndex")),
                     "E" + str(message.get("Metadata", {}).get("index")),
@@ -767,7 +769,7 @@ class Plex:
                     eventItem.overview = message.get("Metadata", {}).get("summary")
             else:
                 eventItem.item_type = "MOV" if message.get("Metadata", {}).get("type") == "movie" else "SHOW"
-                eventItem.item_name = "%s %s" % (
+                eventItem.item_name = "{} {}".format(
                     message.get("Metadata", {}).get("title"),
                     "(" + str(message.get("Metadata", {}).get("year")) + ")",
                 )
@@ -887,16 +889,16 @@ class Plex:
                     image = item.posterUrl
                 elif item.TYPE == "season":
                     item_type = MediaType.TV.value
-                    title = "%s 第%s季" % (item.parentTitle, item.index)
+                    title = f"{item.parentTitle} 第{item.index}季"
                     image = item.posterUrl
                 elif item.TYPE == "episode":
                     item_type = MediaType.TV.value
-                    title = "%s 第%s季 第%s集" % (item.grandparentTitle, item.parentIndex, item.index)
+                    title = f"{item.grandparentTitle} 第{item.parentIndex}季 第{item.index}集"
                     thumb = (item.parentThumb or item.grandparentThumb or "").lstrip("/")
                     image = self._host + thumb + f"?X-Plex-Token={self._token}"
                 elif item.TYPE == "show":
                     item_type = MediaType.TV.value
-                    title = "%s 共%s季" % (item.title, item.seasonCount)
+                    title = f"{item.title} 共{item.seasonCount}季"
                     image = item.posterUrl
                 link = self.get_play_url(item.key)
                 ret_resume.append(

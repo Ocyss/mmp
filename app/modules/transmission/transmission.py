@@ -1,11 +1,13 @@
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import transmission_rpc
 from transmission_rpc import Client, File, Torrent
-from transmission_rpc.session import Session, SessionStats
 
 from app.log import logger
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from transmission_rpc.session import Session, SessionStats
 
 
 class Transmission:

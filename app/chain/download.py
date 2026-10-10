@@ -6,18 +6,15 @@ import re
 import shutil
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
-from app import schemas
 from app.chain import ChainBase
 from app.chain.media import MediaChain
 from app.chain.storage import StorageChain
 from app.core.cache import FileCache
 from app.core.config import global_vars, settings
-from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
 from app.core.event import Event, eventmanager
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo
 from app.db.downloadfailure_oper import DownloadFailureOper
 from app.db.downloadhistory_oper import DownloadHistoryOper
@@ -48,6 +45,11 @@ from app.utils.http import RequestUtils
 from app.utils.media import build_media_key, resolve_media_identity
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from app import schemas
+    from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
+    from app.core.meta import MetaBase
 
 DOWNLOAD_FAILURE_RESOURCE_TTL_SECONDS = 24 * 60 * 60
 DOWNLOAD_FAILURE_TRANSIENT_TTL_SECONDS = 60 * 60
@@ -1045,7 +1047,7 @@ class DownloadChain(ChainBase):
                     channel=channel,
                     source=source if channel else None,
                     mtype=NotificationType.Manual,
-                    title="添加下载任务失败：%s %s" % (_media.title_year, _meta.season_episode),
+                    title=f"添加下载任务失败：{_media.title_year} {_meta.season_episode}",
                     text=f"站点：{_torrent.site_name}\n种子名称：{_meta.org_string}\n错误信息：{error_msg}",
                     image=_media.get_message_image(),
                     userid=userid,

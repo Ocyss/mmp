@@ -2,15 +2,13 @@ import datetime
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote
 
 from torrentool.api import Torrent
 
 from app.core.cache import FileCache, TTLCache
 from app.core.config import settings
-from app.core.context import Context, MediaInfo, TorrentInfo
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo
 from app.db.site_oper import SiteOper
 from app.db.systemconfig_oper import SystemConfigOper
@@ -18,6 +16,10 @@ from app.log import logger
 from app.schemas.types import MediaType, SystemConfigKey
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo, TorrentInfo
+    from app.core.meta import MetaBase
 
 _SIZE_UNIT = 1024 * 1024
 
@@ -28,7 +30,7 @@ def _compile_filter_pattern(pattern: str) -> re.Pattern:
     编译订阅/工作流附加过滤正则。
     用户输入沿用原本的正则语义，缓存只减少同一规则反复匹配大量种子时的编译成本。
     """
-    return re.compile(r"%s" % pattern, re.I)
+    return re.compile(rf"{pattern}", re.I)
 
 
 def _filter_pattern_search(pattern: str | int | float, content: str) -> bool:
@@ -315,10 +317,10 @@ class TorrentHelper:
             # 季集
             if not _meta.episode_list:
                 # 无集数的排最前面
-                _season_episode = "%s%s" % (str(len(_meta.season_list)).rjust(3, "0"), "9999")
+                _season_episode = "{}{}".format(str(len(_meta.season_list)).rjust(3, "0"), "9999")
             else:
                 # 集数越多的排越前面
-                _season_episode = "%s%s" % (
+                _season_episode = "{}{}".format(
                     str(len(_meta.season_list)).rjust(3, "0"),
                     str(len(_meta.episode_list)).rjust(4, "0"),
                 )
@@ -358,7 +360,7 @@ class TorrentHelper:
             meta = context.meta_info
             media = context.media_info
             if media.type == MediaType.TV:
-                media_name = "%s%s" % (media.title_year, meta.season_episode)
+                media_name = f"{media.title_year}{meta.season_episode}"
             else:
                 media_name = media.title_year
             if media_name not in _added:
@@ -460,7 +462,7 @@ class TorrentHelper:
         if mediainfo.year:
             if mediainfo.type == MediaType.TV:
                 # 剧集年份，每季的年份可能不同，没年份时不比较年份（很多剧集种子不带年份）
-                if torrent_meta.year and torrent_meta.year not in [year for year in mediainfo.season_years.values()]:
+                if torrent_meta.year and torrent_meta.year not in list(mediainfo.season_years.values()):
                     logger.debug(f"{torrent.site_name} - {torrent.title} 年份不匹配 {mediainfo.season_years}")
                     return False
             else:

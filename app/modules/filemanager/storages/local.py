@@ -1,8 +1,7 @@
-import builtins
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from app import schemas
 from app.core.config import global_vars, settings
@@ -12,6 +11,9 @@ from app.modules.filemanager.storages import StorageBase, transfer_process
 from app.schemas.exception import StorageQueryError
 from app.schemas.types import StorageSchema
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    import builtins
 
 
 class LocalStorage(StorageBase):

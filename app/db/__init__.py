@@ -1,7 +1,5 @@
 import asyncio
-import builtins
-from collections.abc import AsyncGenerator, Generator
-from typing import Any, List, Optional, Self, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Self, Tuple, Union
 
 from sqlalchemy import (
     Column,
@@ -18,13 +16,18 @@ from sqlalchemy import (
     select,
     text,
 )
-from sqlalchemy.engine import Engine as SQLAlchemyEngine
-from sqlalchemy.engine import ExceptionContext
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, as_declarative, declared_attr, scoped_session, sessionmaker
 
 from app.core.config import settings
 from app.log import logger
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import AsyncGenerator, Generator
+
+    from sqlalchemy.engine import Engine as SQLAlchemyEngine
+    from sqlalchemy.engine import ExceptionContext
 
 
 def _database_error_metadata(error: BaseException) -> dict[str, Any] | None:
@@ -306,7 +309,7 @@ def _get_args_db(args: tuple, kwargs: dict) -> Session | None:
                 db = arg
                 break
     if kwargs:
-        for key, value in kwargs.items():
+        for value in kwargs.values():
             if isinstance(value, Session):
                 db = value
                 break
@@ -324,7 +327,7 @@ def _get_args_async_db(args: tuple, kwargs: dict) -> AsyncSession | None:
                 db = arg
                 break
     if kwargs:
-        for key, value in kwargs.items():
+        for value in kwargs.values():
             if isinstance(value, AsyncSession):
                 db = value
                 break

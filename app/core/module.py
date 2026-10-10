@@ -1,6 +1,5 @@
 import traceback
-from collections.abc import Generator
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from app.core.config import settings
 from app.core.event import eventmanager
@@ -17,6 +16,9 @@ from app.schemas.types import (
 )
 from app.utils.object import ObjectUtils
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class ModuleManager(metaclass=Singleton):
@@ -127,7 +129,7 @@ class ModuleManager(metaclass=Singleton):
         """
         if not self._running_modules:
             return
-        for _, module in self._running_modules.items():
+        for module in self._running_modules.values():
             if hasattr(module, method) and ObjectUtils.check_method(getattr(module, method)):
                 yield module
 
@@ -137,7 +139,7 @@ class ModuleManager(metaclass=Singleton):
         """
         if not self._running_modules:
             return
-        for _, module in self._running_modules.items():
+        for module in self._running_modules.values():
             if hasattr(module, "get_type") and module.get_type() == module_type:
                 yield module
 
@@ -147,7 +149,7 @@ class ModuleManager(metaclass=Singleton):
         """
         if not self._running_modules:
             return
-        for _, module in self._running_modules.items():
+        for module in self._running_modules.values():
             if hasattr(module, "get_subtype") and module.get_subtype() == module_subtype:
                 yield module
 

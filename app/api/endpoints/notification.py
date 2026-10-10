@@ -1,12 +1,14 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Depends
 
 from app import schemas
 from app.core.module import ModuleManager
-from app.db.models import User
 from app.db.user_oper import get_current_active_superuser
 from app.modules.wechatclawbot.wechatclawbot import WechatClawBot
+
+if TYPE_CHECKING:
+    from app.db.models import User
 
 router = APIRouter()
 

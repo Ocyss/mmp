@@ -40,7 +40,7 @@ class Company(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(self._urls["movies"] % company_id, params="page=%s" % page, key="results")
+        return self._request_obj(self._urls["movies"] % company_id, params=f"page={page}", key="results")
 
     # 异步版本方法
     async def async_details(self, company_id):
@@ -74,4 +74,4 @@ class Company(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(self._urls["movies"] % company_id, params="page=%s" % page, key="results")
+        return await self._async_request_obj(self._urls["movies"] % company_id, params=f"page={page}", key="results")

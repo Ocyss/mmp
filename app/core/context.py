@@ -1,13 +1,15 @@
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
 from app.core.config import settings
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo
 from app.schemas.types import MediaType
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
 
 BANGUMI_MOVIE_PLATFORMS = frozenset({"movie", "电影", "剧场版"})
 ANILIST_MOVIE_FORMATS = frozenset({"MOVIE"})
@@ -117,7 +119,7 @@ class TorrentInfo:
             "1.00 0.75": "75%",
             "1.00 0.25": "25%",
         }
-        return free_strs.get("%.2f %.2f" % (upload_volume_factor, download_volume_factor), "未知")
+        return free_strs.get(f"{upload_volume_factor:.2f} {download_volume_factor:.2f}", "未知")
 
     @property
     def volume_factor(self):
@@ -999,7 +1001,7 @@ class MediaInfo:
     @property
     def title_year(self):
         if self.title:
-            return "%s (%s)" % (self.title, self.year) if self.year else self.title
+            return f"{self.title} ({self.year})" if self.year else self.title
         return ""
 
     @property
@@ -1009,15 +1011,15 @@ class MediaInfo:
         """
         if self.tmdb_id:
             if self.type == MediaType.MOVIE:
-                return "https://www.themoviedb.org/movie/%s" % self.tmdb_id
+                return f"https://www.themoviedb.org/movie/{self.tmdb_id}"
             else:
-                return "https://www.themoviedb.org/tv/%s" % self.tmdb_id
+                return f"https://www.themoviedb.org/tv/{self.tmdb_id}"
         elif self.douban_id:
-            return "https://movie.douban.com/subject/%s" % self.douban_id
+            return f"https://movie.douban.com/subject/{self.douban_id}"
         elif self.bangumi_id:
-            return "http://bgm.tv/subject/%s" % self.bangumi_id
+            return f"http://bgm.tv/subject/{self.bangumi_id}"
         elif self.anilist_id:
-            return "https://anilist.co/anime/%s" % self.anilist_id
+            return f"https://anilist.co/anime/{self.anilist_id}"
         return ""
 
     @property
@@ -1032,7 +1034,7 @@ class MediaInfo:
     @property
     def vote_star(self):
         if self.vote_average:
-            return "评分：%s" % self.stars
+            return f"评分：{self.stars}"
         return ""
 
     def get_backdrop_image(self, default: bool = False):

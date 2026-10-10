@@ -1,8 +1,7 @@
 import threading
 from abc import ABCMeta, abstractmethod
-from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Generic, Optional, Tuple, Type, TypeVar, Union
 
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
@@ -17,6 +16,9 @@ from app.schemas.types import (
     SystemConfigKey,
 )
 from app.utils.mixins import ConfigReloadMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class _ModuleBase(ConfigReloadMixin, metaclass=ABCMeta):
@@ -106,7 +108,7 @@ TService = TypeVar("TService", bound=object)
 TConf = TypeVar("TConf")
 
 
-class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
+class ServiceBase[TService: object, TConf](metaclass=ABCMeta):
     """
     抽象服务基类，负责服务的初始化、获取实例和配置管理
     """

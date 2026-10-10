@@ -1,8 +1,7 @@
 import asyncio
 import json
 import uuid
-from collections.abc import AsyncIterator
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import APIRouter, Header, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -20,6 +19,9 @@ from app.api.openai_utils import (
 from app.core.config import settings
 from app.core.security import anthropic_api_key_header
 from app.schemas.types import MessageChannel
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 router = APIRouter()
 

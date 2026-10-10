@@ -1,9 +1,8 @@
 import base64
 import re
-from typing import Annotated, Any, List, Union
+from typing import TYPE_CHECKING, Annotated, Any, List, Union
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
 from app.core.security import get_password_hash
@@ -15,6 +14,9 @@ from app.db.user_oper import (
     get_current_active_user_async,
 )
 from app.db.userconfig_oper import UserConfigOper
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

@@ -2,7 +2,7 @@
 
 import base64
 import json
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Optional, Type
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ SCREENSHOT_MAX_WIDTH = 1280
 SCREENSHOT_MAX_HEIGHT = 720
 
 
-class BrowserAction(str, Enum):
+class BrowserAction(StrEnum):
     """浏览器操作类型"""
 
     GOTO = "goto"

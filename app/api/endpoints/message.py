@@ -1,10 +1,9 @@
 import json
 import time
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pywebpush import WebPushException, webpush
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import PlainTextResponse
 
 from app import schemas
@@ -13,7 +12,6 @@ from app.core.config import global_vars, settings
 from app.core.security import verify_apitoken, verify_token
 from app.db import get_async_db
 from app.db.message_oper import MessageOper
-from app.db.models import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import get_current_active_superuser
 from app.helper.service import ServiceConfigHelper
@@ -21,6 +19,11 @@ from app.helper.webpush import is_webpush_subscription_gone, webpush_options_for
 from app.log import logger
 from app.modules.wechat.WXBizMsgCrypt3 import WXBizMsgCrypt
 from app.schemas.types import MessageChannel, SystemConfigKey
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.db.models import User
 
 router = APIRouter()
 

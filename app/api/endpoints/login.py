@@ -1,9 +1,8 @@
 from datetime import timedelta
-from typing import Annotated, Any, List
+from typing import TYPE_CHECKING, Annotated, Any, List
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordRequestForm
 
 from app import schemas
 from app.chain.user import MfaRequired, UserChain
@@ -13,6 +12,9 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.image import WallpaperHelper
 from app.helper.sites import SitesHelper  # noqa
 from app.schemas.types import SystemConfigKey
+
+if TYPE_CHECKING:
+    from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter()
 

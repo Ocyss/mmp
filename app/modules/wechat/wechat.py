@@ -5,15 +5,17 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.common import retry
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 lock = threading.Lock()
 

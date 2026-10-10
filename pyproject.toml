@@ -168,7 +168,8 @@ output = "coverage.json"
 
 [tool.ruff]
 target-version = "py314"
-line-length = 120
+line-length = 135
+indent-width = 4
 
 exclude = [
     ".git",
@@ -197,7 +198,7 @@ select = [
     "TC",   # flake8-type-checking
 ]
 
-ignore = ["F401"]
+ignore = ["F401", "E501"]
 
 [tool.ruff.format]
 indent-style = "space"

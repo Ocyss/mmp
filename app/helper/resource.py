@@ -1,7 +1,7 @@
 import json
 import platform
 import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.core.config import settings
 from app.helper.sites import SitesHelper  # noqa
@@ -10,6 +10,9 @@ from app.log import logger
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class ResourceHelper:

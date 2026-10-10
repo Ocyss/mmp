@@ -764,7 +764,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                 data["API_TOKEN"] = converted_value
 
         # 对其他字段进行类型转换
-        for field_name, field_info in cls.model_fields.items():
+        for field_name in cls.model_fields.keys():
             if field_name not in data:
                 continue
             value = data[field_name]

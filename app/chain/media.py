@@ -3,19 +3,16 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Lock
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
-from app import schemas
 from app.chain import ChainBase
 from app.chain.storage import StorageChain
 from app.core.config import settings
 from app.core.context import Context, MediaInfo
 from app.core.event import Event, eventmanager
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo, MetaInfoPath
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
-from app.schemas import FileItem
 from app.schemas.types import (
     ChainEventType,
     EventType,
@@ -29,6 +26,11 @@ from app.utils.http import RequestUtils
 from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import Singleton
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app import schemas
+    from app.core.meta import MetaBase
+    from app.schemas import FileItem
 
 recognize_lock = Lock()
 scraping_lock = Lock()

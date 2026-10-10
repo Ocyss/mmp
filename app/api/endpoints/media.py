@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends
 
@@ -9,15 +9,17 @@ from app.chain.tmdb import TmdbChain
 from app.core.config import settings
 from app.core.context import Context
 from app.core.event import eventmanager
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo, MetaInfoPath
 from app.core.security import verify_apitoken, verify_token
-from app.db.models import User
 from app.db.user_oper import get_current_active_superuser, get_current_active_user
 from app.schemas import MediaRecognizeConvertEventData, MediaType
-from app.schemas.category import CategoryConfig
 from app.schemas.types import ChainEventType
 from app.utils.media import MEDIA_SOURCE_ID_FIELDS, parse_media_key
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
+    from app.db.models import User
+    from app.schemas.category import CategoryConfig
 
 router = APIRouter()
 MediaSource = str

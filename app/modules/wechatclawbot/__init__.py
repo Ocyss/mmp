@@ -1,13 +1,15 @@
 import json
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from app.core.cache import TTLCache
-from app.core.context import Context, MediaInfo
 from app.log import logger
 from app.modules import _MessageBase, _ModuleBase
 from app.modules.wechatclawbot.wechatclawbot import WechatClawBot
 from app.schemas import CommingMessage, Notification
 from app.schemas.types import MessageChannel, ModuleType
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):

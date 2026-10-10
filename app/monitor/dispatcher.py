@@ -207,5 +207,5 @@ class TransferDispatcher:
                 )
                 return True
             except Exception as e:
-                logger.error("目录监控整理文件发生错误：%s - %s" % (str(e), traceback.format_exc()))
+                logger.error(f"目录监控整理文件发生错误：{str(e)} - {traceback.format_exc()}")
                 return False

@@ -1,15 +1,18 @@
 import threading
-from collections.abc import Callable, Generator
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from app.chain import ChainBase
 from app.core.config import global_vars
 from app.db.mediaserver_oper import MediaServerOper
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
-from app.schemas import MediaServerItem, MediaServerLibrary, MediaServerPlayItem, MediaServerSeasonInfo
 from app.utils.security import SecurityUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
+    from app.schemas import MediaServerItem, MediaServerLibrary, MediaServerPlayItem, MediaServerSeasonInfo
 
 lock = threading.Lock()
 

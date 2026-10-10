@@ -1,11 +1,13 @@
 from builtins import list as builtin_list
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, Column, Index, Integer, String, and_, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Base, async_db_query, async_db_update, db_query, db_update, get_id_column
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class Workflow(Base):

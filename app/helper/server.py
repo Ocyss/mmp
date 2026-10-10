@@ -2,13 +2,11 @@ import json
 import platform
 from pathlib import Path
 from threading import Thread
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, quote, urlparse, urlsplit
 
 from app.core.cache import cached
 from app.core.config import settings
-from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.db.subscribe_oper import SubscribeOper
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.workflow_oper import WorkflowOper
@@ -18,6 +16,10 @@ from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.media import resolve_media_identity
 from app.utils.system import SystemUtils
 from version import APP_VERSION, FRONTEND_VERSION
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
 
 
 class MoviePilotServerHelper:

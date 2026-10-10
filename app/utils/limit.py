@@ -3,11 +3,13 @@ import inspect
 import threading
 import time
 from collections import deque
-from collections.abc import Callable
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 from app.log import logger
 from app.schemas import LimitException, RateLimitExceededException
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 # 抽象基类

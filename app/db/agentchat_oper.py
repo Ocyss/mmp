@@ -1,12 +1,13 @@
 import time
-from typing import Any, Optional, Union
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app.db import DbOper
 from app.db.models.agentchat import AgentChat
 from app.schemas.types import MessageChannel
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 DEFAULT_AGENT_CHAT_TITLE = "未命名会话"
 

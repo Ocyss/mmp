@@ -1,13 +1,15 @@
 import re
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from app import schemas
-from app.core.context import MediaInfo
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas.types import StorageSchema, SystemConfigKey
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
 
 JINJA2_VAR_PATTERN = re.compile(r"\{\{.*?}}", re.DOTALL)
 WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")

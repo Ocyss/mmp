@@ -2,8 +2,7 @@ import asyncio
 import json
 import pickle
 import threading
-from collections.abc import AsyncGenerator, Generator
-from typing import Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
 import redis
@@ -14,6 +13,9 @@ from app.core.config import settings
 from app.log import logger
 from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 # 类型缓存集合，针对非容器简单类型
 _complex_serializable_types = set()

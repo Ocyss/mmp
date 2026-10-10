@@ -1,5 +1,4 @@
-from collections.abc import Callable
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import pillow_avif  # noqa 用于自动注册AVIF支持
 
@@ -14,6 +13,9 @@ from app.log import logger
 from app.schemas import MediaType
 from app.utils.common import log_execution_time
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class RecommendChain(ChainBase, metaclass=Singleton):

@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import requests
@@ -11,11 +11,13 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 
 from app.core.config import settings
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 lock = Lock()
 
@@ -82,31 +84,31 @@ class Slack:
         @slack_app.event("message")
         def slack_message(message):
             with requests.post(self._ds_url, json=message, timeout=10) as local_res:
-                logger.debug("message: %s processed, response is: %s" % (message, local_res.text))
+                logger.debug(f"message: {message} processed, response is: {local_res.text}")
 
         @slack_app.action(re.compile(r"actionId-.*"))
         def slack_action(ack, body):
             ack()
             with requests.post(self._ds_url, json=body, timeout=60) as local_res:
-                logger.debug("message: %s processed, response is: %s" % (body, local_res.text))
+                logger.debug(f"message: {body} processed, response is: {local_res.text}")
 
         @slack_app.event("app_mention")
         def slack_mention(say, body):
             say(f"收到，请稍等... <@{body.get('event', {}).get('user')}>")
             with requests.post(self._ds_url, json=body, timeout=10) as local_res:
-                logger.debug("message: %s processed, response is: %s" % (body, local_res.text))
+                logger.debug(f"message: {body} processed, response is: {local_res.text}")
 
         @slack_app.shortcut(re.compile(r"/*"))
         def slack_shortcut(ack, body):
             ack()
             with requests.post(self._ds_url, json=body, timeout=10) as local_res:
-                logger.debug("message: %s processed, response is: %s" % (body, local_res.text))
+                logger.debug(f"message: {body} processed, response is: {local_res.text}")
 
         @slack_app.command(re.compile(r"/*"))
         def slack_command(ack, body):
             ack()
             with requests.post(self._ds_url, json=body, timeout=10) as local_res:
-                logger.debug("message: %s processed, response is: %s" % (body, local_res.text))
+                logger.debug(f"message: {body} processed, response is: {local_res.text}")
 
         # 启动服务
         try:
@@ -114,7 +116,7 @@ class Slack:
             self._service.connect()
             logger.info("Slack消息接收服务启动")
         except Exception as err:
-            logger.error("Slack消息接收服务启动失败: %s" % str(err))
+            logger.error(f"Slack消息接收服务启动失败: {str(err)}")
 
     def stop(self):
         if self._service:
@@ -122,7 +124,7 @@ class Slack:
                 self._service.close()
                 logger.info("Slack消息接收服务已停止")
             except Exception as err:
-                logger.error("Slack消息接收服务停止失败: %s" % str(err))
+                logger.error(f"Slack消息接收服务停止失败: {str(err)}")
 
     def get_state(self) -> bool:
         """

@@ -1,8 +1,7 @@
 import base64
 import re
-from collections.abc import Callable
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from lxml import etree
@@ -10,7 +9,6 @@ from lxml import etree
 from app.chain import ChainBase
 from app.core.config import global_vars, settings
 from app.core.event import Event, eventmanager
-from app.db.models.site import Site
 from app.db.site_oper import SiteOper
 from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.browser import PlaywrightHelper
@@ -34,6 +32,11 @@ from app.schemas.types import EventType, NotificationType
 from app.utils.http import RequestUtils
 from app.utils.site import SiteUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.db.models.site import Site
 
 site_interaction_manager = SlashInteractionManager()
 

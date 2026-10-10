@@ -1,19 +1,22 @@
 import json
 import re
 import traceback
-from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-from requests import Response
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.log import logger
-from app.schemas import MediaServerItem
 from app.schemas.types import MediaType
 from app.utils.http import RequestUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from requests import Response
+
+    from app.schemas import MediaServerItem
 
 DEFAULT_ITEMS_PAGE_SIZE = 100
 
@@ -751,7 +754,7 @@ class ZSpace:
                     logger.debug(f"匹配子目录出错：{err} - {traceback.format_exc()}")
         for folder in self.folders:
             for subfolder in folder.get("SubFolders") or []:
-                if subfolder.get("Path") and re.search(r"[/\\]%s" % item.category, subfolder.get("Path")):
+                if subfolder.get("Path") and re.search(rf"[/\\]{item.category}", subfolder.get("Path")):
                     return folder.get("Id")
         return "/"
 
@@ -948,14 +951,14 @@ class ZSpace:
                     and message.get("Item", {}).get("ParentIndexNumber")
                     and message.get("Item", {}).get("IndexNumber")
                 ):
-                    event_item.item_name = "%s %s%s %s" % (
+                    event_item.item_name = "{} {}{} {}".format(
                         message.get("Item", {}).get("SeriesName"),
                         "S" + str(message.get("Item", {}).get("ParentIndexNumber")),
                         "E" + str(message.get("Item", {}).get("IndexNumber")),
                         message.get("Item", {}).get("Name"),
                     )
                 elif message.get("Item", {}).get("SeriesName"):
-                    event_item.item_name = "%s %s" % (
+                    event_item.item_name = "{} {}".format(
                         message.get("Item", {}).get("SeriesName"),
                         message.get("Item", {}).get("Name"),
                     )
@@ -973,7 +976,7 @@ class ZSpace:
                 event_item.item_id = message.get("Item", {}).get("AlbumId")
             else:
                 event_item.item_type = "MOV"
-                event_item.item_name = "%s %s" % (
+                event_item.item_name = "{} {}".format(
                     message.get("Item", {}).get("Name"),
                     "(" + str(message.get("Item", {}).get("ProductionYear")) + ")",
                 )
@@ -1241,7 +1244,7 @@ class ZSpace:
         for library in self.get_virtual_folders() or []:
             if self._sync_libraries and library.get("Id") not in self._sync_libraries:
                 continue
-            library_folders += [folder for folder in library.get("Path")]
+            library_folders += list(library.get("Path"))
         return library_folders
 
     def __login(self, username: str | None, password: str | None) -> tuple[str | None, str | None]:

@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Optional
 
 
@@ -323,7 +323,7 @@ class NotificationType(Enum):
     Other = "其它"
 
 
-class ContentType(str, Enum):
+class ContentType(StrEnum):
     """
     消息内容类型
     操作状态的通知消息类型标识

@@ -1,6 +1,7 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pywebpush import WebPushException
+if TYPE_CHECKING:
+    from pywebpush import WebPushException
 
 # WNS 默认 TTL（秒）；ttl>0 时需配 X-WNS-Cache-Policy: cache
 _WNS_DEFAULT_TTL = 86400

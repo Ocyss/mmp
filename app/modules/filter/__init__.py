@@ -1,9 +1,8 @@
 import re
 from copy import deepcopy
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
-from app.core.context import MediaInfo, TorrentInfo
 from app.core.metainfo import MetaInfo, _rust_parse_options, clear_rust_parse_options_cache
 from app.helper.rule import RuleHelper
 from app.log import logger
@@ -13,6 +12,9 @@ from app.modules.filter.RuleParser import RuleParser
 from app.schemas.types import ModuleType, OtherModulesType, SystemConfigKey
 from app.utils import rust_accel
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo, TorrentInfo
 
 _SIZE_UNIT = 1024 * 1024
 
@@ -24,7 +26,7 @@ def _compile_ignorecase(pattern: str) -> re.Pattern:
     过滤规则在搜索/订阅中会被大量种子重复匹配，缓存编译结果能减少热路径开销；
     这里仍保留原有的 IGNORECASE 语义，非法正则也会像原来一样在匹配时抛出异常。
     """
-    return re.compile(r"%s" % pattern, re.IGNORECASE)
+    return re.compile(rf"{pattern}", re.IGNORECASE)
 
 
 def _regex_search(pattern: str | int | float, content: str) -> bool:

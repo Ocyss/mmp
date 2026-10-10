@@ -1,11 +1,10 @@
 import base64
-import builtins
 import secrets
 import time
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import httpx
 import oss2
@@ -23,6 +22,9 @@ from app.schemas.types import StorageSchema
 from app.utils.limit import QpsRateLimiter, RateStats
 from app.utils.singleton import WeakSingleton
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    import builtins
 
 lock = Lock()
 

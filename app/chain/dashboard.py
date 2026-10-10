@@ -1,7 +1,9 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from app import schemas
 from app.chain import ChainBase
+
+if TYPE_CHECKING:
+    from app import schemas
 
 
 class DashboardChain(ChainBase):

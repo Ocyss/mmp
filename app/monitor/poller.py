@@ -1,13 +1,16 @@
 import traceback
-from collections.abc import Callable
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from app.chain.storage import StorageChain
 from app.log import logger
-from app.monitor.dispatcher import TransferDispatcher
 from app.monitor.snapshot import SnapshotStore
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.monitor.dispatcher import TransferDispatcher
 
 
 class RemotePoller:

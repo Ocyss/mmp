@@ -1,6 +1,10 @@
-from fastapi import FastAPI
+
+from typing import TYPE_CHECKING
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 def init_routers(app: FastAPI):

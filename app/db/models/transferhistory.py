@@ -1,14 +1,16 @@
 import re
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import JSON, Boolean, Column, Index, Integer, String, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.db import Base, async_db_query, db_query, db_update, get_id_column
 from app.schemas.types import MediaType
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 def _text_like(column, pattern: str, wildcard: bool = False):

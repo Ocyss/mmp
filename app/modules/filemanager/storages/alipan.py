@@ -1,11 +1,10 @@
 import base64
-import builtins
 import hashlib
 import secrets
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import requests
 
@@ -19,6 +18,9 @@ from app.schemas.types import StorageSchema
 from app.utils.http import RequestUtils
 from app.utils.singleton import WeakSingleton
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    import builtins
 
 lock = threading.Lock()
 

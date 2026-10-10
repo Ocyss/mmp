@@ -2,16 +2,18 @@ import secrets
 import threading
 import time
 from datetime import timedelta
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from app import schemas
 from app.core import security
 from app.core.config import settings
-from app.db.models.user import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.sites import SitesHelper
 from app.schemas.types import SystemConfigKey
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from app.db.models.user import User
 
 
 class AuthTicketStore(metaclass=Singleton):

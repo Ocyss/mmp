@@ -1,9 +1,11 @@
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
-from langgraph.runtime import Runtime
 from langgraph.types import Overwrite
+
+if TYPE_CHECKING:
+    from langgraph.runtime import Runtime
 
 
 class PatchToolCallsMiddleware(AgentMiddleware):

@@ -1,6 +1,5 @@
 import re
-from collections.abc import Awaitable, Callable
-from typing import Annotated, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Annotated, NotRequired, TypedDict
 
 import yaml  # noqa
 from anyio import Path as AsyncPath
@@ -13,11 +12,15 @@ from langchain.agents.middleware.types import (
     PrivateStateAttr,  # noqa
     ResponseT,
 )
-from langchain_core.runnables import RunnableConfig
-from langgraph.runtime import Runtime
 
 from app.agent.middleware.utils import append_to_system_message
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.runnables import RunnableConfig
+    from langgraph.runtime import Runtime
 
 # JOB.md 文件最大限制为 1MB
 MAX_JOB_FILE_SIZE = 1 * 1024 * 1024

@@ -4,11 +4,10 @@ import re
 import threading
 import traceback
 import uuid
-from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
 from time import monotonic
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.agent import ReplyMode, agent_manager, prompt_manager
@@ -18,13 +17,9 @@ from app.chain.storage import StorageChain
 from app.chain.subscribe import SubscribeChain
 from app.chain.tmdb import TmdbChain
 from app.core.config import global_vars, settings
-from app.core.context import MediaInfo
 from app.core.event import eventmanager
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfoPath
 from app.db.downloadhistory_oper import DownloadHistoryOper
-from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
-from app.db.models.transferhistory import TransferHistory
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.transferhistory_oper import TransferHistoryOper
 from app.helper.directory import DirectoryHelper
@@ -61,6 +56,14 @@ from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import Singleton
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
+    from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
+    from app.db.models.transferhistory import TransferHistory
 
 # 下载器锁
 downloader_lock = threading.Lock()
@@ -231,7 +234,7 @@ class JobManager:
                 )
             else:
                 # 不重复添加任务
-                if any([self.__get_file_key(t.fileitem) == file_key for t in self._job_view[__mediaid__].tasks]):
+                if any(self.__get_file_key(t.fileitem) == file_key for t in self._job_view[__mediaid__].tasks):
                     logger.debug(f"任务 {task.fileitem.name} 已存在，跳过重复添加")
                     return False
                 self._job_view[__mediaid__].tasks.append(
@@ -3709,7 +3712,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return False
 
         for keyword in exclude_words:
-            if keyword and re.search(r"%s" % keyword, file_path, re.IGNORECASE):
+            if keyword and re.search(rf"{keyword}", file_path, re.IGNORECASE):
                 logger.warn(f"{file_path} 命中屏蔽词 {keyword}")
                 return True
         return False

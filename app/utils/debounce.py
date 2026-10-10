@@ -2,11 +2,13 @@ import asyncio
 import functools
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from threading import Lock, Timer
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class BaseDebouncer(ABC):

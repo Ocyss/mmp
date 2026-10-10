@@ -1,5 +1,4 @@
 import asyncio
-import builtins
 import gc
 import hashlib
 import inspect
@@ -7,16 +6,14 @@ import json
 import multiprocessing
 import threading
 import traceback
-from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pytz
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain import ChainBase
@@ -49,6 +46,12 @@ from app.utils.gc import get_memory_usage
 from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import SingletonClass
 from app.utils.timer import TimerUtils
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Callable
+
+    from sqlalchemy.orm import Session
 
 lock = threading.Lock()
 SCHEDULER_PROGRESS_PREFIX = "scheduler"

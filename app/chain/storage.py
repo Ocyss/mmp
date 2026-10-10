@@ -1,11 +1,13 @@
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from app import schemas
 from app.chain import ChainBase
 from app.core.config import settings
 from app.helper.directory import DirectoryHelper
 from app.log import logger
+
+if TYPE_CHECKING:
+    from app import schemas
 
 
 class StorageChain(ChainBase):

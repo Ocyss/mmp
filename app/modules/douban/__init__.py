@@ -1,12 +1,11 @@
 import re
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import cn2an
 
 from app import schemas
 from app.core.config import settings
 from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.modules import _ModuleBase
@@ -18,6 +17,9 @@ from app.utils.common import retry
 from app.utils.http import RequestUtils
 from app.utils.limit import rate_limit_exponential
 from app.utils.zhconv import convert as zhconv_convert
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
 
 
 class DoubanModule(_ModuleBase):

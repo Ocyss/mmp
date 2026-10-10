@@ -1,7 +1,9 @@
-from datetime import datetime
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class RequestMetrics(BaseModel):

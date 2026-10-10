@@ -1,5 +1,4 @@
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware.types import (
     AgentMiddleware,
@@ -11,6 +10,9 @@ from langchain.agents.middleware.types import (
 from langchain_core.messages import AIMessage
 
 from app.log import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 
 class UsageMiddleware(AgentMiddleware):

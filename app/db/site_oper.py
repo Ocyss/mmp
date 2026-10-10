@@ -1,12 +1,14 @@
-import builtins
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from app.db import DbOper
 from app.db.models import SiteIcon
 from app.db.models.site import Site
 from app.db.models.sitestatistic import SiteStatistic
 from app.db.models.siteuserdata import SiteUserData
+
+if TYPE_CHECKING:
+    import builtins
 
 
 class SiteOper(DbOper):
@@ -232,7 +234,7 @@ class SiteOper(DbOper):
                 avg_times = len(note.keys())
                 if avg_times > 10:
                     note = dict(sorted(note.items(), key=lambda x: x[0], reverse=True)[:10])
-                avg_seconds = sum([v for v in note.values()]) // avg_times
+                avg_seconds = sum(list(note.values())) // avg_times
 
             sta.update(
                 self._db,
@@ -279,7 +281,7 @@ class SiteOper(DbOper):
                 avg_times = len(note.keys())
                 if avg_times > 10:
                     note = dict(sorted(note.items(), key=lambda x: x[0], reverse=True)[:10])
-                avg_seconds = sum([v for v in note.values()]) // avg_times
+                avg_seconds = sum(list(note.values())) // avg_times
 
             await sta.async_update(
                 self._db,

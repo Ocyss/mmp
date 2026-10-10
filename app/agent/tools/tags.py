@@ -1,9 +1,9 @@
 """Agent 工具标签定义。"""
 
-from enum import Enum
+from enum import Enum, StrEnum
 
 
-class ToolTag(str, Enum):
+class ToolTag(StrEnum):
     """Agent 工具能力标签。"""
 
     AgentTool = "agent_tool"

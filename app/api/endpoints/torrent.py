@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -8,12 +8,14 @@ from app.chain.torrents import TorrentsChain
 from app.core.config import settings
 from app.core.context import MediaInfo
 from app.core.metainfo import MetaInfo
-from app.db.models import User
 from app.db.user_oper import (
     get_current_active_superuser,
     get_current_active_superuser_async,
 )
 from app.utils.crypto import HashUtils
+
+if TYPE_CHECKING:
+    from app.db.models import User
 
 router = APIRouter()
 

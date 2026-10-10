@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 import regex as re
 
-from app.core.meta.metabase import MetaBase
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.meta.metabase import MetaBase
 
 AUXILIARY_CN_STEM_FULLMATCH_RE = re.compile(
     r"^(双语|字幕|特效|内封|外挂|官译|简体|繁体|繁中|简中|中英|简英|多语|"

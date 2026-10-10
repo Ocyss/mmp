@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain.media import MediaChain
@@ -10,7 +9,6 @@ from app.chain.transfer import TransferChain
 from app.core.config import global_vars, settings
 from app.core.security import verify_apitoken, verify_token
 from app.db import get_db
-from app.db.models import User
 from app.db.models.transferhistory import TransferHistory
 from app.db.user_oper import (
     get_current_active_manage_user,
@@ -24,6 +22,11 @@ from app.schemas import (
     ManualTransferItem,
     MediaType,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from app.db.models import User
 
 router = APIRouter()
 

@@ -1,5 +1,9 @@
-from app.schemas import ActionContext
+from typing import TYPE_CHECKING
+
 from app.workflow.actions import BaseAction
+
+if TYPE_CHECKING:
+    from app.schemas import ActionContext
 
 
 class NoteAction(BaseAction):

@@ -1,16 +1,18 @@
 import threading
 from time import monotonic, sleep
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from app.core.config import global_vars
 from app.core.event import Event, eventmanager
-from app.db.models import Workflow
 from app.db.workflow_oper import WorkflowOper
 from app.helper.module import ModuleHelper
 from app.log import logger
 from app.schemas import Action, ActionContext, ActionResult
 from app.schemas.types import EventType
 from app.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from app.db.models import Workflow
 
 
 class WorkFlowManager(metaclass=Singleton):

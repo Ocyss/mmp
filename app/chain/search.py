@@ -4,10 +4,9 @@ import json
 import random
 import re
 import time
-from collections.abc import AsyncIterator
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -25,6 +24,9 @@ from app.schemas import NotExistMediaInfo
 from app.schemas.types import EventType, MediaType, ProgressKey, SystemConfigKey
 from app.utils.media import build_media_key, resolve_media_identity
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class SearchChain(ChainBase):

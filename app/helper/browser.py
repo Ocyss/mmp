@@ -2,15 +2,17 @@ import ipaddress
 import threading
 import time
 import uuid
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.log import logger
 from app.utils.http import RequestUtils, cookie_parse
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class BrowserElement(Protocol):

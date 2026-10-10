@@ -1,18 +1,15 @@
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from jinja2 import Template
 
 from app.core.config import settings
-from app.core.context import MediaInfo
 from app.core.event import eventmanager
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfoPath
 from app.helper.directory import DirectoryHelper
 from app.helper.message import TemplateHelper
 from app.log import logger
-from app.modules.filemanager.storages import StorageBase
 from app.schemas import (
     FileItem,
     TmdbEpisode,
@@ -26,6 +23,11 @@ from app.schemas import (
 from app.schemas.exception import StorageQueryError
 from app.schemas.types import ChainEventType, MediaType
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
+    from app.modules.filemanager.storages import StorageBase
 
 
 class TransHandler:

@@ -1,5 +1,4 @@
-from collections.abc import Awaitable
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -10,6 +9,9 @@ from app.core.security import verify_token
 from app.modules.themoviedb.tmdbv3api.exceptions import TMDbException
 from app.schemas import RecommendSourceEventData
 from app.schemas.types import ChainEventType
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
 
 router = APIRouter()
 

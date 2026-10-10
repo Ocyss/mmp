@@ -1,8 +1,7 @@
 import copy
 import re
 import traceback
-from collections.abc import Callable
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from app.chain import ChainBase
 from app.chain.media import MediaChain
@@ -19,6 +18,9 @@ from app.schemas import Notification
 from app.schemas.types import MediaType, MessageChannel, NotificationType, SystemConfigKey
 from app.utils.media import resolve_media_identity
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class TorrentsChain(ChainBase):
@@ -668,7 +670,7 @@ class TorrentsChain(ChainBase):
         """
         确保Context对象的兼容性，为旧版本添加缺失的字段
         """
-        for domain, contexts in torrents_cache.items():
+        for contexts in torrents_cache.values():
             for context in contexts:
                 context_fields = vars(context)
                 # 旧 pickle 实例会读到 dataclass 类默认值，必须检查实例字段，避免跳过兼容回填。

@@ -1,7 +1,6 @@
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
 from app.chain.download import DownloadChain
@@ -11,12 +10,16 @@ from app.core.metainfo import MetaInfo
 from app.core.security import verify_token
 from app.db import get_async_db
 from app.db.mediaserver_oper import MediaServerOper
-from app.db.models import MediaServerItem
 from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.mediaserver import MediaServerHelper
 from app.schemas import MediaType, NotExistMediaInfo
 from app.schemas.types import SystemConfigKey
 from app.utils.media import build_media_key, resolve_media_identity
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.db.models import MediaServerItem
 
 router = APIRouter()
 

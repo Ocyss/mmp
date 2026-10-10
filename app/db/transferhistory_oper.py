@@ -1,11 +1,13 @@
 import time
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.db import DbOper
 from app.db.models.transferhistory import TransferHistory
-from app.schemas import FileItem, TransferInfo
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
+    from app.schemas import FileItem, TransferInfo
 
 
 class TransferHistoryOper(DbOper):

@@ -1,10 +1,8 @@
 import json
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain.workflow import WorkflowChain
@@ -22,6 +20,10 @@ from app.helper.server import MoviePilotServerHelper
 from app.scheduler import Scheduler
 from app.schemas.types import EVENT_TYPE_NAMES, EventType
 from app.workflow import WorkFlowManager
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 router = APIRouter()
 

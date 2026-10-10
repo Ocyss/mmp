@@ -5,7 +5,7 @@ import tempfile
 import threading
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 
 import lark_oapi as lark
@@ -51,12 +51,14 @@ from lark_oapi.event.callback.model.p2_card_action_trigger import (
 )
 
 from app.core.config import settings
-from app.core.context import Context, MediaInfo
 from app.db.user_oper import UserOper
 from app.log import logger
 from app.schemas import CommingMessage, Notification
 from app.schemas.types import MessageChannel, NotificationType
 from app.utils.http import RequestUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class Feishu:

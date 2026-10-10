@@ -1,4 +1,4 @@
-from typing import Annotated, Any, List, Literal, Optional
+from typing import TYPE_CHECKING, Annotated, Any, List, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends
 
@@ -8,13 +8,15 @@ from app.chain.media import MediaChain
 from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
 from app.core.metainfo import MetaInfo
 from app.core.security import verify_token
-from app.db.models.user import User
 from app.db.site_oper import SiteOper
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import get_current_active_user
 from app.helper.directory import DirectoryHelper
 from app.schemas.types import SystemConfigKey
 from app.utils.security import SecurityUtils
+
+if TYPE_CHECKING:
+    from app.db.models.user import User
 
 router = APIRouter()
 MediaSource = Literal["themoviedb", "douban", "bangumi", "anilist"]

@@ -1,22 +1,24 @@
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import cn2an
 
 from app import schemas
 from app.core.config import settings
 from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.themoviedb.category import CategoryHelper
 from app.modules.themoviedb.scraper import TmdbScraper
 from app.modules.themoviedb.tmdb_cache import TmdbCache
 from app.modules.themoviedb.tmdbapi import TmdbApi
-from app.schemas.category import CategoryConfig
 from app.schemas.types import MediaImageType, MediaRecognizeType, MediaType, ModuleType
 from app.utils.http import RequestUtils
 from app.utils.zhconv import convert as zhconv_convert
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
+    from app.schemas.category import CategoryConfig
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

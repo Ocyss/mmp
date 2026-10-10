@@ -1,17 +1,19 @@
 import time
 import traceback
 from http.cookies import SimpleCookie
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import qbittorrentapi
 from packaging.version import InvalidVersion, Version
 from qbittorrentapi import TorrentDictionary, TorrentFilesList
-from qbittorrentapi.client import Client
-from qbittorrentapi.transfer import TransferInfoDictionary
 
 from app.log import logger
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from qbittorrentapi.client import Client
+    from qbittorrentapi.transfer import TransferInfoDictionary
 
 
 class Qbittorrent:
@@ -394,7 +396,7 @@ class Qbittorrent:
         """
         torrent_id = None
         # QB添加下载后需要时间，重试10次每次等待3秒
-        for i in range(1, 10):
+        for _i in range(1, 10):
             time.sleep(3)
             torrent_id = self.__get_last_add_torrentid_by_tag(tags=tags, status=status)
             if torrent_id is None:

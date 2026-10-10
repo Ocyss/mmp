@@ -1,11 +1,10 @@
 import re
 from collections import defaultdict
-from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from re import Match
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import anitopy
 
@@ -13,7 +12,11 @@ from app.core.config import settings
 from app.core.meta.metabase import MetaBase
 from app.core.metainfo import MetaInfoPath
 from app.log import logger
-from app.schemas import EpisodeFormatRule, FileItem
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from app.schemas import EpisodeFormatRule, FileItem
 
 
 @dataclass(frozen=True)
@@ -214,7 +217,7 @@ class FormatParser:
         episode_splits = list(
             filter(
                 lambda x: re.compile(r"[a-zA-Z]*\d{1,4}", re.IGNORECASE).match(x),
-                re.split(r"%s" % self._split_chars, episodes),
+                re.split(rf"{self._split_chars}", episodes),
             )
         )
         if len(episode_splits) == 1:
@@ -925,7 +928,7 @@ class EpisodeFormatRuleHelper:
                     ep_span=span,
                     expected_episode="",
                 )
-                for name, span in zip(file_names, ep_spans)
+                for name, span in zip(file_names, ep_spans, strict=False)
             )
             file_names = [sample.file_name for sample in majority_samples]
             ep_spans = [sample.ep_span for sample in majority_samples]
@@ -955,18 +958,18 @@ class EpisodeFormatRuleHelper:
                     ep_span=span,
                     expected_episode="",
                 )
-                for name, span in zip(file_names, ep_spans)
+                for name, span in zip(file_names, ep_spans, strict=False)
             )
             file_names = [sample.file_name for sample in majority_samples]
             ep_spans = [sample.ep_span for sample in majority_samples]
         if len(file_names) < 2:
             return None
 
-        before_ep_set = {name[: span[0]] for name, span in zip(file_names, ep_spans)}
+        before_ep_set = {name[: span[0]] for name, span in zip(file_names, ep_spans, strict=False)}
         if len(before_ep_set) != 1:
             return None
 
-        after_ep_list = [name[span[1] :] for name, span in zip(file_names, ep_spans)]
+        after_ep_list = [name[span[1] :] for name, span in zip(file_names, ep_spans, strict=False)]
         if len(set(after_ep_list)) == 1:
             return None
 
@@ -1029,7 +1032,7 @@ class EpisodeFormatRuleHelper:
         base_after_ep = after_ep_list[0]
         existing_spans = self._collect_placeholder_spans(current_after_ep_template, base_after_ep)
         failed_after_ep_list = [
-            after_ep for name, after_ep in zip(all_file_names, after_ep_list) if name in failed_files
+            after_ep for name, after_ep in zip(all_file_names, after_ep_list, strict=False) if name in failed_files
         ]
         next_span = self._find_next_variable_span(
             base_after_ep,

@@ -1,15 +1,17 @@
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from app import schemas
 from app.core.config import settings
 from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.helper.scraper import MediaScraperHelper
 from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.bangumi.bangumi import BangumiApi
 from app.schemas.types import MediaRecognizeType, MediaType, ModuleType
 from app.utils.http import RequestUtils
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
 
 
 class BangumiModule(_ModuleBase):

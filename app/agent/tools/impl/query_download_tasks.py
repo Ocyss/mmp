@@ -1,7 +1,7 @@
 """查询下载工具"""
 
 import json
-from typing import Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -10,8 +10,10 @@ from app.agent.tools.tags import ToolTag
 from app.chain.download import DownloadChain
 from app.db.downloadhistory_oper import DownloadHistoryOper
 from app.log import logger
-from app.schemas import DownloaderTorrent
 from app.schemas.types import TorrentQueryStatus, media_type_to_agent
+
+if TYPE_CHECKING:
+    from app.schemas import DownloaderTorrent
 
 
 class QueryDownloadTasksInput(BaseModel):

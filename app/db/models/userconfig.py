@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import JSON, Column, String, UniqueConstraint
-from sqlalchemy.orm import Session
 
 from app.db import Base, db_query, db_update, get_id_column
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class UserConfig(Base):

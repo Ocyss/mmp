@@ -62,21 +62,17 @@ class AsObj:
     def __str__(self):
         return str(self._obj_list) if self._list_only else str(self._dict())
 
-    if sys.version_info >= (3, 8):
+    def __reversed__(self):
+        return reversed(self._dict())
 
-        def __reversed__(self):
-            return reversed(self._dict())
+    def __class_getitem__(cls, key):
+        return cls.__dict__.__class_getitem__(key)
 
-    if sys.version_info >= (3, 9):
+    def __ior__(self, value):
+        return self._dict().__ior__(value)
 
-        def __class_getitem__(cls, key):
-            return cls.__dict__.__class_getitem__(key)
-
-        def __ior__(self, value):
-            return self._dict().__ior__(value)
-
-        def __or__(self, value):
-            return self._dict().__or__(value)
+    def __or__(self, value):
+        return self._dict().__or__(value)
 
     def copy(self):
         return AsObj(self._json.copy(), key=self._key, dict_key=self._dict_key, dict_key_name=self._dict_key_name)

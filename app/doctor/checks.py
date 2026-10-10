@@ -318,7 +318,7 @@ def _recent_log_lines(
     cutoff = (now or datetime.now()) - timedelta(hours=LOG_LOOKBACK_HOURS)
     recent: list[str] = []
     include_record = False
-    for line, timestamp in zip(lines, timestamps):
+    for line, timestamp in zip(lines, timestamps, strict=False):
         if timestamp is not None:
             include_record = timestamp >= cutoff
         if include_record:

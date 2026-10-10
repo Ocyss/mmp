@@ -2,7 +2,7 @@ import asyncio
 import re
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 import discord
@@ -10,11 +10,13 @@ import httpx
 from discord import app_commands
 
 from app.core.config import settings
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.schemas.types import NotificationType
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 # Discord embed 字段解析白名单
 # 只有这些消息类型会使用复杂的字段解析逻辑

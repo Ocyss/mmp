@@ -1,6 +1,8 @@
-from queue import Queue
 from threading import Lock
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
+
+if TYPE_CHECKING:
+    from queue import Queue
 
 _WEB_AGENT_EDIT_QUEUES: dict[str, list[Queue[dict]]] = {}
 _WEB_AGENT_EDIT_LOCK = Lock()

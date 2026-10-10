@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
-from app.doctor.models import DoctorFinding, DoctorReport
+if TYPE_CHECKING:
+    from app.doctor.models import DoctorFinding, DoctorReport
 
 STATUS_LABELS = {
     "healthy": "healthy",

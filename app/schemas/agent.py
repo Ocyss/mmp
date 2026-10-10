@@ -1,10 +1,12 @@
 """AI智能体相关数据模型"""
 
 from datetime import datetime
-from typing import Any, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union
 
-from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
 
 
 class ConversationMemory(BaseModel):

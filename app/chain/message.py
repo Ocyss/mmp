@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote, urlparse
 
 from app.agent import ReplyMode, agent_manager
@@ -23,8 +23,6 @@ from app.chain.skills import SkillsChain, skills_interaction_manager
 from app.chain.subscribe import SubscribeChain, subscribe_interaction_manager
 from app.chain.transfer import TransferChain
 from app.core.config import global_vars, settings
-from app.core.context import Context, MediaInfo
-from app.core.meta import MetaBase
 from app.db.models import TransferHistory
 from app.db.transferhistory_oper import TransferHistoryOper
 from app.db.user_oper import UserOper
@@ -39,11 +37,15 @@ from app.helper.torrent import TorrentHelper
 from app.log import logger
 from app.schemas import CommingMessage, DownloadDirectory, FileURI, NotExistMediaInfo, Notification
 from app.schemas.message import ChannelCapability, ChannelCapabilityManager
-from app.schemas.system import TransferDirectoryConf
 from app.schemas.types import EventType, MediaType, MessageChannel
 from app.utils.http import RequestUtils
 from app.utils.media import build_media_key, resolve_media_identity
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
+    from app.core.meta import MetaBase
+    from app.schemas.system import TransferDirectoryConf
 
 
 class MessageChain(ChainBase):

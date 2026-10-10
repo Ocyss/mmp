@@ -4,10 +4,9 @@ MFA (Multi-Factor Authentication) API 端点
 """
 
 from datetime import timedelta
-from typing import Annotated, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
 from app.core import security
@@ -27,6 +26,9 @@ from app.helper.sites import SitesHelper
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 from app.utils.otp import OtpUtils
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

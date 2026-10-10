@@ -1,6 +1,6 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import JSON, Column, Index, String, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.db import (
     Base,
@@ -9,6 +9,10 @@ from app.db import (
     db_update,
     get_id_column,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 class PluginData(Base):

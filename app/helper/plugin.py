@@ -12,21 +12,18 @@ import time
 import traceback
 import zipfile
 from collections import deque
-from collections.abc import Awaitable, Callable
 from importlib.metadata import distributions
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 import aiofiles
 import aioshutil
-import httpx
 from anyio import Path as AsyncPath
 from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
-from requests import Response
 
 from app.core.cache import cached, is_fresh
 from app.core.config import settings
@@ -40,6 +37,12 @@ from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
 from app.utils.url import UrlUtils
 from version import APP_VERSION
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    import httpx
+    from requests import Response
 
 PLUGIN_DIR = Path(settings.ROOT_PATH) / "app" / "plugins"
 LOCAL_REPO_PREFIX = "local://"

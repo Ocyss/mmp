@@ -2,7 +2,7 @@ import fnmatch
 import math
 import re
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from starlette.responses import FileResponse, Response
@@ -13,7 +13,6 @@ from app.chain.storage import StorageChain
 from app.chain.transfer import TransferChain
 from app.core.config import settings
 from app.core.security import verify_token
-from app.db.models import User
 from app.db.user_oper import (
     get_current_active_manage_user,
     get_current_active_superuser,
@@ -22,6 +21,9 @@ from app.db.user_oper import (
 from app.helper.progress import ProgressHelper
 from app.schemas.types import ProgressKey
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.db.models import User
 
 router = APIRouter()
 

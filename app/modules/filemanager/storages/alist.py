@@ -1,10 +1,9 @@
-import builtins
 import hashlib
 import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from app import schemas
 from app.core.cache import cached
@@ -16,6 +15,9 @@ from app.schemas.types import StorageSchema
 from app.utils.http import RequestUtils
 from app.utils.singleton import WeakSingleton
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    import builtins
 
 # OpenList/AList 在 per_page<=0 时会退回后端默认 200，显式指定最大页大小避免大目录被截断。
 OPENLIST_MAX_LIST_PAGE_SIZE = 500

@@ -2,25 +2,27 @@ import re
 import shutil
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 from urllib.parse import urljoin, urlparse
 
 from lxml import etree
 
 from app.chain.storage import StorageChain
 from app.core.config import settings
-from app.core.context import Context
 from app.db.site_oper import SiteOper
 from app.helper.sites import SitesHelper  # noqa
 from app.helper.torrent import TorrentHelper
 from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.indexer.spider.mtorrent import MTorrentSpider
-from app.schemas import TorrentInfo
 from app.schemas.file import FileURI
 from app.schemas.types import ModuleType, OtherModulesType
 from app.utils.http import RequestUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context
+    from app.schemas import TorrentInfo
 
 
 class SubtitleModule(_ModuleBase):
@@ -193,7 +195,7 @@ class SubtitleModule(_ModuleBase):
         if not torrent.page_url:
             return
         # 字幕下载目录
-        logger.info("开始从站点下载字幕：%s" % torrent.page_url)
+        logger.info(f"开始从站点下载字幕：{torrent.page_url}")
         # 获取种子信息
         folder_name, _ = TorrentHelper().get_fileinfo_from_torrent_content(torrent_content)
         # 文件保存目录，如果是单文件种子，则folder_name是空，此时文件保存目录就是下载目录

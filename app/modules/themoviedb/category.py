@@ -1,14 +1,17 @@
 import shutil
-from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import ruamel.yaml
-from ruamel.yaml import CommentedMap
 
 from app.core.config import settings
 from app.log import logger
 from app.schemas.category import CategoryConfig
 from app.utils.singleton import WeakSingleton
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ruamel.yaml import CommentedMap
 
 HEADER_COMMENTS = """####### 配置说明 #######
 # 1. 该配置文件用于配置电影和电视剧的分类策略，配置后程序会按照配置的分类策略名称进行分类，配置文件采用yaml格式，需要严格符合语法规则

@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain.dashboard import DashboardChain
@@ -15,6 +14,9 @@ from app.db.user_oper import get_current_active_superuser
 from app.helper.directory import DirectoryHelper
 from app.scheduler import Scheduler
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -56,7 +58,7 @@ def _build_storage() -> schemas.Storage:
     dirs = DirectoryHelper().get_dirs()
     if not dirs:
         return schemas.Storage(total_storage=total, used_storage=total - available)
-    storages = set([d.library_storage for d in dirs if d.library_storage])
+    storages = {d.library_storage for d in dirs if d.library_storage}
     for _storage in storages:
         _usage = StorageChain().storage_usage(_storage)
         if _usage:

@@ -1,11 +1,13 @@
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 from xml.dom import minidom
 
-from app.core.context import MediaInfo
 from app.schemas.types import MediaType
 from app.utils.dom import DomUtils
+
+if TYPE_CHECKING:
+    from app.core.context import MediaInfo
 
 
 class MediaScraperHelper:

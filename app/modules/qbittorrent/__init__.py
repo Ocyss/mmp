@@ -1,7 +1,6 @@
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
-from qbittorrentapi import TorrentFilesList
 from torrentool.torrent import Torrent
 
 from app import schemas
@@ -20,6 +19,9 @@ from app.schemas.types import (
     TorrentStatus,
 )
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from qbittorrentapi import TorrentFilesList
 
 _QBITTORRENT_DOWNLOADING_STATES = {
     "allocating",

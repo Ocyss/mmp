@@ -1,11 +1,10 @@
-import builtins
 import json
 import subprocess
 import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -14,6 +13,9 @@ from app.modules.filemanager.storages import StorageBase, transfer_process
 from app.schemas.types import StorageSchema
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    import builtins
 
 _MAX_FOLDER_LOCKS = 4096
 _folder_locks: OrderedDict[str, threading.Lock] = OrderedDict()

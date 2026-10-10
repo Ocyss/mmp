@@ -3,16 +3,18 @@ import hashlib
 import hmac
 from datetime import datetime
 from random import choice
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from urllib import parse
 
-import httpx
 import requests
 
 from app.core.cache import cached
 from app.core.config import settings
 from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.singleton import WeakSingleton
+
+if TYPE_CHECKING:
+    import httpx
 
 
 class DoubanApi(metaclass=WeakSingleton):

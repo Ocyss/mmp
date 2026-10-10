@@ -1,16 +1,18 @@
 import secrets
 from dataclasses import dataclass
-from typing import Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
 
 from app.chain import ChainBase
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
-from app.db.models.user import User
 from app.db.user_oper import UserOper
 from app.log import logger
 from app.schemas import AuthCredentials, AuthInterceptCredentials
 from app.schemas.types import ChainEventType
 from app.utils.otp import OtpUtils
+
+if TYPE_CHECKING:
+    from app.db.models.user import User
 
 PASSWORD_INVALID_CREDENTIALS_MESSAGE = "用户名、密码或验证码错误"
 

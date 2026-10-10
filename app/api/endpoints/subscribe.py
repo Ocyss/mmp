@@ -1,9 +1,7 @@
-from typing import Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, List, Optional
 
 import cn2an
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app import schemas
 from app.chain.subscribe import SubscribeChain
@@ -15,7 +13,6 @@ from app.core.security import verify_apitoken, verify_token
 from app.db import get_async_db, get_db
 from app.db.models.subscribe import Subscribe
 from app.db.models.subscribehistory import SubscribeHistory
-from app.db.models.user import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import get_current_active_user, get_current_active_user_async
 from app.helper.server import MoviePilotServerHelper
@@ -24,6 +21,12 @@ from app.scheduler import Scheduler
 from app.schemas.event import SubscribeModifiedEventData
 from app.schemas.types import EventType, MediaType, SystemConfigKey
 from app.utils.media import normalize_media_source, parse_media_key
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+
+    from app.db.models.user import User
 
 router = APIRouter()
 

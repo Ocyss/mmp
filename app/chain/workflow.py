@@ -5,23 +5,26 @@ import inspect
 import pickle
 import threading
 from collections import defaultdict, deque
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from time import sleep
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 from pydantic import BaseModel
 
 from app.chain import ChainBase
 from app.core.config import global_vars
 from app.core.event import Event, eventmanager
-from app.db.models import Workflow
 from app.db.workflow_oper import WorkflowOper
 from app.log import logger
 from app.schemas import Action, ActionContext, ActionExecution, ActionFlow, ActionResult
 from app.schemas.types import EventType
 from app.workflow import WorkFlowManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.db.models import Workflow
 
 ARTIFACT_FIELDS = {"torrents", "medias", "fileitems", "downloads", "sites", "subscribes"}
 DEFAULT_WORKFLOW_MAX_WORKERS = 4
@@ -973,7 +976,7 @@ class WorkflowExecutor:
         if isinstance(node, ast.Dict):
             return {
                 self.evaluate_condition_node(key): self.evaluate_condition_node(value)
-                for key, value in zip(node.keys, node.values)
+                for key, value in zip(node.keys, node.values, strict=False)
             }
         raise ValueError(f"不支持的条件表达式：{ast.dump(node)}")
 
@@ -982,7 +985,7 @@ class WorkflowExecutor:
         计算比较表达式，支持链式比较和成员判断。
         """
         left = self.evaluate_condition_node(node.left)
-        for operator, comparator in zip(node.ops, node.comparators):
+        for operator, comparator in zip(node.ops, node.comparators, strict=False):
             right = self.evaluate_condition_node(comparator)
             if not self.compare_values(left, operator, right):
                 return False

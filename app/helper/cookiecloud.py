@@ -76,7 +76,7 @@ class CookieCloudHelper:
             contents = result
         # 整理数据,使用domain域名的最后两级作为分组依据
         domain_groups = {}
-        for site, cookies in contents.items():
+        for cookies in contents.values():
             for cookie in cookies:
                 domain_key = StringUtils.get_url_domain(cookie.get("domain"))
                 if not domain_groups.get(domain_key):

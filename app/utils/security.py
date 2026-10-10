@@ -3,15 +3,13 @@ import hmac
 import ipaddress
 import socket
 import threading
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from hashlib import sha256
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
-from anyio import Path as AsyncPath
 from cachetools import TTLCache
 
 from app.core.config import settings
@@ -21,6 +19,11 @@ from app.utils.coalesce import (
     CoalesceSummary,
     EventCoalescer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from anyio import Path as AsyncPath
 
 # DNS 解析结果缓存。
 # 正向缓存 TTL 选择 120s，短于常见 CDN / fake-ip 的 DNS TTL，避免长期持有失效 IP；
@@ -41,7 +44,7 @@ _dns_inflight_locks: dict[str, asyncio.Lock] = {}
 _dns_inflight_meta_lock = threading.Lock()
 
 
-class UrlSafetyReason(str, Enum):
+class UrlSafetyReason(StrEnum):
     """
     `evaluate_url_safety` 返回的诊断原因枚举。
 

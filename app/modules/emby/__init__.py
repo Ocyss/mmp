@@ -1,13 +1,16 @@
-from collections.abc import Generator
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
-from app.core.context import MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
 from app.modules import _MediaServerBase, _ModuleBase
 from app.modules.emby.emby import Emby
 from app.schemas.types import ChainEventType, MediaServerType, MediaType, ModuleType
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from app.core.context import MediaInfo
 
 
 class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):

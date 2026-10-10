@@ -1,14 +1,18 @@
-import builtins
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
-from app import schemas
 from app.core.security import verify_token
 from app.db import DbOper, get_async_db, get_db
 from app.db.models.user import User
+
+if TYPE_CHECKING:
+    import builtins
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+
+    from app import schemas
 
 
 def get_current_user(db: Session = Depends(get_db), token_data: schemas.TokenPayload = Depends(verify_token)) -> User:

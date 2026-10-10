@@ -241,7 +241,7 @@ class CookieHelper:
                             # 自动OCR识别验证码
                             captcha = self.__get_captcha_text(cookie=cookie, ua=ua, code_url=code_url)
                             if captcha:
-                                logger.info("验证码地址为：%s，识别结果：%s" % (code_url, captcha))
+                                logger.info(f"验证码地址为：{code_url}，识别结果：{captcha}")
                             else:
                                 return None, None, "验证码识别失败"
                             # 输入验证码
@@ -354,4 +354,4 @@ class CookieHelper:
             return ""
         if imageurl.startswith("/"):
             imageurl = imageurl[1:]
-        return "%s/%s" % (StringUtils.get_base_url(siteurl), imageurl)
+        return f"{StringUtils.get_base_url(siteurl)}/{imageurl}"

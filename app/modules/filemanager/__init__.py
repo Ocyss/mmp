@@ -1,22 +1,25 @@
-from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from app.chain.tmdb import TmdbChain
 from app.core.config import settings
-from app.core.context import MediaInfo
-from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfo
 from app.helper.directory import DirectoryHelper
 from app.helper.message import MessageHelper
 from app.helper.module import ModuleHelper
 from app.log import logger
 from app.modules import _ModuleBase
-from app.modules.filemanager.storages import StorageBase
 from app.modules.filemanager.transhandler import TransHandler
 from app.schemas import ExistMediaInfo, FileItem, StorageUsage, TmdbEpisode, TransferDirectoryConf, TransferInfo
 from app.schemas.types import MediaType, ModuleType, OtherModulesType
 from app.utils.system import SystemUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.core.context import MediaInfo
+    from app.core.meta import MetaBase
+    from app.modules.filemanager.storages import StorageBase
 
 
 class FileManagerModule(_ModuleBase):

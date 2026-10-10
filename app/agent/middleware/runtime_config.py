@@ -1,6 +1,7 @@
 """动态注入 Agent 根层运行时配置的中间件。"""
 
-from collections.abc import Awaitable, Callable
+
+from typing import TYPE_CHECKING
 
 from langchain.agents.middleware.types import (
     AgentMiddleware,
@@ -12,6 +13,9 @@ from langchain.agents.middleware.types import (
 
 from app.agent.middleware.utils import append_to_system_message
 from app.agent.runtime import agent_runtime_manager
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 
 class RuntimeConfigMiddleware(AgentMiddleware[dict, ContextT, ResponseT]):  # noqa

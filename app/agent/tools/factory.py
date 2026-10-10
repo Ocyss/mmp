@@ -1,5 +1,4 @@
-from collections.abc import Callable
-from typing import List, Optional, Type
+from typing import TYPE_CHECKING, List, Optional, Type
 
 from app.agent.llm.capability import AgentCapabilityManager
 from app.agent.tools.impl.add_custom_filter_rule import AddCustomFilterRuleTool
@@ -92,6 +91,9 @@ from app.schemas.message import ChannelCapabilityManager
 from app.schemas.types import MessageChannel
 
 from .base import MoviePilotTool
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class MoviePilotToolFactory:

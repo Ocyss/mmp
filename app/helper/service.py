@@ -1,5 +1,4 @@
-from collections.abc import Iterator
-from typing import Dict, Generic, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Type, TypeVar
 
 from pydantic import ValidationError
 
@@ -8,6 +7,9 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas import DownloaderConf, MediaServerConf, NotificationConf, NotificationSwitchConf, ServiceInfo
 from app.schemas.types import ModuleType, NotificationType, SystemConfigKey
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 TConf = TypeVar("TConf")
 
@@ -82,7 +84,7 @@ class ServiceConfigHelper:
         return None
 
 
-class ServiceBaseHelper(Generic[TConf]):
+class ServiceBaseHelper[TConf]:
     """
     通用服务帮助类，抽象获取配置和服务实例的通用逻辑
     """

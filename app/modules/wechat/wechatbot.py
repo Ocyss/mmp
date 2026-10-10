@@ -6,19 +6,21 @@ import re
 import threading
 import time
 import uuid
-from typing import Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 
 import websocket
 from Crypto.Cipher import AES
 
 from app.core.cache import FileCache
 from app.core.config import settings
-from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.schemas import CommingMessage
 from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class WeChatBot:

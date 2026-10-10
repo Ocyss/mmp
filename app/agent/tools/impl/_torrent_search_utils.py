@@ -1,11 +1,13 @@
 """种子搜索工具辅助函数"""
 
 import re
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from app.core.context import Context
 from app.utils.crypto import HashUtils
 from app.utils.string import StringUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context
 
 SEARCH_RESULT_CACHE_FILE = "__search_result__"
 TORRENT_RESULT_LIMIT = 50

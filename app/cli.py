@@ -6,9 +6,8 @@ import subprocess
 import sys
 import time
 from collections import deque
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Optional, get_args, get_origin
+from typing import TYPE_CHECKING, Any, Dict, Optional, get_args, get_origin
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
@@ -19,6 +18,9 @@ import psutil
 from app.core.config import Settings, settings
 from app.helper.system import SystemHelper
 from version import APP_VERSION
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 BACKEND_RUNTIME_FILE = settings.TEMP_PATH / "moviepilot.runtime.json"
 BACKEND_STDIO_LOG_FILE = settings.LOG_PATH / "moviepilot.stdout.log"

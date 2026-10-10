@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from app import schemas
 from app.chain import ChainBase
-from app.core.context import MediaInfo
+
+if TYPE_CHECKING:
+    from app import schemas
+    from app.core.context import MediaInfo
 
 
 class AniListChain(ChainBase):

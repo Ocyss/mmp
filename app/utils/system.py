@@ -107,8 +107,7 @@ class SystemUtils:
                 pip_command,
                 check=True,
                 text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 env=env,
             )
             # 合并 stdout 和 stderr
@@ -408,8 +407,7 @@ class SystemUtils:
                     command,
                     check=False,
                     text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     timeout=120,
                 )
             except Exception as err:

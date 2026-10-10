@@ -1,10 +1,9 @@
 import copy
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
-from app.core.context import Context, MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
 from app.modules import _MessageBase, _ModuleBase
@@ -18,6 +17,9 @@ from app.schemas import (
 )
 from app.schemas.types import ChainEventType, ModuleType
 from app.utils.structures import DictUtils
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class SlackModule(_ModuleBase, _MessageBase[Slack]):

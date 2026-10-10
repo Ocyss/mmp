@@ -1,20 +1,23 @@
 import json
 import re
 import traceback
-from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-from requests import Response
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.core.config import settings
 from app.log import logger
-from app.schemas import MediaServerItem
 from app.schemas.types import MediaType
 from app.utils.http import RequestUtils
 from app.utils.url import UrlUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from requests import Response
+
+    from app.schemas import MediaServerItem
 
 
 class Emby:
@@ -651,7 +654,7 @@ class Emby:
         # 如果找不到，只要路径中有分类目录名就命中
         for folder in self.folders:
             for subfolder in folder.get("SubFolders"):
-                if subfolder.get("Path") and re.search(r"[/\\]%s" % item.category, subfolder.get("Path")):
+                if subfolder.get("Path") and re.search(rf"[/\\]{item.category}", subfolder.get("Path")):
                     return folder.get("Id")
         # 刷新根目录
         return "/"
@@ -1056,14 +1059,14 @@ class Emby:
                     and message.get("Item", {}).get("ParentIndexNumber")
                     and message.get("Item", {}).get("IndexNumber")
                 ):
-                    eventItem.item_name = "%s %s%s %s" % (
+                    eventItem.item_name = "{} {}{} {}".format(
                         message.get("Item", {}).get("SeriesName"),
                         "S" + str(message.get("Item", {}).get("ParentIndexNumber")),
                         "E" + str(message.get("Item", {}).get("IndexNumber")),
                         message.get("Item", {}).get("Name"),
                     )
                 elif message.get("Item", {}).get("SeriesName"):
-                    eventItem.item_name = "%s %s" % (
+                    eventItem.item_name = "{} {}".format(
                         message.get("Item", {}).get("SeriesName"),
                         message.get("Item", {}).get("Name"),
                     )
@@ -1081,7 +1084,7 @@ class Emby:
                 eventItem.item_id = message.get("Item", {}).get("AlbumId")
             else:
                 eventItem.item_type = "MOV"
-                eventItem.item_name = "%s %s" % (
+                eventItem.item_name = "{} {}".format(
                     message.get("Item", {}).get("Name"),
                     "(" + str(message.get("Item", {}).get("ProductionYear")) + ")",
                 )
@@ -1201,7 +1204,7 @@ class Emby:
         """
         if not self._host or not self._apikey:
             return ""
-        return "%sItems/%s/Images/Primary" % (self._host, item_id)
+        return f"{self._host}Items/{item_id}/Images/Primary"
 
     def get_resume(self, num: int | None = 12, username: str | None = None) -> list[schemas.MediaServerPlayItem] | None:
         """
@@ -1357,5 +1360,5 @@ class Emby:
         for library in self.get_emby_virtual_folders() or []:
             if self._sync_libraries and library.get("Id") not in self._sync_libraries:
                 continue
-            library_folders += [folder for folder in library.get("Path")]
+            library_folders += list(library.get("Path"))
         return library_folders

@@ -1,16 +1,19 @@
-import builtins
 from abc import ABCMeta, abstractmethod
-from collections.abc import Callable
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from app import schemas
 from app.helper.progress import ProgressHelper
 from app.helper.storage import StorageHelper
 from app.log import logger
 from app.utils.crypto import HashUtils
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Callable
+
+    from app import schemas
 
 
 def transfer_process(path: str) -> Callable[[int | float], None]:

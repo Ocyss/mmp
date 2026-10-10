@@ -487,7 +487,7 @@ class Rtorrent:
         if isinstance(tags, str):
             tags = [tags]
         torrent_id = None
-        for i in range(1, 10):
+        for _i in range(1, 10):
             time.sleep(3)
             torrents, error = self.get_torrents(tags=tags)
             if not error and torrents:

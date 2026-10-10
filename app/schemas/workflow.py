@@ -1,12 +1,13 @@
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.context import Context, MediaInfo
-from app.schemas.download import DownloadTask
-from app.schemas.file import FileItem
-from app.schemas.site import Site
-from app.schemas.subscribe import Subscribe
+if TYPE_CHECKING:
+    from app.schemas.context import Context, MediaInfo
+    from app.schemas.download import DownloadTask
+    from app.schemas.file import FileItem
+    from app.schemas.site import Site
+    from app.schemas.subscribe import Subscribe
 
 
 class Workflow(BaseModel):

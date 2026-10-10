@@ -3,13 +3,16 @@ import traceback
 from math import ceil
 from threading import RLock
 from time import time
+from typing import TYPE_CHECKING
 
 from app.core.cache import FileCache, TTLCache
 from app.core.config import settings
-from app.core.meta import MetaBase
 from app.log import logger
 from app.schemas.types import MediaType
 from app.utils.singleton import WeakSingleton
+
+if TYPE_CHECKING:
+    from app.core.meta import MetaBase
 
 lock = RLock()
 PERSISTENCE_VERSION = 1

@@ -192,7 +192,7 @@ class GetSearchResultsTool(MoviePilotTool):
                     include_description=include_description,
                     include_labels=include_labels,
                 )
-                for item, index in zip(page_items, page_indices)
+                for item, index in zip(page_items, page_indices, strict=False)
             ]
             total_pages = (total_count + page_size - 1) // page_size
             payload = {

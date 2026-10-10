@@ -139,7 +139,7 @@ class ReleaseGroupsMatcher(metaclass=Singleton):
         """
         groups_re = self.__groups_re_cache.get(groups)
         if not groups_re:
-            groups_re = re.compile(r"(?<=[-@\[￡【&])(?:(?:%s))(?=$|[@.\s\]\[】&])" % groups, re.I)
+            groups_re = re.compile(rf"(?<=[-@\[￡【&])(?:(?:{groups}))(?=$|[@.\s\]\[】&])", re.I)
             self.__groups_re_cache[groups] = groups_re
         return groups_re
 

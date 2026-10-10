@@ -175,7 +175,7 @@ class SiteSpider:
                 params = {"search_mode": search_mode, "search_area": 0, "page": self.page or 0, "notnewword": 1}
                 # 额外参数
                 for key, value in indexer_params.items():
-                    params.update({"%s" % key: str(value).format(**inputs_dict)})
+                    params.update({f"{key}": str(value).format(**inputs_dict)})
                 # 分类条件
                 if self.category:
                     if self.mtype == MediaType.TV:
@@ -192,13 +192,13 @@ class SiteSpider:
                             value = params.get(self.category.get("field"), "")
                             params.update(
                                 {
-                                    "%s" % self.category.get("field"): value
+                                    "{}".format(self.category.get("field")): value
                                     + self.category.get("delimiter", " ")
                                     + cat.get("id")
                                 }
                             )
                         else:
-                            params.update({"cat%s" % cat.get("id"): 1})
+                            params.update({"cat{}".format(cat.get("id")): 1})
                 searchurl = UrlUtils.combine_url(self.domain, torrentspath, params)
             else:
                 # 变量字典
@@ -809,7 +809,7 @@ class SiteSpider:
             # 返回当前种子信息的副本，而不是引用
             return self.torrents_info.copy() if self.torrents_info else {}
         except Exception as err:
-            logger.error("%s 搜索出现错误：%s" % (self.indexername, str(err)))
+            logger.error(f"{self.indexername} 搜索出现错误：{str(err)}")
             return {}
         finally:
             self.torrents_info.clear()
@@ -837,7 +837,7 @@ class SiteSpider:
                 return {}
             return self.torrents_info.copy() if self.torrents_info else {}
         except Exception as err:
-            logger.error("%s 字幕搜索出现错误：%s" % (self.indexername, str(err)))
+            logger.error(f"{self.indexername} 字幕搜索出现错误：{str(err)}")
             return {}
         finally:
             self.torrents_info.clear()
@@ -858,16 +858,16 @@ class SiteSpider:
             try:
                 args = filter_item.get("args")
                 if method_name == "re_search" and isinstance(args, list):
-                    rematch = re.search(r"%s" % args[0], text)
+                    rematch = re.search(rf"{args[0]}", text)
                     if rematch:
                         text = rematch.group(args[-1])
                 elif method_name == "split" and isinstance(args, list):
-                    text = text.split(r"%s" % args[0])[args[-1]]
+                    text = text.split(rf"{args[0]}")[args[-1]]
                 elif method_name == "replace" and isinstance(args, list):
-                    text = text.replace(r"%s" % args[0], r"%s" % args[-1])
+                    text = text.replace(rf"{args[0]}", rf"{args[-1]}")
                 elif method_name == "dateparse" and isinstance(args, str):
                     text = text.replace("\n", " ").strip()
-                    text = datetime.datetime.strptime(text, r"%s" % args)
+                    text = datetime.datetime.strptime(text, rf"{args}")
                 elif method_name == "strip":
                     text = text.strip()
                 elif method_name == "appendleft":

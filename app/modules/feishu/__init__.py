@@ -1,11 +1,13 @@
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
-from app.core.context import Context, MediaInfo
 from app.log import logger
 from app.modules import _MessageBase, _ModuleBase
 from app.modules.feishu.feishu import Feishu
 from app.schemas import CommingMessage, MessageChannel, MessageResponse, Notification
 from app.schemas.types import ModuleType
+
+if TYPE_CHECKING:
+    from app.core.context import Context, MediaInfo
 
 
 class FeishuModule(_ModuleBase, _MessageBase[Feishu]):
