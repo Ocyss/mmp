@@ -2,23 +2,26 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.chain.download import DownloadChain
 from app.chain.media import MediaChain
 from app.core.config import global_vars
 from app.core.metainfo import MetaInfo
 from app.log import logger
-from app.schemas import ActionParams, ActionContext, DownloadTask, MediaType
+from app.schemas import ActionContext, ActionParams, DownloadTask, MediaType
+from app.workflow.actions import BaseAction
 
 
 class AddDownloadParams(ActionParams):
     """
     添加下载资源参数
     """
-    downloader: Optional[str] = Field(default=None, description="下载器")
-    save_path: Optional[str] = Field(default=None, description="保存路径, 支持<storage>:<path>, 如rclone:/MP, smb:/server/share/Movies等")
-    labels: Optional[str] = Field(default=None, description="标签（,分隔）")
-    only_lack: Optional[bool] = Field(default=False, description="仅下载缺失的资源")
+
+    downloader: str | None = Field(default=None, description="下载器")
+    save_path: str | None = Field(
+        default=None, description="保存路径, 支持<storage>:<path>, 如rclone:/MP, smb:/server/share/Movies等"
+    )
+    labels: str | None = Field(default=None, description="标签（,分隔）")
+    only_lack: bool | None = Field(default=False, description="仅下载缺失的资源")
 
 
 class AddDownloadAction(BaseAction):
@@ -100,14 +103,14 @@ class AddDownloadAction(BaseAction):
                             if exists_episodes:
                                 if set(t.meta_info.episode_list).issubset(exists_episodes):
                                     logger.warning(
-                                        f"{t.meta_info.title} 第 {t.meta_info.begin_season} 季第 {t.meta_info.episode_list} 集已存在，跳过")
+                                        f"{t.meta_info.title} 第 {t.meta_info.begin_season} 季第 {t.meta_info.episode_list} 集已存在，跳过"
+                                    )
                                     continue
 
             _started = True
-            did = DownloadChain().download_single(context=t,
-                                                  downloader=params.downloader,
-                                                  save_path=params.save_path,
-                                                  label=params.labels)
+            did = DownloadChain().download_single(
+                context=t, downloader=params.downloader, save_path=params.save_path, label=params.labels
+            )
             if did:
                 self._added_downloads.append(did)
                 # 保存缓存

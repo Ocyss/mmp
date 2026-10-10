@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, TypeVar, Any, Union
+from typing import Any, Dict, List, Set, TypeVar, Union
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -6,7 +6,7 @@ V = TypeVar("V")
 
 class DictUtils:
     @staticmethod
-    def filter_keys_to_subset(source: Dict[K, V], reference: Dict[K, V]) -> Dict[K, V]:
+    def filter_keys_to_subset(source: dict[K, V], reference: dict[K, V]) -> dict[K, V]:
         """
         过滤 source 字典，使其键成为 reference 字典键的子集
 
@@ -20,7 +20,7 @@ class DictUtils:
         return {key: value for key, value in source.items() if key in reference}
 
     @staticmethod
-    def is_keys_subset(source: Dict[K, V], reference: Dict[K, V]) -> bool:
+    def is_keys_subset(source: dict[K, V], reference: dict[K, V]) -> bool:
         """
         判断 source 字典的键是否为 reference 字典键的子集
 
@@ -36,7 +36,7 @@ class DictUtils:
 
 class ListUtils:
     @staticmethod
-    def flatten(nested_list: Union[List[List[Any]], List[Any]]) -> List[Any]:
+    def flatten(nested_list: list[list[Any]] | list[Any]) -> list[Any]:
         """
         将嵌套的列表展平成单个列表
 
@@ -50,16 +50,12 @@ class ListUtils:
         if not any(isinstance(sublist, list) for sublist in nested_list):
             return nested_list
 
-        return [
-            item
-            for sublist in nested_list
-            for item in (sublist if isinstance(sublist, list) else [sublist])
-        ]
+        return [item for sublist in nested_list for item in (sublist if isinstance(sublist, list) else [sublist])]
 
 
 class SetUtils:
     @staticmethod
-    def flatten(nested_sets: Union[Set[Set[Any]], Set[Any]]) -> Set[Any]:
+    def flatten(nested_sets: set[set[Any]] | set[Any]) -> set[Any]:
         """
         将嵌套的集合展开为单个集合
 

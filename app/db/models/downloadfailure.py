@@ -70,33 +70,29 @@ class DownloadFailure(Base):
     @classmethod
     @db_query
     def get_active_by_fingerprints(
-            cls,
-            db: Session,
-            fingerprints: List[str],
-            now_time: str,
-    ) -> List["DownloadFailure"]:
+        cls,
+        db: Session,
+        fingerprints: list[str],
+        now_time: str,
+    ) -> list[DownloadFailure]:
         """
         按指纹批量查询仍处于冷却期的失败记录。
         """
         normalized = list(dict.fromkeys([fingerprint for fingerprint in fingerprints if fingerprint]))
         if not normalized:
             return []
-        return (
-            db.query(cls)
-            .filter(cls.fingerprint.in_(normalized), cls.next_retry_at > now_time)
-            .all()
-        )
+        return db.query(cls).filter(cls.fingerprint.in_(normalized), cls.next_retry_at > now_time).all()
 
     @classmethod
     @db_update
     def record_failure(
-            cls,
-            db: Session,
-            fingerprint: str,
-            now_time: str,
-            next_retry_at: str,
-            **kwargs: object,
-    ) -> "DownloadFailure":
+        cls,
+        db: Session,
+        fingerprint: str,
+        now_time: str,
+        next_retry_at: str,
+        **kwargs: object,
+    ) -> DownloadFailure:
         """
         新增或更新资源失败记录。
         """
@@ -124,10 +120,10 @@ class DownloadFailure(Base):
     @classmethod
     @db_update
     def delete_expired(
-            cls,
-            db: Session,
-            before_time: str,
-            limit: Optional[int] = 500,
+        cls,
+        db: Session,
+        before_time: str,
+        limit: int | None = 500,
     ) -> int:
         """
         分批清理已过期较久的失败冷却记录。

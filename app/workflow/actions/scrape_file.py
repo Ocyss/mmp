@@ -2,7 +2,7 @@ from app.chain.media import MediaChain
 from app.chain.storage import StorageChain
 from app.core.config import global_vars
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
 from app.workflow.actions import BaseAction
 
 
@@ -10,6 +10,7 @@ class ScrapeFileParams(ActionParams):
     """
     刮削文件参数
     """
+
     pass
 
 
@@ -30,17 +31,17 @@ class ScrapeFileAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "刮削文件"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "刮削媒体信息和图片"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return ScrapeFileParams().model_dump()
 
     @property
@@ -75,9 +76,7 @@ class ScrapeFileAction(BaseAction):
                 logger.info(f"{fileitem.path} 未识别到媒体信息，无法刮削")
                 continue
             mediachain.scrape_metadata(
-                fileitem=fileitem,
-                meta=media_context.meta_info,
-                mediainfo=media_context.media_info
+                fileitem=fileitem, meta=media_context.meta_info, mediainfo=media_context.media_info
             )
             self._scraped_files.append(fileitem)
             # 保存缓存

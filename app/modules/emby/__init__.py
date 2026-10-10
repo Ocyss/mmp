@@ -1,4 +1,5 @@
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from collections.abc import Generator
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
 from app.core.context import MediaInfo
@@ -6,17 +7,18 @@ from app.core.event import eventmanager
 from app.log import logger
 from app.modules import _MediaServerBase, _ModuleBase
 from app.modules.emby.emby import Emby
-from app.schemas.types import MediaType, ModuleType, ChainEventType, MediaServerType
+from app.schemas.types import ChainEventType, MediaServerType, MediaType, ModuleType
 
 
 class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
-
     def init_module(self) -> None:
         """
         初始化模块
         """
-        super().init_service(service_name=Emby.__name__.lower(),
-                             service_type=lambda conf: Emby(**conf.config, sync_libraries=conf.sync_libraries))
+        super().init_service(
+            service_name=Emby.__name__.lower(),
+            service_type=lambda conf: Emby(**conf.config, sync_libraries=conf.sync_libraries),
+        )
 
     @staticmethod
     def get_name() -> str:
@@ -46,7 +48,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
     def stop(self):
         pass
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -59,7 +61,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
                 return False, f"无法连接Emby服务器：{name}"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     def scheduler_job(self) -> None:
@@ -72,8 +74,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
                 logger.info(f"Emby服务器 {name} 连接断开，尝试重连 ...")
                 server.reconnect()
 
-    def user_authenticate(self, credentials: schemas.AuthCredentials, service_name: Optional[str] = None) \
-            -> Optional[schemas.AuthCredentials]:
+    def user_authenticate(
+        self, credentials: schemas.AuthCredentials, service_name: str | None = None
+    ) -> schemas.AuthCredentials | None:
         """
         使用Emby用户辅助完成用户认证
         :param credentials: 认证数据
@@ -95,8 +98,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             # 触发认证拦截事件
             intercept_event = eventmanager.send_event(
                 etype=ChainEventType.AuthIntercept,
-                data=schemas.AuthInterceptCredentials(username=credentials.username, channel=self.get_name(),
-                                                      service=name, status="triggered")
+                data=schemas.AuthInterceptCredentials(
+                    username=credentials.username, channel=self.get_name(), service=name, status="triggered"
+                ),
             )
             if intercept_event and intercept_event.event_data:
                 intercept_data: schemas.AuthInterceptCredentials = intercept_event.event_data
@@ -110,7 +114,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
                 return credentials
         return None
 
-    def webhook_parser(self, body: Any, form: Any, args: Any) -> Optional[schemas.WebhookEventInfo]:
+    def webhook_parser(self, body: Any, form: Any, args: Any) -> schemas.WebhookEventInfo | None:
         """
         解析Webhook报文体
         :param body:  请求体
@@ -135,8 +139,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
                     return result
         return None
 
-    def media_exists(self, mediainfo: MediaInfo, itemid: Optional[str] = None,
-                     server: Optional[str] = None) -> Optional[schemas.ExistMediaInfo]:
+    def media_exists(
+        self, mediainfo: MediaInfo, itemid: str | None = None, server: str | None = None
+    ) -> schemas.ExistMediaInfo | None:
         """
         判断媒体文件是否存在
         :param mediainfo:  识别的媒体信息
@@ -157,45 +162,32 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
                     if movie:
                         logger.info(f"媒体库 {name} 中找到了 {movie}")
                         return schemas.ExistMediaInfo(
-                            type=MediaType.MOVIE,
-                            server_type="emby",
-                            server=name,
-                            itemid=movie.item_id
+                            type=MediaType.MOVIE, server_type="emby", server=name, itemid=movie.item_id
                         )
-                movies = s.get_movies(title=mediainfo.title,
-                                      year=mediainfo.year,
-                                      tmdb_id=mediainfo.tmdb_id)
+                movies = s.get_movies(title=mediainfo.title, year=mediainfo.year, tmdb_id=mediainfo.tmdb_id)
                 if not movies:
                     logger.info(f"{mediainfo.title_year} 没有在媒体库 {name} 中")
                     continue
                 else:
                     logger.info(f"媒体库 {name} 中找到了 {movies}")
                     return schemas.ExistMediaInfo(
-                        type=MediaType.MOVIE,
-                        server_type="emby",
-                        server=name,
-                        itemid=movies[0].item_id
+                        type=MediaType.MOVIE, server_type="emby", server=name, itemid=movies[0].item_id
                     )
             else:
-                itemid, tvs = s.get_tv_episodes(title=mediainfo.title,
-                                                year=mediainfo.year,
-                                                tmdb_id=mediainfo.tmdb_id,
-                                                item_id=itemid)
+                itemid, tvs = s.get_tv_episodes(
+                    title=mediainfo.title, year=mediainfo.year, tmdb_id=mediainfo.tmdb_id, item_id=itemid
+                )
                 if not tvs:
                     logger.info(f"{mediainfo.title_year} 没有在媒体库 {name} 中")
                     continue
                 else:
                     logger.info(f"{mediainfo.title_year} 在媒体库 {name} 中找到了这些季集：{tvs}")
                     return schemas.ExistMediaInfo(
-                        type=MediaType.TV,
-                        seasons=tvs,
-                        server_type="emby",
-                        server=name,
-                        itemid=itemid
+                        type=MediaType.TV, seasons=tvs, server_type="emby", server=name, itemid=itemid
                     )
         return None
 
-    def media_statistic(self, server: Optional[str] = None) -> Optional[List[schemas.Statistic]]:
+    def media_statistic(self, server: str | None = None) -> list[schemas.Statistic] | None:
         """
         媒体数量统计
         """
@@ -215,9 +207,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             media_statistics.append(media_statistic)
         return media_statistics
 
-    def mediaserver_librarys(self, server: str,
-                             username: Optional[str] = None,
-                             hidden: Optional[bool] = False) -> Optional[List[schemas.MediaServerLibrary]]:
+    def mediaserver_librarys(
+        self, server: str, username: str | None = None, hidden: bool | None = False
+    ) -> list[schemas.MediaServerLibrary] | None:
         """
         媒体库列表
         """
@@ -226,8 +218,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return server_obj.get_librarys(username=username, hidden=hidden)
         return None
 
-    def mediaserver_items(self, server: str, library_id: Union[str, int], start_index: Optional[int] = 0,
-                          limit: Optional[int] = -1) -> Optional[Generator]:
+    def mediaserver_items(
+        self, server: str, library_id: str | int, start_index: int | None = 0, limit: int | None = -1
+    ) -> Generator | None:
         """
         获取媒体服务器项目列表，支持分页和不分页逻辑，默认不分页获取所有数据
 
@@ -243,7 +236,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return server_obj.get_items(library_id, start_index, limit)
         return None
 
-    def mediaserver_items_count(self, server: str, library_id: Union[str, int]) -> Optional[int]:
+    def mediaserver_items_count(self, server: str, library_id: str | int) -> int | None:
         """
         获取指定媒体库可同步的媒体条目总数
 
@@ -256,7 +249,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return server_obj.get_items_count(library_id)
         return None
 
-    def mediaserver_iteminfo(self, server: str, item_id: str) -> Optional[schemas.MediaServerItem]:
+    def mediaserver_iteminfo(self, server: str, item_id: str) -> schemas.MediaServerItem | None:
         """
         媒体库项目详情
         """
@@ -265,8 +258,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return server_obj.get_iteminfo(item_id)
         return None
 
-    def mediaserver_tv_episodes(self, server: str,
-                                item_id: Union[str, int]) -> Optional[List[schemas.MediaServerSeasonInfo]]:
+    def mediaserver_tv_episodes(self, server: str, item_id: str | int) -> list[schemas.MediaServerSeasonInfo] | None:
         """
         获取剧集信息
         """
@@ -276,13 +268,13 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
         _, seasoninfo = server_obj.get_tv_episodes(item_id=item_id)
         if not seasoninfo:
             return []
-        return [schemas.MediaServerSeasonInfo(
-            season=season,
-            episodes=episodes
-        ) for season, episodes in seasoninfo.items()]
+        return [
+            schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()
+        ]
 
-    def mediaserver_playing(self, server: str, count: Optional[int] = 20,
-                            username: Optional[str] = None) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def mediaserver_playing(
+        self, server: str, count: int | None = 20, username: str | None = None
+    ) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取媒体服务器正在播放信息
         """
@@ -291,7 +283,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return None
         return server_obj.get_resume(num=count, username=username)
 
-    def mediaserver_play_url(self, server: str, item_id: Union[str, int]) -> Optional[str]:
+    def mediaserver_play_url(self, server: str, item_id: str | int) -> str | None:
         """
         获取媒体库播放地址
         """
@@ -300,8 +292,7 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return None
         return server_obj.get_play_url(item_id)
 
-    def mediaserver_season_episode_ids(self, server: str, item_id: Union[str, int],
-                                       season: int) -> Optional[Dict[int, str]]:
+    def mediaserver_season_episode_ids(self, server: str, item_id: str | int, season: int) -> dict[int, str] | None:
         """
         获取指定季的集号到条目 ID 映射
 
@@ -315,8 +306,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return None
         return server_obj.get_season_episode_ids(str(item_id), season)
 
-    def mediaserver_latest(self, server: Optional[str] = None, count: Optional[int] = 20,
-                           username: Optional[str] = None) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def mediaserver_latest(
+        self, server: str | None = None, count: int | None = 20, username: str | None = None
+    ) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取媒体服务器最新入库条目
         """
@@ -325,12 +317,13 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return None
         return server_obj.get_latest(num=count, username=username)
 
-    def mediaserver_latest_images(self,
-                                  server: Optional[str] = None,
-                                  count: Optional[int] = 10,
-                                  username: Optional[str] = None,
-                                  remote: Optional[bool] = False
-                                  ) -> List[str]:
+    def mediaserver_latest_images(
+        self,
+        server: str | None = None,
+        count: int | None = 10,
+        username: str | None = None,
+        remote: bool | None = False,
+    ) -> list[str]:
         """
         获取媒体服务器最新入库条目的图片
 
@@ -348,9 +341,9 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
         items = self.mediaserver_latest(server=server, count=count, username=username) or []
         for item in items:
             if item.BackdropImageTags:
-                image_url = server_obj.get_backdrop_url(item_id=item.id,
-                                                        image_tag=item.BackdropImageTags[0],
-                                                        remote=remote)
+                image_url = server_obj.get_backdrop_url(
+                    item_id=item.id, image_tag=item.BackdropImageTags[0], remote=remote
+                )
                 if image_url:
                     links.append(image_url)
         return links

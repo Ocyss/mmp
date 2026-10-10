@@ -2,7 +2,6 @@ from app.utils.http import RequestUtils
 
 
 class WebUtils:
-
     @staticmethod
     def get_location(ip: str):
         """
@@ -40,7 +39,7 @@ class WebUtils:
         try:
             r = RequestUtils().get_res(f"https://api.mir6.com/api/ip?ip={ip}&type=json")
             if r:
-                return r.json().get("data", {}).get("location") or ''
+                return r.json().get("data", {}).get("location") or ""
         except Exception as err:
             print(str(err))
         return ""
@@ -65,7 +64,7 @@ class WebUtils:
         try:
             r = RequestUtils().get_res(f"https://whois.pconline.com.cn/ipJson.jsp?json=true&ip={ip}")
             if r:
-                return r.json().get("addr") or ''
+                return r.json().get("addr") or ""
         except Exception as err:
             print(str(err))
         return ""

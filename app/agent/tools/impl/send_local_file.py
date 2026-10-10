@@ -9,7 +9,7 @@ from app.agent.tools.base import MoviePilotTool
 from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas import Notification, NotificationType
-from app.schemas.message import ChannelCapabilityManager, ChannelCapability
+from app.schemas.message import ChannelCapability, ChannelCapabilityManager
 from app.schemas.types import MessageChannel
 
 
@@ -20,15 +20,15 @@ class SendLocalFileInput(BaseModel):
         ...,
         description="Absolute path to the local image or file to send to the user",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="Optional message or caption to send with the attachment",
     )
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         description="Optional short title shown together with the attachment",
     )
-    file_name: Optional[str] = Field(
+    file_name: str | None = Field(
         None,
         description="Optional override filename presented to the user when downloading",
     )
@@ -52,10 +52,10 @@ class SendLocalFileTool(MoviePilotTool):
         "Send a local image or file from the server filesystem to the current user. "
         "Use this when you have generated or identified a local file the user should download."
     )
-    args_schema: Type[BaseModel] = SendLocalFileInput
+    args_schema: type[BaseModel] = SendLocalFileInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         file_path = kwargs.get("file_path", "")
         file_name = Path(file_path).name if file_path else "未知文件"
         return f"发送本地附件: {file_name}"
@@ -63,9 +63,9 @@ class SendLocalFileTool(MoviePilotTool):
     async def run(
         self,
         file_path: str,
-        message: Optional[str] = None,
-        title: Optional[str] = None,
-        file_name: Optional[str] = None,
+        message: str | None = None,
+        title: str | None = None,
+        file_name: str | None = None,
         **kwargs,
     ) -> str:
         if not self._channel or not self._source:
@@ -76,9 +76,7 @@ class SendLocalFileTool(MoviePilotTool):
         except ValueError:
             return f"不支持的消息渠道: {self._channel}"
 
-        if not ChannelCapabilityManager.supports_capability(
-            channel, ChannelCapability.FILE_SENDING
-        ):
+        if not ChannelCapabilityManager.supports_capability(channel, ChannelCapability.FILE_SENDING):
             return f"当前渠道 {channel.value} 暂不支持发送本地文件"
 
         resolved_path = Path(file_path).expanduser()

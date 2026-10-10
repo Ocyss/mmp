@@ -1,4 +1,5 @@
 from app.core.cache import cached
+
 from ..tmdb import TMDb
 
 try:
@@ -8,10 +9,7 @@ except ImportError:
 
 
 class Discover(TMDb):
-    _urls = {
-        "movies": "/discover/movie",
-        "tv": "/discover/tv"
-    }
+    _urls = {"movies": "/discover/movie", "tv": "/discover/tv"}
 
     @cached(maxsize=1, ttl=43200)
     def discover_movies(self, params_tuple):
@@ -51,5 +49,6 @@ class Discover(TMDb):
         :param params_tuple: dict
         :return:
         """
-        return await self._async_request_obj(self._urls["tv"], urlencode(params_tuple), key="results",
-                                             call_cached=False)
+        return await self._async_request_obj(
+            self._urls["tv"], urlencode(params_tuple), key="results", call_cached=False
+        )

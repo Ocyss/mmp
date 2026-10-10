@@ -30,11 +30,7 @@ class PatchToolCallsMiddleware(AgentMiddleware):
         if not messages or len(messages) == 0:
             return messages
 
-        tool_messages = {
-            msg.tool_call_id: msg
-            for msg in messages
-            if isinstance(msg, ToolMessage) and msg.tool_call_id
-        }
+        tool_messages = {msg.tool_call_id: msg for msg in messages if isinstance(msg, ToolMessage) and msg.tool_call_id}
         patched_messages = []
         for msg in messages:
             if isinstance(msg, ToolMessage):
@@ -54,7 +50,7 @@ class PatchToolCallsMiddleware(AgentMiddleware):
 
         return patched_messages
 
-    def before_agent(self, state: AgentState, runtime: Runtime[Any]) -> Optional[dict[str, Any]]:  # noqa: ARG002
+    def before_agent(self, state: AgentState, runtime: Runtime[Any]) -> dict[str, Any] | None:  # noqa: ARG002
         """在代理运行之前，处理任何 AIMessage 中悬空或乱序的工具调用。"""
         messages = state["messages"]
         patched_messages = self._normalize_messages(messages)
@@ -63,7 +59,7 @@ class PatchToolCallsMiddleware(AgentMiddleware):
 
         return {"messages": Overwrite(patched_messages)}
 
-    async def abefore_agent(self, state: AgentState, runtime: Runtime[Any]) -> Optional[dict[str, Any]]:  # noqa: ARG002
+    async def abefore_agent(self, state: AgentState, runtime: Runtime[Any]) -> dict[str, Any] | None:  # noqa: ARG002
         """在代理异步运行之前，处理任何 AIMessage 中悬空或乱序的工具调用。"""
         messages = state["messages"]
         patched_messages = self._normalize_messages(messages)

@@ -1,5 +1,6 @@
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import app.modules.trimemedia.api as fnapi
 from app import schemas
@@ -10,28 +11,28 @@ from app.utils.url import UrlUtils
 
 
 class TrimeMedia:
-    _username: Optional[str] = None
-    _password: Optional[str] = None
-    _access_code: Optional[str] = None
+    _username: str | None = None
+    _password: str | None = None
+    _access_code: str | None = None
 
-    _userinfo: Optional[fnapi.User] = None
-    _host: Optional[str] = None
-    _playhost: Optional[str] = None
+    _userinfo: fnapi.User | None = None
+    _host: str | None = None
+    _playhost: str | None = None
 
     _libraries: dict[str, fnapi.MediaDb] = {}
-    _sync_libraries: List[str] = []
+    _sync_libraries: list[str] = []
 
-    _api: Optional[fnapi.Api] = None
-    _version: Optional[fnapi.Version] = None
+    _api: fnapi.Api | None = None
+    _version: fnapi.Version | None = None
 
     def __init__(
         self,
-        host: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        access_code: Optional[str] = None,
-        play_host: Optional[str] = None,
-        sync_libraries: Optional[list] = None,
+        host: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        access_code: str | None = None,
+        play_host: str | None = None,
+        sync_libraries: list | None = None,
         **kwargs,
     ):
         if not host or not username or not password:
@@ -54,14 +55,14 @@ class TrimeMedia:
             self._playhost = UrlUtils.standardize_base_url(play_host).rstrip("/")
 
     @property
-    def api(self) -> Optional[fnapi.Api]:
+    def api(self) -> fnapi.Api | None:
         """
         获得飞牛API
         """
         return self._api
 
     @property
-    def version(self) -> Optional[fnapi.Version]:
+    def version(self) -> fnapi.Version | None:
         """
         获得飞牛API的版本
         """
@@ -72,9 +73,7 @@ class TrimeMedia:
         version: fnapi.Version
 
     @staticmethod
-    def __create_api(
-        host: Optional[str], access_code: Optional[str] = None
-    ) -> Optional["TrimeMedia._ApiCreateResult"]:
+    def __create_api(host: str | None, access_code: str | None = None) -> TrimeMedia._ApiCreateResult | None:
         """
         创建一个飞牛API
 
@@ -144,9 +143,7 @@ class TrimeMedia:
             self._version = result.version
             # 版本号:0.8.53, 服务版本:0.8.23
             # 版本号:0.8.56, 服务版本:0.8.23 接口/memory/user/list改为/manager/user/list
-            logger.debug(
-                f"版本号:{result.version.frontend}, 服务版本:{result.version.backend}"
-            )
+            logger.debug(f"版本号:{result.version.frontend}, 服务版本:{result.version.backend}")
         else:
             return False
         if self._api.login(self._username, self._password) is None:
@@ -170,9 +167,7 @@ class TrimeMedia:
             self._userinfo = None
             logger.debug(f"{self._username} 已断开飞牛影视")
 
-    def get_librarys(
-        self, hidden: Optional[bool] = False
-    ) -> Optional[List[schemas.MediaServerLibrary]]:
+    def get_librarys(self, hidden: bool | None = False) -> list[schemas.MediaServerLibrary] | None:
         """
         获取媒体服务器所有媒体库列表
         """
@@ -206,10 +201,7 @@ class TrimeMedia:
                     type=library_type,
                     path=library.dir_list,
                     item_count=self.get_items_count(library.guid),
-                    image_list=[
-                        f"{self._api.host}{img_path}?w=256"
-                        for img_path in library.posters or []
-                    ],
+                    image_list=[f"{self._api.host}{img_path}?w=256" for img_path in library.posters or []],
                     link=f"{self._playhost or self._api.host}/library/{library.guid}",
                     server_type="trimemedia",
                     use_cookies=True,
@@ -242,7 +234,7 @@ class TrimeMedia:
             tv_count=info.tv,
         )
 
-    def authenticate(self, username: str, password: str) -> Optional[str]:
+    def authenticate(self, username: str, password: str) -> str | None:
         """
         用户认证
 
@@ -262,8 +254,8 @@ class TrimeMedia:
                 result.api.close()
 
     def get_movies(
-        self, title: str, year: Optional[str] = None, tmdb_id: Optional[int] = None
-    ) -> Optional[List[schemas.MediaServerItem]]:
+        self, title: str, year: str | None = None, tmdb_id: int | None = None
+    ) -> list[schemas.MediaServerItem] | None:
         """
         根据标题和年份，检查电影是否在飞牛中存在，存在则返回列表
 
@@ -287,7 +279,7 @@ class TrimeMedia:
                 movies.append(self.__build_media_server_item(item))
         return movies
 
-    def __get_series_id_by_name(self, name: str, year: str) -> Optional[str]:
+    def __get_series_id_by_name(self, name: str, year: str) -> str | None:
         items = self._api.search_list(keywords=name) or []
         for item in items:
             if item.type != fnapi.Type.TV:
@@ -300,12 +292,12 @@ class TrimeMedia:
 
     def get_tv_episodes(
         self,
-        item_id: Optional[str] = None,
-        title: Optional[str] = None,
-        year: Optional[str] = None,
-        tmdb_id: Optional[int] = None,
-        season: Optional[int] = None,
-    ) -> Tuple[Optional[str], Optional[Dict[int, list]]]:
+        item_id: str | None = None,
+        title: str | None = None,
+        year: str | None = None,
+        tmdb_id: int | None = None,
+        season: int | None = None,
+    ) -> tuple[str | None, dict[int, list] | None]:
         """
         根据标题和年份和季，返回飞牛中的剧集列表
 
@@ -363,7 +355,7 @@ class TrimeMedia:
                 season_episodes[episode.season_number].append(episode.episode_number)
         return item_id, season_episodes
 
-    def refresh_root_library(self) -> Optional[bool]:
+    def refresh_root_library(self) -> bool | None:
         """
         通知飞牛刷新整个媒体库(非管理员不能调用)
         """
@@ -378,9 +370,7 @@ class TrimeMedia:
         logger.info("刷新所有媒体库")
         return self._api.mdb_scanall()
 
-    def refresh_library_by_items(
-        self, items: List[schemas.RefreshMediaItem]
-    ) -> Optional[bool]:
+    def refresh_library_by_items(self, items: list[schemas.RefreshMediaItem]) -> bool | None:
         """
         按路径刷新所在的媒体库(非管理员不能调用)
 
@@ -412,7 +402,7 @@ class TrimeMedia:
                 return self.refresh_root_library()
         return True
 
-    def __match_library_by_path(self, path: Path) -> Optional[fnapi.MediaDb]:
+    def __match_library_by_path(self, path: Path) -> fnapi.MediaDb | None:
         def is_subpath(_path: Path, _parent: Path) -> bool:
             """
             判断_path是否是_parent的子目录下
@@ -429,10 +419,10 @@ class TrimeMedia:
                     return lib
         return None
 
-    def get_webhook_message(self, body: Any) -> Optional[schemas.WebhookEventInfo]:
+    def get_webhook_message(self, body: Any) -> schemas.WebhookEventInfo | None:
         pass
 
-    def get_iteminfo(self, itemid: str) -> Optional[schemas.MediaServerItem]:
+    def get_iteminfo(self, itemid: str) -> schemas.MediaServerItem | None:
         """
         获取单个项目详情
         """
@@ -492,20 +482,14 @@ class TrimeMedia:
             # 其它类型走通用页面，由飞牛来判断
             return f"{host}/other/{item.guid}"
 
-    def __build_media_server_play_item(
-        self, item: fnapi.Item
-    ) -> schemas.MediaServerPlayItem:
+    def __build_media_server_play_item(self, item: fnapi.Item) -> schemas.MediaServerPlayItem:
         if item.type == fnapi.Type.EPISODE:
             title = item.tv_title
             subtitle = f"S{item.season_number}:{item.episode_number} - {item.title}"
         else:
             title = item.title
             subtitle = "电影" if item.type == fnapi.Type.MOVIE else "视频"
-        types = (
-            MediaType.MOVIE.value
-            if item.type in [fnapi.Type.MOVIE, fnapi.Type.VIDEO]
-            else MediaType.TV.value
-        )
+        types = MediaType.MOVIE.value if item.type in [fnapi.Type.MOVIE, fnapi.Type.VIDEO] else MediaType.TV.value
         return schemas.MediaServerPlayItem(
             id=item.guid,
             title=title,
@@ -513,16 +497,12 @@ class TrimeMedia:
             type=types,
             image=f"{self._api.host}{item.poster}",
             link=self.__build_play_url(self._playhost or self._api.host, item),
-            percent=(
-                item.ts / item.duration * 100.0
-                if item.duration and item.ts is not None
-                else 0
-            ),
+            percent=(item.ts / item.duration * 100.0 if item.duration and item.ts is not None else 0),
             server_type="trimemedia",
             use_cookies=True,
         )
 
-    def get_items_count(self, parent: Union[str, int]) -> Optional[int]:
+    def get_items_count(self, parent: str | int) -> int | None:
         """
         获取指定媒体库可同步的媒体条目总数
 
@@ -538,10 +518,10 @@ class TrimeMedia:
 
     def get_items(
         self,
-        parent: Union[str, int],
-        start_index: Optional[int] = 0,
-        limit: Optional[int] = -1,
-    ) -> Generator[schemas.MediaServerItem | None | Any, Any, None]:
+        parent: str | int,
+        start_index: int | None = 0,
+        limit: int | None = -1,
+    ) -> Generator[schemas.MediaServerItem | None | Any, Any]:
         """
         获取媒体服务器项目列表，支持分页和不分页逻辑，默认不分页获取所有数据
 
@@ -572,7 +552,7 @@ class TrimeMedia:
                 yield self.__build_media_server_item(item)
         return None
 
-    def get_play_url(self, item_id: str) -> Optional[str]:
+    def get_play_url(self, item_id: str) -> str | None:
         """
         获取媒体的外网播放链接
 
@@ -585,9 +565,7 @@ class TrimeMedia:
         # 根据查询到的信息拼装出播放链接
         return self.__build_play_url(self._playhost or self._api.host, item)
 
-    def get_resume(
-        self, num: Optional[int] = 12
-    ) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def get_resume(self, num: int | None = 12) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取继续观看列表
 
@@ -607,7 +585,7 @@ class TrimeMedia:
             ret_resume.append(self.__build_media_server_play_item(item))
         return ret_resume
 
-    def get_latest(self, num=20) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def get_latest(self, num=20) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取最近更新列表
         """
@@ -629,7 +607,7 @@ class TrimeMedia:
             latest.append(self.__build_media_server_play_item(item))
         return latest
 
-    def get_latest_backdrops(self, num=20, remote=False) -> Optional[List[str]]:
+    def get_latest_backdrops(self, num=20, remote=False) -> list[str] | None:
         """
         获取最近更新的媒体Backdrop图片
         """
@@ -659,11 +637,7 @@ class TrimeMedia:
             if item_details.backdrops:
                 item_image = item_details.backdrops
             else:
-                item_image = (
-                    item_details.posters
-                    if item_details.posters
-                    else item_details.poster
-                )
+                item_image = item_details.posters if item_details.posters else item_details.poster
             backdrops.append(f"{img_host}{item_image}")
         return backdrops
 
@@ -674,11 +648,7 @@ class TrimeMedia:
                 return True
         return (
             True
-            if (
-                self._sync_libraries
-                and "all" not in self._sync_libraries
-                and library_guid not in self._sync_libraries
-            )
+            if (self._sync_libraries and "all" not in self._sync_libraries and library_guid not in self._sync_libraries)
             else False
         )
 
@@ -688,9 +658,7 @@ class TrimeMedia:
         """
         if not self.is_authenticated():
             return None
-        if not image_url or not SecurityUtils.is_safe_url(
-            image_url, [self._api.host], strict=True
-        ):
+        if not image_url or not SecurityUtils.is_safe_url(image_url, [self._api.host], strict=True):
             return None
         cookies = {"Trim-MC-token": self._api.token}
         if self._access_code:

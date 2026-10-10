@@ -6,15 +6,14 @@ import zipfile
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union, Annotated
+from typing import Annotated, Any, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 import aiofiles
 import anyio
 import pillow_avif  # noqa 用于自动注册AVIF支持
 from anyio import Path as AsyncPath
-from app.helper.sites import SitesHelper  # noqa  # noqa
-from fastapi import APIRouter, Body, Depends, HTTPException, Header, Request, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app import schemas
@@ -46,14 +45,15 @@ from app.helper.message import MessageHelper
 from app.helper.progress import ProgressHelper
 from app.helper.rule import RuleHelper
 from app.helper.server import MoviePilotServerHelper
+from app.helper.sites import SitesHelper  # noqa  # noqa
 from app.helper.system import SystemHelper
 from app.log import logger
 from app.scheduler import Scheduler
 from app.schemas import ConfigChangeEventData
-from app.schemas.types import SystemConfigKey, EventType
-from app.utils.crypto import HashUtils
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.schemas.types import EventType, SystemConfigKey
 from app.utils import rust_accel
+from app.utils.crypto import HashUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.security import SecurityUtils
 from app.utils.url import UrlUtils
 from version import APP_VERSION
@@ -78,7 +78,7 @@ _LOG_DOWNLOAD_LIMIT = 10
 _LOG_DOWNLOAD_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-def _validate_llm_server_tool_config(env: dict) -> Optional[str]:
+def _validate_llm_server_tool_config(env: dict) -> str | None:
     """校验强制服务端联网搜索配置，返回用户可读错误信息。"""
     from app.agent.llm.server_tools import (
         ServerToolRegistry,
@@ -94,12 +94,8 @@ def _validate_llm_server_tool_config(env: dict) -> Optional[str]:
     if mode != "builtin":
         return None
 
-    provider = str(
-        env.get("LLM_PROVIDER", getattr(settings, "LLM_PROVIDER", "")) or ""
-    ).strip()
-    model = str(
-        env.get("LLM_MODEL", getattr(settings, "LLM_MODEL", "")) or ""
-    ).strip()
+    provider = str(env.get("LLM_PROVIDER", getattr(settings, "LLM_PROVIDER", "")) or "").strip()
+    model = str(env.get("LLM_MODEL", getattr(settings, "LLM_MODEL", "")) or "").strip()
     base_url = env.get("LLM_BASE_URL", getattr(settings, "LLM_BASE_URL", None))
     capability = ServerToolRegistry.get_capability(
         provider=provider,
@@ -150,9 +146,7 @@ def _match_nettest_prefix(url: str, prefix: str) -> bool:
     if (parsed_url.hostname or "").lower() != (parsed_prefix.hostname or "").lower():
         return False
     url_port = parsed_url.port or (443 if parsed_url.scheme.lower() == "https" else 80)
-    prefix_port = parsed_prefix.port or (
-        443 if parsed_prefix.scheme.lower() == "https" else 80
-    )
+    prefix_port = parsed_prefix.port or (443 if parsed_prefix.scheme.lower() == "https" else 80)
     if url_port != prefix_port:
         return False
     return parsed_url.path.startswith(parsed_prefix.path or "/")
@@ -167,9 +161,7 @@ def _build_nettest_rules() -> list[dict[str, Any]]:
     和重定向白名单都保留在服务端，避免再出现用户可控 SSRF。
     """
     github_proxy = UrlUtils.standardize_base_url(settings.GITHUB_PROXY or "")
-    pip_proxy = UrlUtils.standardize_base_url(
-        settings.PIP_PROXY or "https://pypi.org/simple/"
-    )
+    pip_proxy = UrlUtils.standardize_base_url(settings.PIP_PROXY or "https://pypi.org/simple/")
     tmdb_key = settings.TMDB_API_KEY
     tmdb_domain = settings.TMDB_API_DOMAIN or "api.themoviedb.org"
 
@@ -280,18 +272,14 @@ def _build_nettest_rules() -> list[dict[str, Any]]:
             "id": "github_proxy_web",
             "name": "github.com",
             "icon": "github",
-            "url": f"{github_proxy}{github_readme_url}"
-            if github_proxy
-            else github_readme_url,
+            "url": f"{github_proxy}{github_readme_url}" if github_proxy else github_readme_url,
             "proxy": True,
             "allowed_redirect_prefixes": [
                 "https://github.com/",
                 *((f"{github_proxy}https://github.com/",) if github_proxy else ()),
             ],
             "expected_text": "MoviePilot",
-            "invalid_message": "Github加速代理已失效，请检查配置"
-            if github_proxy
-            else "无效响应",
+            "invalid_message": "Github加速代理已失效，请检查配置" if github_proxy else "无效响应",
             "proxy_name": "Github加速代理" if github_proxy else "",
             "headers": settings.GITHUB_HEADERS,
         },
@@ -320,22 +308,14 @@ def _build_nettest_rules() -> list[dict[str, Any]]:
             "id": "github_proxy_raw",
             "name": "raw.githubusercontent.com",
             "icon": "github",
-            "url": f"{github_proxy}{raw_readme_url}"
-            if github_proxy
-            else raw_readme_url,
+            "url": f"{github_proxy}{raw_readme_url}" if github_proxy else raw_readme_url,
             "proxy": True,
             "allowed_redirect_prefixes": [
                 "https://raw.githubusercontent.com/",
-                *(
-                    (f"{github_proxy}https://raw.githubusercontent.com/",)
-                    if github_proxy
-                    else ()
-                ),
+                *((f"{github_proxy}https://raw.githubusercontent.com/",) if github_proxy else ()),
             ],
             "expected_text": "MoviePilot",
-            "invalid_message": "Github加速代理已失效，请检查配置"
-            if github_proxy
-            else "无效响应",
+            "invalid_message": "Github加速代理已失效，请检查配置" if github_proxy else "无效响应",
             "proxy_name": "Github加速代理" if github_proxy else "",
             "headers": settings.GITHUB_HEADERS,
         },
@@ -381,11 +361,7 @@ def _collect_named_log_files(name: str) -> list[Path]:
         raise HTTPException(status_code=404, detail="Not Found")
 
     current_log = log_dir / log_prefix
-    backup_logs = [
-        item
-        for item in log_dir.iterdir()
-        if item.is_file() and item.name.startswith(f"{log_prefix}.")
-    ]
+    backup_logs = [item for item in log_dir.iterdir() if item.is_file() and item.name.startswith(f"{log_prefix}.")]
     backup_logs.sort(key=lambda item: item.stat().st_mtime, reverse=True)
 
     log_files = []
@@ -419,9 +395,7 @@ async def _build_log_zip_response(name: str) -> StreamingResponse:
     主程序日志与插件日志。
     """
     zip_data, zip_stem = await anyio.to_thread.run_sync(_build_log_zip_data, name)
-    headers = {
-        "Content-Disposition": f'attachment; filename="{zip_stem}.zip"'
-    }
+    headers = {"Content-Disposition": f'attachment; filename="{zip_stem}.zip"'}
     return StreamingResponse(
         iter([zip_data]),
         media_type="application/zip",
@@ -459,7 +433,7 @@ def _build_log_zip_data(name: str) -> tuple[bytes, str]:
     return zip_buffer.getvalue(), zip_stem
 
 
-def _validate_nettest_url(url: str) -> Optional[str]:
+def _validate_nettest_url(url: str) -> str | None:
     """
     对实际请求地址做基础安全校验。
 
@@ -478,9 +452,7 @@ def _validate_nettest_url(url: str) -> Optional[str]:
     return None
 
 
-def _get_nettest_rule(
-    url: Optional[str] = None, target_id: Optional[str] = None
-) -> Optional[dict[str, Any]]:
+def _get_nettest_rule(url: str | None = None, target_id: str | None = None) -> dict[str, Any] | None:
     """
     根据 target_id 或历史兼容参数匹配网络测试规则。
 
@@ -507,10 +479,7 @@ def _is_allowed_nettest_redirect(url: str, rule: dict[str, Any]) -> bool:
         return False
     if parsed.username or parsed.password:
         return False
-    return any(
-        _match_nettest_prefix(url, prefix)
-        for prefix in rule.get("allowed_redirect_prefixes", [])
-    )
+    return any(_match_nettest_prefix(url, prefix) for prefix in rule.get("allowed_redirect_prefixes", []))
 
 
 async def _close_nettest_response(response: Any) -> None:
@@ -530,12 +499,12 @@ async def _close_nettest_response(response: Any) -> None:
 
 async def fetch_image(
     url: str,
-    proxy: Optional[bool] = None,
+    proxy: bool | None = None,
     use_cache: bool = False,
-    if_none_match: Optional[str] = None,
-    cookies: Optional[str | dict] = None,
-    allowed_domains: Optional[set[str]] = None,
-) -> Optional[Response]:
+    if_none_match: str | None = None,
+    cookies: str | dict | None = None,
+    allowed_domains: set[str] | None = None,
+) -> Response | None:
     """
     处理图片缓存逻辑，支持HTTP缓存和磁盘缓存
     """
@@ -593,11 +562,7 @@ async def proxy_img(
     图片代理，可选是否使用代理服务器，支持 HTTP 缓存
     """
     allowed_domains = set(settings.SECURITY_IMAGE_DOMAINS)
-    cookies = (
-        MediaServerChain().get_image_cookies(server=None, image_url=imgurl)
-        if use_cookies
-        else None
-    )
+    cookies = MediaServerChain().get_image_cookies(server=None, image_url=imgurl) if use_cookies else None
     return await fetch_image(
         url=imgurl,
         proxy=proxy,
@@ -618,9 +583,7 @@ async def cache_img(
     本地缓存图片文件，支持 HTTP 缓存，如果启用全局图片缓存，则使用磁盘缓存
     """
     # 如果没有启用全局图片缓存，则不使用磁盘缓存
-    return await fetch_image(
-        url=url, use_cache=settings.GLOBAL_IMAGE_CACHE, if_none_match=if_none_match
-    )
+    return await fetch_image(url=url, use_cache=settings.GLOBAL_IMAGE_CACHE, if_none_match=if_none_match)
 
 
 @router.get("/global", summary="查询非敏感系统设置", response_model=schemas.Response)
@@ -653,9 +616,7 @@ def get_global_setting(token: str):
     return schemas.Response(success=True, data=info)
 
 
-@router.get(
-    "/global/user", summary="查询用户相关系统设置", response_model=schemas.Response
-)
+@router.get("/global/user", summary="查询用户相关系统设置", response_model=schemas.Response)
 async def get_user_global_setting(_: User = Depends(get_current_active_user_async)):
     """
     查询用户相关系统设置（登录后获取）
@@ -729,9 +690,7 @@ async def ping(_: User = Depends(get_current_active_user_async)) -> schemas.Resp
 
 
 @router.post("/env", summary="更新系统配置", response_model=schemas.Response)
-async def set_env_setting(
-    env: dict, _: User = Depends(get_current_active_superuser_async)
-):
+async def set_env_setting(env: dict, _: User = Depends(get_current_active_superuser_async)):
     """
     更新系统环境变量（仅管理员）
     """
@@ -755,9 +714,7 @@ async def set_env_setting(
         # 发送配置变更事件
         await eventmanager.async_send_event(
             etype=EventType.ConfigChanged,
-            data=ConfigChangeEventData(
-                key=success_updates.keys(), change_type="update"
-            ),
+            data=ConfigChangeEventData(key=success_updates.keys(), change_type="update"),
         )
 
     return schemas.Response(
@@ -794,9 +751,7 @@ async def get_progress(
 
 
 @router.get("/setting/public/{key}", summary="查询公开系统设置", response_model=schemas.Response)
-async def get_public_setting(
-    key: str, _: User = Depends(get_current_active_user_async)
-) -> schemas.Response:
+async def get_public_setting(key: str, _: User = Depends(get_current_active_user_async)) -> schemas.Response:
     """
     查询普通用户可读取的非敏感系统设置
     """
@@ -814,7 +769,7 @@ async def get_public_setting(
     response_model=schemas.Response,
 )
 async def sync_plugin_market_from_wiki(
-    request: Optional[schemas.PluginMarketSyncRequest] = Body(default=None),
+    request: schemas.PluginMarketSyncRequest | None = Body(default=None),
     _: User = Depends(get_current_active_superuser_async),
 ) -> schemas.Response:
     """
@@ -854,9 +809,7 @@ async def sync_plugin_market_from_wiki(
     if success:
         await eventmanager.async_send_event(
             etype=EventType.ConfigChanged,
-            data=ConfigChangeEventData(
-                key="PLUGIN_MARKET", value=merged_value, change_type="update"
-            ),
+            data=ConfigChangeEventData(key="PLUGIN_MARKET", value=merged_value, change_type="update"),
         )
     elif success is None:
         success = True
@@ -876,9 +829,7 @@ async def sync_plugin_market_from_wiki(
 
 
 @router.get("/setting/{key}", summary="查询系统设置", response_model=schemas.Response)
-async def get_setting(
-    key: str, _: User = Depends(get_current_active_superuser_async)
-) -> schemas.Response:
+async def get_setting(key: str, _: User = Depends(get_current_active_superuser_async)) -> schemas.Response:
     """
     查询系统设置（仅管理员）
     """
@@ -892,7 +843,7 @@ async def get_setting(
 @router.post("/setting/{key}", summary="更新系统设置", response_model=schemas.Response)
 async def set_setting(
     key: str,
-    value: Annotated[Union[list, dict, bool, int, str] | None, Body()] = None,
+    value: Annotated[list | dict | bool | int | str | None, Body()] = None,
     _: User = Depends(get_current_active_superuser_async),
 ):
     """
@@ -928,7 +879,7 @@ async def set_setting(
 @router.get("/message", summary="实时消息")
 async def get_message(
     request: Request,
-    role: Optional[str] = "system",
+    role: str | None = "system",
     _: schemas.TokenPayload = Depends(verify_resource_token),
 ):
     """
@@ -953,8 +904,8 @@ async def get_message(
 @router.get("/logging", summary="实时日志")
 async def get_logging(
     request: Request,
-    length: Optional[int] = 50,
-    logfile: Optional[str] = "moviepilot.log",
+    length: int | None = 50,
+    logfile: str | None = "moviepilot.log",
     _: schemas.TokenPayload = Depends(_verify_log_resource_superuser),
 ):
     """
@@ -965,9 +916,7 @@ async def get_logging(
     base_path = AsyncPath(settings.LOG_PATH)
     log_path = base_path / logfile
 
-    if not await SecurityUtils.async_is_safe_path(
-        base_path=base_path, user_path=log_path, allowed_suffixes={".log"}
-    ):
+    if not await SecurityUtils.async_is_safe_path(base_path=base_path, user_path=log_path, allowed_suffixes={".log"}):
         raise HTTPException(status_code=404, detail="Not Found")
 
     if not await log_path.exists() or not await log_path.is_file():
@@ -982,9 +931,7 @@ async def get_logging(
             file_size = file_stat.st_size
 
             # 读取历史日志
-            async with aiofiles.open(
-                log_path, mode="r", encoding="utf-8", errors="replace"
-            ) as f:
+            async with aiofiles.open(log_path, encoding="utf-8", errors="replace") as f:
                 # 优化大文件读取策略
                 if file_size > 100 * 1024:
                     # 只读取最后100KB的内容
@@ -1011,9 +958,7 @@ async def get_logging(
                 yield f"data: {line}\n\n"
 
             # 实时监听新日志
-            async with aiofiles.open(
-                log_path, mode="r", encoding="utf-8", errors="replace"
-            ) as f:
+            async with aiofiles.open(log_path, encoding="utf-8", errors="replace") as f:
                 # 移动文件指针到文件末尾，继续监听新增内容
                 await f.seek(0, 2)
                 # 记录初始文件大小
@@ -1050,9 +995,7 @@ async def get_logging(
             return Response(content="日志文件不存在！", media_type="text/plain")
         try:
             # 使用 aiofiles 异步读取文件
-            async with aiofiles.open(
-                log_path, mode="r", encoding="utf-8", errors="replace"
-            ) as file:
+            async with aiofiles.open(log_path, encoding="utf-8", errors="replace") as file:
                 text = await file.read()
             # 倒序输出
             text = "\n".join(text.split("\n")[::-1])
@@ -1075,16 +1018,14 @@ async def download_logging(
     return await _build_log_zip_response(name)
 
 
-@router.get(
-    "/versions", summary="查询Github所有Release版本", response_model=schemas.Response
-)
+@router.get("/versions", summary="查询Github所有Release版本", response_model=schemas.Response)
 async def latest_version(_: schemas.TokenPayload = Depends(verify_token)):
     """
     查询Github所有Release版本
     """
-    version_res = await AsyncRequestUtils(
-        proxies=settings.PROXY, headers=settings.GITHUB_HEADERS
-    ).get_res(f"https://api.github.com/repos/jxxghp/MoviePilot/releases")
+    version_res = await AsyncRequestUtils(proxies=settings.PROXY, headers=settings.GITHUB_HEADERS).get_res(
+        "https://api.github.com/repos/jxxghp/MoviePilot/releases"
+    )
     if version_res is not None and version_res.status_code == 200:
         ver_json = version_res.json()
         if ver_json:
@@ -1096,7 +1037,7 @@ async def latest_version(_: schemas.TokenPayload = Depends(verify_token)):
 def ruletest(
     title: str,
     rulegroup_name: str,
-    subtitle: Optional[str] = None,
+    subtitle: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ):
     """
@@ -1141,9 +1082,7 @@ def ruletest(
         )
 
     # 过滤
-    result = SearchChain().filter_torrents(
-        rule_groups=[rulegroup.name], torrent_list=[torrent], mediainfo=media_info
-    )
+    result = SearchChain().filter_torrents(rule_groups=[rulegroup.name], torrent_list=[torrent], mediainfo=media_info)
     if not result:
         return schemas.Response(
             success=False,
@@ -1163,9 +1102,7 @@ def ruletest(
     )
 
 
-@router.get(
-    "/nettest/targets", summary="获取网络测试目标", response_model=schemas.Response
-)
+@router.get("/nettest/targets", summary="获取网络测试目标", response_model=schemas.Response)
 async def nettest_targets(_: schemas.TokenPayload = Depends(verify_token)):
     """
     获取网络测试目标。
@@ -1188,9 +1125,9 @@ async def nettest_targets(_: schemas.TokenPayload = Depends(verify_token)):
 
 @router.get("/nettest", summary="测试网络连通性")
 async def nettest(
-    target_id: Optional[str] = None,
-    url: Optional[str] = None,
-    include: Optional[str] = None,
+    target_id: str | None = None,
+    url: str | None = None,
+    include: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ):
     """
@@ -1276,9 +1213,7 @@ async def nettest(
         return schemas.Response(success=False, message=message, data={"time": time})
 
 
-@router.get(
-    "/modulelist", summary="查询已加载的模块ID列表", response_model=schemas.Response
-)
+@router.get("/modulelist", summary="查询已加载的模块ID列表", response_model=schemas.Response)
 def modulelist(_: schemas.TokenPayload = Depends(verify_token)):
     """
     查询已加载的模块ID列表
@@ -1300,9 +1235,7 @@ def modulelist(_: schemas.TokenPayload = Depends(verify_token)):
     return schemas.Response(success=True, data={"modules": modules})
 
 
-@router.get(
-    "/moduletest/{moduleid}", summary="模块可用性测试", response_model=schemas.Response
-)
+@router.get("/moduletest/{moduleid}", summary="模块可用性测试", response_model=schemas.Response)
 def moduletest(moduleid: str, _: schemas.TokenPayload = Depends(verify_token)):
     """
     模块可用性测试接口
@@ -1354,9 +1287,7 @@ def run_scheduler(jobid: str, _: User = Depends(get_current_active_superuser)):
     return schemas.Response(success=True)
 
 
-@router.get(
-    "/runscheduler2", summary="运行服务（API_TOKEN）", response_model=schemas.Response
-)
+@router.get("/runscheduler2", summary="运行服务（API_TOKEN）", response_model=schemas.Response)
 def run_scheduler2(jobid: str, _: Annotated[str, Depends(verify_apitoken)]):
     """
     执行命令（API_TOKEN认证）

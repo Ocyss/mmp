@@ -32,7 +32,7 @@ class LocaleHelper:
     }
 
     @classmethod
-    def normalize_locale(cls, locale: Optional[str]) -> str:
+    def normalize_locale(cls, locale: str | None) -> str:
         """
         规范化语言标识，无法识别时返回默认简体中文。
 
@@ -94,7 +94,7 @@ class LocaleHelper:
         return cls._CURRENT_LOCALE.get()
 
     @classmethod
-    def set_current_locale(cls, locale: Optional[str]) -> Token[str]:
+    def set_current_locale(cls, locale: str | None) -> Token[str]:
         """
         设置当前请求上下文中的语言标识。
 
@@ -114,11 +114,11 @@ class LocaleHelper:
 
     @classmethod
     def translate(
-            cls,
-            key: str,
-            locale: Optional[str] = None,
-            default: Optional[str] = None,
-            **kwargs: Any,
+        cls,
+        key: str,
+        locale: str | None = None,
+        default: str | None = None,
+        **kwargs: Any,
     ) -> str:
         """
         根据翻译键获取多语言文本。
@@ -138,7 +138,7 @@ class LocaleHelper:
         return cls._format(template, kwargs)
 
     @classmethod
-    def translate_text(cls, text: Optional[str], locale: Optional[str] = None) -> str:
+    def translate_text(cls, text: str | None, locale: str | None = None) -> str:
         """
         翻译存量接口返回的中文文本。
 
@@ -154,16 +154,12 @@ class LocaleHelper:
             translated = cls._lookup_pattern(normalized_locale, text)
         if translated is None and normalized_locale != cls.DEFAULT_LOCALE:
             translated = cls._lookup_message(cls._load_catalog(cls.DEFAULT_LOCALE), text)
-        if (
-                translated is None
-                and normalized_locale != cls.DEFAULT_LOCALE
-                and cls._contains_chinese(text)
-        ):
+        if translated is None and normalized_locale != cls.DEFAULT_LOCALE and cls._contains_chinese(text):
             translated = cls._lookup_pattern(cls.DEFAULT_LOCALE, text)
         return translated or text
 
     @classmethod
-    def _match_locale(cls, locale: Optional[str]) -> Optional[str]:
+    def _match_locale(cls, locale: str | None) -> str | None:
         """
         将原始语言标识匹配为项目支持的语言。
         """
@@ -184,11 +180,11 @@ class LocaleHelper:
         try:
             with catalog_path.open("r", encoding="utf-8") as file:
                 return json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError, json.JSONDecodeError:
             return {}
 
     @staticmethod
-    def _lookup(catalog: dict[str, Any], key: str) -> Optional[str]:
+    def _lookup(catalog: dict[str, Any], key: str) -> str | None:
         """
         按点分隔键从结构化翻译表中查找文本。
         """
@@ -200,7 +196,7 @@ class LocaleHelper:
         return current if isinstance(current, str) else None
 
     @staticmethod
-    def _lookup_message(catalog: dict[str, Any], text: str) -> Optional[str]:
+    def _lookup_message(catalog: dict[str, Any], text: str) -> str | None:
         """
         从精确消息表中查找存量中文文本。
         """
@@ -211,7 +207,7 @@ class LocaleHelper:
         return translated if isinstance(translated, str) else None
 
     @classmethod
-    def _lookup_pattern(cls, locale: str, text: str) -> Optional[str]:
+    def _lookup_pattern(cls, locale: str, text: str) -> str | None:
         """
         使用动态模板匹配存量中文文本。
         """
@@ -231,11 +227,7 @@ class LocaleHelper:
         """
         pattern_values = dict(values)
         catalog = cls._load_catalog(locale)
-        default_catalog = (
-            cls._load_catalog(cls.DEFAULT_LOCALE)
-            if locale != cls.DEFAULT_LOCALE
-            else catalog
-        )
+        default_catalog = cls._load_catalog(cls.DEFAULT_LOCALE) if locale != cls.DEFAULT_LOCALE else catalog
         for name, value in values.items():
             translated = cls._lookup_message(catalog, value)
             if translated is None and locale != cls.DEFAULT_LOCALE:
@@ -268,7 +260,7 @@ class LocaleHelper:
         return matchers
 
     @classmethod
-    def _compile_pattern(cls, source: str) -> Optional[re.Pattern[str]]:
+    def _compile_pattern(cls, source: str) -> re.Pattern[str] | None:
         """
         将带命名占位符的中文模板编译为正则。
         """
@@ -298,5 +290,5 @@ class LocaleHelper:
             return template
         try:
             return template.format(**kwargs)
-        except (KeyError, AttributeError, IndexError):
+        except KeyError, AttributeError, IndexError:
             return template

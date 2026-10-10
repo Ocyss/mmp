@@ -1,13 +1,14 @@
-from app.workflow.actions import BaseAction
 from app.core.event import eventmanager
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
 from app.schemas.types import ChainEventType
+from app.workflow.actions import BaseAction
 
 
 class SendEventParams(ActionParams):
     """
     发送事件参数
     """
+
     pass
 
 
@@ -20,17 +21,17 @@ class SendEventAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "发送事件"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "发送任务执行事件"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return SendEventParams().model_dump()
 
     @property

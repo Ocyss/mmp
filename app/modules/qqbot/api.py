@@ -4,7 +4,7 @@ QQ Bot API - Python 实现
 """
 
 import time
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 from app.log import logger
 from app.utils.http import RequestUtils
@@ -13,7 +13,7 @@ API_BASE = "https://api.sgroup.qq.com"
 TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
 
 # Token 缓存
-_cached_token: Optional[dict] = None
+_cached_token: dict | None = None
 
 
 def get_access_token(app_id: str, client_secret: str) -> str:
@@ -67,7 +67,7 @@ def _api_request(
     access_token: str,
     method: str,
     path: str,
-    body: Optional[dict] = None,
+    body: dict | None = None,
     timeout: int = 30,
 ) -> dict:
     """通用 API 请求"""
@@ -80,9 +80,7 @@ def _api_request(
         if method.upper() == "GET":
             resp = RequestUtils(timeout=timeout).get_res(url, headers=headers)
         else:
-            resp = RequestUtils(timeout=timeout).post_res(
-                url, json=body or {}, headers=headers
-            )
+            resp = RequestUtils(timeout=timeout).post_res(url, json=body or {}, headers=headers)
         if not resp:
             raise ValueError("Empty response")
         data = resp.json()
@@ -100,7 +98,7 @@ def send_proactive_c2c_message(
     openid: str,
     content: str,
     use_markdown: bool = False,
-    keyboard: Optional[dict] = None,
+    keyboard: dict | None = None,
 ) -> dict:
     """
     主动发送 C2C 单聊消息（不需要 msg_id）
@@ -117,9 +115,7 @@ def send_proactive_c2c_message(
     body = {"markdown": {"content": content}, "msg_type": 2} if use_markdown else {"content": content, "msg_type": 0}
     if keyboard:
         body["keyboard"] = {"content": keyboard}
-    return _api_request(
-        access_token, "POST", f"/v2/users/{openid}/messages", body
-    )
+    return _api_request(access_token, "POST", f"/v2/users/{openid}/messages", body)
 
 
 def send_proactive_group_message(
@@ -127,7 +123,7 @@ def send_proactive_group_message(
     group_openid: str,
     content: str,
     use_markdown: bool = False,
-    keyboard: Optional[dict] = None,
+    keyboard: dict | None = None,
 ) -> dict:
     """
     主动发送群聊消息（不需要 msg_id）
@@ -144,17 +140,15 @@ def send_proactive_group_message(
     body = {"markdown": {"content": content}, "msg_type": 2} if use_markdown else {"content": content, "msg_type": 0}
     if keyboard:
         body["keyboard"] = {"content": keyboard}
-    return _api_request(
-        access_token, "POST", f"/v2/groups/{group_openid}/messages", body
-    )
+    return _api_request(access_token, "POST", f"/v2/groups/{group_openid}/messages", body)
 
 
 def send_c2c_message(
     access_token: str,
     openid: str,
     content: str,
-    msg_id: Optional[str] = None,
-    keyboard: Optional[dict] = None,
+    msg_id: str | None = None,
+    keyboard: dict | None = None,
 ) -> dict:
     """被动回复 C2C 单聊消息（1 小时内最多 4 次）"""
     body = {"content": content, "msg_type": 0, "msg_seq": 1}
@@ -162,17 +156,15 @@ def send_c2c_message(
         body["msg_id"] = msg_id
     if keyboard:
         body["keyboard"] = {"content": keyboard}
-    return _api_request(
-        access_token, "POST", f"/v2/users/{openid}/messages", body
-    )
+    return _api_request(access_token, "POST", f"/v2/users/{openid}/messages", body)
 
 
 def send_group_message(
     access_token: str,
     group_openid: str,
     content: str,
-    msg_id: Optional[str] = None,
-    keyboard: Optional[dict] = None,
+    msg_id: str | None = None,
+    keyboard: dict | None = None,
 ) -> dict:
     """被动回复群聊消息（1 小时内最多 4 次）"""
     body = {"content": content, "msg_type": 0, "msg_seq": 1}
@@ -180,9 +172,7 @@ def send_group_message(
         body["msg_id"] = msg_id
     if keyboard:
         body["keyboard"] = {"content": keyboard}
-    return _api_request(
-        access_token, "POST", f"/v2/groups/{group_openid}/messages", body
-    )
+    return _api_request(access_token, "POST", f"/v2/groups/{group_openid}/messages", body)
 
 
 def get_gateway_url(access_token: str) -> str:
@@ -201,8 +191,8 @@ def send_message(
     target: str,
     content: str,
     msg_type: Literal["c2c", "group"] = "c2c",
-    msg_id: Optional[str] = None,
-    keyboard: Optional[dict] = None,
+    msg_id: str | None = None,
+    keyboard: dict | None = None,
 ) -> dict:
     """
     统一发送接口

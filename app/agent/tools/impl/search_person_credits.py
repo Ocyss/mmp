@@ -7,18 +7,23 @@ from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
 from app.agent.tools.tags import ToolTag
+from app.chain.bangumi import BangumiChain
 from app.chain.douban import DoubanChain
 from app.chain.tmdb import TmdbChain
-from app.chain.bangumi import BangumiChain
 from app.log import logger
 from app.utils.media import resolve_media_identity
 
 
 class SearchPersonCreditsInput(BaseModel):
     """搜索演员参演作品工具的输入参数模型"""
-    person_id: int = Field(..., description="The ID of the person/actor to search for credits (e.g., 31 for Tom Hanks in TMDB)")
-    source: str = Field(..., description="The data source: 'tmdb' for TheMovieDB, 'douban' for Douban, 'bangumi' for Bangumi")
-    page: Optional[int] = Field(1, description="Page number for pagination (default: 1)")
+
+    person_id: int = Field(
+        ..., description="The ID of the person/actor to search for credits (e.g., 31 for Tom Hanks in TMDB)"
+    )
+    source: str = Field(
+        ..., description="The data source: 'tmdb' for TheMovieDB, 'douban' for Douban, 'bangumi' for Bangumi"
+    )
+    page: int | None = Field(1, description="Page number for pagination (default: 1)")
 
 
 class SearchPersonCreditsTool(MoviePilotTool):
@@ -28,15 +33,15 @@ class SearchPersonCreditsTool(MoviePilotTool):
         ToolTag.Media,
     ]
     description: str = "Search for films and TV shows that a person/actor has appeared in (filmography). Supports searching by person ID from TMDB, Douban, or Bangumi database. Returns a list of media works the person has participated in."
-    args_schema: Type[BaseModel] = SearchPersonCreditsInput
+    args_schema: type[BaseModel] = SearchPersonCreditsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         person_id = kwargs.get("person_id", "")
         source = kwargs.get("source", "")
         return f"搜索人物参演作品: {source} ID {person_id}"
 
-    async def run(self, person_id: int, source: str, page: Optional[int] = 1, **kwargs) -> str:
+    async def run(self, person_id: int, source: str, page: int | None = 1, **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: person_id={person_id}, source={source}, page={page}")
 
         try:
@@ -74,14 +79,16 @@ class SearchPersonCreditsTool(MoviePilotTool):
                         "anilist_id": media.anilist_id,
                         "media_source": media_source,
                         "media_id": media_id,
-                        "overview": media.overview[:200] + "..." if media.overview and len(media.overview) > 200 else media.overview,
+                        "overview": media.overview[:200] + "..."
+                        if media.overview and len(media.overview) > 200
+                        else media.overview,
                         "vote_average": media.vote_average,
                         "poster_path": media.poster_path,
                         "backdrop_path": media.backdrop_path,
-                        "detail_link": media.detail_link
+                        "detail_link": media.detail_link,
                     }
                     simplified_results.append(simplified)
-                
+
                 result_json = json.dumps(simplified_results, ensure_ascii=False, indent=2)
                 # 如果结果被裁剪，添加提示信息
                 if total_count > 30:

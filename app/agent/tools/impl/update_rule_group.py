@@ -6,7 +6,6 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     build_custom_rule_map,
     collect_rule_group_usages,
@@ -18,6 +17,7 @@ from app.agent.tools.impl._filter_rule_utils import (
     save_system_config,
     serialize_rule_group,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -26,22 +26,22 @@ class UpdateRuleGroupInput(BaseModel):
     """更新过滤规则组工具的输入参数模型"""
 
     current_name: str = Field(..., description="Existing rule group name to update.")
-    new_name: Optional[str] = Field(
+    new_name: str | None = Field(
         None,
         description="New rule group name. If omitted, keep the original name.",
     )
-    rule_string: Optional[str] = Field(
+    rule_string: str | None = Field(
         None,
         description=(
             "New rule_string. If omitted, keep the original rule_string. "
             "Example: 'SPECSUB & CNVOI & 4K & !BLU > CNSUB & CNVOI & 4K & !BLU'."
         ),
     )
-    media_type: Optional[str] = Field(
+    media_type: str | None = Field(
         None,
         description="New media type scope. Pass an empty string to clear it.",
     )
-    category: Optional[str] = Field(
+    category: str | None = Field(
         None,
         description="New category. Pass an empty string to clear it.",
     )
@@ -59,10 +59,10 @@ class UpdateRuleGroupTool(MoviePilotTool):
         "If the rule group name changes, its references in global search/subscription settings and per-subscription bindings are updated automatically. "
         "Before changing rule_string, first use query_builtin_filter_rules and query_custom_filter_rules to confirm valid rule IDs."
     )
-    args_schema: Type[BaseModel] = UpdateRuleGroupInput
+    args_schema: type[BaseModel] = UpdateRuleGroupInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         current_name = kwargs.get("current_name", "")
         new_name = kwargs.get("new_name")
         if new_name and new_name != current_name:
@@ -72,10 +72,10 @@ class UpdateRuleGroupTool(MoviePilotTool):
     async def run(
         self,
         current_name: str,
-        new_name: Optional[str] = None,
-        rule_string: Optional[str] = None,
-        media_type: Optional[str] = None,
-        category: Optional[str] = None,
+        new_name: str | None = None,
+        rule_string: str | None = None,
+        media_type: str | None = None,
+        category: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, current_name={current_name}")
@@ -93,24 +93,12 @@ class UpdateRuleGroupTool(MoviePilotTool):
                     ensure_ascii=False,
                 )
 
-            available_rule_ids = set(get_builtin_rules().keys()) | set(
-                build_custom_rule_map(get_custom_rules()).keys()
-            )
+            available_rule_ids = set(get_builtin_rules().keys()) | set(build_custom_rule_map(get_custom_rules()).keys())
             updated_group, _ = normalize_rule_group(
                 name=new_name or current_group.name,
-                rule_string=(
-                    rule_string
-                    if rule_string is not None
-                    else current_group.rule_string
-                ),
-                media_type=(
-                    media_type
-                    if media_type is not None
-                    else current_group.media_type
-                ),
-                category=(
-                    category if category is not None else current_group.category
-                ),
+                rule_string=(rule_string if rule_string is not None else current_group.rule_string),
+                media_type=(media_type if media_type is not None else current_group.media_type),
+                category=(category if category is not None else current_group.category),
                 existing_groups=rule_groups,
                 available_rule_ids=available_rule_ids,
                 original_name=current_group.name,
@@ -140,9 +128,7 @@ class UpdateRuleGroupTool(MoviePilotTool):
                 {
                     "success": True,
                     "message": f"已更新规则组 {updated_group.name}",
-                    "rule_group": serialize_rule_group(
-                        updated_group, usage.get(updated_group.name)
-                    ),
+                    "rule_group": serialize_rule_group(updated_group, usage.get(updated_group.name)),
                     "reference_updates": reference_changes,
                 },
                 ensure_ascii=False,

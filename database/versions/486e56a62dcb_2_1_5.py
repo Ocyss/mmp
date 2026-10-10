@@ -5,14 +5,15 @@ Revises: 89d24811e894
 Create Date: 2025-05-13 19:49:51.271319
 
 """
+
 import re
 
 from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = '486e56a62dcb'
-down_revision = '89d24811e894'
+revision = "486e56a62dcb"
+down_revision = "89d24811e894"
 branch_labels = None
 depends_on = None
 
@@ -23,10 +24,10 @@ def upgrade() -> None:
     _systemconfig = SystemConfigOper()
     templates = _systemconfig.get(SystemConfigKey.NotificationTemplates)
     if isinstance(templates, dict):
-        _re = r'(?<={{)(?![^}]*[%|])(\s*)season(\s*)(?=}})|(?<={%)if\s+(?![^%]*[%|])season\s*(?=%)'
+        _re = r"(?<={{)(?![^}]*[%|])(\s*)season(\s*)(?=}})|(?<={%)if\s+(?![^%]*[%|])season\s*(?=%)"
         for k, v in templates.items():
             # 替换season为season_fmt
-            result = re.sub(_re, r'\1season_fmt\2', v)
+            result = re.sub(_re, r"\1season_fmt\2", v)
             templates[k] = result
         # 将更新后的模板存回系统配置
         _systemconfig.set(SystemConfigKey.NotificationTemplates, templates)

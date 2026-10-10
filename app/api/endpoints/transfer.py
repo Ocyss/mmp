@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, List, Annotated, Optional
+from typing import Annotated, Any, List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.chain.media import MediaChain
 from app.chain.transfer import TransferChain
-from app.core.config import settings, global_vars
-from app.core.security import verify_token, verify_apitoken
+from app.core.config import global_vars, settings
+from app.core.security import verify_apitoken, verify_token
 from app.db import get_db
 from app.db.models import User
 from app.db.models.transferhistory import TransferHistory
@@ -19,19 +19,17 @@ from app.db.user_oper import (
 from app.helper.directory import DirectoryHelper
 from app.log import logger
 from app.schemas import (
-    MediaType,
+    EpisodeFormatRecommendItem,
     FileItem,
     ManualTransferItem,
-    EpisodeFormatRecommendItem,
+    MediaType,
 )
 
 router = APIRouter()
 
 
 @router.get("/name", summary="查询整理后的名称", response_model=schemas.Response)
-def query_name(
-    path: str, filetype: str, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+def query_name(path: str, filetype: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询整理后的名称
     :param path: 文件路径
@@ -44,9 +42,7 @@ def query_name(
     )
     if not context or not context.media_info:
         return schemas.Response(success=False, message="未识别到媒体信息")
-    new_path = TransferChain().recommend_name(
-        meta=context.meta_info, mediainfo=context.media_info
-    )
+    new_path = TransferChain().recommend_name(meta=context.meta_info, mediainfo=context.media_info)
     if not new_path:
         return schemas.Response(success=False, message="未识别到新名称")
     if filetype == "dir":
@@ -68,7 +64,7 @@ def query_name(
     return schemas.Response(success=True, data={"name": new_name})
 
 
-@router.get("/queue", summary="查询整理队列", response_model=List[schemas.TransferJob])
+@router.get("/queue", summary="查询整理队列", response_model=list[schemas.TransferJob])
 async def query_queue(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询整理队列
@@ -77,12 +73,8 @@ async def query_queue(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     return TransferChain().get_queue_tasks()
 
 
-@router.delete(
-    "/queue", summary="从整理队列中删除任务", response_model=schemas.Response
-)
-async def remove_queue(
-    fileitem: schemas.FileItem, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+@router.delete("/queue", summary="从整理队列中删除任务", response_model=schemas.Response)
+async def remove_queue(fileitem: schemas.FileItem, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询整理队列
     :param fileitem: 文件项
@@ -96,12 +88,12 @@ async def remove_queue(
 
 def _resolve_manual_transfer_source_fileitems(
     transer_item: ManualTransferItem, db: Session
-) -> tuple[List[FileItem], Optional[str]]:
+) -> tuple[list[FileItem], str | None]:
     """
     从手动整理请求中解析源文件项。
     """
     if transer_item.logids:
-        fileitems: List[FileItem] = []
+        fileitems: list[FileItem] = []
         for logid in transer_item.logids:
             history: TransferHistory = TransferHistory.get(db, logid)
             if not history:
@@ -127,11 +119,11 @@ def _resolve_manual_transfer_source_fileitems(
     return [], None
 
 
-def _deduplicate_fileitems(fileitems: List[FileItem]) -> List[FileItem]:
+def _deduplicate_fileitems(fileitems: list[FileItem]) -> list[FileItem]:
     """
     按存储和路径去重文件项。
     """
-    dedup_fileitems: List[FileItem] = []
+    dedup_fileitems: list[FileItem] = []
     seen_paths = set()
     for current_fileitem in fileitems:
         storage = current_fileitem.storage or "local"
@@ -147,7 +139,7 @@ def _deduplicate_fileitems(fileitems: List[FileItem]) -> List[FileItem]:
 
 
 def _build_manual_transfer_target_path(
-    directory: Optional[schemas.TransferDirectoryConf] = None,
+    directory: schemas.TransferDirectoryConf | None = None,
 ) -> schemas.ManualTransferTargetPath:
     """
     根据目录配置生成手动整理目的路径响应。
@@ -167,7 +159,7 @@ def _build_manual_transfer_target_path(
 
 def _get_manual_transfer_target_key(
     directory: schemas.TransferDirectoryConf,
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     """
     生成目的目录唯一键。
     """
@@ -201,7 +193,7 @@ def match_manual_transfer_target_path(
     if error_message:
         return schemas.Response(success=False, message=error_message)
 
-    matched_directories: List[schemas.TransferDirectoryConf] = []
+    matched_directories: list[schemas.TransferDirectoryConf] = []
     target_storage = transer_item.target_storage or None
     for src_fileitem in _deduplicate_fileitems(src_fileitems):
         directory = DirectoryHelper().get_dir(
@@ -225,10 +217,7 @@ def match_manual_transfer_target_path(
 
     first_directory = matched_directories[0]
     first_key = _get_manual_transfer_target_key(first_directory)
-    if any(
-        _get_manual_transfer_target_key(directory) != first_key
-        for directory in matched_directories[1:]
-    ):
+    if any(_get_manual_transfer_target_key(directory) != first_key for directory in matched_directories[1:]):
         return schemas.Response(
             success=True,
             data=schemas.ManualTransferTargetPath().model_dump(),
@@ -264,9 +253,7 @@ def query_manual_transfer_history(
     if error_message:
         return schemas.Response(success=False, message=error_message)
 
-    histories = TransferChain().get_manual_transfer_histories(
-        _deduplicate_fileitems(src_fileitems)
-    )
+    histories = TransferChain().get_manual_transfer_histories(_deduplicate_fileitems(src_fileitems))
     history_info = schemas.ManualTransferHistoryInfo(
         reorganize=bool(histories),
         history_count=len(histories),
@@ -277,7 +264,7 @@ def query_manual_transfer_history(
 @router.post("/manual", summary="手动转移", response_model=schemas.Response)
 def manual_transfer(
     transer_item: ManualTransferItem,
-    background: Optional[bool] = False,
+    background: bool | None = False,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
@@ -291,16 +278,14 @@ def manual_transfer(
     force = False
     downloader = None
     download_hash = None
-    src_fileitems: List[FileItem] = []
-    cleanup_dest_fileitem: Optional[FileItem] = None
+    src_fileitems: list[FileItem] = []
+    cleanup_dest_fileitem: FileItem | None = None
     target_path = Path(transer_item.target_path) if transer_item.target_path else None
     if transer_item.logid:
         # 查询历史记录
         history: TransferHistory = TransferHistory.get(db, transer_item.logid)
         if not history:
-            return schemas.Response(
-                success=False, message=f"整理记录不存在，ID：{transer_item.logid}"
-            )
+            return schemas.Response(success=False, message=f"整理记录不存在，ID：{transer_item.logid}")
         # 强制转移
         force = True
         # 下载器与 Hash 是同一组下载上下文，重新识别时由当前文件路径重新匹配。
@@ -312,40 +297,20 @@ def manual_transfer(
         else:
             # 源路径
             src_fileitems = [FileItem(**history.src_fileitem)]
-            if (
-                history.dest_fileitem
-                and not transer_item.preview
-                and not transer_item.reorganize
-            ):
+            if history.dest_fileitem and not transer_item.preview and not transer_item.reorganize:
                 cleanup_dest_fileitem = FileItem(**history.dest_fileitem)
 
         # 从历史数据获取信息
         if transer_item.from_history:
-            transer_item.type_name = (
-                history.type if history.type else transer_item.type_name
-            )
-            transer_item.tmdbid = (
-                int(history.tmdbid) if history.tmdbid else transer_item.tmdbid
-            )
-            transer_item.doubanid = (
-                str(history.doubanid) if history.doubanid else transer_item.doubanid
-            )
+            transer_item.type_name = history.type if history.type else transer_item.type_name
+            transer_item.tmdbid = int(history.tmdbid) if history.tmdbid else transer_item.tmdbid
+            transer_item.doubanid = str(history.doubanid) if history.doubanid else transer_item.doubanid
             transer_item.bangumiid = history.bangumiid or transer_item.bangumiid
             transer_item.anilistid = history.anilistid or transer_item.anilistid
-            transer_item.media_source = (
-                history.media_source or transer_item.media_source
-            )
-            transer_item.media_id = (
-                history.media_id or transer_item.media_id
-            )
-            transer_item.season = (
-                int(str(history.seasons).replace("S", ""))
-                if history.seasons
-                else transer_item.season
-            )
-            transer_item.episode_group = (
-                history.episode_group or transer_item.episode_group
-            )
+            transer_item.media_source = history.media_source or transer_item.media_source
+            transer_item.media_id = history.media_id or transer_item.media_id
+            transer_item.season = int(str(history.seasons).replace("S", "")) if history.seasons else transer_item.season
+            transer_item.episode_group = history.episode_group or transer_item.episode_group
             if history.episodes:
                 if "-" in str(history.episodes):
                     # E01-E03多集合并
@@ -366,9 +331,9 @@ def manual_transfer(
     elif transer_item.fileitem:
         src_fileitems = [transer_item.fileitem]
     else:
-        return schemas.Response(success=False, message=f"缺少参数")
+        return schemas.Response(success=False, message="缺少参数")
 
-    dedup_fileitems: List[FileItem] = []
+    dedup_fileitems: list[FileItem] = []
     seen_paths = set()
     for current_fileitem in src_fileitems:
         storage = current_fileitem.storage or "local"
@@ -391,9 +356,7 @@ def manual_transfer(
         try:
             mtype = MediaType(type_name)
         except ValueError:
-            return schemas.Response(
-                success=False, message=f"不支持的媒体类型：{type_name}"
-            )
+            return schemas.Response(success=False, message=f"不支持的媒体类型：{type_name}")
     # 自定义格式
     epformat = None
     if (
@@ -432,21 +395,19 @@ def manual_transfer(
             "customization": None,
         }
 
-    def _merge_messages(messages: List[str]) -> str:
+    def _merge_messages(messages: list[str]) -> str:
         """
         合并手动整理批量预览提示信息。
         """
         valid_messages = [msg for msg in messages if msg]
         if not valid_messages:
             return ""
-        return "、".join(valid_messages[:2]) + (
-            f"，等{len(valid_messages)}条消息" if len(valid_messages) > 2 else ""
-        )
+        return "、".join(valid_messages[:2]) + (f"，等{len(valid_messages)}条消息" if len(valid_messages) > 2 else "")
 
     # 前端显式传入文件列表时，按选中的文件逐个处理，避免将目录整体展开。
     if explicit_selected_files:
-        preview_items: List[dict] = []
-        error_messages: List[str] = []
+        preview_items: list[dict] = []
+        error_messages: list[str] = []
         all_success = True
         for src_fileitem in src_fileitems:
             state, errormsg = TransferChain().manual_transfer(
@@ -487,9 +448,7 @@ def manual_transfer(
                 else:
                     if errormsg:
                         error_messages.append(str(errormsg))
-                    preview_items.append(
-                        _build_failure_preview_item(src_fileitem, str(errormsg))
-                    )
+                    preview_items.append(_build_failure_preview_item(src_fileitem, str(errormsg)))
                     all_success = False
             elif not state:
                 all_success = False
@@ -499,7 +458,7 @@ def manual_transfer(
                     error_messages.append(str(errormsg))
 
         if transer_item.preview:
-            merged_preview_items: List[dict] = []
+            merged_preview_items: list[dict] = []
             seen_sources = set()
             for preview_item in preview_items:
                 source = preview_item.get("source")
@@ -511,12 +470,8 @@ def manual_transfer(
             preview_data = {
                 "summary": {
                     "total": len(merged_preview_items),
-                    "success": len(
-                        [item for item in merged_preview_items if item.get("success")]
-                    ),
-                    "failed": len(
-                        [item for item in merged_preview_items if not item.get("success")]
-                    ),
+                    "success": len([item for item in merged_preview_items if item.get("success")]),
+                    "failed": len([item for item in merged_preview_items if not item.get("success")]),
                 },
                 "items": merged_preview_items,
                 "message": merged_message,
@@ -604,9 +559,7 @@ def recommend_episode_format(
     if not state:
         logger.warn(f"推荐集数定位模板失败：{target_path} - {errmsg}")
         return schemas.Response(success=False, message=errmsg)
-    logger.info(
-        f"推荐集数定位模板成功：{target_path} - 规则 {data.get('rule_name') if data else None}"
-    )
+    logger.info(f"推荐集数定位模板成功：{target_path} - 规则 {data.get('rule_name') if data else None}")
     return schemas.Response(success=True, data=data)
 
 

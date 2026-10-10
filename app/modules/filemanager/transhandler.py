@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 from jinja2 import Template
 
@@ -14,17 +14,17 @@ from app.helper.message import TemplateHelper
 from app.log import logger
 from app.modules.filemanager.storages import StorageBase
 from app.schemas import (
-    TransferInfo,
+    FileItem,
     TmdbEpisode,
     TransferDirectoryConf,
-    FileItem,
+    TransferInfo,
     TransferInterceptEventData,
     TransferOverwriteCheckEventData,
     TransferRenameBuildEventData,
     TransferRenameEventData,
 )
 from app.schemas.exception import StorageQueryError
-from app.schemas.types import MediaType, ChainEventType
+from app.schemas.types import ChainEventType, MediaType
 from app.utils.system import SystemUtils
 
 
@@ -37,7 +37,7 @@ class TransHandler:
         pass
 
     @staticmethod
-    def __normalize_disc_folder_name(value: Optional[str]) -> Optional[str]:
+    def __normalize_disc_folder_name(value: str | None) -> str | None:
         """
         从 Disc/Disk/DVD/CD 标识中提取盘号并统一为 Disc N。
         """
@@ -54,10 +54,10 @@ class TransHandler:
 
     @classmethod
     def __get_tv_bluray_dir_path(
-            cls,
-            rendered_path: Path,
-            source_item: FileItem,
-            meta: MetaBase,
+        cls,
+        rendered_path: Path,
+        source_item: FileItem,
+        meta: MetaBase,
     ) -> Path:
         """
         电视剧原盘目录没有单集文件名，保留季目录并追加盘片目录。
@@ -110,10 +110,10 @@ class TransHandler:
 
     @staticmethod
     def __build_preview_item(
-            storage: str,
-            path: Path,
-            item_type: str,
-            size: Optional[int] = None,
+        storage: str,
+        path: Path,
+        item_type: str,
+        size: int | None = None,
     ) -> FileItem:
         """
         构造预览结果中的文件项，不访问真实存储。
@@ -138,12 +138,12 @@ class TransHandler:
         transfer_type: str,
         source_oper: StorageBase,
         target_oper: StorageBase,
-        need_scrape: Optional[bool] = False,
-        need_rename: Optional[bool] = True,
-        need_notify: Optional[bool] = True,
-        overwrite_mode: Optional[str] = None,
-        episodes_info: List[TmdbEpisode] = None,
-        preview: Optional[bool] = False,
+        need_scrape: bool | None = False,
+        need_rename: bool | None = True,
+        need_notify: bool | None = True,
+        overwrite_mode: str | None = None,
+        episodes_info: list[TmdbEpisode] = None,
+        preview: bool | None = False,
     ) -> TransferInfo:
         """
         识别并整理一个文件或者一个目录下的所有文件
@@ -184,9 +184,7 @@ class TransHandler:
             """
             if not _fileitem.extension:
                 return False
-            if f".{_fileitem.extension.lower()}" in (
-                settings.RMT_SUBEXT + settings.RMT_AUDIOEXT
-            ):
+            if f".{_fileitem.extension.lower()}" in (settings.RMT_SUBEXT + settings.RMT_AUDIOEXT):
                 return True
             return False
 
@@ -219,9 +217,7 @@ class TransHandler:
                     rendered_path = self.get_rename_path(
                         path=target_path,
                         template_string=rename_format,
-                        rename_dict=self.get_naming_dict(
-                            meta=in_meta, mediainfo=mediainfo
-                        ),
+                        rename_dict=self.get_naming_dict(meta=in_meta, mediainfo=mediainfo),
                         source_path=fileitem.path,
                         source_item=fileitem,
                     )
@@ -232,9 +228,7 @@ class TransHandler:
                             meta=in_meta,
                         )
                     else:
-                        new_path = DirectoryHelper.get_media_root_path(
-                            rename_format, rename_path=rendered_path
-                        )
+                        new_path = DirectoryHelper.get_media_root_path(rename_format, rename_path=rendered_path)
                     if not new_path:
                         self.__update_result(
                             result=result,
@@ -267,12 +261,8 @@ class TransHandler:
                     )
                     return result
                 # 原盘大小只计算STREAM目录内的文件大小
-                if stream_fileitem := source_oper.get_item(
-                    Path(fileitem.path) / "BDMV" / "STREAM"
-                ):
-                    fileitem.size = sum(
-                        file.size for file in source_oper.list(stream_fileitem) or []
-                    )
+                if stream_fileitem := source_oper.get_item(Path(fileitem.path) / "BDMV" / "STREAM"):
+                    fileitem.size = sum(file.size for file in source_oper.list(stream_fileitem) or [])
                 # 整理目录
                 new_diritem, errmsg = self.__transfer_dir(
                     fileitem=fileitem,
@@ -315,7 +305,9 @@ class TransHandler:
                     # 电视剧
                     if in_meta.begin_episode is None:
                         if __is_special_extra_file(fileitem):
-                            logger.info(f"文件 {fileitem.path} 未识别到文件集数，识别为特典/附加视频文件，跳过正片集数整理")
+                            logger.info(
+                                f"文件 {fileitem.path} 未识别到文件集数，识别为特典/附加视频文件，跳过正片集数整理"
+                            )
                             self.__update_result(
                                 result=result,
                                 success=True,
@@ -367,9 +359,7 @@ class TransHandler:
                         new_file = self.__rename_subtitles(fileitem, new_file)
 
                     # 文件目录
-                    folder_path = DirectoryHelper.get_media_root_path(
-                        rename_format, rename_path=new_file
-                    )
+                    folder_path = DirectoryHelper.get_media_root_path(rename_format, rename_path=new_file)
                     if not folder_path:
                         self.__update_result(
                             result=result,
@@ -475,9 +465,9 @@ class TransHandler:
                                 ChainEventType.TransferOverwriteCheck,
                                 overwrite_event_data,
                             )
-                            plugin_overwrite: Optional[bool] = None
-                            plugin_source_size: Optional[int] = None
-                            plugin_target_size: Optional[int] = None
+                            plugin_overwrite: bool | None = None
+                            plugin_source_size: int | None = None
+                            plugin_target_size: int | None = None
                             if overwrite_event and overwrite_event.event_data:
                                 overwrite_event_data = overwrite_event.event_data
                                 plugin_overwrite = overwrite_event_data.overwrite
@@ -501,8 +491,7 @@ class TransHandler:
                                 self.__update_result(
                                     result=result,
                                     success=False,
-                                    message=overwrite_event_data.reason
-                                    or "插件决定不覆盖已有文件",
+                                    message=overwrite_event_data.reason or "插件决定不覆盖已有文件",
                                     fileitem=fileitem,
                                     target_item=target_item,
                                     target_diritem=target_diritem,
@@ -516,26 +505,16 @@ class TransHandler:
                                 overflag = True
                             elif overwrite_mode == "size":
                                 # 存在时大覆盖小
-                                source_size = (
-                                    plugin_source_size
-                                    if plugin_source_size is not None
-                                    else fileitem.size
-                                )
-                                target_size = (
-                                    plugin_target_size
-                                    if plugin_target_size is not None
-                                    else target_item.size
-                                )
+                                source_size = plugin_source_size if plugin_source_size is not None else fileitem.size
+                                target_size = plugin_target_size if plugin_target_size is not None else target_item.size
                                 if target_size < source_size:
-                                    logger.info(
-                                        f"目标文件文件大小更小，将覆盖：{new_file}"
-                                    )
+                                    logger.info(f"目标文件文件大小更小，将覆盖：{new_file}")
                                     overflag = True
                                 else:
                                     self.__update_result(
                                         result=result,
                                         success=False,
-                                        message=f"媒体库存在同名文件，且质量更好",
+                                        message="媒体库存在同名文件，且质量更好",
                                         fileitem=fileitem,
                                         target_item=target_item,
                                         target_diritem=target_diritem,
@@ -549,7 +528,7 @@ class TransHandler:
                                 self.__update_result(
                                     result=result,
                                     success=False,
-                                    message=f"媒体库存在同名文件，当前覆盖模式为不覆盖",
+                                    message="媒体库存在同名文件，当前覆盖模式为不覆盖",
                                     fileitem=fileitem,
                                     target_item=target_item,
                                     target_diritem=target_diritem,
@@ -560,9 +539,7 @@ class TransHandler:
                                 return result
                             elif overwrite_mode == "latest":
                                 # 仅保留最新版本
-                                logger.info(
-                                    f"当前整理覆盖模式设置为仅保留最新版本，将覆盖：{new_file}"
-                                )
+                                logger.info(f"当前整理覆盖模式设置为仅保留最新版本，将覆盖：{new_file}")
                                 overflag = True
                     else:
                         if overwrite_mode == "latest":
@@ -626,7 +603,7 @@ class TransHandler:
         target_oper: StorageBase,
         target_file: Path,
         transfer_type: str,
-    ) -> Tuple[Optional[FileItem], str]:
+    ) -> tuple[FileItem | None, str]:
         """
         处理单个文件
         :param fileitem: 源文件
@@ -675,16 +652,10 @@ class TransHandler:
             target_item = target_oper.get_item(_path)
             if target_item:
                 return target_item
-            logger.warn(
-                f"目标文件【{target_storage}】{_path} 元数据暂不可见，使用目标路径构造整理结果"
-            )
+            logger.warn(f"目标文件【{target_storage}】{_path} 元数据暂不可见，使用目标路径构造整理结果")
             return __build_remote_targetitem(_source_item, _path)
 
-        if (
-            fileitem.storage != target_storage
-            and fileitem.storage != "local"
-            and target_storage != "local"
-        ):
+        if fileitem.storage != target_storage and fileitem.storage != "local" and target_storage != "local":
             return None, f"不支持 {fileitem.storage} 到 {target_storage} 的文件整理"
 
         if fileitem.storage == "local" and target_storage == "local":
@@ -717,9 +688,7 @@ class TransHandler:
                 target_fileitem = target_oper.get_folder(target_file.parent)
                 if target_fileitem:
                     # 上传文件
-                    new_item = target_oper.upload(
-                        target_fileitem, filepath, target_file.name
-                    )
+                    new_item = target_oper.upload(target_fileitem, filepath, target_file.name)
                     if new_item:
                         return new_item, ""
                     else:
@@ -735,9 +704,7 @@ class TransHandler:
                 target_fileitem = target_oper.get_folder(target_file.parent)
                 if target_fileitem:
                     # 上传文件
-                    new_item = target_oper.upload(
-                        target_fileitem, filepath, target_file.name
-                    )
+                    new_item = target_oper.upload(target_fileitem, filepath, target_file.name)
                     if new_item:
                         # 删除源文件
                         source_oper.delete(fileitem)
@@ -757,9 +724,7 @@ class TransHandler:
             # 网盘到本地
             if transfer_type in ["copy", "move"]:
                 # 下载
-                tmp_file = source_oper.download(
-                    fileitem=fileitem, path=target_file.parent
-                )
+                tmp_file = source_oper.download(fileitem=fileitem, path=target_file.parent)
                 if tmp_file:
                     # 创建目录
                     if not target_file.parent.exists():
@@ -783,14 +748,10 @@ class TransHandler:
                 if target_fileitem:
                     copy_item = getattr(source_oper, "copy_item", None)
                     if callable(copy_item):
-                        new_item = copy_item(
-                            fileitem, Path(target_fileitem.path), target_file.name
-                        )
+                        new_item = copy_item(fileitem, Path(target_fileitem.path), target_file.name)
                         if new_item:
                             return new_item, ""
-                    elif source_oper.copy(
-                            fileitem, Path(target_fileitem.path), target_file.name
-                    ):
+                    elif source_oper.copy(fileitem, Path(target_fileitem.path), target_file.name):
                         return __get_remote_targetitem(fileitem, target_file), ""
                     return None, f"【{target_storage}】{fileitem.path} 复制文件失败"
                 else:
@@ -804,14 +765,10 @@ class TransHandler:
                 if target_fileitem:
                     move_item = getattr(source_oper, "move_item", None)
                     if callable(move_item):
-                        new_item = move_item(
-                            fileitem, Path(target_fileitem.path), target_file.name
-                        )
+                        new_item = move_item(fileitem, Path(target_fileitem.path), target_file.name)
                         if new_item:
                             return new_item, ""
-                    elif source_oper.move(
-                            fileitem, Path(target_fileitem.path), target_file.name
-                    ):
+                    elif source_oper.move(fileitem, Path(target_fileitem.path), target_file.name):
                         return __get_remote_targetitem(fileitem, target_file), ""
                     return None, f"【{target_storage}】{fileitem.path} 移动文件失败"
                 else:
@@ -898,7 +855,7 @@ class TransHandler:
         target_storage: str,
         target_path: Path,
         result: TransferInfo,
-    ) -> Tuple[Optional[FileItem], str]:
+    ) -> tuple[FileItem | None, str]:
         """
         整理整个文件夹
         :param fileitem: 源文件
@@ -925,10 +882,7 @@ class TransHandler:
             event_data = event.event_data
             # 如果事件被取消，跳过文件整理
             if event_data.cancel:
-                logger.debug(
-                    f"Transfer dir canceled by event: {event_data.source},"
-                    f"Reason: {event_data.reason}"
-                )
+                logger.debug(f"Transfer dir canceled by event: {event_data.source},Reason: {event_data.reason}")
                 return None, event_data.reason
         # 处理所有文件
         state, errmsg = self.__transfer_dir_files(
@@ -954,7 +908,7 @@ class TransHandler:
         transfer_type: str,
         target_path: Path,
         result: TransferInfo,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         按目录结构整理目录下所有文件
         :param fileitem: 源文件
@@ -964,7 +918,7 @@ class TransHandler:
         :param target_path: 目标路径
         :param transfer_type: 整理方式
         """
-        file_list: List[FileItem] = source_oper.list(fileitem)
+        file_list: list[FileItem] = source_oper.list(fileitem)
         # 整理文件
         for item in file_list:
             if item.type == "dir":
@@ -1005,7 +959,7 @@ class TransHandler:
     def __transfer_file(
         self,
         fileitem: FileItem,
-        meta: Optional[MetaBase],
+        meta: MetaBase | None,
         mediainfo: MediaInfo,
         source_oper: StorageBase,
         target_oper: StorageBase,
@@ -1013,8 +967,8 @@ class TransHandler:
         target_file: Path,
         transfer_type: str,
         result: TransferInfo,
-        over_flag: Optional[bool] = False,
-    ) -> Tuple[Optional[FileItem], str]:
+        over_flag: bool | None = False,
+    ) -> tuple[FileItem | None, str]:
         """
         整理一个文件，同时处理其他相关文件
         :param fileitem: 原文件
@@ -1047,14 +1001,9 @@ class TransHandler:
             event_data = event.event_data
             # 如果事件被取消，跳过文件整理
             if event_data.cancel:
-                logger.debug(
-                    f"Transfer file canceled by event: {event_data.source},"
-                    f"Reason: {event_data.reason}"
-                )
+                logger.debug(f"Transfer file canceled by event: {event_data.source},Reason: {event_data.reason}")
                 return None, event_data.reason
-        if target_storage == "local" and (
-            target_file.exists() or target_file.is_symlink()
-        ):
+        if target_storage == "local" and (target_file.exists() or target_file.is_symlink()):
             if not over_flag:
                 logger.warn(f"文件已存在：{target_file}")
                 return None, f"{target_file} 已存在"
@@ -1068,9 +1017,7 @@ class TransHandler:
                     logger.warn(f"文件已存在：【{target_storage}】{target_file}")
                     return None, f"【{target_storage}】{target_file} 已存在"
                 else:
-                    logger.info(
-                        f"正在删除已存在的文件：【{target_storage}】{target_file}"
-                    )
+                    logger.info(f"正在删除已存在的文件：【{target_storage}】{target_file}")
                     target_oper.delete(exists_item)
         # 执行文件整理命令
         new_item, errmsg = self.__transfer_command(
@@ -1097,8 +1044,8 @@ class TransHandler:
     def get_dest_path(
         mediainfo: MediaInfo,
         target_path: Path,
-        need_type_folder: Optional[bool] = False,
-        need_category_folder: Optional[bool] = False,
+        need_type_folder: bool | None = False,
+        need_category_folder: bool | None = False,
     ):
         """
         获取目标路径
@@ -1113,8 +1060,8 @@ class TransHandler:
     def get_dest_dir(
         mediainfo: MediaInfo,
         target_dir: TransferDirectoryConf,
-        need_type_folder: Optional[bool] = None,
-        need_category_folder: Optional[bool] = None,
+        need_type_folder: bool | None = None,
+        need_category_folder: bool | None = None,
     ) -> Path:
         """
         根据设置并装媒体库目录
@@ -1135,11 +1082,7 @@ class TransHandler:
             library_dir = Path(target_dir.library_path) / target_dir.media_type
         else:
             library_dir = Path(target_dir.library_path)
-        if (
-            not target_dir.media_category
-            and need_category_folder
-            and mediainfo.category
-        ):
+        if not target_dir.media_category and need_category_folder and mediainfo.category:
             # 二级自动分类
             library_dir = library_dir / mediainfo.category
         elif target_dir.media_category and need_category_folder:
@@ -1152,8 +1095,8 @@ class TransHandler:
     def get_naming_dict(
         meta: MetaBase,
         mediainfo: MediaInfo,
-        file_ext: Optional[str] = None,
-        episodes_info: List[TmdbEpisode] = None,
+        file_ext: str | None = None,
+        episodes_info: list[TmdbEpisode] = None,
     ) -> dict:
         """
         根据媒体信息，返回Format字典
@@ -1221,9 +1164,9 @@ class TransHandler:
     def get_rename_path(
         template_string: str,
         rename_dict: dict,
-        path: Optional[Path] = None,
-        source_path: Optional[str] = None,
-        source_item: Optional[FileItem] = None,
+        path: Path | None = None,
+        source_path: str | None = None,
+        source_item: FileItem | None = None,
     ) -> Path:
         """
         生成重命名后的完整路径，支持智能重命名事件
@@ -1241,9 +1184,7 @@ class TransHandler:
             source_path=source_path,
             source_item=source_item,
         )
-        build_event = eventmanager.send_event(
-            ChainEventType.TransferRenameBuild, build_event_data
-        )
+        build_event = eventmanager.send_event(ChainEventType.TransferRenameBuild, build_event_data)
         if build_event and build_event.event_data:
             rename_dict = build_event.event_data.rename_dict
 

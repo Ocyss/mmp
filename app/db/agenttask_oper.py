@@ -32,19 +32,19 @@ class AgentTaskOper(DbOper):
         return self.get(task_id)
 
     def get(
-            self,
-            task_id: int,
-            user_id: Optional[str] = None,
-    ) -> Optional[AgentTask]:
+        self,
+        task_id: int,
+        user_id: str | None = None,
+    ) -> AgentTask | None:
         """
         查询单个 Agent 定时任务。
         """
         return AgentTask.get_for_user(self._db, task_id=task_id, user_id=user_id)
 
     def list(
-            self,
-            user_id: Optional[str] = None,
-            enabled: Optional[bool] = None,
+        self,
+        user_id: str | None = None,
+        enabled: bool | None = None,
     ) -> list[AgentTask]:
         """
         查询 Agent 定时任务列表。
@@ -52,10 +52,10 @@ class AgentTaskOper(DbOper):
         return AgentTask.list_for_user(self._db, user_id=user_id, enabled=enabled)
 
     def update(
-            self,
-            task_id: int,
-            payload: dict,
-            user_id: Optional[str] = None,
+        self,
+        task_id: int,
+        payload: dict,
+        user_id: str | None = None,
     ) -> bool:
         """
         更新 Agent 定时任务。
@@ -63,7 +63,8 @@ class AgentTaskOper(DbOper):
         normalized_payload = {
             key: value
             for key, value in payload.items()
-            if key in {
+            if key
+            in {
                 "name",
                 "content",
                 "trigger_type",
@@ -84,7 +85,7 @@ class AgentTaskOper(DbOper):
             user_id=user_id,
         )
 
-    def delete(self, task_id: int, user_id: Optional[str] = None) -> bool:
+    def delete(self, task_id: int, user_id: str | None = None) -> bool:
         """
         删除 Agent 定时任务。
         """
@@ -105,11 +106,11 @@ class AgentTaskOper(DbOper):
         )
 
     def finish(
-            self,
-            task_id: int,
-            success: bool,
-            result: str,
-            disable: bool = False,
+        self,
+        task_id: int,
+        success: bool,
+        result: str,
+        disable: bool = False,
     ) -> bool:
         """
         记录 Agent 定时任务执行结果。
@@ -124,9 +125,9 @@ class AgentTaskOper(DbOper):
 
     @staticmethod
     def to_dict(
-            task: AgentTask,
-            next_run_at: Optional[str] = None,
-            timezone: Optional[str] = None,
+        task: AgentTask,
+        next_run_at: str | None = None,
+        timezone: str | None = None,
     ) -> dict:
         """
         将 Agent 定时任务转换为工具可返回的结构。

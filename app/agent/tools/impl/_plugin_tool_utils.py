@@ -7,8 +7,8 @@ from typing import Any, Optional
 from app.core.config import settings
 from app.core.plugin import PluginManager
 from app.db.systemconfig_oper import SystemConfigOper
-from app.helper.server import MoviePilotServerHelper
 from app.helper.plugin import PluginHelper
+from app.helper.server import MoviePilotServerHelper
 from app.schemas.types import SystemConfigKey
 
 # 默认只向智能体返回一个可读预览，避免超大插件数据挤爆上下文窗口。
@@ -20,7 +20,7 @@ DEFAULT_PLUGIN_CANDIDATE_LIMIT = 50
 MAX_PLUGIN_CANDIDATE_LIMIT = 200
 
 
-def get_plugin_snapshot(plugin_id: str) -> Optional[dict[str, Any]]:
+def get_plugin_snapshot(plugin_id: str) -> dict[str, Any] | None:
     """
     获取已安装插件的基础信息快照。
     """
@@ -36,7 +36,7 @@ def get_plugin_snapshot(plugin_id: str) -> Optional[dict[str, Any]]:
     return None
 
 
-def clamp_preview_chars(max_chars: Optional[int]) -> int:
+def clamp_preview_chars(max_chars: int | None) -> int:
     """
     约束插件数据预览长度，避免工具结果无限膨胀。
     """
@@ -52,7 +52,7 @@ def serialize_for_agent(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, default=str)
 
 
-def build_preview_payload(value: Any, max_chars: Optional[int]) -> tuple[bool, int, int, str]:
+def build_preview_payload(value: Any, max_chars: int | None) -> tuple[bool, int, int, str]:
     """
     为可能很大的插件数据生成预览结果。
     """
@@ -109,7 +109,7 @@ def _merge_plugin_source_metadata(plugin: Any, source_plugin: Any) -> Any:
     """
     repo_url = getattr(source_plugin, "repo_url", None)
     if repo_url:
-        setattr(plugin, "repo_url", repo_url)
+        plugin.repo_url = repo_url
 
     for attr in (
         "has_update",
@@ -147,9 +147,7 @@ async def enrich_installed_plugin_sources(
     本地插件对象只包含运行目录中的静态元数据，通常没有 repo_url。这里按需从
     本地插件仓库和插件市场补齐来源，保证 Agent 后续安装、升级判断可以拿到仓库地址。
     """
-    missing_source_plugins = [
-        plugin for plugin in installed_plugins if not getattr(plugin, "repo_url", None)
-    ]
+    missing_source_plugins = [plugin for plugin in installed_plugins if not getattr(plugin, "repo_url", None)]
     if not missing_source_plugins:
         return installed_plugins
 
@@ -160,9 +158,7 @@ async def enrich_installed_plugin_sources(
         if source_plugin:
             _merge_plugin_source_metadata(plugin, source_plugin)
 
-    missing_source_plugins = [
-        plugin for plugin in installed_plugins if not getattr(plugin, "repo_url", None)
-    ]
+    missing_source_plugins = [plugin for plugin in installed_plugins if not getattr(plugin, "repo_url", None)]
     if not missing_source_plugins:
         return installed_plugins
 
@@ -196,7 +192,7 @@ def list_installed_plugins() -> list[Any]:
     return [plugin for plugin in plugin_manager.get_local_plugins() if plugin.installed]
 
 
-def _normalize_text(value: Optional[str]) -> str:
+def _normalize_text(value: str | None) -> str:
     return (value or "").strip().lower()
 
 
@@ -276,7 +272,9 @@ def search_plugin_candidates(query: str, plugins: list[Any]) -> list[dict[str, A
     )
 
 
-def summarize_candidates(matches: list[dict[str, Any]], limit: int = DEFAULT_PLUGIN_CANDIDATE_LIMIT) -> list[dict[str, Any]]:
+def summarize_candidates(
+    matches: list[dict[str, Any]], limit: int = DEFAULT_PLUGIN_CANDIDATE_LIMIT
+) -> list[dict[str, Any]]:
     """
     压缩候选列表，避免一次性把完整市场数据返回给 Agent。
     """
@@ -290,9 +288,7 @@ def summarize_candidates(matches: list[dict[str, Any]], limit: int = DEFAULT_PLU
     ]
 
 
-async def install_plugin_runtime(
-    plugin_id: str, repo_url: Optional[str], force: bool = False
-) -> tuple[bool, str, bool]:
+async def install_plugin_runtime(plugin_id: str, repo_url: str | None, force: bool = False) -> tuple[bool, str, bool]:
     """
     按现有插件接口的行为安装插件，并刷新运行态注册信息。
     """
@@ -319,9 +315,7 @@ async def install_plugin_runtime(
 
     if plugin_id not in install_plugins:
         install_plugins.append(plugin_id)
-        await SystemConfigOper().async_set(
-            SystemConfigKey.UserInstalledPlugins, install_plugins
-        )
+        await SystemConfigOper().async_set(SystemConfigKey.UserInstalledPlugins, install_plugins)
 
     from app.agent.tools.base import run_agent_blocking
 

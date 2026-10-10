@@ -16,7 +16,7 @@ class AgentChatOper(DbOper):
     Agent 会话历史数据管理。
     """
 
-    def __init__(self, db: Union[Session, AsyncSession] = None):
+    def __init__(self, db: Session | AsyncSession = None):
         super().__init__(db)
 
     @staticmethod
@@ -25,19 +25,19 @@ class AgentChatOper(DbOper):
         return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
     @staticmethod
-    def _channel_value(channel: Optional[Union[MessageChannel, str]]) -> Optional[str]:
+    def _channel_value(channel: MessageChannel | str | None) -> str | None:
         """获取渠道枚举的字符串值。"""
         if isinstance(channel, MessageChannel):
             return channel.value
         return channel
 
     @staticmethod
-    def _normalize_messages(messages: Optional[list[dict]]) -> list[dict]:
+    def _normalize_messages(messages: list[dict] | None) -> list[dict]:
         """规范化展示消息列表，避免 JSON 字段存入 None。"""
         return messages if isinstance(messages, list) else []
 
     @staticmethod
-    def _normalize_title(value: Optional[str], messages: list[dict]) -> str:
+    def _normalize_title(value: str | None, messages: list[dict]) -> str:
         """生成会话标题。"""
         if value and value.strip():
             return value.strip()[:120]
@@ -54,7 +54,7 @@ class AgentChatOper(DbOper):
         return DEFAULT_AGENT_CHAT_TITLE
 
     @staticmethod
-    def has_custom_title(value: Optional[str]) -> bool:
+    def has_custom_title(value: str | None) -> bool:
         """判断会话是否已有真实标题。"""
         return bool(value and value.strip() and value.strip() != DEFAULT_AGENT_CHAT_TITLE)
 
@@ -71,17 +71,13 @@ class AgentChatOper(DbOper):
                 return str(name)[:240]
         return ""
 
-    def get(
-        self, session_id: str, user_id: Optional[str] = None
-    ) -> Optional[AgentChat]:
+    def get(self, session_id: str, user_id: str | None = None) -> AgentChat | None:
         """
         获取 Agent 会话。
         """
         return AgentChat.get_by_session(self._db, session_id, user_id)
 
-    async def async_get(
-        self, session_id: str, user_id: Optional[str] = None
-    ) -> Optional[AgentChat]:
+    async def async_get(self, session_id: str, user_id: str | None = None) -> AgentChat | None:
         """
         异步获取 Agent 会话。
         """
@@ -90,12 +86,12 @@ class AgentChatOper(DbOper):
     def ensure_session(
         self,
         session_id: str,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-        channel: Optional[Union[MessageChannel, str]] = None,
-        source: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
-        client_session_id: Optional[str] = None,
+        user_id: str | None = None,
+        username: str | None = None,
+        channel: MessageChannel | str | None = None,
+        source: str | None = None,
+        original_chat_id: str | None = None,
+        client_session_id: str | None = None,
     ) -> AgentChat:
         """
         确保 Agent 会话记录存在，并刷新基础渠道信息。
@@ -140,7 +136,7 @@ class AgentChatOper(DbOper):
     def save_agent_messages(
         self,
         session_id: str,
-        user_id: Optional[str],
+        user_id: str | None,
         messages: list[dict],
     ) -> None:
         """
@@ -162,13 +158,13 @@ class AgentChatOper(DbOper):
     def update_title_if_empty(
         self,
         session_id: str,
-        user_id: Optional[str],
-        title: Optional[str],
-        username: Optional[str] = None,
-        channel: Optional[Union[MessageChannel, str]] = None,
-        source: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
-        client_session_id: Optional[str] = None,
+        user_id: str | None,
+        title: str | None,
+        username: str | None = None,
+        channel: MessageChannel | str | None = None,
+        source: str | None = None,
+        original_chat_id: str | None = None,
+        client_session_id: str | None = None,
     ) -> None:
         """
         在会话尚未生成标题时写入标题。
@@ -199,14 +195,14 @@ class AgentChatOper(DbOper):
     def save_display_messages(
         self,
         session_id: str,
-        user_id: Optional[str] = None,
-        messages: Optional[list[dict]] = None,
-        username: Optional[str] = None,
-        channel: Optional[Union[MessageChannel, str]] = None,
-        source: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
-        client_session_id: Optional[str] = None,
-        title: Optional[str] = None,
+        user_id: str | None = None,
+        messages: list[dict] | None = None,
+        username: str | None = None,
+        channel: MessageChannel | str | None = None,
+        source: str | None = None,
+        original_chat_id: str | None = None,
+        client_session_id: str | None = None,
+        title: str | None = None,
     ) -> AgentChat:
         """
         保存用户可见的 Agent 会话消息。
@@ -222,9 +218,7 @@ class AgentChatOper(DbOper):
             client_session_id=client_session_id,
         )
         normalized_title = (
-            chat.title
-            if self.has_custom_title(chat.title)
-            else self._normalize_title(title, normalized_messages)
+            chat.title if self.has_custom_title(chat.title) else self._normalize_title(title, normalized_messages)
         )
         chat.update(
             self._db,
@@ -241,13 +235,13 @@ class AgentChatOper(DbOper):
     def append_display_messages(
         self,
         session_id: str,
-        user_id: Optional[str] = None,
-        messages: Optional[list[dict]] = None,
-        username: Optional[str] = None,
-        channel: Optional[Union[MessageChannel, str]] = None,
-        source: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
-        client_session_id: Optional[str] = None,
+        user_id: str | None = None,
+        messages: list[dict] | None = None,
+        username: str | None = None,
+        channel: MessageChannel | str | None = None,
+        source: str | None = None,
+        original_chat_id: str | None = None,
+        client_session_id: str | None = None,
     ) -> AgentChat:
         """
         追加一组用户可见的 Agent 会话消息。
@@ -278,10 +272,10 @@ class AgentChatOper(DbOper):
 
     async def async_list_by_page(
         self,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
+        page: int | None = 1,
+        count: int | None = 30,
+        user_id: str | None = None,
+        username: str | None = None,
     ) -> list[AgentChat]:
         """
         异步分页获取 Agent 会话历史。
@@ -294,9 +288,7 @@ class AgentChatOper(DbOper):
             username=username,
         )
 
-    async def async_delete(
-        self, session_id: str, user_id: Optional[str] = None
-    ) -> bool:
+    async def async_delete(self, session_id: str, user_id: str | None = None) -> bool:
         """
         异步删除 Agent 会话历史。
         """

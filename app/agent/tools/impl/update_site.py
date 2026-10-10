@@ -21,45 +21,29 @@ class UpdateSiteInput(BaseModel):
         ...,
         description="The ID of the site to update (can be obtained from query_sites tool)",
     )
-    name: Optional[str] = Field(None, description="Site name (optional)")
-    url: Optional[str] = Field(
-        None, description="Site URL (optional, will be automatically formatted)"
-    )
-    pri: Optional[int] = Field(
+    name: str | None = Field(None, description="Site name (optional)")
+    url: str | None = Field(None, description="Site URL (optional, will be automatically formatted)")
+    pri: int | None = Field(
         None,
         description="Site priority (optional, smaller value = higher priority, e.g., pri=1 has higher priority than pri=10)",
     )
-    rss: Optional[str] = Field(None, description="RSS feed URL (optional)")
-    cookie: Optional[str] = Field(None, description="Site cookie (optional)")
-    ua: Optional[str] = Field(None, description="User-Agent string (optional)")
-    apikey: Optional[str] = Field(None, description="API key (optional)")
-    token: Optional[str] = Field(None, description="API token (optional)")
-    proxy: Optional[int] = Field(
-        None, description="Whether to use proxy: 0 for no, 1 for yes (optional)"
-    )
-    filter: Optional[str] = Field(
-        None, description="Filter rule as regular expression (optional)"
-    )
-    note: Optional[str] = Field(None, description="Site notes/remarks (optional)")
-    timeout: Optional[int] = Field(
-        None, description="Request timeout in seconds (optional, default: 15)"
-    )
-    limit_interval: Optional[int] = Field(
-        None, description="Rate limit interval in seconds (optional)"
-    )
-    limit_count: Optional[int] = Field(
-        None, description="Rate limit count per interval (optional)"
-    )
-    limit_seconds: Optional[int] = Field(
-        None, description="Rate limit seconds between requests (optional)"
-    )
-    is_active: Optional[bool] = Field(
+    rss: str | None = Field(None, description="RSS feed URL (optional)")
+    cookie: str | None = Field(None, description="Site cookie (optional)")
+    ua: str | None = Field(None, description="User-Agent string (optional)")
+    apikey: str | None = Field(None, description="API key (optional)")
+    token: str | None = Field(None, description="API token (optional)")
+    proxy: int | None = Field(None, description="Whether to use proxy: 0 for no, 1 for yes (optional)")
+    filter: str | None = Field(None, description="Filter rule as regular expression (optional)")
+    note: str | None = Field(None, description="Site notes/remarks (optional)")
+    timeout: int | None = Field(None, description="Request timeout in seconds (optional, default: 15)")
+    limit_interval: int | None = Field(None, description="Rate limit interval in seconds (optional)")
+    limit_count: int | None = Field(None, description="Rate limit count per interval (optional)")
+    limit_seconds: int | None = Field(None, description="Rate limit seconds between requests (optional)")
+    is_active: bool | None = Field(
         None,
         description="Whether site is active: True for enabled, False for disabled (optional)",
     )
-    downloader: Optional[str] = Field(
-        None, description="Downloader name for this site (optional)"
-    )
+    downloader: str | None = Field(None, description="Downloader name for this site (optional)")
 
 
 class UpdateSiteTool(MoviePilotTool):
@@ -70,10 +54,10 @@ class UpdateSiteTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Update site configuration including URL, priority, authentication credentials (cookie, UA, API key), proxy settings, rate limits, and other site properties. Supports updating multiple site attributes at once. Site priority (pri): smaller values have higher priority (e.g., pri=1 has higher priority than pri=10)."
-    args_schema: Type[BaseModel] = UpdateSiteInput
+    args_schema: type[BaseModel] = UpdateSiteInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据更新参数生成友好的提示消息"""
         site_id = kwargs.get("site_id")
         fields_updated = []
@@ -102,23 +86,23 @@ class UpdateSiteTool(MoviePilotTool):
     async def run(
         self,
         site_id: int,
-        name: Optional[str] = None,
-        url: Optional[str] = None,
-        pri: Optional[int] = None,
-        rss: Optional[str] = None,
-        cookie: Optional[str] = None,
-        ua: Optional[str] = None,
-        apikey: Optional[str] = None,
-        token: Optional[str] = None,
-        proxy: Optional[int] = None,
-        filter: Optional[str] = None,
-        note: Optional[str] = None,
-        timeout: Optional[int] = None,
-        limit_interval: Optional[int] = None,
-        limit_count: Optional[int] = None,
-        limit_seconds: Optional[int] = None,
-        is_active: Optional[bool] = None,
-        downloader: Optional[str] = None,
+        name: str | None = None,
+        url: str | None = None,
+        pri: int | None = None,
+        rss: str | None = None,
+        cookie: str | None = None,
+        ua: str | None = None,
+        apikey: str | None = None,
+        token: str | None = None,
+        proxy: int | None = None,
+        filter: str | None = None,
+        note: str | None = None,
+        timeout: int | None = None,
+        limit_interval: int | None = None,
+        limit_count: int | None = None,
+        limit_seconds: int | None = None,
+        is_active: bool | None = None,
+        downloader: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, 参数: site_id={site_id}")

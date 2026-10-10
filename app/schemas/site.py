@@ -1,130 +1,131 @@
-from typing import Optional, Any, Union, Dict
+from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Site(BaseModel):
     # ID
-    id: Optional[int] = None
+    id: int | None = None
     # 站点名称
-    name: Optional[str] = None
+    name: str | None = None
     # 站点主域名Key
-    domain: Optional[str] = None
+    domain: str | None = None
     # 站点地址
-    url: Optional[str] = None
+    url: str | None = None
     # 站点优先级
-    pri: Optional[int] = 0
+    pri: int | None = 0
     # RSS地址
-    rss: Optional[str] = None
+    rss: str | None = None
     # Cookie
-    cookie: Optional[str] = None
+    cookie: str | None = None
     # User-Agent
-    ua: Optional[str] = None
+    ua: str | None = None
     # ApiKey
-    apikey: Optional[str] = None
+    apikey: str | None = None
     # Token
-    token: Optional[str] = None
+    token: str | None = None
     # 是否使用代理
-    proxy: Optional[int] = 0
+    proxy: int | None = 0
     # 过滤规则
-    filter: Optional[str] = None
+    filter: str | None = None
     # 是否演染
-    render: Optional[int] = 0
+    render: int | None = 0
     # 是否公开站点
-    public: Optional[int] = 0
+    public: int | None = 0
     # 备注
-    note: Optional[Any] = None
+    note: Any | None = None
     # 超时时间
-    timeout: Optional[int] = 15
+    timeout: int | None = 15
     # 流控单位周期
-    limit_interval: Optional[int] = None
+    limit_interval: int | None = None
     # 流控次数
-    limit_count: Optional[int] = None
+    limit_count: int | None = None
     # 流控间隔
-    limit_seconds: Optional[int] = None
+    limit_seconds: int | None = None
     # 是否启用
-    is_active: Optional[bool] = True
+    is_active: bool | None = True
     # 下载器
-    downloader: Optional[str] = None
+    downloader: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SiteStatistic(BaseModel):
     # 站点ID
-    domain: Optional[str] = None
+    domain: str | None = None
     # 成功次数
-    success: Optional[int] = 0
+    success: int | None = 0
     # 失败次数
-    fail: Optional[int] = 0
+    fail: int | None = 0
     # 平均响应时间
-    seconds: Optional[int] = 0
+    seconds: int | None = 0
     # 最后状态
-    lst_state: Optional[int] = 0
+    lst_state: int | None = 0
     # 最后修改时间
-    lst_mod_date: Optional[str] = None
+    lst_mod_date: str | None = None
     # 备注
-    note: Optional[Any] = None
+    note: Any | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SiteUserData(BaseModel):
     # 站点域名
-    domain: Optional[str] = None
+    domain: str | None = None
     # 用户名
-    username: Optional[str] = None
+    username: str | None = None
     # 用户ID
-    userid: Optional[Union[str, int]] = None
+    userid: str | int | None = None
     # 用户等级
-    user_level: Optional[str] = None
+    user_level: str | None = None
     # 加入时间
-    join_at: Optional[str] = None
+    join_at: str | None = None
     # 积分
-    bonus: Optional[float] = 0.0
+    bonus: float | None = 0.0
     # 上传量
-    upload: Optional[int] = 0
+    upload: int | None = 0
     # 下载量
-    download: Optional[int] = 0
+    download: int | None = 0
     # 分享率
-    ratio: Optional[float] = 0.0
+    ratio: float | None = 0.0
     # 做种数
-    seeding: Optional[int] = 0
+    seeding: int | None = 0
     # 下载数
-    leeching: Optional[int] = 0
+    leeching: int | None = 0
     # 做种体积
-    seeding_size: Optional[int] = 0
+    seeding_size: int | None = 0
     # 下载体积
-    leeching_size: Optional[int] = 0
+    leeching_size: int | None = 0
     # 做种人数, 种子大小
-    seeding_info: Optional[list] = Field(default_factory=list)
+    seeding_info: list | None = Field(default_factory=list)
     # 未读消息
-    message_unread: Optional[int] = 0
+    message_unread: int | None = 0
     # 未读消息内容
-    message_unread_contents: Optional[list] = Field(default_factory=list)
+    message_unread_contents: list | None = Field(default_factory=list)
     # 错误信息
-    err_msg: Optional[str] = None
+    err_msg: str | None = None
     # 更新日期
-    updated_day: Optional[str] = None
+    updated_day: str | None = None
     # 更新时间
-    updated_time: Optional[str] = None
+    updated_time: str | None = None
 
 
 class SiteAuth(BaseModel):
-    site: Optional[str] = None
-    params: Optional[Dict[str, Union[int, str]]] = Field(default_factory=dict)
+    site: str | None = None
+    params: dict[str, int | str] | None = Field(default_factory=dict)
 
 
 class SiteCookieUpdate(BaseModel):
     """
     站点 Cookie 与 UA 更新请求。
     """
+
     username: str = Field(..., description="站点登录用户名")
     password: str = Field(..., description="站点登录密码")
-    code: Optional[str] = Field(None, description="二步验证码或密钥")
+    code: str | None = Field(None, description="二步验证码或密钥")
 
 
 class SiteCategory(BaseModel):
-    id: Optional[int] = None
-    cat: Optional[str] = None
-    desc: Optional[str] = None
+    id: int | None = None
+    cat: str | None = None
+    desc: str | None = None

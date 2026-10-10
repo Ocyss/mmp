@@ -14,17 +14,16 @@ from typing import Any, Literal, Optional, TextIO, Type
 
 from pydantic import BaseModel, Field
 
-from app.agent.tools.impl._command_safety import validate_command_safety
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
+from app.agent.tools.impl._command_safety import validate_command_safety
 from app.agent.tools.impl._terminal_session import (
     TERMINAL_DEFAULT_READ_BYTES,
     TERMINAL_MAX_READ_BYTES,
     TERMINAL_WAIT_DEFAULT_MS,
     terminal_session_manager,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
-
 
 DEFAULT_TIMEOUT_SECONDS = 60
 MAX_TIMEOUT_SECONDS = 300
@@ -47,9 +46,9 @@ class _CommandOutput:
     captured_bytes: int = 0
     tail_bytes: int = 0
     preview_truncated: bool = False
-    temp_file_path: Optional[str] = None
-    temp_file_handle: Optional[TextIO] = None
-    last_written_stream: Optional[str] = None
+    temp_file_path: str | None = None
+    temp_file_handle: TextIO | None = None
+    last_written_stream: str | None = None
 
     @staticmethod
     def _clip_text_to_bytes(text: str, byte_limit: int) -> str:
@@ -135,9 +134,7 @@ class _CommandOutput:
             if old_bytes <= overflow:
                 self.tail_bytes -= old_bytes
                 continue
-            kept_text = old_text.encode("utf-8")[overflow:].decode(
-                "utf-8", errors="ignore"
-            )
+            kept_text = old_text.encode("utf-8")[overflow:].decode("utf-8", errors="ignore")
             kept_bytes = len(kept_text.encode("utf-8"))
             self.tail_bytes -= old_bytes
             if kept_text:
@@ -148,7 +145,7 @@ class _CommandOutput:
     def _format_entries(entries: list[tuple[str, str]]) -> str:
         """按 stdout/stderr 切换插入可读的输出分段标题。"""
         parts: list[str] = []
-        last_stream: Optional[str] = None
+        last_stream: str | None = None
         for stream_name, text in entries:
             if stream_name != last_stream:
                 title = "标准输出" if stream_name == "stdout" else "错误输出"
@@ -174,29 +171,23 @@ class _CommandOutput:
                 remaining -= len(clipped.encode("utf-8"))
         head = self._format_entries(head_entries)
         tail = self._format_entries(list(self.tail_entries))
-        return (
-            f"{head}\n\n...(中间输出已省略，完整内容在临时文件中)...\n\n{tail}"
-        ).strip()
+        return (f"{head}\n\n...(中间输出已省略，完整内容在临时文件中)...\n\n{tail}").strip()
 
     @property
     def stdout(self) -> str:
         """返回当前保留的 stdout 预览。"""
-        return "".join(
-            text for stream_name, text in self.preview_entries if stream_name == "stdout"
-        ).strip()
+        return "".join(text for stream_name, text in self.preview_entries if stream_name == "stdout").strip()
 
     @property
     def stderr(self) -> str:
         """返回当前保留的 stderr 预览。"""
-        return "".join(
-            text for stream_name, text in self.preview_entries if stream_name == "stderr"
-        ).strip()
+        return "".join(text for stream_name, text in self.preview_entries if stream_name == "stderr").strip()
 
 
 class ExecuteCommandInput(BaseModel):
     """执行 Shell 命令工具的输入参数模型。"""
 
-    action: Optional[Literal["start", "read", "wait", "write", "kill", "run"]] = Field(
+    action: Literal["start", "read", "wait", "write", "kill", "run"] | None = Field(
         "start",
         description=(
             "Command action. start launches a managed background session and returns "
@@ -204,51 +195,51 @@ class ExecuteCommandInput(BaseModel):
             "once and waits until completion or timeout."
         ),
     )
-    command: Optional[str] = Field(
+    command: str | None = Field(
         None,
         description="Shell command. Required for action=start or action=run.",
     )
-    session_id: Optional[str] = Field(
+    session_id: str | None = Field(
         None,
         description="Command session id returned by action=start.",
     )
-    input_text: Optional[str] = Field(
+    input_text: str | None = Field(
         None,
         description="Text to send to stdin for action=write. Use \\u0003 for Ctrl+C.",
     )
-    signal_name: Optional[str] = Field(
+    signal_name: str | None = Field(
         "TERM",
         description="Signal for action=kill, such as TERM, INT, KILL, or 15.",
     )
-    cwd: Optional[str] = Field(
+    cwd: str | None = Field(
         None,
         description="Working directory for action=start or action=run.",
     )
-    env: Optional[dict[str, Any]] = Field(
+    env: dict[str, Any] | None = Field(
         None,
         description="Additional environment variables for action=start.",
     )
-    use_pty: Optional[bool] = Field(
+    use_pty: bool | None = Field(
         True,
         description="Use a pseudo terminal for action=start when supported.",
     )
-    since_seq: Optional[int] = Field(
+    since_seq: int | None = Field(
         None,
         description="For action=read/wait, return output chunks after this seq.",
     )
-    max_bytes: Optional[int] = Field(
+    max_bytes: int | None = Field(
         TERMINAL_DEFAULT_READ_BYTES,
         description="For action=read/wait, maximum output bytes to return.",
     )
-    timeout_ms: Optional[int] = Field(
+    timeout_ms: int | None = Field(
         TERMINAL_WAIT_DEFAULT_MS,
         description="For action=wait, maximum segmented wait time in milliseconds.",
     )
-    timeout: Optional[int] = Field(
+    timeout: int | None = Field(
         60,
         description="For action=run, max execution time in seconds.",
     )
-    confirm_dangerous: Optional[bool] = Field(
+    confirm_dangerous: bool | None = Field(
         False,
         description=(
             "Explicit confirmation for high-risk commands such as recursive root deletion, "
@@ -274,11 +265,11 @@ class ExecuteCommandTool(MoviePilotTool):
         "terminate it. Use action=run only when a one-shot bounded command result "
         "is preferred."
     )
-    args_schema: Type[BaseModel] = ExecuteCommandInput
+    args_schema: type[BaseModel] = ExecuteCommandInput
     require_admin: bool = True
     result_max_chars = TERMINAL_MAX_READ_BYTES + 4096
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据命令动作生成友好的提示消息。"""
         action = kwargs.get("action") or "start"
         command = kwargs.get("command")
@@ -301,14 +292,14 @@ class ExecuteCommandTool(MoviePilotTool):
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
     @staticmethod
-    def _require_session_id(session_id: Optional[str]) -> str:
+    def _require_session_id(session_id: str | None) -> str:
         """校验会话型 action 必须传入 session_id。"""
         if not session_id:
             raise ValueError("action 需要传入 session_id")
         return session_id
 
     @staticmethod
-    def _require_command(command: Optional[str]) -> str:
+    def _require_command(command: str | None) -> str:
         """校验启动型 action 必须传入 command。"""
         if not command or not command.strip():
             raise ValueError("action 需要传入 command")
@@ -320,11 +311,11 @@ class ExecuteCommandTool(MoviePilotTool):
         validate_command_safety(command, confirmed=confirmed)
 
     @staticmethod
-    def _normalize_timeout(timeout: Optional[int]) -> tuple[int, Optional[str]]:
+    def _normalize_timeout(timeout: int | None) -> tuple[int, str | None]:
         """限制一次性执行命令的最长运行时间。"""
         try:
             normalized = int(timeout or DEFAULT_TIMEOUT_SECONDS)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             normalized = DEFAULT_TIMEOUT_SECONDS
 
         if normalized <= 0:
@@ -388,20 +379,16 @@ class ExecuteCommandTool(MoviePilotTool):
 
         cls._terminate_process(process, signal.SIGTERM)
         try:
-            await asyncio.wait_for(
-                asyncio.shield(wait_task), timeout=KILL_GRACE_SECONDS
-            )
+            await asyncio.wait_for(asyncio.shield(wait_task), timeout=KILL_GRACE_SECONDS)
             return
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
         kill_signal = getattr(signal, "SIGKILL", signal.SIGTERM)
         cls._terminate_process(process, kill_signal)
         try:
-            await asyncio.wait_for(
-                asyncio.shield(wait_task), timeout=KILL_GRACE_SECONDS
-            )
-        except asyncio.TimeoutError:
+            await asyncio.wait_for(asyncio.shield(wait_task), timeout=KILL_GRACE_SECONDS)
+        except TimeoutError:
             logger.warning(f"命令进程强制清理超时: pid={process.pid}")
 
     @staticmethod
@@ -414,19 +401,17 @@ class ExecuteCommandTool(MoviePilotTool):
             task.cancel()
         results = await asyncio.gather(*done, *pending, return_exceptions=True)
         for result in results:
-            if isinstance(result, Exception) and not isinstance(
-                result, asyncio.CancelledError
-            ):
+            if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
                 logger.debug(f"命令输出读取任务异常: {result}")
 
     @staticmethod
     def _format_run_result(
         *,
-        exit_code: Optional[int],
+        exit_code: int | None,
         output: _CommandOutput,
         timeout: int,
         timed_out: bool,
-        timeout_note: Optional[str],
+        timeout_note: str | None,
     ) -> str:
         """格式化 action=run 的兼容文本结果。"""
         if timed_out:
@@ -457,8 +442,8 @@ class ExecuteCommandTool(MoviePilotTool):
         self,
         *,
         command: str,
-        timeout: Optional[int],
-        cwd: Optional[str] = None,
+        timeout: int | None,
+        cwd: str | None = None,
         confirm_dangerous: bool = False,
     ) -> str:
         """按旧模式一次性执行命令，等待完成或超时后返回文本结果。"""
@@ -480,10 +465,8 @@ class ExecuteCommandTool(MoviePilotTool):
 
             timed_out = False
             try:
-                await asyncio.wait_for(
-                    asyncio.shield(wait_task), timeout=normalized_timeout
-                )
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(asyncio.shield(wait_task), timeout=normalized_timeout)
+            except TimeoutError:
                 timed_out = True
                 await self._cleanup_process(process, wait_task)
             except asyncio.CancelledError:
@@ -505,27 +488,24 @@ class ExecuteCommandTool(MoviePilotTool):
 
     async def run(
         self,
-        action: Optional[str] = "start",
-        command: Optional[str] = None,
-        session_id: Optional[str] = None,
-        input_text: Optional[str] = None,
-        signal_name: Optional[str] = "TERM",
-        cwd: Optional[str] = None,
-        env: Optional[dict[str, Any]] = None,
-        use_pty: Optional[bool] = True,
-        since_seq: Optional[int] = None,
-        max_bytes: Optional[int] = TERMINAL_DEFAULT_READ_BYTES,
-        timeout_ms: Optional[int] = TERMINAL_WAIT_DEFAULT_MS,
-        timeout: Optional[int] = 60,
-        confirm_dangerous: Optional[bool] = False,
+        action: str | None = "start",
+        command: str | None = None,
+        session_id: str | None = None,
+        input_text: str | None = None,
+        signal_name: str | None = "TERM",
+        cwd: str | None = None,
+        env: dict[str, Any] | None = None,
+        use_pty: bool | None = True,
+        since_seq: int | None = None,
+        max_bytes: int | None = TERMINAL_DEFAULT_READ_BYTES,
+        timeout_ms: int | None = TERMINAL_WAIT_DEFAULT_MS,
+        timeout: int | None = 60,
+        confirm_dangerous: bool | None = False,
         **kwargs,
     ) -> str:
         """执行命令动作：默认后台启动，也支持读取、等待、写入、终止和一次性执行。"""
         normalized_action = (action or "start").strip().lower()
-        logger.info(
-            f"执行工具: {self.name}, action={normalized_action}, "
-            f"command={command}, session_id={session_id}"
-        )
+        logger.info(f"执行工具: {self.name}, action={normalized_action}, command={command}, session_id={session_id}")
 
         try:
             if normalized_action == "start":

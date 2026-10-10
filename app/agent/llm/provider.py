@@ -52,10 +52,10 @@ class ProviderUrlPreset:
     id: str
     label: str
     value: str
-    runtime: Optional[str] = None
-    model_list_strategy: Optional[str] = None
-    model_list_base_url: Optional[str] = None
-    models_dev_provider_id: Optional[str] = None
+    runtime: str | None = None
+    model_list_strategy: str | None = None
+    model_list_base_url: str | None = None
+    models_dev_provider_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,15 +65,15 @@ class ProviderSpec:
     id: str
     name: str
     runtime: str
-    models_dev_provider_id: Optional[str] = None
-    default_base_url: Optional[str] = None
-    base_url_presets: Tuple[ProviderUrlPreset, ...] = ()
+    models_dev_provider_id: str | None = None
+    default_base_url: str | None = None
+    base_url_presets: tuple[ProviderUrlPreset, ...] = ()
     base_url_editable: bool = False
     requires_base_url: bool = False
     supports_api_key: bool = True
     api_key_label: str = "API Key"
     api_key_hint: str = ""
-    oauth_methods: Tuple[ProviderAuthMethod, ...] = ()
+    oauth_methods: tuple[ProviderAuthMethod, ...] = ()
     supports_model_refresh: bool = True
     model_list_strategy: str = "openai_compatible"
     sort_order: int = 100
@@ -90,14 +90,14 @@ class PendingAuthSession:
     flow_type: str
     status: str = "pending"
     message: str = ""
-    authorize_url: Optional[str] = None
-    instructions: Optional[str] = None
-    verification_url: Optional[str] = None
-    user_code: Optional[str] = None
+    authorize_url: str | None = None
+    instructions: str | None = None
+    verification_url: str | None = None
+    user_code: str | None = None
     interval_seconds: int = 5
     expires_at: float = 0
     created_at: float = field(default_factory=time.time)
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 class LLMProviderManager(metaclass=Singleton):
@@ -157,9 +157,7 @@ class LLMProviderManager(metaclass=Singleton):
             "us-east-1",
             "us-gov-west-1",
         ),
-        "anthropic.claude-3-5-haiku-20241022-v1:0": (
-            "us-west-2",
-        ),
+        "anthropic.claude-3-5-haiku-20241022-v1:0": ("us-west-2",),
         "anthropic.claude-3-5-sonnet-20240620-v1:0": (
             "ap-northeast-1",
             "ap-northeast-2",
@@ -265,11 +263,9 @@ class LLMProviderManager(metaclass=Singleton):
         self._oauth_state_index: dict[str, str] = {}
         self._models_dev_data: dict[str, Any] | None = None
         self._models_dev_loaded_at: float = 0
-        self._models_dev_cache_path = (
-                Path(settings.TEMP_PATH) / "llm_provider_models_dev_cache.json"
-        )
+        self._models_dev_cache_path = Path(settings.TEMP_PATH) / "llm_provider_models_dev_cache.json"
 
-    def _cleanup_auth_sessions_locked(self, now: Optional[float] = None) -> None:
+    def _cleanup_auth_sessions_locked(self, now: float | None = None) -> None:
         """
         清理过期或已完成一段时间的临时授权会话。
 
@@ -318,18 +314,19 @@ class LLMProviderManager(metaclass=Singleton):
         )
         url_preset = ProviderUrlPreset
         provider_patches = LLMProviderManager._PROVIDER_PATCHES
+
         def openai_provider(
-                provider_id: str,
-                name: str,
-                default_base_url: str,
-                sort_order: int,
-                *,
-                models_dev_provider_id: Optional[str] = None,
-                base_url_presets: Tuple[ProviderUrlPreset, ...] = (),
-                api_key_hint: Optional[str] = None,
-                description: Optional[str] = None,
-                model_list_strategy: str = "openai_compatible",
-                api_key_label: str = "API Key",
+            provider_id: str,
+            name: str,
+            default_base_url: str,
+            sort_order: int,
+            *,
+            models_dev_provider_id: str | None = None,
+            base_url_presets: tuple[ProviderUrlPreset, ...] = (),
+            api_key_hint: str | None = None,
+            description: str | None = None,
+            model_list_strategy: str = "openai_compatible",
+            api_key_label: str = "API Key",
         ) -> ProviderSpec:
             return ProviderSpec(
                 id=provider_id,
@@ -346,16 +343,16 @@ class LLMProviderManager(metaclass=Singleton):
             )
 
         def catalog_openai_provider(
-                provider_id: str,
-                name: str,
-                default_base_url: str,
-                sort_order: int,
-                *,
-                models_dev_provider_id: Optional[str] = None,
-                base_url_presets: Tuple[ProviderUrlPreset, ...] = (),
-                api_key_hint: Optional[str] = None,
-                description: Optional[str] = None,
-                api_key_label: str = "API Key",
+            provider_id: str,
+            name: str,
+            default_base_url: str,
+            sort_order: int,
+            *,
+            models_dev_provider_id: str | None = None,
+            base_url_presets: tuple[ProviderUrlPreset, ...] = (),
+            api_key_hint: str | None = None,
+            description: str | None = None,
+            api_key_label: str = "API Key",
         ) -> ProviderSpec:
             return openai_provider(
                 provider_id=provider_id,
@@ -371,15 +368,15 @@ class LLMProviderManager(metaclass=Singleton):
             )
 
         def anthropic_provider(
-                provider_id: str,
-                name: str,
-                default_base_url: str,
-                sort_order: int,
-                *,
-                models_dev_provider_id: Optional[str] = None,
-                base_url_presets: Tuple[ProviderUrlPreset, ...] = (),
-                api_key_hint: Optional[str] = None,
-                description: Optional[str] = None,
+            provider_id: str,
+            name: str,
+            default_base_url: str,
+            sort_order: int,
+            *,
+            models_dev_provider_id: str | None = None,
+            base_url_presets: tuple[ProviderUrlPreset, ...] = (),
+            api_key_hint: str | None = None,
+            description: str | None = None,
         ) -> ProviderSpec:
             return ProviderSpec(
                 id=provider_id,
@@ -994,8 +991,8 @@ class LLMProviderManager(metaclass=Singleton):
         ]
 
         for sort_order, provider_entry in enumerate(
-                catalog_openai_providers,
-                start=1000,
+            catalog_openai_providers,
+            start=1000,
         ):
             provider_id = provider_entry["id"]
             overrides = provider_patches.get(provider_id, {})
@@ -1048,9 +1045,7 @@ class LLMProviderManager(metaclass=Singleton):
         return tuple(env_names)
 
     @classmethod
-    def _models_dev_reserved_provider_ids(
-            cls, specs: tuple[ProviderSpec, ...]
-    ) -> set[str]:
+    def _models_dev_reserved_provider_ids(cls, specs: tuple[ProviderSpec, ...]) -> set[str]:
         """获取所有已保留的 models_dev_provider_id 集合。"""
         reserved_ids: set[str] = set()
         for spec in specs:
@@ -1070,9 +1065,7 @@ class LLMProviderManager(metaclass=Singleton):
         return "API Key"
 
     @classmethod
-    def _normalize_models_dev_base_url(
-            cls, runtime: str, base_url: Optional[str]
-    ) -> Optional[str]:
+    def _normalize_models_dev_base_url(cls, runtime: str, base_url: str | None) -> str | None:
         """规范化从 models.dev 获取的 Base URL。"""
         normalized = cls._sanitize_base_url(base_url)
         if not normalized:
@@ -1087,12 +1080,10 @@ class LLMProviderManager(metaclass=Singleton):
                 "/audio/speech",
                 "/audio/transcriptions",
             ),
-            "anthropic_compatible": (
-                "/messages",
-            ),
+            "anthropic_compatible": ("/messages",),
         }
 
-        for suffix in suffixes.get(runtime, ()): 
+        for suffix in suffixes.get(runtime, ()):
             if normalized.endswith(suffix):
                 normalized = normalized[: -len(suffix)]
                 break
@@ -1100,10 +1091,10 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _models_dev_dynamic_provider_spec(
-            cls,
-            provider_id: str,
-            payload: dict[str, Any],
-            sort_order: int,
+        cls,
+        provider_id: str,
+        payload: dict[str, Any],
+        sort_order: int,
     ) -> ProviderSpec | None:
         """根据 models.dev 数据动态生成 ProviderSpec 实例。"""
         normalized_id = str(provider_id or "").strip().lower()
@@ -1123,11 +1114,7 @@ class LLMProviderManager(metaclass=Singleton):
 
         model_list_strategy = override.get("model_list_strategy")
         if not model_list_strategy:
-            model_list_strategy = (
-                "anthropic_compatible"
-                if runtime == "anthropic_compatible"
-                else "models_dev_only"
-            )
+            model_list_strategy = "anthropic_compatible" if runtime == "anthropic_compatible" else "models_dev_only"
 
         default_base_url = cls._normalize_models_dev_base_url(
             runtime=runtime,
@@ -1135,9 +1122,7 @@ class LLMProviderManager(metaclass=Singleton):
         )
         requires_base_url = not bool(default_base_url)
         env_names = cls._models_dev_env_names(payload)
-        api_key_label = override.get("api_key_label") or cls._dynamic_api_key_label(
-            env_names
-        )
+        api_key_label = override.get("api_key_label") or cls._dynamic_api_key_label(env_names)
         name = str(payload.get("name") or override.get("name") or normalized_id).strip()
         description = override.get("description")
         if not description:
@@ -1165,9 +1150,7 @@ class LLMProviderManager(metaclass=Singleton):
             sort_order=sort_order,
         )
 
-    def _dynamic_provider_specs(
-            self, builtin_specs: tuple[ProviderSpec, ...]
-    ) -> tuple[ProviderSpec, ...]:
+    def _dynamic_provider_specs(self, builtin_specs: tuple[ProviderSpec, ...]) -> tuple[ProviderSpec, ...]:
         """获取从 models.dev 动态加载的所有 ProviderSpec 实例。"""
         payload = self._cached_models_dev_payload()
         if not payload:
@@ -1195,8 +1178,8 @@ class LLMProviderManager(metaclass=Singleton):
 
         dynamic_specs = []
         for sort_order, (_, provider_id, provider_payload) in enumerate(
-                sorted(candidates),
-                start=700,
+            sorted(candidates),
+            start=700,
         ):
             spec = self._models_dev_dynamic_provider_spec(
                 provider_id=provider_id,
@@ -1214,10 +1197,10 @@ class LLMProviderManager(metaclass=Singleton):
         return builtin_specs + self._dynamic_provider_specs(builtin_specs)
 
     async def _get_provider_async(
-            self,
-            provider_id: str,
-            force_refresh: bool = False,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        force_refresh: bool = False,
+        use_proxy: bool | None = None,
     ) -> ProviderSpec:
         """异步获取指定 provider 的 ProviderSpec 实例。"""
         normalized_provider_id = self._normalize_provider_id(provider_id)
@@ -1267,9 +1250,9 @@ class LLMProviderManager(metaclass=Singleton):
         }
 
     async def list_providers_async(
-            self,
-            force_refresh: bool = False,
-            use_proxy: Optional[bool] = None,
+        self,
+        force_refresh: bool = False,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """返回前端可渲染的 provider 目录，并优先补齐 models.dev 动态平台。"""
         try:
@@ -1284,8 +1267,7 @@ class LLMProviderManager(metaclass=Singleton):
     def list_providers(self) -> list[dict[str, Any]]:
         """返回前端可渲染的 provider 目录。"""
         return [
-            self._serialize_provider(spec)
-            for spec in sorted(self._provider_specs(), key=lambda item: item.sort_order)
+            self._serialize_provider(spec) for spec in sorted(self._provider_specs(), key=lambda item: item.sort_order)
         ]
 
     def get_provider(self, provider_id: str) -> ProviderSpec:
@@ -1297,7 +1279,7 @@ class LLMProviderManager(metaclass=Singleton):
         raise LLMProviderError(f"不支持的 LLM 提供商：{provider_id}")
 
     @staticmethod
-    def _sanitize_base_url(base_url: Optional[str]) -> Optional[str]:
+    def _sanitize_base_url(base_url: str | None) -> str | None:
         """清理 Base URL 中多余的空格和结尾斜杠。"""
         if base_url is None:
             return None
@@ -1308,9 +1290,9 @@ class LLMProviderManager(metaclass=Singleton):
 
     @staticmethod
     def _merge_user_agent_header(
-            default_headers: Optional[dict[str, str]],
-            user_agent: Optional[str],
-    ) -> Optional[dict[str, str]]:
+        default_headers: dict[str, str] | None,
+        user_agent: str | None,
+    ) -> dict[str, str] | None:
         """
         合并用户配置的 OpenAI 兼容接口 User-Agent 请求头。
         """
@@ -1324,7 +1306,7 @@ class LLMProviderManager(metaclass=Singleton):
         return headers or None
 
     @classmethod
-    def _default_base_url_for_provider(cls, spec: ProviderSpec) -> Optional[str]:
+    def _default_base_url_for_provider(cls, spec: ProviderSpec) -> str | None:
         """获取 provider 的默认 Base URL。"""
         default_base_url = cls._sanitize_base_url(spec.default_base_url)
         if default_base_url:
@@ -1344,9 +1326,7 @@ class LLMProviderManager(metaclass=Singleton):
         return normalized
 
     @classmethod
-    def _normalize_base_url_preset_id(
-            cls, provider_id: str, base_url_preset_id: Optional[str]
-    ) -> Optional[str]:
+    def _normalize_base_url_preset_id(cls, provider_id: str, base_url_preset_id: str | None) -> str | None:
         """规范化 Base URL 预设 ID。"""
         normalized_provider_id = cls._normalize_provider_id(provider_id)
         normalized_preset_id = str(base_url_preset_id or "").strip().lower() or None
@@ -1360,11 +1340,11 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _resolve_provider_preset(
-            cls,
-            spec: ProviderSpec,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
-    ) -> Optional[ProviderUrlPreset]:
+        cls,
+        spec: ProviderSpec,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
+    ) -> ProviderUrlPreset | None:
         """根据给定的参数解析出适用的 Base URL 预设。"""
         normalized_preset_id = cls._normalize_base_url_preset_id(spec.id, base_url_preset_id)
         if normalized_preset_id:
@@ -1390,10 +1370,10 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _resolve_provider_runtime(
-            cls,
-            spec: ProviderSpec,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
+        cls,
+        spec: ProviderSpec,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
     ) -> str:
         """解析提供商最终适用的 runtime。"""
         preset = cls._resolve_provider_preset(spec, base_url, base_url_preset_id)
@@ -1401,10 +1381,10 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _resolve_provider_model_list_strategy(
-            cls,
-            spec: ProviderSpec,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
+        cls,
+        spec: ProviderSpec,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
     ) -> str:
         """解析获取模型列表的策略。"""
         preset = cls._resolve_provider_preset(spec, base_url, base_url_preset_id)
@@ -1412,11 +1392,11 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _resolve_provider_model_list_base_url(
-            cls,
-            spec: ProviderSpec,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
-    ) -> Optional[str]:
+        cls,
+        spec: ProviderSpec,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
+    ) -> str | None:
         """解析用于获取模型列表的 Base URL。"""
         preset = cls._resolve_provider_preset(spec, base_url, base_url_preset_id)
         if preset:
@@ -1431,11 +1411,11 @@ class LLMProviderManager(metaclass=Singleton):
 
     @classmethod
     def _resolve_provider_models_dev_provider_id(
-            cls,
-            spec: ProviderSpec,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
-    ) -> Optional[str]:
+        cls,
+        spec: ProviderSpec,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
+    ) -> str | None:
         """解析对应的 models.dev provider id。"""
         preset = cls._resolve_provider_preset(spec, base_url, base_url_preset_id)
         if preset:
@@ -1448,11 +1428,11 @@ class LLMProviderManager(metaclass=Singleton):
         return spec.models_dev_provider_id
 
     def resolve_model_list_base_url(
-            self,
-            provider_id: str,
-            base_url: Optional[str],
-            base_url_preset_id: Optional[str] = None,
-    ) -> Optional[str]:
+        self,
+        provider_id: str,
+        base_url: str | None,
+        base_url_preset_id: str | None = None,
+    ) -> str | None:
         """解析对外暴露的用于获取模型列表的 Base URL。"""
         spec = self.get_provider(provider_id)
         return self._resolve_provider_model_list_base_url(
@@ -1467,7 +1447,7 @@ class LLMProviderManager(metaclass=Singleton):
         params = httpx.Client.__init__.__code__.co_varnames
         return "proxy" if "proxy" in params else "proxies"
 
-    def _build_httpx_kwargs(self, use_proxy: Optional[bool] = None) -> dict[str, Any]:
+    def _build_httpx_kwargs(self, use_proxy: bool | None = None) -> dict[str, Any]:
         """构造用于 httpx 客户端的参数，如代理等。"""
         should_use_proxy = settings.LLM_USE_PROXY if use_proxy is None else use_proxy
         kwargs: dict[str, Any] = {
@@ -1552,9 +1532,7 @@ class LLMProviderManager(metaclass=Singleton):
         try:
             if not self._models_dev_cache_path.exists():
                 return None
-            async with aiofiles.open(
-                    self._models_dev_cache_path, mode="r", encoding="utf-8", errors="replace"
-            ) as stream:
+            async with aiofiles.open(self._models_dev_cache_path, encoding="utf-8", errors="replace") as stream:
                 return json.loads(await stream.read())
         except Exception as err:
             logger.warning(f"读取 models.dev 缓存失败: {err}")
@@ -1565,9 +1543,7 @@ class LLMProviderManager(metaclass=Singleton):
         try:
             if not self._MODELS_DEV_BUNDLED_PATH.exists():
                 return None
-            payload = json.loads(
-                self._MODELS_DEV_BUNDLED_PATH.read_text(encoding="utf-8", errors="replace")
-            )
+            payload = json.loads(self._MODELS_DEV_BUNDLED_PATH.read_text(encoding="utf-8", errors="replace"))
         except Exception as err:
             logger.warning(f"读取本地 models.dev 离线文件失败: {err}")
             return None
@@ -1578,14 +1554,12 @@ class LLMProviderManager(metaclass=Singleton):
         """将 models.dev 数据写入磁盘缓存。"""
         try:
             self._models_dev_cache_path.parent.mkdir(parents=True, exist_ok=True)
-            async with aiofiles.open(
-                    self._models_dev_cache_path, mode="w", encoding="utf-8"
-            ) as stream:
+            async with aiofiles.open(self._models_dev_cache_path, mode="w", encoding="utf-8") as stream:
                 await stream.write(json.dumps(payload, ensure_ascii=False))
         except Exception as err:
             logger.warning(f"写入 models.dev 缓存失败: {err}")
 
-    async def _fetch_models_dev(self, use_proxy: Optional[bool] = None) -> dict[str, Any]:
+    async def _fetch_models_dev(self, use_proxy: bool | None = None) -> dict[str, Any]:
         """通过网络请求获取最新 models.dev 数据。"""
         headers = {"User-Agent": settings.USER_AGENT}
         async with httpx.AsyncClient(**self._build_httpx_kwargs(use_proxy)) as client:
@@ -1594,9 +1568,9 @@ class LLMProviderManager(metaclass=Singleton):
             return response.json()
 
     async def get_models_dev_data(
-            self,
-            force_refresh: bool = False,
-            use_proxy: Optional[bool] = None,
+        self,
+        force_refresh: bool = False,
+        use_proxy: bool | None = None,
     ) -> dict[str, Any]:
         """
         返回 models.dev 原始数据。
@@ -1607,9 +1581,9 @@ class LLMProviderManager(metaclass=Singleton):
         async with self._models_dev_lock:
             now = time.time()
             if (
-                    not force_refresh
-                    and self._models_dev_data is not None
-                    and now - self._models_dev_loaded_at < self._MODELS_DEV_CACHE_TTL
+                not force_refresh
+                and self._models_dev_data is not None
+                and now - self._models_dev_loaded_at < self._MODELS_DEV_CACHE_TTL
             ):
                 return self._models_dev_data
 
@@ -1643,11 +1617,11 @@ class LLMProviderManager(metaclass=Singleton):
                 raise LLMProviderError(f"获取 models.dev 数据失败: {err}") from err
 
     async def _models_dev_provider_payload(
-            self,
-            provider_id: str,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        use_proxy: bool | None = None,
     ) -> dict[str, Any]:
         """获取指定 provider 在 models.dev 中的完整负载。"""
         spec = await self._get_provider_async(
@@ -1661,14 +1635,12 @@ class LLMProviderManager(metaclass=Singleton):
         )
         if not models_dev_provider_id:
             return {}
-        return (
-            await self.get_models_dev_data(use_proxy=use_proxy)
-        ).get(models_dev_provider_id, {}) or {}
+        return (await self.get_models_dev_data(use_proxy=use_proxy)).get(models_dev_provider_id, {}) or {}
 
     @staticmethod
     def _models_dev_model_candidates(
-            provider_id: str,
-            model_id: str,
+        provider_id: str,
+        model_id: str,
     ) -> tuple[str, ...]:
         """生成模型目录查询候选，兼容 Provider 添加的透明模型前缀。"""
         candidates = [model_id]
@@ -1680,12 +1652,12 @@ class LLMProviderManager(metaclass=Singleton):
         return tuple(dict.fromkeys(candidates))
 
     async def _models_dev_model(
-            self,
-            provider_id: str,
-            model_id: str,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        model_id: str,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        use_proxy: bool | None = None,
     ) -> dict[str, Any] | None:
         """获取指定模型的 models.dev 元数据。"""
         payload = await self._models_dev_provider_payload(
@@ -1720,16 +1692,14 @@ class LLMProviderManager(metaclass=Singleton):
                 return explicit_capability
 
         cost = metadata.get("cost")
-        return isinstance(cost, dict) and any(
-            key in cost for key in ("cache_read", "cache_write")
-        )
+        return isinstance(cost, dict) and any(key in cost for key in ("cache_read", "cache_write"))
 
     def _cached_models_dev_model(
-            self,
-            provider_id: str,
-            model_id: str,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
+        self,
+        provider_id: str,
+        model_id: str,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
     ) -> dict[str, Any] | None:
         """从已缓存或内置的 models.dev 数据中同步读取模型元数据。"""
         try:
@@ -1756,11 +1726,11 @@ class LLMProviderManager(metaclass=Singleton):
         return None
 
     def resolve_cached_model_metadata(
-            self,
-            provider_id: str,
-            model_id: Optional[str],
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
+        self,
+        provider_id: str,
+        model_id: str | None,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
     ) -> dict[str, Any] | None:
         """同步解析缓存中的模型元数据，不触发远端 models.dev 刷新。"""
         if not model_id:
@@ -1776,31 +1746,29 @@ class LLMProviderManager(metaclass=Singleton):
         if provider_id == "chatgpt":
             return self._cached_models_dev_model("openai", model_id)
         if provider_id == "openai":
-            return (
-                self._cached_models_dev_payload()
-                .get("openai", {})
-                .get("models", {})
-                .get(model_id)
-            )
+            return self._cached_models_dev_payload().get("openai", {}).get("models", {}).get(model_id)
         return None
 
     def _resolve_cached_model_record(
-            self,
-            provider_id: str,
-            model_id: Optional[str],
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            transport: str = "openai",
+        self,
+        provider_id: str,
+        model_id: str | None,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        transport: str = "openai",
     ) -> dict[str, Any] | None:
         """从缓存中的模型元数据构造轻量模型记录，不触发远端模型列表刷新。"""
         if not model_id:
             return None
-        metadata = self.resolve_cached_model_metadata(
-            provider_id,
-            model_id,
-            base_url=base_url,
-            base_url_preset_id=base_url_preset_id,
-        ) or {}
+        metadata = (
+            self.resolve_cached_model_metadata(
+                provider_id,
+                model_id,
+                base_url=base_url,
+                base_url_preset_id=base_url_preset_id,
+            )
+            or {}
+        )
         if not metadata:
             return self._normalize_model_record(
                 model_id=model_id,
@@ -1817,18 +1785,18 @@ class LLMProviderManager(metaclass=Singleton):
 
     @staticmethod
     def _normalize_model_record(
-            model_id: str,
-            display_name: Optional[str] = None,
-            metadata: Optional[dict[str, Any]] = None,
-            transport: str = "openai",
-            live_context: Optional[int] = None,
-            live_input: Optional[int] = None,
-            live_output: Optional[int] = None,
-            live_supports_tools: Optional[bool] = None,
-            live_supports_reasoning: Optional[bool] = None,
-            live_supports_image: Optional[bool] = None,
-            live_supports_audio: Optional[bool] = None,
-            source: str = "provider",
+        model_id: str,
+        display_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        transport: str = "openai",
+        live_context: int | None = None,
+        live_input: int | None = None,
+        live_output: int | None = None,
+        live_supports_tools: bool | None = None,
+        live_supports_reasoning: bool | None = None,
+        live_supports_image: bool | None = None,
+        live_supports_audio: bool | None = None,
+        source: str = "provider",
     ) -> dict[str, Any]:
         """
         统一输出模型记录格式，前端据此直接渲染和自动回填上下文等参数。
@@ -1841,25 +1809,11 @@ class LLMProviderManager(metaclass=Singleton):
         context_tokens = live_context or limit.get("context")
         input_tokens = live_input or limit.get("input")
         output_tokens = live_output or limit.get("output")
-        supports_image_input = (
-            live_supports_image
-            if live_supports_image is not None
-            else "image" in input_modalities
-        )
-        supports_audio_input = (
-            live_supports_audio
-            if live_supports_audio is not None
-            else "audio" in input_modalities
-        )
-        supports_tools = (
-            live_supports_tools
-            if live_supports_tools is not None
-            else bool(metadata.get("tool_call"))
-        )
+        supports_image_input = live_supports_image if live_supports_image is not None else "image" in input_modalities
+        supports_audio_input = live_supports_audio if live_supports_audio is not None else "audio" in input_modalities
+        supports_tools = live_supports_tools if live_supports_tools is not None else bool(metadata.get("tool_call"))
         supports_reasoning = (
-            live_supports_reasoning
-            if live_supports_reasoning is not None
-            else bool(metadata.get("reasoning"))
+            live_supports_reasoning if live_supports_reasoning is not None else bool(metadata.get("reasoning"))
         )
 
         if context_tokens:
@@ -1900,7 +1854,7 @@ class LLMProviderManager(metaclass=Singleton):
         return normalized
 
     @classmethod
-    def _extract_bedrock_region(cls, base_url: Optional[str]) -> str:
+    def _extract_bedrock_region(cls, base_url: str | None) -> str:
         """
         从 Bedrock 运行时端点 URL 中提取 AWS Region
 
@@ -1959,15 +1913,14 @@ class LLMProviderManager(metaclass=Singleton):
             return not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES)
         region_prefixes = cls._BEDROCK_GEO_PREFIXES.get(prefix)
         if region_prefixes is not None:
-            return (
-                    not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES)
-                    and region.startswith(region_prefixes)
+            return not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES) and region.startswith(
+                region_prefixes
             )
         on_demand_regions = cls._BEDROCK_ON_DEMAND_MODEL_REGIONS.get(model_id)
         return on_demand_regions is not None and region in on_demand_regions
 
     @classmethod
-    def _parse_bedrock_credentials(cls, api_key: Optional[str]) -> dict[str, Any]:
+    def _parse_bedrock_credentials(cls, api_key: str | None) -> dict[str, Any]:
         """
         解析 Bedrock 凭证字符串，识别 Bearer 与 SigV4 两种认证方式
 
@@ -1981,9 +1934,7 @@ class LLMProviderManager(metaclass=Singleton):
         """
         normalized = str(api_key or "").strip()
         if not normalized:
-            raise LLMProviderAuthError(
-                "Amazon Bedrock 需要填写 Bedrock API Key 或 Access Key ID:Secret Access Key"
-            )
+            raise LLMProviderAuthError("Amazon Bedrock 需要填写 Bedrock API Key 或 Access Key ID:Secret Access Key")
 
         if not normalized.startswith(cls._BEDROCK_API_KEY_PREFIX):
             parts = [part.strip() for part in normalized.split(":")]
@@ -2006,9 +1957,9 @@ class LLMProviderManager(metaclass=Singleton):
         return {"auth_scheme": "bearer", "bearer_token": normalized}
 
     async def _list_models_from_google(
-            self,
-            api_key: str,
-            use_proxy: Optional[bool] = None,
+        self,
+        api_key: str,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """从 Google AI Studio 获取模型列表。"""
         from google import genai
@@ -2031,11 +1982,14 @@ class LLMProviderManager(metaclass=Singleton):
             if "generateContent" not in supported:
                 continue
             model_id = model.name
-            metadata = await self._models_dev_model(
-                "google",
-                model_id,
-                use_proxy=use_proxy,
-            ) or {}
+            metadata = (
+                await self._models_dev_model(
+                    "google",
+                    model_id,
+                    use_proxy=use_proxy,
+                )
+                or {}
+            )
             results.append(
                 self._normalize_model_record(
                     model_id=model_id,
@@ -2047,12 +2001,12 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda item: item["name"].lower())
 
     async def _list_models_from_openai_compatible(
-            self,
-            provider_id: str,
-            api_key: str,
-            base_url: str,
-            default_headers: Optional[dict[str, str]] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        api_key: str,
+        base_url: str,
+        default_headers: dict[str, str] | None = None,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """通过 OpenAI 兼容接口获取模型列表。"""
         from openai import AsyncOpenAI
@@ -2068,12 +2022,15 @@ class LLMProviderManager(metaclass=Singleton):
         results = []
         response = await client.models.list()
         for model in response.data:
-            metadata = await self._models_dev_model(
-                provider_id,
-                model.id,
-                base_url=base_url,
-                use_proxy=use_proxy,
-            ) or {}
+            metadata = (
+                await self._models_dev_model(
+                    provider_id,
+                    model.id,
+                    base_url=base_url,
+                    use_proxy=use_proxy,
+                )
+                or {}
+            )
             results.append(
                 self._normalize_model_record(
                     model_id=model.id,
@@ -2085,12 +2042,12 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda item: item["name"].lower())
 
     async def _list_models_from_models_dev_only(
-            self,
-            provider_id: str,
-            transport: str = "openai",
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        transport: str = "openai",
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """
         某些 provider 没有统一稳定的 models.list 行为，
@@ -2120,8 +2077,8 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda item: item["name"].lower())
 
     def _build_bedrock_boto3_config(
-            self,
-            use_proxy: Optional[bool] = None,
+        self,
+        use_proxy: bool | None = None,
     ) -> Any:
         """
         构造 Bedrock boto3 客户端配置，统一超时、重试与代理策略
@@ -2143,9 +2100,7 @@ class LLMProviderManager(metaclass=Singleton):
         )
 
     @staticmethod
-    def _bedrock_endpoint_url(
-            service_name: str, base_url: Optional[str]
-    ) -> Optional[str]:
+    def _bedrock_endpoint_url(service_name: str, base_url: str | None) -> str | None:
         """
         解析应传给 boto3 客户端的自定义端点 URL
 
@@ -2160,20 +2115,20 @@ class LLMProviderManager(metaclass=Singleton):
         if not normalized:
             return None
         if re.fullmatch(
-                rf"https://{service_name}\.[a-z0-9-]+\.amazonaws\.com",
-                normalized,
+            rf"https://{service_name}\.[a-z0-9-]+\.amazonaws\.com",
+            normalized,
         ):
             return None
         return normalized
 
     def create_bedrock_client(
-            self,
-            service_name: str,
-            region: str,
-            credentials: dict[str, Any],
-            base_url: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
-            read_timeout: Optional[int] = None,
+        self,
+        service_name: str,
+        region: str,
+        credentials: dict[str, Any],
+        base_url: str | None = None,
+        use_proxy: bool | None = None,
+        read_timeout: int | None = None,
     ) -> Any:
         """
         按解析后的凭证创建 Bedrock boto3 客户端，Bearer 方式注入 Authorization 头
@@ -2230,9 +2185,9 @@ class LLMProviderManager(metaclass=Singleton):
         return client
 
     async def _list_models_from_bedrock_fallback(
-            self,
-            region: str,
-            use_proxy: Optional[bool] = None,
+        self,
+        region: str,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """
         从 models.dev 目录筛选当前 Region 可调用的 Bedrock 模型
@@ -2245,17 +2200,13 @@ class LLMProviderManager(metaclass=Singleton):
             provider_id="amazon-bedrock",
             use_proxy=use_proxy,
         )
-        return [
-            model
-            for model in models
-            if self._bedrock_model_matches_region(model["id"], region)
-        ]
+        return [model for model in models if self._bedrock_model_matches_region(model["id"], region)]
 
     async def _list_models_from_bedrock(
-            self,
-            api_key: str,
-            base_url: Optional[str],
-            use_proxy: Optional[bool] = None,
+        self,
+        api_key: str,
+        base_url: str | None,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """
         从 Bedrock 控制面拉取模型目录，聚合跨区 Inference Profile 与直连模型
@@ -2286,10 +2237,13 @@ class LLMProviderManager(metaclass=Singleton):
             paginator = client.get_paginator("list_inference_profiles")
             for page in paginator.paginate(typeEquals="SYSTEM_DEFINED"):
                 profiles.extend(page.get("inferenceProfileSummaries") or [])
-            foundation = client.list_foundation_models(
-                byOutputModality="TEXT",
-                byInferenceType="ON_DEMAND",
-            ).get("modelSummaries") or []
+            foundation = (
+                client.list_foundation_models(
+                    byOutputModality="TEXT",
+                    byInferenceType="ON_DEMAND",
+                ).get("modelSummaries")
+                or []
+            )
             return profiles, foundation
 
         try:
@@ -2297,9 +2251,7 @@ class LLMProviderManager(metaclass=Singleton):
         except Exception as err:
             # 部分 Bedrock API Key 的授权范围仅覆盖 bedrock-runtime 推理接口，
             # 控制面查询被拒时降级到 models.dev 目录，保证仍能选择模型。
-            logger.warning(
-                f"获取 Amazon Bedrock 控制面模型列表失败，降级 models.dev 目录: {err}"
-            )
+            logger.warning(f"获取 Amazon Bedrock 控制面模型列表失败，降级 models.dev 目录: {err}")
             return await self._list_models_from_bedrock_fallback(region, use_proxy)
         finally:
             await asyncio.to_thread(client.close)
@@ -2307,7 +2259,7 @@ class LLMProviderManager(metaclass=Singleton):
         results: list[dict[str, Any]] = []
         seen_ids: set[str] = set()
 
-        def _append_record(model_id: str, display_name: Optional[str]) -> None:
+        def _append_record(model_id: str, display_name: str | None) -> None:
             if not model_id or model_id in seen_ids:
                 return
             seen_ids.add(model_id)
@@ -2349,9 +2301,7 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda item: item["name"].lower())
 
     @staticmethod
-    def _copilot_headers(
-            token: Optional[str] = None, include_auth: bool = True
-    ) -> dict[str, str]:
+    def _copilot_headers(token: str | None = None, include_auth: bool = True) -> dict[str, str]:
         """
         构造 GitHub Copilot 请求头。
 
@@ -2368,9 +2318,9 @@ class LLMProviderManager(metaclass=Singleton):
         return headers
 
     async def _list_models_from_copilot(
-            self,
-            token: str,
-            use_proxy: Optional[bool] = None,
+        self,
+        token: str,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """从 GitHub Copilot 端点获取模型列表。"""
         async with httpx.AsyncClient(**self._build_httpx_kwargs(use_proxy)) as client:
@@ -2403,18 +2353,21 @@ class LLMProviderManager(metaclass=Singleton):
             transport = (
                 "anthropic"
                 if "/v1/messages" in endpoints
-                   and "/v1/chat/completions" not in endpoints
-                   and "/v1/responses" not in endpoints
+                and "/v1/chat/completions" not in endpoints
+                and "/v1/responses" not in endpoints
                 else "openai"
             )
 
-            limits = ((item.get("capabilities") or {}).get("limits") or {})
-            supports = ((item.get("capabilities") or {}).get("supports") or {})
-            metadata = await self._models_dev_model(
-                "github-copilot",
-                model_id,
-                use_proxy=use_proxy,
-            ) or {}
+            limits = (item.get("capabilities") or {}).get("limits") or {}
+            supports = (item.get("capabilities") or {}).get("supports") or {}
+            metadata = (
+                await self._models_dev_model(
+                    "github-copilot",
+                    model_id,
+                    use_proxy=use_proxy,
+                )
+                or {}
+            )
             results.append(
                 self._normalize_model_record(
                     model_id=model_id,
@@ -2432,8 +2385,7 @@ class LLMProviderManager(metaclass=Singleton):
                         or supports.get("min_thinking_budget") is not None
                     ),
                     live_supports_image=bool(
-                        supports.get("vision")
-                        or ((limits.get("vision") or {}).get("supported_media_types"))
+                        supports.get("vision") or ((limits.get("vision") or {}).get("supported_media_types"))
                     ),
                     source="provider",
                 )
@@ -2441,11 +2393,11 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda i: i["name"].lower())
 
     async def _list_chatgpt_oauth_models(
-            self,
-            provider_id: str,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        use_proxy: bool | None = None,
     ) -> list[dict[str, Any]]:
         """获取开启 OAuth 的 ChatGPT 模型列表。"""
         # ChatGPT OAuth 仍然是 chatgpt provider 专属能力，但模型目录不再维护
@@ -2473,14 +2425,14 @@ class LLMProviderManager(metaclass=Singleton):
         return sorted(results, key=lambda item: item["name"].lower())
 
     async def list_models(
-            self,
-            provider_id: str,
-            api_key: Optional[str] = None,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            user_agent: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
-            force_refresh: bool = False,
+        self,
+        provider_id: str,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        user_agent: str | None = None,
+        use_proxy: bool | None = None,
+        force_refresh: bool = False,
     ) -> list[dict[str, Any]]:
         """返回标准化后的模型目录。"""
         spec = await self._get_provider_async(
@@ -2494,9 +2446,9 @@ class LLMProviderManager(metaclass=Singleton):
             base_url_preset_id=base_url_preset_id,
         )
         if self._resolve_provider_models_dev_provider_id(
-                spec,
-                base_url,
-                base_url_preset_id=base_url_preset_id,
+            spec,
+            base_url,
+            base_url_preset_id=base_url_preset_id,
         ):
             # 对依赖 models.dev 的 provider 主动刷新一次缓存，保证“刷新模型列表”
             # 在使用目录型 provider 时也能拿到最新参数。
@@ -2570,7 +2522,7 @@ class LLMProviderManager(metaclass=Singleton):
                 base_url_preset_id=base_url_preset_id,
                 use_proxy=use_proxy,
             )
-            
+
         if resolved_model_list_strategy == "models_dev_only":
             return await self._list_models_from_models_dev_only(
                 provider_id=provider_id,
@@ -2597,12 +2549,12 @@ class LLMProviderManager(metaclass=Singleton):
         )
 
     async def resolve_model_metadata(
-            self,
-            provider_id: str,
-            model_id: Optional[str],
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        model_id: str | None,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        use_proxy: bool | None = None,
     ) -> dict[str, Any] | None:
         """解析并返回指定模型在 models.dev 中的元数据。"""
         if not model_id:
@@ -2637,7 +2589,7 @@ class LLMProviderManager(metaclass=Singleton):
             return {}
 
     @staticmethod
-    def _extract_chatgpt_account_id(token_payload: dict[str, Any]) -> Optional[str]:
+    def _extract_chatgpt_account_id(token_payload: dict[str, Any]) -> str | None:
         """从 ChatGPT 的 Token payload 中提取 account id。"""
         if token_payload.get("chatgpt_account_id"):
             return token_payload["chatgpt_account_id"]
@@ -2649,9 +2601,7 @@ class LLMProviderManager(metaclass=Singleton):
             return organizations[0].get("id")
         return None
 
-    def _chatgpt_authorize_url(
-            self, redirect_uri: str, challenge: str, state: str
-    ) -> str:
+    def _chatgpt_authorize_url(self, redirect_uri: str, challenge: str, state: str) -> str:
         """构建 ChatGPT OAuth 授权链接。"""
         query = urlencode(
             {
@@ -2678,10 +2628,10 @@ class LLMProviderManager(metaclass=Singleton):
         return verifier, challenge
 
     async def start_auth(
-            self,
-            provider_id: str,
-            method_id: str,
-            callback_url: Optional[str] = None,
+        self,
+        provider_id: str,
+        method_id: str,
+        callback_url: str | None = None,
     ) -> dict[str, Any]:
         """
         启动 OAuth / device code 会话。
@@ -2831,9 +2781,7 @@ class LLMProviderManager(metaclass=Singleton):
                 "expires_at": session.expires_at,
             }
 
-    async def _mark_session_success(
-            self, session: PendingAuthSession, auth_data: dict[str, Any]
-    ) -> None:
+    async def _mark_session_success(self, session: PendingAuthSession, auth_data: dict[str, Any]) -> None:
         """标记授权会话为成功，并保存认证信息。"""
         auth_data["updated_at"] = int(time.time())
         await self.save_auth(session.provider_id, auth_data)
@@ -2847,12 +2795,12 @@ class LLMProviderManager(metaclass=Singleton):
         session.message = message
 
     async def handle_chatgpt_callback(
-            self,
-            provider_id: str,
-            code: Optional[str],
-            state: Optional[str],
-            error: Optional[str],
-            error_description: Optional[str],
+        self,
+        provider_id: str,
+        code: str | None,
+        state: str | None,
+        error: str | None,
+        error_description: str | None,
     ) -> tuple[bool, str]:
         """处理 ChatGPT 浏览器 OAuth 回调。"""
         if provider_id != "chatgpt":
@@ -2933,7 +2881,7 @@ class LLMProviderManager(metaclass=Singleton):
         return self.get_session_status(session_id)
 
     async def _exchange_chatgpt_code_for_tokens(
-            self, code: str, redirect_uri: str, code_verifier: str
+        self, code: str, redirect_uri: str, code_verifier: str
     ) -> dict[str, Any]:
         """使用 authorization code 交换 ChatGPT 令牌。"""
         async with httpx.AsyncClient(**self._build_httpx_kwargs()) as client:
@@ -2992,9 +2940,7 @@ class LLMProviderManager(metaclass=Singleton):
             redirect_uri=f"{self._CHATGPT_ISSUER}/deviceauth/callback",
             code_verifier=payload["code_verifier"],
         )
-        claims = self._jwt_claims(
-            token_payload.get("id_token") or token_payload["access_token"]
-        )
+        claims = self._jwt_claims(token_payload.get("id_token") or token_payload["access_token"])
         account_id = self._extract_chatgpt_account_id(claims)
         await self._mark_session_success(
             session,
@@ -3073,27 +3019,23 @@ class LLMProviderManager(metaclass=Singleton):
                     "access_token": payload["access_token"],
                     "refresh_token": payload.get("refresh_token") or refresh_token,
                     "expires_at": int(time.time() + int(payload.get("expires_in") or 3600)),
-                    "account_id": auth.get("account_id")
-                                  or self._extract_chatgpt_account_id(claims),
+                    "account_id": auth.get("account_id") or self._extract_chatgpt_account_id(claims),
                     "email": auth.get("email") or claims.get("email"),
-                    "label": auth.get("label")
-                             or claims.get("email")
-                             or auth.get("account_id")
-                             or "ChatGPT Plus/Pro",
+                    "label": auth.get("label") or claims.get("email") or auth.get("account_id") or "ChatGPT Plus/Pro",
                 }
             )
             await self.save_auth("chatgpt", auth)
         return auth
 
     async def resolve_runtime(
-            self,
-            provider_id: str,
-            model: Optional[str],
-            api_key: Optional[str] = None,
-            base_url: Optional[str] = None,
-            base_url_preset_id: Optional[str] = None,
-            user_agent: Optional[str] = None,
-            use_proxy: Optional[bool] = None,
+        self,
+        provider_id: str,
+        model: str | None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        base_url_preset_id: str | None = None,
+        user_agent: str | None = None,
+        use_proxy: bool | None = None,
     ) -> dict[str, Any]:
         """
         解析 provider 运行时参数。
@@ -3116,9 +3058,7 @@ class LLMProviderManager(metaclass=Singleton):
         )
         normalized_api_key = str(api_key or "").strip() or None
         normalized_base_url = self._sanitize_base_url(base_url)
-        default_transport = (
-            "anthropic" if resolved_runtime == "anthropic_compatible" else "openai"
-        )
+        default_transport = "anthropic" if resolved_runtime == "anthropic_compatible" else "openai"
         model_record = self._resolve_cached_model_record(
             normalized_provider_id,
             model,
@@ -3139,9 +3079,7 @@ class LLMProviderManager(metaclass=Singleton):
             "model_id": model,
             "model_record": model_record,
             "model_metadata": model_metadata,
-            "supports_prompt_cache": self._metadata_supports_prompt_cache(
-                model_metadata
-            ),
+            "supports_prompt_cache": self._metadata_supports_prompt_cache(model_metadata),
             "default_headers": None,
             "use_responses_api": None,
             "auth_mode": "api_key",
@@ -3178,8 +3116,7 @@ class LLMProviderManager(metaclass=Singleton):
                     {
                         "runtime": "openai_compatible",
                         "api_key": normalized_api_key,
-                        "base_url": normalized_base_url
-                                    or self._default_base_url_for_provider(spec),
+                        "base_url": normalized_base_url or self._default_base_url_for_provider(spec),
                         "default_headers": self._merge_user_agent_header(
                             None,
                             user_agent,
@@ -3203,9 +3140,7 @@ class LLMProviderManager(metaclass=Singleton):
             transport = (model_record or {}).get("transport") or "openai"
             result.update(
                 {
-                    "runtime": "copilot_anthropic"
-                    if transport == "anthropic"
-                    else "github_copilot",
+                    "runtime": "copilot_anthropic" if transport == "anthropic" else "github_copilot",
                     "api_key": token,
                     "base_url": "https://api.githubcopilot.com",
                     "default_headers": self._merge_user_agent_header(
@@ -3233,9 +3168,7 @@ class LLMProviderManager(metaclass=Singleton):
             return result
 
         if resolved_runtime == "bedrock":
-            effective_base_url = normalized_base_url or self._default_base_url_for_provider(
-                spec
-            )
+            effective_base_url = normalized_base_url or self._default_base_url_for_provider(spec)
             credentials = self._parse_bedrock_credentials(normalized_api_key)
             result.update(
                 {
@@ -3249,9 +3182,7 @@ class LLMProviderManager(metaclass=Singleton):
             return result
 
         if resolved_runtime == "anthropic_compatible":
-            effective_base_url = normalized_base_url or self._default_base_url_for_provider(
-                spec
-            )
+            effective_base_url = normalized_base_url or self._default_base_url_for_provider(spec)
             if not normalized_api_key:
                 raise LLMProviderAuthError(f"{spec.name} 需要填写 API Key")
             if not effective_base_url:
@@ -3259,9 +3190,7 @@ class LLMProviderManager(metaclass=Singleton):
             result.update(
                 {
                     "api_key": normalized_api_key,
-                    "base_url": self._normalize_base_url_for_anthropic(
-                        effective_base_url
-                    ),
+                    "base_url": self._normalize_base_url_for_anthropic(effective_base_url),
                     "default_headers": self._merge_user_agent_header(
                         None,
                         user_agent,

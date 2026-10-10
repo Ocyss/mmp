@@ -15,13 +15,14 @@ MAX_PAGE_SIZE = 50
 
 class QuerySubscribeSharesInput(BaseModel):
     """查询订阅分享工具的输入参数模型"""
-    name: Optional[str] = Field(None, description="Filter shares by media name (partial match, optional)")
-    page: Optional[int] = Field(1, description="Page number for pagination (default: 1)")
-    count: Optional[int] = Field(30, description="Number of items per page (default: 30, max: 50)")
-    genre_id: Optional[int] = Field(None, description="Filter by genre ID (optional)")
-    min_rating: Optional[float] = Field(None, description="Minimum rating filter (optional, e.g., 7.5)")
-    max_rating: Optional[float] = Field(None, description="Maximum rating filter (optional, e.g., 10.0)")
-    sort_type: Optional[str] = Field(None, description="Sort type (optional, e.g., 'count', 'rating')")
+
+    name: str | None = Field(None, description="Filter shares by media name (partial match, optional)")
+    page: int | None = Field(1, description="Page number for pagination (default: 1)")
+    count: int | None = Field(30, description="Number of items per page (default: 30, max: 50)")
+    genre_id: int | None = Field(None, description="Filter by genre ID (optional)")
+    min_rating: float | None = Field(None, description="Minimum rating filter (optional, e.g., 7.5)")
+    max_rating: float | None = Field(None, description="Maximum rating filter (optional, e.g., 10.0)")
+    sort_type: str | None = Field(None, description="Sort type (optional, e.g., 'count', 'rating')")
 
 
 class QuerySubscribeSharesTool(MoviePilotTool):
@@ -31,17 +32,17 @@ class QuerySubscribeSharesTool(MoviePilotTool):
         ToolTag.Subscription,
     ]
     description: str = "Query shared subscriptions from other users. Shows popular subscriptions shared by the community with filtering and pagination support."
-    args_schema: Type[BaseModel] = QuerySubscribeSharesInput
+    args_schema: type[BaseModel] = QuerySubscribeSharesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         name = kwargs.get("name")
         page = kwargs.get("page", 1)
         min_rating = kwargs.get("min_rating")
         max_rating = kwargs.get("max_rating")
-        
+
         parts = ["查询订阅分享"]
-        
+
         if name:
             parts.append(f"名称: {name}")
         if min_rating:
@@ -50,19 +51,24 @@ class QuerySubscribeSharesTool(MoviePilotTool):
             parts.append(f"最高评分: {max_rating}")
         if page > 1:
             parts.append(f"第{page}页")
-        
+
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(self, name: Optional[str] = None,
-                  page: Optional[int] = 1,
-                  count: Optional[int] = 30,
-                  genre_id: Optional[int] = None,
-                  min_rating: Optional[float] = None,
-                  max_rating: Optional[float] = None,
-                  sort_type: Optional[str] = None, **kwargs) -> str:
+    async def run(
+        self,
+        name: str | None = None,
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+        **kwargs,
+    ) -> str:
         logger.info(
             f"执行工具: {self.name}, 参数: name={name}, page={page}, count={count}, genre_id={genre_id}, "
-            f"min_rating={min_rating}, max_rating={max_rating}, sort_type={sort_type}")
+            f"min_rating={min_rating}, max_rating={max_rating}, sort_type={sort_type}"
+        )
 
         try:
             if page is None or page < 1:
@@ -79,7 +85,7 @@ class QuerySubscribeSharesTool(MoviePilotTool):
                 genre_id=genre_id,
                 min_rating=min_rating,
                 max_rating=max_rating,
-                sort_type=sort_type
+                sort_type=sort_type,
             )
 
             if not shares:
@@ -105,7 +111,7 @@ class QuerySubscribeSharesTool(MoviePilotTool):
                     "share_title": share.get("share_title"),
                     "share_comment": share.get("share_comment"),
                     "share_user": share.get("share_user"),
-                    "fork_count": share.get("fork_count", 0)
+                    "fork_count": share.get("fork_count", 0),
                 }
                 # 截断过长的描述
                 if simplified.get("description") and len(simplified["description"]) > 200:

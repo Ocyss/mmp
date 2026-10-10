@@ -1,10 +1,11 @@
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Iterable, Optional, Dict, Any, List, Set, Callable
+from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.message import MessageChannel
 from app.schemas.file import FileItem
+from app.schemas.message import MessageChannel
 
 
 class Event(BaseModel):
@@ -13,8 +14,8 @@ class Event(BaseModel):
     """
 
     event_type: str = Field(..., description="事件类型")
-    event_data: Optional[dict] = Field(default={}, description="事件数据")
-    priority: Optional[int] = Field(0, description="事件优先级")
+    event_data: dict | None = Field(default={}, description="事件数据")
+    priority: int | None = Field(0, description="事件优先级")
 
 
 class BaseEventData(BaseModel):
@@ -31,10 +32,8 @@ class ConfigChangeEventData(BaseEventData):
     """
 
     key: set[str] = Field(..., description="配置项的键（集合类型）")
-    value: Optional[Any] = Field(default=None, description="配置项的新值")
-    change_type: str = Field(
-        default="update", description="配置项的变更类型，如 'add', 'update', 'delete'"
-    )
+    value: Any | None = Field(default=None, description="配置项的新值")
+    change_type: str = Field(default="update", description="配置项的变更类型，如 'add', 'update', 'delete'")
 
     @field_validator("key", mode="before")
     @classmethod
@@ -86,20 +85,20 @@ class AgentLLMProviderEventData(ChainEventData):
     后续用量事件精确回写到同一个配额条目。
     """
 
-    provider: Optional[str] = Field(default=None, description="LLM provider ID")
-    base_url: Optional[str] = Field(default=None, description="API Base URL")
-    api_key: Optional[str] = Field(default=None, description="API Key")
-    model: Optional[str] = Field(default=None, description="模型名称")
-    base_url_preset: Optional[str] = Field(default=None, description="Base URL 预设ID")
-    user_agent: Optional[str] = Field(default=None, description="OpenAI兼容接口User-Agent")
-    use_proxy: Optional[bool] = Field(default=None, description="是否使用系统代理")
-    thinking_level: Optional[str] = Field(default=None, description="思考模式级别")
-    api_protocol: Optional[str] = Field(default=None, description="OpenAI兼容接口API协议：auto/chat_completions/responses")
-    web_search_mode: Optional[str] = Field(default=None, description="联网搜索模式：local/builtin/auto/disabled")
-    selected_provider_id: Optional[str] = Field(default=None, description="插件侧供应商ID")
-    selected_provider_name: Optional[str] = Field(default=None, description="插件侧供应商名称")
-    source: Optional[str] = Field(default=None, description="选择来源")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="扩展元数据")
+    provider: str | None = Field(default=None, description="LLM provider ID")
+    base_url: str | None = Field(default=None, description="API Base URL")
+    api_key: str | None = Field(default=None, description="API Key")
+    model: str | None = Field(default=None, description="模型名称")
+    base_url_preset: str | None = Field(default=None, description="Base URL 预设ID")
+    user_agent: str | None = Field(default=None, description="OpenAI兼容接口User-Agent")
+    use_proxy: bool | None = Field(default=None, description="是否使用系统代理")
+    thinking_level: str | None = Field(default=None, description="思考模式级别")
+    api_protocol: str | None = Field(default=None, description="OpenAI兼容接口API协议：auto/chat_completions/responses")
+    web_search_mode: str | None = Field(default=None, description="联网搜索模式：local/builtin/auto/disabled")
+    selected_provider_id: str | None = Field(default=None, description="插件侧供应商ID")
+    selected_provider_name: str | None = Field(default=None, description="插件侧供应商名称")
+    source: str | None = Field(default=None, description="选择来源")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="扩展元数据")
 
 
 class AgentTokensUsageEventData(BaseEventData):
@@ -111,26 +110,26 @@ class AgentTokensUsageEventData(BaseEventData):
     """
 
     session_id: str = Field(..., description="Agent 会话ID")
-    selected_provider_id: Optional[str] = Field(default=None, description="插件侧供应商ID")
-    selected_provider_name: Optional[str] = Field(default=None, description="插件侧供应商名称")
-    provider: Optional[str] = Field(default=None, description="实际 LLM provider ID")
-    base_url: Optional[str] = Field(default=None, description="API Base URL")
-    model: Optional[str] = Field(default=None, description="模型名称")
+    selected_provider_id: str | None = Field(default=None, description="插件侧供应商ID")
+    selected_provider_name: str | None = Field(default=None, description="插件侧供应商名称")
+    provider: str | None = Field(default=None, description="实际 LLM provider ID")
+    base_url: str | None = Field(default=None, description="API Base URL")
+    model: str | None = Field(default=None, description="模型名称")
     input_tokens: int = Field(default=0, description="输入 tokens")
     output_tokens: int = Field(default=0, description="输出 tokens")
     total_tokens: int = Field(default=0, description="总 tokens")
     cache_read_input_tokens: int = Field(default=0, description="从提示词缓存读取的输入 tokens")
     cache_write_input_tokens: int = Field(default=0, description="写入提示词缓存的输入 tokens")
     uncached_input_tokens: int = Field(default=0, description="未命中缓存的输入 tokens")
-    cache_hit_ratio: Optional[float] = Field(default=None, description="提示词缓存命中率")
+    cache_hit_ratio: float | None = Field(default=None, description="提示词缓存命中率")
     cache_usage_available: bool = Field(default=False, description="供应商是否返回缓存用量明细")
     model_call_count: int = Field(default=0, description="模型调用次数")
     success: bool = Field(default=False, description="Agent 执行是否成功")
-    error: Optional[str] = Field(default=None, description="失败原因")
-    started_at: Optional[str] = Field(default=None, description="开始时间")
-    finished_at: Optional[str] = Field(default=None, description="结束时间")
+    error: str | None = Field(default=None, description="失败原因")
+    started_at: str | None = Field(default=None, description="开始时间")
+    finished_at: str | None = Field(default=None, description="结束时间")
     source: str = Field(default="agent", description="事件来源")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="扩展元数据")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="扩展元数据")
 
 
 class AuthCredentials(ChainEventData):
@@ -150,18 +149,10 @@ class AuthCredentials(ChainEventData):
     """
 
     # 输入参数
-    username: Optional[str] = Field(
-        None, description="用户名，适用于 'password' 认证类型"
-    )
-    password: Optional[str] = Field(
-        None, description="用户密码，适用于 'password' 认证类型"
-    )
-    mfa_code: Optional[str] = Field(
-        None, description="一次性密码，目前仅适用于 'password' 认证类型"
-    )
-    code: Optional[str] = Field(
-        None, description="授权码，适用于 'authorization_code' 认证类型"
-    )
+    username: str | None = Field(None, description="用户名，适用于 'password' 认证类型")
+    password: str | None = Field(None, description="用户密码，适用于 'password' 认证类型")
+    mfa_code: str | None = Field(None, description="一次性密码，目前仅适用于 'password' 认证类型")
+    code: str | None = Field(None, description="授权码，适用于 'authorization_code' 认证类型")
     grant_type: str = Field(
         ...,
         description="认证类型，如 'password', 'authorization_code', 'client_credentials'",
@@ -170,9 +161,9 @@ class AuthCredentials(ChainEventData):
 
     # 输出参数
     # grant_type 为 authorization_code 时，输出参数包括 username、token、channel、service
-    token: Optional[str] = Field(default=None, description="认证令牌")
-    channel: Optional[str] = Field(default=None, description="认证渠道")
-    service: Optional[str] = Field(default=None, description="服务名称")
+    token: str | None = Field(default=None, description="认证令牌")
+    channel: str | None = Field(default=None, description="认证渠道")
+    service: str | None = Field(default=None, description="服务名称")
 
     @model_validator(mode="before")
     @classmethod
@@ -184,9 +175,7 @@ class AuthCredentials(ChainEventData):
 
         if grant_type == "password":
             if not values.get("username") or not values.get("password"):
-                raise ValueError(
-                    "username and password are required for grant_type 'password'"
-                )
+                raise ValueError("username and password are required for grant_type 'password'")
 
         elif grant_type == "authorization_code":
             if not values.get("code"):
@@ -213,14 +202,14 @@ class AuthInterceptCredentials(ChainEventData):
     """
 
     # 输入参数
-    username: Optional[str] = Field(..., description="用户名")
+    username: str | None = Field(..., description="用户名")
     channel: str = Field(..., description="认证渠道")
     service: str = Field(..., description="服务名称")
     status: str = Field(
         ...,
         description="认证状态, 包含 'triggered' 表示认证触发，'completed' 表示认证成功",
     )
-    token: Optional[str] = Field(default=None, description="认证令牌")
+    token: str | None = Field(default=None, description="认证令牌")
 
     # 输出参数
     source: str = Field(default="未知拦截源", description="拦截源")
@@ -243,9 +232,9 @@ class CommandRegisterEventData(ChainEventData):
     """
 
     # 输入参数
-    commands: Dict[str, dict] = Field(..., description="菜单命令")
+    commands: dict[str, dict] = Field(..., description="菜单命令")
     origin: str = Field(..., description="事件源")
-    service: Optional[str] = Field(..., description="服务名称")
+    service: str | None = Field(..., description="服务名称")
 
     # 输出参数
     cancel: bool = Field(default=False, description="是否取消注册")
@@ -281,13 +270,9 @@ class TransferRenameBuildEventData(ChainEventData):
     """
 
     template_string: str = Field(..., description="模板字符串")
-    rename_dict: Dict[str, Any] = Field(..., description="渲染上下文")
-    source_path: Optional[str] = Field(
-        None, description="源文件路径，即待整理的文件路径"
-    )
-    source_item: Optional[FileItem] = Field(
-        None, description="源文件信息，即待整理的文件信息"
-    )
+    rename_dict: dict[str, Any] = Field(..., description="渲染上下文")
+    source_path: str | None = Field(None, description="源文件路径，即待整理的文件路径")
+    source_item: FileItem | None = Field(None, description="源文件信息，即待整理的文件信息")
 
 
 class TransferRenameEventData(ChainEventData):
@@ -311,20 +296,16 @@ class TransferRenameEventData(ChainEventData):
 
     # 输入参数
     template_string: str = Field(..., description="模板字符串")
-    rename_dict: Dict[str, Any] = Field(..., description="渲染上下文")
-    path: Optional[Path] = Field(None, description="文件的目标路径")
+    rename_dict: dict[str, Any] = Field(..., description="渲染上下文")
+    path: Path | None = Field(None, description="文件的目标路径")
     render_str: str = Field(..., description="渲染生成的字符串")
-    source_path: Optional[str] = Field(
-        None, description="源文件路径，即待整理的文件路径"
-    )
-    source_item: Optional[FileItem] = Field(
-        None, description="源文件信息，即待整理的文件信息"
-    )
+    source_path: str | None = Field(None, description="源文件路径，即待整理的文件路径")
+    source_item: FileItem | None = Field(None, description="源文件信息，即待整理的文件信息")
 
     # 输出参数
     updated: bool = Field(default=False, description="是否已更新")
-    updated_str: Optional[str] = Field(default=None, description="更新后的字符串")
-    source: Optional[str] = Field(default="未知拦截源", description="拦截源")
+    updated_str: str | None = Field(default=None, description="更新后的字符串")
+    source: str | None = Field(default="未知拦截源", description="拦截源")
 
 
 class ResourceSelectionEventData(BaseModel):
@@ -344,15 +325,13 @@ class ResourceSelectionEventData(BaseModel):
 
     # 输入参数
     contexts: Any = Field(None, description="待选择的资源上下文列表")
-    downloader: Optional[str] = Field(None, description="下载器")
-    origin: Optional[str] = Field(None, description="来源")
+    downloader: str | None = Field(None, description="下载器")
+    origin: str | None = Field(None, description="来源")
 
     # 输出参数
     updated: bool = Field(default=False, description="是否已更新")
-    updated_contexts: Optional[List[Any]] = Field(
-        default=None, description="已更新的资源上下文列表"
-    )
-    source: Optional[str] = Field(default="未知拦截源", description="拦截源")
+    updated_contexts: list[Any] | None = Field(default=None, description="已更新的资源上下文列表")
+    source: str | None = Field(default="未知拦截源", description="拦截源")
 
 
 class ResourceDownloadEventData(ChainEventData):
@@ -376,11 +355,11 @@ class ResourceDownloadEventData(ChainEventData):
 
     # 输入参数
     context: Any = Field(None, description="当前资源上下文")
-    episodes: Optional[Set[int]] = Field(None, description="需要下载的集数")
-    channel: Optional[MessageChannel] = Field(None, description="通知渠道")
-    origin: Optional[str] = Field(None, description="来源")
-    downloader: Optional[str] = Field(None, description="下载器")
-    options: Optional[dict] = Field(default={}, description="其他参数")
+    episodes: set[int] | None = Field(None, description="需要下载的集数")
+    channel: MessageChannel | None = Field(None, description="通知渠道")
+    origin: str | None = Field(None, description="来源")
+    downloader: str | None = Field(None, description="下载器")
+    options: dict | None = Field(default={}, description="其他参数")
 
     # 输出参数
     cancel: bool = Field(default=False, description="是否取消下载")
@@ -409,12 +388,12 @@ class TransferInterceptEventData(ChainEventData):
 
     # 输入参数
     fileitem: FileItem = Field(..., description="源文件")
-    meta: Optional[Any] = Field(default=None, description="元数据")
+    meta: Any | None = Field(default=None, description="元数据")
     mediainfo: Any = Field(..., description="媒体信息")
     target_storage: str = Field(..., description="目标存储")
     target_path: Path = Field(..., description="目标路径")
     transfer_type: str = Field(..., description="整理方式")
-    options: Optional[dict] = Field(default=None, description="其他参数")
+    options: dict | None = Field(default=None, description="其他参数")
 
     # 输出参数
     cancel: bool = Field(default=False, description="是否取消整理")
@@ -458,18 +437,12 @@ class TransferOverwriteCheckEventData(ChainEventData):
     target_path: Path = Field(..., description="目标文件路径")
     overwrite_mode: str = Field(..., description="覆盖模式")
     transfer_type: str = Field(..., description="整理方式")
-    options: Optional[dict] = Field(default=None, description="其他参数")
+    options: dict | None = Field(default=None, description="其他参数")
 
     # 输出参数
-    source_size: Optional[int] = Field(
-        default=None, description="插件提供的源文件真实大小"
-    )
-    target_size: Optional[int] = Field(
-        default=None, description="插件提供的目标文件真实大小"
-    )
-    overwrite: Optional[bool] = Field(
-        default=None, description="插件直接给出的覆盖决策"
-    )
+    source_size: int | None = Field(default=None, description="插件提供的源文件真实大小")
+    target_size: int | None = Field(default=None, description="插件提供的目标文件真实大小")
+    overwrite: bool | None = Field(default=None, description="插件直接给出的覆盖决策")
     source: str = Field(default="未知处理源", description="处理来源")
     reason: str = Field(default="", description="处理原因")
 
@@ -482,13 +455,9 @@ class DiscoverMediaSource(BaseModel):
     name: str = Field(..., description="数据源名称")
     mediaid_prefix: str = Field(..., description="媒体ID的前缀，不含:")
     api_path: str = Field(..., description="媒体数据源API地址")
-    filter_params: Optional[Dict[str, Any]] = Field(
-        default=None, description="过滤参数"
-    )
-    filter_ui: Optional[List[dict]] = Field(default=[], description="过滤参数UI配置")
-    depends: Optional[Dict[str, list]] = Field(
-        default=None, description="UI依赖关系字典"
-    )
+    filter_params: dict[str, Any] | None = Field(default=None, description="过滤参数")
+    filter_ui: list[dict] | None = Field(default=[], description="过滤参数UI配置")
+    depends: dict[str, list] | None = Field(default=None, description="UI依赖关系字典")
 
 
 class DiscoverSourceEventData(ChainEventData):
@@ -501,9 +470,7 @@ class DiscoverSourceEventData(ChainEventData):
     """
 
     # 输出参数
-    extra_sources: List[DiscoverMediaSource] = Field(
-        default_factory=list, description="额外媒体数据源"
-    )
+    extra_sources: list[DiscoverMediaSource] = Field(default_factory=list, description="额外媒体数据源")
 
 
 class RecommendMediaSource(BaseModel):
@@ -526,9 +493,7 @@ class RecommendSourceEventData(ChainEventData):
     """
 
     # 输出参数
-    extra_sources: List[RecommendMediaSource] = Field(
-        default_factory=list, description="额外媒体数据源"
-    )
+    extra_sources: list[RecommendMediaSource] = Field(default_factory=list, description="额外媒体数据源")
 
 
 class MediaRecognizeConvertEventData(ChainEventData):
@@ -549,9 +514,7 @@ class MediaRecognizeConvertEventData(ChainEventData):
     convert_type: str = Field(..., description="转换类型（themoviedb/douban）")
 
     # 输出参数
-    media_dict: dict = Field(
-        default_factory=dict, description="转换后的媒体信息（TheMovieDb/豆瓣）"
-    )
+    media_dict: dict = Field(default_factory=dict, description="转换后的媒体信息（TheMovieDb/豆瓣）")
 
 
 class StorageOperSelectionEventData(ChainEventData):
@@ -567,10 +530,10 @@ class StorageOperSelectionEventData(ChainEventData):
     """
 
     # 输入参数
-    storage: Optional[str] = Field(default=None, description="存储类型")
+    storage: str | None = Field(default=None, description="存储类型")
 
     # 输出参数
-    storage_oper: Optional[Callable] = Field(default=None, description="存储操作对象")
+    storage_oper: Callable | None = Field(default=None, description="存储操作对象")
 
 
 class SubscribeEpisodesRefreshEventData(ChainEventData):
@@ -598,21 +561,23 @@ class SubscribeEpisodesRefreshEventData(ChainEventData):
     """
 
     # 输入参数
-    tmdbid: Optional[int] = Field(default=None, description="TMDB ID")
-    doubanid: Optional[str] = Field(default=None, description="豆瓣 ID")
-    bangumiid: Optional[int] = Field(default=None, description="Bangumi ID")
-    anilistid: Optional[int] = Field(default=None, description="AniList ID")
-    media_source: Optional[str] = Field(default=None, description="媒体数据源")
-    media_id: Optional[str] = Field(default=None, description="数据源原生 ID")
-    season: Optional[int] = Field(default=None, description="季号")
+    tmdbid: int | None = Field(default=None, description="TMDB ID")
+    doubanid: str | None = Field(default=None, description="豆瓣 ID")
+    bangumiid: int | None = Field(default=None, description="Bangumi ID")
+    anilistid: int | None = Field(default=None, description="AniList ID")
+    media_source: str | None = Field(default=None, description="媒体数据源")
+    media_id: str | None = Field(default=None, description="数据源原生 ID")
+    season: int | None = Field(default=None, description="季号")
     mediainfo: Any = Field(default=None, description="媒体信息")
     current_total_episode: int = Field(default=0, description="主程序本次识别到的 TMDB 当前季总集数")
-    subscribe_id: Optional[int] = Field(default=None, description="订阅 ID；创建场景为空")
-    scene: Optional[str] = Field(default=None, description="触发场景：create/refresh/precheck")
+    subscribe_id: int | None = Field(default=None, description="订阅 ID；创建场景为空")
+    scene: str | None = Field(default=None, description="触发场景：create/refresh/precheck")
 
     # 输出参数
     updated: bool = Field(default=False, description="外部是否覆盖了总集数")
-    total_episode: Optional[int] = Field(default=None, description="覆盖后的总集数；低于主程序本次识别到的 TMDB 当前季总集数时由主程序钳制")
+    total_episode: int | None = Field(
+        default=None, description="覆盖后的总集数；低于主程序本次识别到的 TMDB 当前季总集数时由主程序钳制"
+    )
     source: str = Field(default="未知来源", description="覆盖来源")
     reason: str = Field(default="", description="覆盖原因")
 
@@ -626,10 +591,10 @@ class SubscribeModifiedEventData(BaseEventData):
     """
 
     subscribe_id: int = Field(description="订阅 ID")
-    old_subscribe_info: Dict[str, Any] = Field(default_factory=dict, description="更新前订阅快照")
-    subscribe_info: Dict[str, Any] = Field(default_factory=dict, description="更新后订阅快照")
+    old_subscribe_info: dict[str, Any] = Field(default_factory=dict, description="更新前订阅快照")
+    subscribe_info: dict[str, Any] = Field(default_factory=dict, description="更新后订阅快照")
     scene: str = Field(default="update", description="触发场景：update/status/reset/agent_update")
-    fields: List[str] = Field(default_factory=list, description="真实变更字段")
+    fields: list[str] = Field(default_factory=list, description="真实变更字段")
 
     @model_validator(mode="after")
     def compute_fields(self):
@@ -637,7 +602,7 @@ class SubscribeModifiedEventData(BaseEventData):
         return self
 
     @staticmethod
-    def _diff_fields(old_info: Dict[str, Any], new_info: Dict[str, Any]) -> List[str]:
+    def _diff_fields(old_info: dict[str, Any], new_info: dict[str, Any]) -> list[str]:
         """
         按 old/new 快照并集计算真实字段差异；缺失 key 按 None 参与比较。
         """
@@ -646,7 +611,7 @@ class SubscribeModifiedEventData(BaseEventData):
         keys = set(old_info) | set(new_info)
         return sorted(key for key in keys if old_info.get(key) != new_info.get(key))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         输出公开事件 payload，避免内部属性被未来扩展意外暴露。
         """

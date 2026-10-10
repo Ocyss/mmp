@@ -4,7 +4,6 @@ from app.utils.string import StringUtils
 
 
 class SiteUtils:
-
     @classmethod
     def is_logged_in(cls, html_text: str) -> bool:
         """
@@ -29,7 +28,7 @@ class SiteUtils:
                 ' or contains(@lay-on, "logout")]',
                 '//form[contains(@action, "logout")]',
                 '//div[@class="user-info-side"]',
-                '//a[@id="myitem"]'
+                '//a[@id="myitem"]',
             ]
             for xpath in xpaths:
                 if html.xpath(xpath):
@@ -61,7 +60,7 @@ class SiteUtils:
                 '//a[contains(@href, "sign_in")]',
                 '//a[contains(@onclick, "do_signin")]',
                 '//a[@id="do-attendance"]',
-                '//shark-icon-button[@href="attendance.php"]'
+                '//shark-icon-button[@href="attendance.php"]',
             ]
             for xpath in xpaths:
                 if html.xpath(xpath):

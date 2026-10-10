@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Union, Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pywebpush import WebPushException, webpush
@@ -9,11 +9,11 @@ from starlette.responses import PlainTextResponse
 
 from app import schemas
 from app.chain.message import MessageChain
-from app.core.config import settings, global_vars
-from app.core.security import verify_token, verify_apitoken
+from app.core.config import global_vars, settings
+from app.core.security import verify_apitoken, verify_token
 from app.db import get_async_db
-from app.db.models import User
 from app.db.message_oper import MessageOper
+from app.db.models import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import get_current_active_superuser
 from app.helper.service import ServiceConfigHelper
@@ -31,7 +31,7 @@ def _normalize_notification_clear_timestamp(value: Any) -> int:
     """
     try:
         normalized_value = int(value or 0)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0
     return normalized_value if normalized_value > 0 else 0
 
@@ -52,7 +52,7 @@ def _get_notification_clear_before() -> schemas.NotificationClearBefore:
     )
 
 
-def _format_notification_clear_time(value: int) -> Optional[str]:
+def _format_notification_clear_time(value: int) -> str | None:
     """
     将清理时间戳转换为消息表使用的时间字符串。
     """
@@ -112,7 +112,7 @@ async def user_message(
 @router.post("/web", summary="接收WEB消息", response_model=schemas.Response)
 async def web_message(
     request: Request,
-    text: Optional[str] = None,
+    text: str | None = None,
     current_user: User = Depends(get_current_active_superuser),
 ):
     """
@@ -148,12 +148,12 @@ async def web_message(
     return schemas.Response(success=True)
 
 
-@router.get("/web", summary="获取WEB消息", response_model=List[dict])
+@router.get("/web", summary="获取WEB消息", response_model=list[dict])
 async def get_web_message(
     _: schemas.TokenPayload = Depends(verify_token),
     db: AsyncSession = Depends(get_async_db),
-    page: Optional[int] = 1,
-    count: Optional[int] = 20,
+    page: int | None = 1,
+    count: int | None = 20,
 ):
     """
     获取WEB消息列表
@@ -169,12 +169,12 @@ async def get_web_message(
     return ret_messages
 
 
-@router.get("/notification", summary="获取通知消息", response_model=List[schemas.NotificationHistoryItem])
+@router.get("/notification", summary="获取通知消息", response_model=list[schemas.NotificationHistoryItem])
 async def get_notification_message(
     _: schemas.TokenPayload = Depends(verify_token),
     db: AsyncSession = Depends(get_async_db),
-    page: Optional[int] = 1,
-    count: Optional[int] = 20,
+    page: int | None = 1,
+    count: int | None = 20,
 ):
     """
     获取系统发送的通知消息列表。
@@ -208,9 +208,9 @@ async def clear_notification_message(
 def wechat_verify(
     echostr: str,
     msg_signature: str,
-    timestamp: Union[str, int],
+    timestamp: str | int,
     nonce: str,
-    source: Optional[str] = None,
+    source: str | None = None,
 ) -> Any:
     """
     微信验证响应
@@ -262,12 +262,12 @@ def vocechat_verify() -> Any:
 
 @router.get("/", summary="回调请求验证")
 def incoming_verify(
-    token: Optional[str] = None,
-    echostr: Optional[str] = None,
-    msg_signature: Optional[str] = None,
-    timestamp: Union[str, int] = None,
-    nonce: Optional[str] = None,
-    source: Optional[str] = None,
+    token: str | None = None,
+    echostr: str | None = None,
+    msg_signature: str | None = None,
+    timestamp: str | int = None,
+    nonce: str | None = None,
+    source: str | None = None,
     _: schemas.TokenPayload = Depends(verify_apitoken),
 ) -> Any:
     """
@@ -287,9 +287,7 @@ def incoming_verify(
     summary="客户端webpush通知订阅",
     response_model=schemas.Response,
 )
-async def subscribe(
-    subscription: schemas.Subscription, _: schemas.TokenPayload = Depends(verify_token)
-):
+async def subscribe(subscription: schemas.Subscription, _: schemas.TokenPayload = Depends(verify_token)):
     """
     客户端webpush通知订阅
     """
@@ -299,9 +297,7 @@ async def subscribe(
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/webpush/send", summary="发送webpush通知", response_model=schemas.Response
-)
+@router.post("/webpush/send", summary="发送webpush通知", response_model=schemas.Response)
 def send_notification(
     payload: schemas.SubscriptionMessage,
     _: schemas.TokenPayload = Depends(verify_token),

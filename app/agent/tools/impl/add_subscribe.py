@@ -24,50 +24,50 @@ class AddSubscribeInput(BaseModel):
         description="Release year of the media (required for accurate identification)",
     )
     media_type: str = Field(..., description="Allowed values: movie, tv")
-    season: Optional[int] = Field(
+    season: int | None = Field(
         None,
         description=(
             "Season number for TV shows (optional). If omitted, the subscription defaults to season 1 only. "
             "To subscribe multiple seasons or the full series, call this tool separately for each season."
         ),
     )
-    tmdb_id: Optional[int] = Field(
+    tmdb_id: int | None = Field(
         None,
         description="TMDB database ID for precise media identification (optional, can be obtained from search_media tool)",
     )
-    douban_id: Optional[str] = Field(
+    douban_id: str | None = Field(
         None,
         description="Douban ID for precise media identification (optional, alternative to tmdb_id)",
     )
-    bangumi_id: Optional[int] = Field(None, description="Bangumi media ID")
-    anilist_id: Optional[int] = Field(None, description="AniList media ID")
-    media_source: Optional[str] = Field(None, description="Media metadata source")
-    media_id: Optional[str] = Field(None, description="Native ID for media_source")
-    start_episode: Optional[int] = Field(
+    bangumi_id: int | None = Field(None, description="Bangumi media ID")
+    anilist_id: int | None = Field(None, description="AniList media ID")
+    media_source: str | None = Field(None, description="Media metadata source")
+    media_id: str | None = Field(None, description="Native ID for media_source")
+    start_episode: int | None = Field(
         None,
         description="Starting episode number for TV shows (optional, defaults to 1 if not specified)",
     )
-    total_episode: Optional[int] = Field(
+    total_episode: int | None = Field(
         None,
         description="Total number of episodes for TV shows (optional, will be auto-detected from TMDB if not specified)",
     )
-    quality: Optional[str] = Field(
+    quality: str | None = Field(
         None,
         description="Quality filter as regular expression (optional, e.g., 'BluRay|WEB-DL|HDTV')",
     )
-    resolution: Optional[str] = Field(
+    resolution: str | None = Field(
         None,
         description="Resolution filter as regular expression (optional, e.g., '1080p|720p|2160p')",
     )
-    effect: Optional[str] = Field(
+    effect: str | None = Field(
         None,
         description="Effect filter as regular expression (optional, e.g., 'HDR|DV|SDR')",
     )
-    filter_groups: Optional[List[str]] = Field(
+    filter_groups: list[str] | None = Field(
         None,
         description="List of filter rule group names to apply (optional, can be obtained from query_rule_groups tool)",
     )
-    sites: Optional[List[int]] = Field(
+    sites: list[int] | None = Field(
         None,
         description="List of site IDs to search from (optional, can be obtained from query_sites tool)",
     )
@@ -87,9 +87,9 @@ class AddSubscribeTool(MoviePilotTool):
         "the full series, call this tool once per season. Supports advanced filtering options like quality, "
         "resolution, and effect filters using regular expressions."
     )
-    args_schema: Type[BaseModel] = AddSubscribeInput
+    args_schema: type[BaseModel] = AddSubscribeInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据订阅参数生成友好的提示消息"""
         title = kwargs.get("title", "")
         year = kwargs.get("year", "")
@@ -108,7 +108,7 @@ class AddSubscribeTool(MoviePilotTool):
 
         return message
 
-    async def _resolve_subscribe_username(self) -> Optional[str]:
+    async def _resolve_subscribe_username(self) -> str | None:
         """优先映射为系统用户名，未绑定时回退当前渠道用户名。"""
         resolved_username = self._username
         if not self._channel or not self._user_id:
@@ -136,7 +136,7 @@ class AddSubscribeTool(MoviePilotTool):
         mapped_username = await self.run_blocking(
             "db",
             UserOper().get_name,
-            **{key: self._user_id for key in binding_keys},
+            **dict.fromkeys(binding_keys, self._user_id),
         )
         return mapped_username or resolved_username
 
@@ -145,20 +145,20 @@ class AddSubscribeTool(MoviePilotTool):
         title: str,
         year: str,
         media_type: str,
-        season: Optional[int] = None,
-        tmdb_id: Optional[int] = None,
-        douban_id: Optional[str] = None,
-        bangumi_id: Optional[int] = None,
-        anilist_id: Optional[int] = None,
-        media_source: Optional[str] = None,
-        media_id: Optional[str] = None,
-        start_episode: Optional[int] = None,
-        total_episode: Optional[int] = None,
-        quality: Optional[str] = None,
-        resolution: Optional[str] = None,
-        effect: Optional[str] = None,
-        filter_groups: Optional[List[str]] = None,
-        sites: Optional[List[int]] = None,
+        season: int | None = None,
+        tmdb_id: int | None = None,
+        douban_id: str | None = None,
+        bangumi_id: int | None = None,
+        anilist_id: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        start_episode: int | None = None,
+        total_episode: int | None = None,
+        quality: str | None = None,
+        resolution: str | None = None,
+        effect: str | None = None,
+        filter_groups: list[str] | None = None,
+        sites: list[int] | None = None,
         **kwargs,
     ) -> str:
         logger.info(
@@ -173,13 +173,7 @@ class AddSubscribeTool(MoviePilotTool):
             media_type_enum = MediaType.from_agent(media_type)
             if not media_type_enum:
                 return f"错误：无效的媒体类型 '{media_type}'，支持的类型：'movie', 'tv'"
-            effective_season = (
-                season
-                if season is not None
-                else 1
-                if media_type_enum == MediaType.TV
-                else None
-            )
+            effective_season = season if season is not None else 1 if media_type_enum == MediaType.TV else None
             subscribe_username = await self._resolve_subscribe_username()
 
             # 构建额外的订阅参数

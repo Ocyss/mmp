@@ -1,16 +1,17 @@
 from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, JSON, Index, and_, or_, select
+from sqlalchemy import JSON, Column, Index, Integer, String, and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, Base, get_id_column, async_db_query
+from app.db import Base, async_db_query, db_query, db_update, get_id_column
 
 
 class Message(Base):
     """
     消息表
     """
+
     id = get_id_column()
     # 消息渠道
     channel = Column(String)
@@ -35,9 +36,7 @@ class Message(Base):
     # 附件json
     note = Column(JSON)
 
-    __table_args__ = (
-        Index('ix_message_reg_time_id', 'reg_time', 'id'),
-    )
+    __table_args__ = (Index("ix_message_reg_time_id", "reg_time", "id"),)
 
     @db_update
     def create_and_to_dict(self, db: Session) -> dict:
@@ -50,17 +49,11 @@ class Message(Base):
 
     @classmethod
     @db_query
-    def list_by_page(cls, db: Session, page: Optional[int] = 1, count: Optional[int] = 30) -> List["Message"]:
+    def list_by_page(cls, db: Session, page: int | None = 1, count: int | None = 30) -> list[Message]:
         """
         分页获取消息记录。
         """
-        return (
-            db.query(cls)
-            .order_by(cls.reg_time.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
-            .all()
-        )
+        return db.query(cls).order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count).all()
 
     @classmethod
     @db_query
@@ -76,31 +69,26 @@ class Message(Base):
 
     @classmethod
     @async_db_query
-    async def async_list_by_page(
-            cls, db: AsyncSession, page: Optional[int] = 1, count: Optional[int] = 30
-    ) -> List["Message"]:
+    async def async_list_by_page(cls, db: AsyncSession, page: int | None = 1, count: int | None = 30) -> list[Message]:
         """
         异步分页获取消息记录。
         """
         result = await db.execute(
-            select(cls)
-            .order_by(cls.reg_time.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
+            select(cls).order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
         )
         return result.scalars().all()
 
     @classmethod
     @async_db_query
     async def async_list_sent_by_page(
-            cls,
-            db: AsyncSession,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            all_clear_before: Optional[str] = None,
-            system_clear_before: Optional[str] = None,
-            media_clear_before: Optional[str] = None,
-    ) -> List["Message"]:
+        cls,
+        db: AsyncSession,
+        page: int | None = 1,
+        count: int | None = 30,
+        all_clear_before: str | None = None,
+        system_clear_before: str | None = None,
+        media_clear_before: str | None = None,
+    ) -> list[Message]:
         """
         分页获取系统发送的通知消息。
         """
@@ -124,10 +112,7 @@ class Message(Base):
             )
 
         result = await db.execute(
-            statement
-            .order_by(cls.reg_time.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
+            statement.order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
         )
         return result.scalars().all()
 
@@ -137,23 +122,15 @@ class Message(Base):
         cls,
         db: Session,
         before_time: str,
-        limit: Optional[int] = 500,
+        limit: int | None = 500,
     ) -> int:
         """
         分批删除指定时间之前的消息记录。
         """
         ids = [
             row[0]
-            for row in db.query(cls.id)
-            .filter(cls.reg_time < before_time)
-            .order_by(cls.id.asc())
-            .limit(limit)
-            .all()
+            for row in db.query(cls.id).filter(cls.reg_time < before_time).order_by(cls.id.asc()).limit(limit).all()
         ]
         if not ids:
             return 0
-        return (
-            db.query(cls)
-            .filter(cls.id.in_(ids))
-            .delete(synchronize_session=False)
-        )
+        return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

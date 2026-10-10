@@ -14,13 +14,11 @@ from app.log import logger
 class QuerySitesInput(BaseModel):
     """查询站点工具的输入参数模型"""
 
-    status: Optional[str] = Field(
+    status: str | None = Field(
         "all",
         description="Filter sites by status: 'active' for enabled sites, 'inactive' for disabled sites, 'all' for all sites",
     )
-    name: Optional[str] = Field(
-        None, description="Filter sites by name (partial match, optional)"
-    )
+    name: str | None = Field(None, description="Filter sites by name (partial match, optional)")
 
 
 class QuerySitesTool(MoviePilotTool):
@@ -34,9 +32,9 @@ class QuerySitesTool(MoviePilotTool):
         "that omits sensitive fields: cookie, token, API key and RSS URL. "
         "Site priority (pri): smaller values have higher priority (e.g., pri=1 has higher priority than pri=10)."
     )
-    args_schema: Type[BaseModel] = QuerySitesInput
+    args_schema: type[BaseModel] = QuerySitesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         status = kwargs.get("status", "all")
         name = kwargs.get("name")
@@ -52,9 +50,7 @@ class QuerySitesTool(MoviePilotTool):
 
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(
-        self, status: Optional[str] = "all", name: Optional[str] = None, **kwargs
-    ) -> str:
+    async def run(self, status: str | None = "all", name: str | None = None, **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: status={status}, name={name}")
         try:
             is_admin = await self.is_admin_user()
@@ -96,12 +92,14 @@ class QuerySitesTool(MoviePilotTool):
                         "timeout": s.timeout,
                     }
                     if is_admin:
-                        simplified.update({
-                            "rss": s.rss,
-                            "cookie": s.cookie,
-                            "apikey": s.apikey,
-                            "token": s.token,
-                        })
+                        simplified.update(
+                            {
+                                "rss": s.rss,
+                                "cookie": s.cookie,
+                                "apikey": s.apikey,
+                                "token": s.token,
+                            }
+                        )
                     simplified_sites.append(simplified)
                 result_json = json.dumps(simplified_sites, ensure_ascii=False, indent=2)
                 return result_json

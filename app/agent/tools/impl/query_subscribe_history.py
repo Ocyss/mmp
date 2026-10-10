@@ -17,13 +17,9 @@ PAGE_SIZE = 20
 class QuerySubscribeHistoryInput(BaseModel):
     """查询订阅历史工具的输入参数模型"""
 
-    media_type: Optional[str] = Field(
-        "all", description="Allowed values: movie, tv, all"
-    )
-    name: Optional[str] = Field(
-        None, description="Filter by media name (partial match, optional)"
-    )
-    page: Optional[int] = Field(
+    media_type: str | None = Field("all", description="Allowed values: movie, tv, all")
+    name: str | None = Field(None, description="Filter by media name (partial match, optional)")
+    page: int | None = Field(
         1,
         description="Page number for pagination (default: 1, 20 items per page). Ignored when name filter is provided.",
     )
@@ -36,9 +32,9 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
         ToolTag.Subscription,
     ]
     description: str = "Query subscription history records. Shows completed subscriptions with their details including name, type, rating, completion date, and other subscription information. Supports filtering by media type and name. Supports pagination with 20 records per page."
-    args_schema: Type[BaseModel] = QuerySubscribeHistoryInput
+    args_schema: type[BaseModel] = QuerySubscribeHistoryInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         media_type = kwargs.get("media_type", "all")
         name = kwargs.get("name")
@@ -57,15 +53,13 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
 
     async def run(
         self,
-        media_type: Optional[str] = "all",
-        name: Optional[str] = None,
-        page: Optional[int] = 1,
+        media_type: str | None = "all",
+        name: str | None = None,
+        page: int | None = 1,
         **kwargs,
     ) -> str:
         page = max(1, page or 1)
-        logger.info(
-            f"执行工具: {self.name}, 参数: media_type={media_type}, name={name}, page={page}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: media_type={media_type}, name={name}, page={page}")
 
         try:
             if media_type not in ["all", "movie", "tv"]:
@@ -79,24 +73,18 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
                     movie_history = await subscribe_history_oper.async_list_by_type(
                         mtype="movie", page=1, count=fetch_count
                     )
-                    tv_history = await subscribe_history_oper.async_list_by_type(
-                        mtype="tv", page=1, count=fetch_count
-                    )
+                    tv_history = await subscribe_history_oper.async_list_by_type(mtype="tv", page=1, count=fetch_count)
                     all_history = list(movie_history) + list(tv_history)
                     all_history.sort(key=lambda x: x.date or "", reverse=True)
                 else:
                     all_history = list(
-                        await subscribe_history_oper.async_list_by_type(
-                            mtype=media_type, page=1, count=fetch_count
-                        )
+                        await subscribe_history_oper.async_list_by_type(mtype=media_type, page=1, count=fetch_count)
                     )
 
                 # 按名称过滤
                 name_lower = name.lower()
                 filtered_history = [
-                    record
-                    for record in all_history
-                    if record.name and name_lower in record.name.lower()
+                    record for record in all_history if record.name and name_lower in record.name.lower()
                 ]
 
                 if not filtered_history:
@@ -104,9 +92,7 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
 
                 # 名称过滤时直接返回所有匹配结果，不分页
                 simplified_records = self._simplify_records(filtered_history)
-                result_json = json.dumps(
-                    simplified_records, ensure_ascii=False, indent=2
-                )
+                result_json = json.dumps(simplified_records, ensure_ascii=False, indent=2)
                 return result_json
             else:
                 # 无名称过滤时，直接利用数据库分页
@@ -140,16 +126,12 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
                 return f"第 {page} 页没有数据。"
 
             simplified_records = self._simplify_records(page_records)
-            result_json = json.dumps(
-                simplified_records, ensure_ascii=False, indent=2
-            )
+            result_json = json.dumps(simplified_records, ensure_ascii=False, indent=2)
 
             has_more = total_count > end
             payload_msg = f"第 {page} 页，当前页 {len(simplified_records)} 条结果。"
             if has_more:
-                payload_msg += (
-                    f" 可能有更多数据，可使用 page={page + 1} 获取下一页。"
-                )
+                payload_msg += f" 可能有更多数据，可使用 page={page + 1} 获取下一页。"
 
             return f"{payload_msg}\n\n{result_json}"
         except Exception as e:

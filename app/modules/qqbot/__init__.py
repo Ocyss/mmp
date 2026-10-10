@@ -5,12 +5,12 @@ QQ Bot 通知模块
 """
 
 import json
+from typing import Any, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
-from typing import Optional, List, Tuple, Union, Any
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.modules.qqbot.qqbot import QQBot
 from app.schemas import CommingMessage, MessageChannel, Notification
 from app.schemas.types import ModuleType
@@ -73,7 +73,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
             except Exception as err:
                 logger.error(f"停止QQ Bot模块实例失败：{err}")
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         if not self.get_instances():
             return None
         for name, client in self.get_instances().items():
@@ -81,25 +81,21 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                 return False, f"QQ Bot {name} 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 QQ 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip()
-            for admin in str((config or {}).get("QQBOT_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("QQBOT_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 QQ 斜杠命令是否应因非管理员身份被拒绝。
@@ -107,26 +103,18 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
     @staticmethod
-    def _send_admin_denied(
-            client: Optional[QQBot], userid: Optional[Union[str, int]]
-    ) -> None:
+    def _send_admin_denied(client: QQBot | None, userid: str | int | None) -> None:
         """
         向 QQ 非管理员用户发送命令拒绝提示。
         """
         if client and userid:
             client.send_msg(title="只有管理员才有权限执行此命令", userid=str(userid))
 
-    def message_parser(
-        self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析 Gateway 转发的 QQ 消息
         body 格式: {"type": "C2C_MESSAGE_CREATE"|"GROUP_AT_MESSAGE_CREATE", "content": "...", "author": {...}, "id": "...", ...}
@@ -159,9 +147,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
             user_openid = author.get("user_openid", "")
             if not user_openid:
                 return None
-            if content.startswith("/") and self._should_reject_admin_command(
-                    client_config.config, user_openid
-            ):
+            if content.startswith("/") and self._should_reject_admin_command(client_config.config, user_openid):
                 self._send_admin_denied(client, user_openid)
                 return None
             logger.info(
@@ -186,7 +172,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
             # 群聊用 group:group_openid 作为 userid，便于回复时识别
             userid = f"group:{group_openid}" if group_openid else member_openid
             if content.startswith("/") and self._should_reject_admin_command(
-                    client_config.config, member_openid, userid
+                client_config.config, member_openid, userid
             ):
                 self._send_admin_denied(client, userid)
                 return None
@@ -208,10 +194,8 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
         return None
 
     @classmethod
-    def _extract_images(
-        cls, msg_body: dict
-    ) -> Optional[List[CommingMessage.MessageImage]]:
-        images: List[CommingMessage.MessageImage] = []
+    def _extract_images(cls, msg_body: dict) -> list[CommingMessage.MessageImage] | None:
+        images: list[CommingMessage.MessageImage] = []
         attachments = msg_body.get("attachments") or []
         if isinstance(attachments, list):
             for attachment in attachments:
@@ -220,23 +204,14 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                 url = attachment.get("url") or attachment.get("proxy_url")
                 if not url:
                     continue
-                content_type = (
-                    attachment.get("content_type")
-                    or attachment.get("mime_type")
-                    or ""
-                ).lower()
-                filename = (
-                    attachment.get("filename")
-                    or attachment.get("name")
-                    or ""
-                ).lower()
+                content_type = (attachment.get("content_type") or attachment.get("mime_type") or "").lower()
+                filename = (attachment.get("filename") or attachment.get("name") or "").lower()
                 if content_type.startswith("image/") or filename.endswith(cls._IMAGE_SUFFIXES):
                     images.append(
                         CommingMessage.MessageImage(
                             ref=url,
                             name=attachment.get("filename") or attachment.get("name"),
-                            mime_type=attachment.get("content_type")
-                            or attachment.get("mime_type"),
+                            mime_type=attachment.get("content_type") or attachment.get("mime_type"),
                             size=attachment.get("size"),
                         )
                     )
@@ -258,8 +233,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                             CommingMessage.MessageImage(
                                 ref=url,
                                 name=item.get("name") or item.get("filename"),
-                                mime_type=item.get("content_type")
-                                or item.get("mime_type"),
+                                mime_type=item.get("content_type") or item.get("mime_type"),
                                 size=item.get("size"),
                             )
                         )
@@ -271,8 +245,8 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
         return deduped or None
 
     @classmethod
-    def _extract_audio_refs(cls, msg_body: dict) -> Optional[List[str]]:
-        audio_refs: List[str] = []
+    def _extract_audio_refs(cls, msg_body: dict) -> list[str] | None:
+        audio_refs: list[str] = []
         attachments = msg_body.get("attachments") or []
         if isinstance(attachments, list):
             for attachment in attachments:
@@ -281,16 +255,8 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                 url = attachment.get("url") or attachment.get("proxy_url")
                 if not url:
                     continue
-                content_type = (
-                    attachment.get("content_type")
-                    or attachment.get("mime_type")
-                    or ""
-                ).lower()
-                filename = (
-                    attachment.get("filename")
-                    or attachment.get("name")
-                    or ""
-                ).lower()
+                content_type = (attachment.get("content_type") or attachment.get("mime_type") or "").lower()
+                filename = (attachment.get("filename") or attachment.get("name") or "").lower()
                 if content_type.startswith("audio/") or filename.endswith(cls._AUDIO_SUFFIXES):
                     audio_refs.append(f"qq://file/{quote(url, safe='')}")
 
@@ -301,10 +267,8 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
         return deduped or None
 
     @classmethod
-    def _extract_files(
-        cls, msg_body: dict
-    ) -> Optional[List[CommingMessage.MessageAttachment]]:
-        files: List[CommingMessage.MessageAttachment] = []
+    def _extract_files(cls, msg_body: dict) -> list[CommingMessage.MessageAttachment] | None:
+        files: list[CommingMessage.MessageAttachment] = []
         attachments = msg_body.get("attachments") or []
         if isinstance(attachments, list):
             for attachment in attachments:
@@ -313,34 +277,23 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                 url = attachment.get("url") or attachment.get("proxy_url")
                 if not url:
                     continue
-                content_type = (
-                    attachment.get("content_type")
-                    or attachment.get("mime_type")
-                    or ""
-                ).lower()
-                filename = (
-                    attachment.get("filename") or attachment.get("name") or ""
-                ).lower()
-                is_image = content_type.startswith("image/") or filename.endswith(
-                    cls._IMAGE_SUFFIXES
-                )
-                is_audio = content_type.startswith("audio/") or filename.endswith(
-                    cls._AUDIO_SUFFIXES
-                )
+                content_type = (attachment.get("content_type") or attachment.get("mime_type") or "").lower()
+                filename = (attachment.get("filename") or attachment.get("name") or "").lower()
+                is_image = content_type.startswith("image/") or filename.endswith(cls._IMAGE_SUFFIXES)
+                is_audio = content_type.startswith("audio/") or filename.endswith(cls._AUDIO_SUFFIXES)
                 if is_image or is_audio:
                     continue
                 files.append(
                     CommingMessage.MessageAttachment(
                         ref=f"qq://file/{quote(url, safe='')}",
                         name=attachment.get("filename") or attachment.get("name"),
-                        mime_type=attachment.get("content_type")
-                        or attachment.get("mime_type"),
+                        mime_type=attachment.get("content_type") or attachment.get("mime_type"),
                         size=attachment.get("size"),
                     )
                 )
         return files or None
 
-    def download_qq_file_bytes(self, file_ref: str, source: str) -> Optional[bytes]:
+    def download_qq_file_bytes(self, file_ref: str, source: str) -> bytes | None:
         """
         下载QQ音频附件并返回原始字节
         """
@@ -378,7 +331,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                     targets=targets,
                 )
 
-    def post_medias_message(self, message: Notification, medias: List[MediaInfo]) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         for conf in self.get_configs().values():
             if not self.check_message(message, conf.name):
                 continue
@@ -400,9 +353,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
                     targets=targets,
                 )
 
-    def post_torrents_message(
-        self, message: Notification, torrents: List[Context]
-    ) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         for conf in self.get_configs().values():
             if not self.check_message(message, conf.name):
                 continue

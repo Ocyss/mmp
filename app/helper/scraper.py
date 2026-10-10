@@ -14,7 +14,7 @@ class MediaScraperHelper:
     """
 
     @staticmethod
-    def _media_identity(mediainfo: MediaInfo) -> tuple[Optional[str], Optional[str]]:
+    def _media_identity(mediainfo: MediaInfo) -> tuple[str | None, str | None]:
         """
         获取媒体信息中的来源与来源原生 ID。
 
@@ -111,9 +111,9 @@ class MediaScraperHelper:
     def get_metadata_nfo(
         cls,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-        episode: Optional[int] = None,
-    ) -> Optional[str]:
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> str | None:
         """
         根据统一媒体信息生成电影、剧集、季或单集 NFO。
 
@@ -156,8 +156,8 @@ class MediaScraperHelper:
     def get_metadata_img(
         cls,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-        episode: Optional[int] = None,
+        season: int | None = None,
+        episode: int | None = None,
     ) -> dict:
         """
         根据统一媒体信息生成主海报和背景图下载清单。

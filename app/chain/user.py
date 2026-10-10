@@ -22,7 +22,7 @@ MfaMethod = Literal["otp"]
 class MfaRequired:
     """密码验证通过后，当前账号仍需完成的二次验证要求。"""
 
-    methods: Tuple[MfaMethod, ...]
+    methods: tuple[MfaMethod, ...]
 
 
 class UserChain(ChainBase):
@@ -31,13 +31,13 @@ class UserChain(ChainBase):
     """
 
     def user_authenticate(
-            self,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            mfa_code: Optional[str] = None,
-            code: Optional[str] = None,
-            grant_type: Optional[str] = "password"
-    ) -> Tuple[bool, Union[str, User, MfaRequired, None]]:
+        self,
+        username: str | None = None,
+        password: str | None = None,
+        mfa_code: str | None = None,
+        code: str | None = None,
+        grant_type: str | None = "password",
+    ) -> tuple[bool, str | User | MfaRequired | None]:
         """
         认证用户，根据不同的 grant_type 处理不同的认证流程
 
@@ -51,11 +51,7 @@ class UserChain(ChainBase):
             - 对于失败的认证，返回 (False, "错误信息")
         """
         credentials = AuthCredentials(
-            username=username,
-            password=password,
-            mfa_code=mfa_code,
-            code=code,
-            grant_type=grant_type
+            username=username, password=password, mfa_code=mfa_code, code=code, grant_type=grant_type
         )
         logger.debug(f"认证类型：{grant_type}，开始准备对用户 {username} 进行身份校验")
         if credentials.grant_type == "password":
@@ -103,7 +99,7 @@ class UserChain(ChainBase):
             return False, "不支持的认证类型"
 
     @staticmethod
-    def password_authenticate(credentials: AuthCredentials) -> Tuple[bool, Union[User, str]]:
+    def password_authenticate(credentials: AuthCredentials) -> tuple[bool, User | str]:
         """
         密码认证
 
@@ -131,7 +127,7 @@ class UserChain(ChainBase):
 
         return True, user
 
-    def auxiliary_authenticate(self, credentials: AuthCredentials) -> Tuple[bool, Union[User, str]]:
+    def auxiliary_authenticate(self, credentials: AuthCredentials) -> tuple[bool, User | str]:
         """
         辅助用户认证
 
@@ -176,7 +172,7 @@ class UserChain(ChainBase):
             return False, PASSWORD_INVALID_CREDENTIALS_MESSAGE
 
     @staticmethod
-    def _verify_mfa(user: User, mfa_code: Optional[str]) -> Union[bool, MfaRequired]:
+    def _verify_mfa(user: User, mfa_code: str | None) -> bool | MfaRequired:
         """
         验证密码登录后的 6 位验证码。
 
@@ -221,14 +217,16 @@ class UserChain(ChainBase):
         # 触发认证通过的拦截事件
         intercept_event = self.eventmanager.send_event(
             etype=ChainEventType.AuthIntercept,
-            data=AuthInterceptCredentials(username=username, channel=channel, service=service,
-                                          token=token, status="completed")
+            data=AuthInterceptCredentials(
+                username=username, channel=channel, service=service, token=token, status="completed"
+            ),
         )
         if intercept_event and intercept_event.event_data:
             intercept_data: AuthInterceptCredentials = intercept_event.event_data
             if intercept_data.cancel:
                 logger.warning(
-                    f"认证被拦截，用户：{username}，渠道：{channel}，服务：{service}，拦截源：{intercept_data.source}")
+                    f"认证被拦截，用户：{username}，渠道：{channel}，服务：{service}，拦截源：{intercept_data.source}"
+                )
                 return False
 
         # 检查用户是否存在，如果不存在且当前为密码认证时则创建新用户
@@ -239,19 +237,25 @@ class UserChain(ChainBase):
             if not user.is_active:
                 logger.info(f"辅助认证失败，用户 {username} 已被禁用")
                 return False
-            anonymized_token = f"{token[:len(token) // 2]}********"
+            anonymized_token = f"{token[: len(token) // 2]}********"
             logger.info(
                 f"认证类型：{credentials.grant_type}，用户：{username}，渠道：{channel}，"
-                f"服务：{service} 认证成功，token：{anonymized_token}")
+                f"服务：{service} 认证成功，token：{anonymized_token}"
+            )
             return True
         else:
             if credentials.grant_type == "password":
-                useroper.add(name=username, is_active=True, is_superuser=False,
-                             hashed_password=get_password_hash(secrets.token_urlsafe(16)))
+                useroper.add(
+                    name=username,
+                    is_active=True,
+                    is_superuser=False,
+                    hashed_password=get_password_hash(secrets.token_urlsafe(16)),
+                )
                 logger.info(f"用户 {username} 不存在，已通过 {credentials.grant_type} 认证并已创建普通用户")
                 return True
             else:
                 logger.warning(
                     f"认证类型：{credentials.grant_type}，用户：{username}，渠道：{channel}，"
-                    f"服务：{service} 认证不通过，未能在本地找到对应的用户信息")
+                    f"服务：{service} 认证不通过，未能在本地找到对应的用户信息"
+                )
                 return False

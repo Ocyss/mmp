@@ -1,13 +1,13 @@
+import base64
 import json
 import re
-import threading
-import base64
 import subprocess
+import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.common import retry
@@ -51,8 +51,14 @@ class WeChat:
     # 企业微信上传临时素材URL
     _upload_media_url = "cgi-bin/media/upload?access_token={access_token}&type={media_type}"
 
-    def __init__(self, WECHAT_CORPID: Optional[str] = None, WECHAT_APP_SECRET: Optional[str] = None,
-                 WECHAT_APP_ID: Optional[str] = None, WECHAT_PROXY: Optional[str] = None, **kwargs):
+    def __init__(
+        self,
+        WECHAT_CORPID: str | None = None,
+        WECHAT_APP_SECRET: str | None = None,
+        WECHAT_APP_ID: str | None = None,
+        WECHAT_PROXY: str | None = None,
+        **kwargs,
+    ):
         """
         初始化
         """
@@ -108,12 +114,12 @@ class WeChat:
             elif res is not None:
                 logger.error(f"获取微信access_token失败，错误码：{res.status_code}，错误原因：{res.reason}")
             else:
-                logger.error(f"获取微信access_token失败，未获取到返回信息")
+                logger.error("获取微信access_token失败，未获取到返回信息")
                 raise RetryException("获取微信access_token失败，重试中...")
         return self._access_token
 
     @staticmethod
-    def __split_content(content: str, max_bytes: int = 2048) -> List[str]:
+    def __split_content(content: str, max_bytes: int = 2048) -> list[str]:
         """
         将内容分块为不超过 max_bytes 字节的块
         :param content: 待拆分的内容
@@ -168,8 +174,9 @@ class WeChat:
 
         return content_chunks
 
-    def __send_message(self, title: str, text: Optional[str] = None,
-                       userid: Optional[str] = None, link: Optional[str] = None) -> bool:
+    def __send_message(
+        self, title: str, text: str | None = None, userid: str | None = None, link: str | None = None
+    ) -> bool:
         """
         发送文本消息
         :param title: 消息标题
@@ -198,12 +205,10 @@ class WeChat:
                 "touser": userid,
                 "msgtype": "text",
                 "agentid": self._appid,
-                "text": {
-                    "content": chunk
-                },
+                "text": {"content": chunk},
                 "safe": 0,
                 "enable_id_trans": 0,
-                "enable_duplicate_check": 0
+                "enable_duplicate_check": 0,
             }
             try:
                 # 如果是超长消息，有一个发送失败就全部失败
@@ -214,8 +219,9 @@ class WeChat:
                 return False
         return True
 
-    def __send_image_message(self, title: str, text: str, image_url: str,
-                             userid: Optional[str] = None, link: Optional[str] = None) -> Optional[bool]:
+    def __send_image_message(
+        self, title: str, text: str, image_url: str, userid: str | None = None, link: str | None = None
+    ) -> bool | None:
         """
         发送图文消息
         :param title: 消息标题
@@ -233,16 +239,7 @@ class WeChat:
             "touser": userid,
             "msgtype": "news",
             "agentid": self._appid,
-            "news": {
-                "articles": [
-                    {
-                        "title": title,
-                        "description": text,
-                        "picurl": image_url,
-                        "url": link
-                    }
-                ]
-            }
+            "news": {"articles": [{"title": title, "description": text, "picurl": image_url, "url": link}]},
         }
         try:
             return self.__post_request(self._send_msg_url, req_json)
@@ -250,8 +247,14 @@ class WeChat:
             logger.error(f"发送图文消息失败：{e}")
             return False
 
-    def send_msg(self, title: str, text: Optional[str] = None, image: Optional[str] = None,
-                 userid: Optional[str] = None, link: Optional[str] = None) -> Optional[bool]:
+    def send_msg(
+        self,
+        title: str,
+        text: str | None = None,
+        image: str | None = None,
+        userid: str | None = None,
+        link: str | None = None,
+    ) -> bool | None:
         """
         微信消息发送入口，支持文本、图片、链接跳转、指定发送对象
         :param title: 消息标题
@@ -295,7 +298,7 @@ class WeChat:
             return "image/webp"
         return default
 
-    def download_media_to_data_url(self, media_id: str) -> Optional[str]:
+    def download_media_to_data_url(self, media_id: str) -> str | None:
         """
         下载企业微信媒体文件并转换为 data URL
         """
@@ -328,7 +331,7 @@ class WeChat:
         mime_type = self._guess_mime_type(res.content, content_type or "image/jpeg")
         return f"data:{mime_type};base64,{base64.b64encode(res.content).decode()}"
 
-    def download_media_bytes(self, media_id: str) -> Optional[bytes]:
+    def download_media_bytes(self, media_id: str) -> bytes | None:
         """
         下载企业微信媒体文件并返回原始字节。
         """
@@ -359,7 +362,7 @@ class WeChat:
         return res.content
 
     @staticmethod
-    def _convert_voice_to_amr(voice_path: str) -> Optional[Path]:
+    def _convert_voice_to_amr(voice_path: str) -> Path | None:
         """
         将语音文件转换为企业微信要求的 AMR 格式（<=60s）。
         """
@@ -407,7 +410,7 @@ class WeChat:
             return None
         return dst_path
 
-    def _upload_temp_media(self, media_path: Path, media_type: str = "voice") -> Optional[str]:
+    def _upload_temp_media(self, media_path: Path, media_type: str = "voice") -> str | None:
         """
         上传企业微信临时素材，返回 media_id。
         """
@@ -454,7 +457,7 @@ class WeChat:
             return None
         return ret_json.get("media_id")
 
-    def send_voice(self, voice_path: str, userid: Optional[str] = None) -> Optional[bool]:
+    def send_voice(self, voice_path: str, userid: str | None = None) -> bool | None:
         """
         发送企业微信语音消息。仅自建应用模式支持。
         """
@@ -480,12 +483,10 @@ class WeChat:
                 "touser": userid,
                 "msgtype": "voice",
                 "agentid": self._appid,
-                "voice": {
-                    "media_id": media_id
-                },
+                "voice": {"media_id": media_id},
                 "safe": 0,
                 "enable_id_trans": 0,
-                "enable_duplicate_check": 0
+                "enable_duplicate_check": 0,
             }
             return self.__post_request(self._send_msg_url, req_json)
         except Exception as err:
@@ -495,7 +496,7 @@ class WeChat:
             converted_path.unlink(missing_ok=True)
             source_path.unlink(missing_ok=True)
 
-    def send_medias_msg(self, medias: List[MediaInfo], userid: Optional[str] = None) -> Optional[bool]:
+    def send_medias_msg(self, medias: list[MediaInfo], userid: str | None = None) -> bool | None:
         """
         发送列表类消息
         """
@@ -513,30 +514,25 @@ class WeChat:
                     title = f"{index}. {media.title_year}\n类型：{media.type.value}，评分：{media.vote_average}"
                 else:
                     title = f"{index}. {media.title_year}\n类型：{media.type.value}"
-                articles.append({
-                    "title": title,
-                    "description": "",
-                    "picurl": media.get_message_image() if index == 1 else media.get_poster_image(),
-                    "url": media.detail_link
-                })
+                articles.append(
+                    {
+                        "title": title,
+                        "description": "",
+                        "picurl": media.get_message_image() if index == 1 else media.get_poster_image(),
+                        "url": media.detail_link,
+                    }
+                )
                 index += 1
 
-            req_json = {
-                "touser": userid,
-                "msgtype": "news",
-                "agentid": self._appid,
-                "news": {
-                    "articles": articles
-                }
-            }
+            req_json = {"touser": userid, "msgtype": "news", "agentid": self._appid, "news": {"articles": articles}}
             return self.__post_request(self._send_msg_url, req_json)
         except Exception as e:
             logger.error(f"发送消息失败：{e}")
             return False
 
-    def send_torrents_msg(self, torrents: List[Context],
-                          userid: Optional[str] = None, title: Optional[str] = None,
-                          link: Optional[str] = None) -> Optional[bool]:
+    def send_torrents_msg(
+        self, torrents: list[Context], userid: str | None = None, title: str | None = None, link: str | None = None
+    ) -> bool | None:
         """
         发送列表消息
         """
@@ -558,31 +554,28 @@ class WeChat:
                 torrent = context.torrent_info
                 meta = MetaInfo(title=torrent.title, subtitle=torrent.description)
                 mediainfo = context.media_info
-                torrent_title = f"{index}.【{torrent.site_name}】" \
-                                f"{meta.season_episode} " \
-                                f"{meta.resource_term} " \
-                                f"{meta.video_term} " \
-                                f"{meta.release_group} " \
-                                f"{StringUtils.str_filesize(torrent.size)} " \
-                                f"{torrent.volume_factor} " \
-                                f"{torrent.seeders}↑"
+                torrent_title = (
+                    f"{index}.【{torrent.site_name}】"
+                    f"{meta.season_episode} "
+                    f"{meta.resource_term} "
+                    f"{meta.video_term} "
+                    f"{meta.release_group} "
+                    f"{StringUtils.str_filesize(torrent.size)} "
+                    f"{torrent.volume_factor} "
+                    f"{torrent.seeders}↑"
+                )
                 torrent_title = re.sub(r"\s+", " ", torrent_title).strip()
-                articles.append({
-                    "title": torrent_title,
-                    "description": torrent.description if index == 1 else "",
-                    "picurl": mediainfo.get_message_image() if index == 1 else "",
-                    "url": torrent.page_url
-                })
+                articles.append(
+                    {
+                        "title": torrent_title,
+                        "description": torrent.description if index == 1 else "",
+                        "picurl": mediainfo.get_message_image() if index == 1 else "",
+                        "url": torrent.page_url,
+                    }
+                )
                 index += 1
 
-            req_json = {
-                "touser": userid,
-                "msgtype": "news",
-                "agentid": self._appid,
-                "news": {
-                    "articles": articles
-                }
-            }
+            req_json = {"touser": userid, "msgtype": "news", "agentid": self._appid, "news": {"articles": articles}}
             return self.__post_request(self._send_msg_url, req_json)
         except Exception as e:
             logger.error(f"发送消息失败：{e}")
@@ -595,8 +588,7 @@ class WeChat:
         """
         url = url.format(access_token=self.__get_access_token())
         res = RequestUtils(content_type="application/json").post(
-            url=url,
-            data=json.dumps(req_json, ensure_ascii=False).encode("utf-8")
+            url=url, data=json.dumps(req_json, ensure_ascii=False).encode("utf-8")
         )
         if res is None:
             error_msg = "发送请求失败，未获取到返回信息"
@@ -611,14 +603,16 @@ class WeChat:
         else:
             if ret_json.get("errcode") == 42001:
                 self.__get_access_token(force=True)
-                error_msg = (f"access_token 已过期，尝试重新获取 access_token,"
-                             f"errcode: {ret_json.get('errcode')}, errmsg: {ret_json.get('errmsg')}")
+                error_msg = (
+                    f"access_token 已过期，尝试重新获取 access_token,"
+                    f"errcode: {ret_json.get('errcode')}, errmsg: {ret_json.get('errmsg')}"
+                )
                 raise RetryException(error_msg)
             else:
                 logger.error(f"发送请求失败，错误信息：{ret_json.get('errmsg')}")
                 return False
 
-    def create_menus(self, commands: Dict[str, dict]):
+    def create_menus(self, commands: dict[str, dict]):
         """
         自动注册微信菜单
         :param commands: 命令字典
@@ -676,21 +670,12 @@ class WeChat:
                 # 二级菜单
                 sub_buttons = []
                 for key, value in menu.items():
-                    sub_buttons.append({
-                        "type": "click",
-                        "name": value.get("description"),
-                        "key": key
-                    })
-                buttons.append({
-                    "name": category,
-                    "sub_button": sub_buttons[:5]
-                })
+                    sub_buttons.append({"type": "click", "name": value.get("description"), "key": key})
+                buttons.append({"name": category, "sub_button": sub_buttons[:5]})
 
             if buttons:
                 # 发送请求
-                self.__post_request(req_url, {
-                    "button": buttons[:3]
-                })
+                self.__post_request(req_url, {"button": buttons[:3]})
         except Exception as e:
             logger.error(f"创建菜单失败：{e}")
 

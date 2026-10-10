@@ -28,7 +28,7 @@ class WriteFileInput(BaseModel):
             "new file; prefer edit_file for localized changes."
         ),
     )
-    expected_sha256: Optional[str] = Field(
+    expected_sha256: str | None = Field(
         None,
         pattern=r"^[0-9a-fA-F]{64}$",
         description=(
@@ -52,9 +52,9 @@ class WriteFileTool(MoviePilotTool):
         "Supports an optional SHA-256 conflict check and writes atomically. "
         "Non-admin users can only write inside the MoviePilot Agent config directory."
     )
-    args_schema: Type[BaseModel] = WriteFileInput
+    args_schema: type[BaseModel] = WriteFileInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据参数生成友好的提示消息"""
         file_path = kwargs.get("file_path", "")
         file_name = Path(file_path).name if file_path else "未知文件"
@@ -65,16 +65,14 @@ class WriteFileTool(MoviePilotTool):
         file_path: str,
         content: str,
         overwrite: bool = False,
-        expected_sha256: Optional[str] = None,
+        expected_sha256: str | None = None,
         **kwargs,
     ) -> str:
         """创建或显式覆盖文件，并通过可选哈希阻止陈旧写入。"""
         logger.info(f"执行工具: {self.name}, 参数: file_path={file_path}")
 
         try:
-            resolved_path, access_error = await self._check_local_file_access(
-                file_path, operation="写入"
-            )
+            resolved_path, access_error = await self._check_local_file_access(file_path, operation="写入")
             if access_error:
                 return access_error
 
@@ -89,22 +87,16 @@ class WriteFileTool(MoviePilotTool):
                     "局部修改请使用 edit_file；确需重写时设置 overwrite=true。"
                 )
             if expected_sha256 and not exists:
-                return (
-                    f"错误：文件 {resolved_path} 不存在，无法校验 expected_sha256。"
-                    "请确认路径和最新文件状态。"
-                )
+                return f"错误：文件 {resolved_path} 不存在，无法校验 expected_sha256。请确认路径和最新文件状态。"
 
             local_path = Path(resolved_path)
             current_sha256 = None
             if exists:
-                current_sha256 = await self.run_blocking(
-                    "default", calculate_file_sha256, local_path
-                )
+                current_sha256 = await self.run_blocking("default", calculate_file_sha256, local_path)
             if expected_sha256:
                 if current_sha256.casefold() != expected_sha256.casefold():
                     return (
-                        f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。"
-                        "请重新读取文件并基于最新内容写入。"
+                        f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。请重新读取文件并基于最新内容写入。"
                     )
 
             await self.run_blocking(
@@ -114,18 +106,13 @@ class WriteFileTool(MoviePilotTool):
                 content,
                 current_sha256,
             )
-            new_sha256 = await self.run_blocking(
-                "default", calculate_file_sha256, local_path
-            )
+            new_sha256 = await self.run_blocking("default", calculate_file_sha256, local_path)
 
             logger.info(f"成功写入文件 {resolved_path}")
             return f"成功写入文件 {resolved_path}（sha256={new_sha256}）"
 
         except FileVersionConflictError:
-            return (
-                f"错误：文件 {file_path} 在写入期间发生变化，拒绝覆盖。"
-                "请重新读取文件并再次写入。"
-            )
+            return f"错误：文件 {file_path} 在写入期间发生变化，拒绝覆盖。请重新读取文件并再次写入。"
         except PermissionError:
             return f"错误：没有权限写入 {file_path}"
         except Exception as e:

@@ -22,10 +22,10 @@ class DeleteAgentTaskTool(MoviePilotTool):
         "Permanently delete an autonomous agent task and remove its runtime schedule. "
         "Use update_agent_task with enabled=false when the user only wants to pause it."
     )
-    args_schema: Type[BaseModel] = DeleteAgentTaskInput
+    args_schema: type[BaseModel] = DeleteAgentTaskInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成删除定时任务的提示消息。"""
         return f"删除自主定时任务：{kwargs.get('task_id', '')}"
 

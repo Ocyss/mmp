@@ -15,46 +15,44 @@ from app.log import logger
 class UpdateDownloadTasksInput(BaseModel):
     """更新下载任务工具的输入参数模型"""
 
-    hash: str = Field(
-        ..., description="Task hash (can be obtained from query_download_tasks tool)"
-    )
-    action: Optional[str] = Field(
+    hash: str = Field(..., description="Task hash (can be obtained from query_download_tasks tool)")
+    action: str | None = Field(
         None,
         description="Action to perform on the task: 'start' to resume downloading, 'stop' to pause downloading.",
     )
-    tags: Optional[List[str]] = Field(
+    tags: list[str] | None = Field(
         None,
         description="List of tags to add to the download task. Example: ['movie', 'hd']",
     )
-    downloader: Optional[str] = Field(
+    downloader: str | None = Field(
         None,
         description="Name of specific downloader. If omitted, the tool resolves it from the task hash.",
     )
-    download_limit: Optional[float] = Field(
+    download_limit: float | None = Field(
         None,
         description="Per-task download speed limit in KB/s. Use 0 to disable the limit when supported.",
     )
-    upload_limit: Optional[float] = Field(
+    upload_limit: float | None = Field(
         None,
         description="Per-task upload speed limit in KB/s. Use 0 to disable the limit when supported.",
     )
-    trackers: Optional[List[str]] = Field(
+    trackers: list[str] | None = Field(
         None,
         description="Tracker URL list to add or set, depending on downloader support.",
     )
-    save_path: Optional[str] = Field(
+    save_path: str | None = Field(
         None,
         description="New save/download directory for the task, when supported.",
     )
-    category: Optional[str] = Field(
+    category: str | None = Field(
         None,
         description="Downloader category to set, when supported.",
     )
-    ratio_limit: Optional[float] = Field(
+    ratio_limit: float | None = Field(
         None,
         description="Per-task share ratio limit, when supported.",
     )
-    seeding_time_limit: Optional[int] = Field(
+    seeding_time_limit: int | None = Field(
         None,
         description="Per-task seeding time limit in minutes, when supported.",
     )
@@ -75,7 +73,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
         "and seeding time where the configured downloader supports them. "
         "Use query_download_tasks first to get the hash and current downloader."
     )
-    args_schema: Type[BaseModel] = UpdateDownloadTasksInput
+    args_schema: type[BaseModel] = UpdateDownloadTasksInput
     require_admin: bool = True
 
     @staticmethod
@@ -84,7 +82,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
         return len(hash_value) == 40 and all(c in "0123456789abcdefABCDEF" for c in hash_value)
 
     @staticmethod
-    def _normalize_non_empty_list(values: Optional[List[str]]) -> Optional[List[str]]:
+    def _normalize_non_empty_list(values: list[str] | None) -> list[str] | None:
         """清理字符串列表中的空值。"""
         if values is None:
             return None
@@ -96,7 +94,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
         return any(value is not None and value != [] for value in kwargs.values())
 
     @staticmethod
-    def _build_result(operation: str, success: bool, message: str) -> Dict[str, Any]:
+    def _build_result(operation: str, success: bool, message: str) -> dict[str, Any]:
         """构造单项操作结果。"""
         return {
             "operation": operation,
@@ -106,35 +104,38 @@ class UpdateDownloadTasksTool(MoviePilotTool):
 
     @classmethod
     def _resolve_downloader(
-            cls,
-            download_chain: DownloadChain,
-            hash_value: str,
-            downloader: Optional[str],
-    ) -> Optional[str]:
+        cls,
+        download_chain: DownloadChain,
+        hash_value: str,
+        downloader: str | None,
+    ) -> str | None:
         """根据Hash解析下载任务所在下载器。"""
         if downloader:
             return downloader
-        torrents = download_chain.list_torrents(
-            hashs=[hash_value],
-            include_all_tags=True,
-        ) or []
+        torrents = (
+            download_chain.list_torrents(
+                hashs=[hash_value],
+                include_all_tags=True,
+            )
+            or []
+        )
         return getattr(torrents[0], "downloader", None) if torrents else None
 
     @classmethod
     def _update_download_sync(
-            cls,
-            hash_value: str,
-            action: Optional[str] = None,
-            tags: Optional[List[str]] = None,
-            downloader: Optional[str] = None,
-            download_limit: Optional[float] = None,
-            upload_limit: Optional[float] = None,
-            trackers: Optional[List[str]] = None,
-            save_path: Optional[str] = None,
-            category: Optional[str] = None,
-            ratio_limit: Optional[float] = None,
-            seeding_time_limit: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        cls,
+        hash_value: str,
+        action: str | None = None,
+        tags: list[str] | None = None,
+        downloader: str | None = None,
+        download_limit: float | None = None,
+        upload_limit: float | None = None,
+        trackers: list[str] | None = None,
+        save_path: str | None = None,
+        category: str | None = None,
+        ratio_limit: float | None = None,
+        seeding_time_limit: int | None = None,
+    ) -> dict[str, Any]:
         """同步更新下载任务，避免下载器 SDK 阻塞事件循环。"""
         download_chain = DownloadChain()
         resolved_downloader = cls._resolve_downloader(
@@ -146,9 +147,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
             return {
                 "hash": hash_value,
                 "downloader": downloader,
-                "results": [
-                    cls._build_result("resolve_downloader", False, "未找到下载任务或下载器不可用")
-                ],
+                "results": [cls._build_result("resolve_downloader", False, "未找到下载任务或下载器不可用")],
             }
 
         if save_path is not None:
@@ -158,16 +157,12 @@ class UpdateDownloadTasksTool(MoviePilotTool):
                 return {
                     "hash": hash_value,
                     "downloader": resolved_downloader,
-                    "results": [
-                        cls._build_result("save_path", False, "保存目录不在允许的下载目录范围内")
-                    ],
+                    "results": [cls._build_result("save_path", False, "保存目录不在允许的下载目录范围内")],
                 }
 
         results = []
         if tags:
-            tag_result = download_chain.set_torrents_tag(
-                hashs=[hash_value], tags=tags, downloader=resolved_downloader
-            )
+            tag_result = download_chain.set_torrents_tag(hashs=[hash_value], tags=tags, downloader=resolved_downloader)
             results.append(
                 cls._build_result(
                     "tags",
@@ -177,9 +172,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
             )
 
         if action:
-            action_result = download_chain.set_downloading(
-                hash_str=hash_value, oper=action, name=resolved_downloader
-            )
+            action_result = download_chain.set_downloading(hash_str=hash_value, oper=action, name=resolved_downloader)
             action_desc = "开始" if action == "start" else "暂停"
             results.append(
                 cls._build_result(
@@ -191,13 +184,13 @@ class UpdateDownloadTasksTool(MoviePilotTool):
 
         update_result = {}
         if cls._has_update_params(
-                download_limit=download_limit,
-                upload_limit=upload_limit,
-                trackers=trackers,
-                save_path=save_path,
-                category=category,
-                ratio_limit=ratio_limit,
-                seeding_time_limit=seeding_time_limit,
+            download_limit=download_limit,
+            upload_limit=upload_limit,
+            trackers=trackers,
+            save_path=save_path,
+            category=category,
+            ratio_limit=ratio_limit,
+            seeding_time_limit=seeding_time_limit,
         ):
             update_result = download_chain.update_torrent(
                 hash_string=hash_value,
@@ -232,7 +225,7 @@ class UpdateDownloadTasksTool(MoviePilotTool):
             "results": results,
         }
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据更新参数生成友好的提示消息。"""
         hash_value = kwargs.get("hash", "")
         parts = [f"更新下载任务: {hash_value}"]
@@ -258,16 +251,16 @@ class UpdateDownloadTasksTool(MoviePilotTool):
     async def run(
         self,
         hash: str,
-        action: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        downloader: Optional[str] = None,
-        download_limit: Optional[float] = None,
-        upload_limit: Optional[float] = None,
-        trackers: Optional[List[str]] = None,
-        save_path: Optional[str] = None,
-        category: Optional[str] = None,
-        ratio_limit: Optional[float] = None,
-        seeding_time_limit: Optional[int] = None,
+        action: str | None = None,
+        tags: list[str] | None = None,
+        downloader: str | None = None,
+        download_limit: float | None = None,
+        upload_limit: float | None = None,
+        trackers: list[str] | None = None,
+        save_path: str | None = None,
+        category: str | None = None,
+        ratio_limit: float | None = None,
+        seeding_time_limit: int | None = None,
         **kwargs,
     ) -> str:
         """执行下载任务更新。"""
@@ -286,15 +279,15 @@ class UpdateDownloadTasksTool(MoviePilotTool):
             if action and action not in ("start", "stop"):
                 return f"参数错误：action 只支持 'start'（开始下载）或 'stop'（暂停下载），收到: '{action}'。"
             if not self._has_update_params(
-                    action=action,
-                    tags=tags,
-                    download_limit=download_limit,
-                    upload_limit=upload_limit,
-                    trackers=trackers,
-                    save_path=save_path,
-                    category=category,
-                    ratio_limit=ratio_limit,
-                    seeding_time_limit=seeding_time_limit,
+                action=action,
+                tags=tags,
+                download_limit=download_limit,
+                upload_limit=upload_limit,
+                trackers=trackers,
+                save_path=save_path,
+                category=category,
+                ratio_limit=ratio_limit,
+                seeding_time_limit=seeding_time_limit,
             ):
                 return "参数错误：至少需要指定一个要更新的字段。"
 

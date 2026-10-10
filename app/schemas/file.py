@@ -1,8 +1,9 @@
 import re
+from pathlib import Path
 from typing import Optional
 
-from pathlib import Path
 from pydantic import BaseModel, Field
+
 from app.schemas.types import StorageSchema
 
 # Windows 盘符绝对路径，如 Z:/Downloads 或 Z:\Downloads
@@ -11,9 +12,9 @@ WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 
 class FileURI(BaseModel):
     # 文件路径
-    path: Optional[str] = "/"
+    path: str | None = "/"
     # 存储类型
-    storage: Optional[str] = Field(default="local")
+    storage: str | None = Field(default="local")
 
     @property
     def uri(self) -> str:
@@ -23,18 +24,18 @@ class FileURI(BaseModel):
         return self.path if self.storage == "local" else f"{self.storage}:{self.path}"
 
     @classmethod
-    def from_uri(cls, uri: str) -> "FileURI":
+    def from_uri(cls, uri: str) -> FileURI:
         """
         解析文件 URI 为存储类型和路径
 
         :param uri: 文件 URI，如 /media/movie、u115:/media/movie 或 Windows 盘符路径 Z:/media
         :return: FileURI 对象
         """
-        storage, path = 'local', uri
+        storage, path = "local", uri
         for s in StorageSchema:
             protocol = f"{s.value}:"
             if uri.startswith(protocol):
-                path = uri[len(protocol):]
+                path = uri[len(protocol) :]
                 storage = s.value
                 break
         # Windows 盘符路径本身就是绝对路径，补上根斜杠会得到 /Z:/xxx 这样的非法路径
@@ -46,31 +47,31 @@ class FileURI(BaseModel):
 
 class FileItem(FileURI):
     # 类型 dir/file
-    type: Optional[str] = None
+    type: str | None = None
     # 文件名
-    name: Optional[str] = None
+    name: str | None = None
     # 文件名
-    basename: Optional[str] = None
+    basename: str | None = None
     # 文件后缀
-    extension: Optional[str] = None
+    extension: str | None = None
     # 文件大小
-    size: Optional[int] = None
+    size: int | None = None
     # 修改时间
-    modify_time: Optional[float] = None
+    modify_time: float | None = None
     # 子节点
-    children: Optional[list] = Field(default_factory=list)
+    children: list | None = Field(default_factory=list)
     # ID
-    fileid: Optional[str] = None
+    fileid: str | None = None
     # 父ID
-    parent_fileid: Optional[str] = None
+    parent_fileid: str | None = None
     # 缩略图
-    thumbnail: Optional[str] = None
+    thumbnail: str | None = None
     # 115 pickcode
-    pickcode: Optional[str] = None
+    pickcode: str | None = None
     # drive_id
-    drive_id: Optional[str] = None
+    drive_id: str | None = None
     # url
-    url: Optional[str] = None
+    url: str | None = None
 
 
 class StorageUsage(BaseModel):
@@ -82,4 +83,4 @@ class StorageUsage(BaseModel):
 
 class StorageTransType(BaseModel):
     # 传输类型
-    transtype: Optional[dict] = Field(default_factory=dict)
+    transtype: dict | None = Field(default_factory=dict)

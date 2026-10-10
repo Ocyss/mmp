@@ -1,16 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Integer, String, JSON, select, delete
+from sqlalchemy import JSON, Boolean, Column, Integer, String, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, Base, async_db_query, async_db_update, get_id_column
+from app.db import Base, async_db_query, async_db_update, db_query, db_update, get_id_column
 
 
 class Site(Base):
     """
     站点表
     """
+
     id = get_id_column()
     # 站点名
     name = Column(String, nullable=False)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import re
 from urllib.parse import urljoin
@@ -71,9 +70,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
             if message_links and not new_message_links:
                 logger.warn(f"{self._site_name} 未读消息页只发现重复消息链接，停止后续翻页")
             msg_links.extend(new_message_links)
-            next_page = self.__build_next_unread_mailbox_page(
-                self.__should_fetch_next_unread_page(new_message_links)
-            )
+            next_page = self.__build_next_unread_mailbox_page(self.__should_fetch_next_unread_page(new_message_links))
         finally:
             if html is not None:
                 del html
@@ -88,13 +85,11 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         try:
             if StringUtils.is_valid_html_element(html):
                 head = self.__extract_first_text(
-                    html,
-                    '//*[contains(concat(" ", normalize-space(@class), " "), " pm-hero__title ")]'
+                    html, '//*[contains(concat(" ", normalize-space(@class), " "), " pm-hero__title ")]'
                 )
                 date = self.__extract_pm_view_meta(html, "日期")
                 content = self.__extract_first_text(
-                    html,
-                    '//*[contains(concat(" ", normalize-space(@class), " "), " pm-view__body ")]'
+                    html, '//*[contains(concat(" ", normalize-space(@class), " "), " pm-view__body ")]'
                 )
                 if not self.__is_empty_message_content(head, date, content):
                     return head, date, content
@@ -112,14 +107,10 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         unread_msg_links = []
         if self.message_unread > 0 or self.message_read_force:
             next_page = self.__parse_unread_message_list_page(
-                link=self._user_mail_unread_page,
-                unread_msg_links=unread_msg_links
+                link=self._user_mail_unread_page, unread_msg_links=unread_msg_links
             )
             while next_page:
-                next_page = self.__parse_unread_message_list_page(
-                    link=next_page,
-                    unread_msg_links=unread_msg_links
-                )
+                next_page = self.__parse_unread_message_list_page(link=next_page, unread_msg_links=unread_msg_links)
         if self.message_unread == self.__UNKNOWN_UNREAD_COUNT:
             self.message_unread = len(unread_msg_links)
         elif unread_msg_links and not self.message_unread:
@@ -130,7 +121,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
                 self._get_page_content(
                     urljoin(self._base_url, msg_link),
                     params=self._mail_content_params,
-                    headers=self._mail_content_headers
+                    headers=self._mail_content_headers,
                 )
             )
             head, date, content = self.__fill_empty_message_content_from_list(msg_link, head, date, content)
@@ -148,11 +139,9 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
             return None
         return self._parse_message_unread_links(
             self._get_page_content(
-                url=urljoin(self._base_url, link),
-                params=self._mail_unread_params,
-                headers=self._mail_unread_headers
+                url=urljoin(self._base_url, link), params=self._mail_unread_params, headers=self._mail_unread_headers
             ),
-            unread_msg_links
+            unread_msg_links,
         )
 
     def __reset_unread_message_parse_state(self):
@@ -218,16 +207,13 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         缓存新版列表页预览，用于详情页结构变化时兜底生成站点消息。
         """
         head = self.__extract_pm_item_text(
-            row,
-            './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__subject ")]'
+            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__subject ")]'
         )
         date = self.__extract_pm_item_text(
-            row,
-            './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__time ")]'
+            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__time ")]'
         )
         content = self.__extract_pm_item_text(
-            row,
-            './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__preview ")]'
+            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__preview ")]'
         )
         self.__message_list_previews[urljoin(self._base_url, message_link)] = (head, date, content)
 
@@ -300,10 +286,12 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         """
         已达到 Audiences 顶部栏给出的未读数时停止翻页。
         """
-        return not self.message_read_force \
-            and self.message_unread > 0 \
-            and self.message_unread != self.__UNKNOWN_UNREAD_COUNT \
+        return (
+            not self.message_read_force
+            and self.message_unread > 0
+            and self.message_unread != self.__UNKNOWN_UNREAD_COUNT
             and len(self.__seen_unread_message_links) >= self.message_unread
+        )
 
     @staticmethod
     def __is_empty_message_content(head, date, content) -> bool:
@@ -353,7 +341,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
             if not StringUtils.is_valid_html_element(html):
                 return
 
-            for user_node in html.xpath('//*[@data-uploader-url or @data-uploader-stats]'):
+            for user_node in html.xpath("//*[@data-uploader-url or @data-uploader-stats]"):
                 self.__parse_user_identity(user_node)
                 self.__parse_uploader_stats(user_node.get("data-uploader-stats"))
 
@@ -393,7 +381,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
 
         try:
             stats = json.loads(stats_text)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return
 
         if not isinstance(stats, list):
@@ -413,12 +401,12 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         """
         values = html.xpath(
             f'//*[contains(concat(" ", normalize-space(@class), " "), " site-userbar__compact-metric--{metric} ")]'
-            '//span[normalize-space()][last()]/text()'
+            "//span[normalize-space()][last()]/text()"
         )
         if not values:
             values = html.xpath(
                 f'//*[contains(concat(" ", normalize-space(@class), " "), " site-userbar__compact-metric--{metric} ")]'
-                '/text()'
+                "/text()"
             )
         if values:
             self.__set_metric_value(field=field, value=values[-1].strip())
@@ -458,7 +446,8 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
                 return unread
 
         for inbox_text in message_link.xpath(
-                './/*[contains(@class, "site-userbar__compact-tool-badge--unread")]/text()'):
+            './/*[contains(@class, "site-userbar__compact-tool-badge--unread")]/text()'
+        ):
             unread = self.__extract_inbox_unread_badge(inbox_text)
             if unread is not None:
                 return unread
@@ -520,7 +509,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         html_text = self._get_page_content(
             url=urljoin(self._base_url, self._torrent_seeding_page),
             params=self._torrent_seeding_params,
-            headers=self._torrent_seeding_headers
+            headers=self._torrent_seeding_headers,
         )
         if not html_text:
             return
@@ -531,8 +520,8 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
             total_row = html.xpath('//table[@class="table table-bordered"]//tr[td[1][normalize-space()="Total"]]')
             if not total_row:
                 return
-            seeding_count = total_row[0].xpath('./td[2]/text()')
-            seeding_size = total_row[0].xpath('./td[3]/text()')
+            seeding_count = total_row[0].xpath("./td[2]/text()")
+            seeding_size = total_row[0].xpath("./td[3]/text()")
             self.seeding = StringUtils.str_int(seeding_count[0]) if seeding_count else 0
             self.seeding_size = StringUtils.num_filesize(seeding_size[0].strip()) if seeding_size else 0
         finally:

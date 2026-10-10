@@ -1,7 +1,7 @@
 import asyncio
 import time
 from pathlib import Path
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,12 +14,12 @@ from app.agent.prompt.transfer_redo import (
     build_manual_redo_prompt,
 )
 from app.chain.storage import StorageChain
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.event import eventmanager
 from app.core.security import verify_token
 from app.db import get_async_db, get_db
 from app.db.models import User
-from app.db.models.downloadhistory import DownloadHistory, DownloadFiles
+from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
 from app.db.models.transferhistory import TransferHistory
 from app.db.user_oper import (
     get_current_active_manage_user,
@@ -131,11 +131,11 @@ def _start_batch_ai_redo_task(
 @router.get(
     "/download",
     summary="查询下载历史记录",
-    response_model=List[schemas.DownloadHistory],
+    response_model=list[schemas.DownloadHistory],
 )
 async def download_history(
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    page: int | None = 1,
+    count: int | None = 30,
     db: AsyncSession = Depends(get_async_db),
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
@@ -168,10 +168,10 @@ def _glob_to_like(pattern: str) -> str:
 
 @router.get("/transfer", summary="查询整理记录", response_model=schemas.Response)
 async def transfer_history(
-    title: Optional[str] = None,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
-    status: Optional[bool] = None,
+    title: str | None = None,
+    page: int | None = 1,
+    count: int | None = 30,
+    status: bool | None = None,
     db: AsyncSession = Depends(get_async_db),
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
@@ -188,25 +188,19 @@ async def transfer_history(
     if title:
         if "*" in title or "?" in title:
             like_pattern = _glob_to_like(title)
-            total = await TransferHistory.async_count_by_title(
-                db, title=like_pattern, status=status, wildcard=True
-            )
+            total = await TransferHistory.async_count_by_title(db, title=like_pattern, status=status, wildcard=True)
             result = await TransferHistory.async_list_by_title(
                 db, title=like_pattern, page=page, count=count, status=status, wildcard=True
             )
         else:
             words = jieba_cut(title, HMM=False)
             like_pattern = "%".join(words)
-            total = await TransferHistory.async_count_by_title(
-                db, title=like_pattern, status=status
-            )
+            total = await TransferHistory.async_count_by_title(db, title=like_pattern, status=status)
             result = await TransferHistory.async_list_by_title(
                 db, title=like_pattern, page=page, count=count, status=status
             )
     else:
-        result = await TransferHistory.async_list_by_page(
-            db, page=page, count=count, status=status
-        )
+        result = await TransferHistory.async_list_by_page(db, page=page, count=count, status=status)
         total = await TransferHistory.async_count(db, status=status)
 
     return schemas.Response(
@@ -221,8 +215,8 @@ async def transfer_history(
 @router.delete("/transfer", summary="删除整理记录", response_model=schemas.Response)
 def delete_transfer_history(
     history_in: schemas.TransferHistory,
-    deletesrc: Optional[bool] = False,
-    deletedest: Optional[bool] = False,
+    deletesrc: bool | None = False,
+    deletedest: bool | None = False,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
@@ -242,9 +236,7 @@ def delete_transfer_history(
         src_fileitem = schemas.FileItem(**history.src_fileitem)
         state = StorageChain().delete_media_file(src_fileitem)
         if not state:
-            return schemas.Response(
-                success=False, message=f"{src_fileitem.path} 删除失败"
-            )
+            return schemas.Response(success=False, message=f"{src_fileitem.path} 删除失败")
         # 删除下载记录中关联的文件
         DownloadFiles.delete_by_fullpath(db, Path(src_fileitem.path).as_posix())
         # 发送事件
@@ -288,9 +280,7 @@ def ai_redo_transfer_history(
     return schemas.Response(success=True, data={"progress_key": progress_key})
 
 
-@router.post(
-    "/transfer/ai-redo", summary="智能助手批量重新整理", response_model=schemas.Response
-)
+@router.post("/transfer/ai-redo", summary="智能助手批量重新整理", response_model=schemas.Response)
 def batch_ai_redo_transfer_history(
     payload: schemas.BatchTransferHistoryRedoRequest,
     db: Session = Depends(get_db),
@@ -318,8 +308,7 @@ def batch_ai_redo_transfer_history(
     if missing_ids:
         return schemas.Response(
             success=False,
-            message="整理记录不存在: "
-            + ", ".join(str(history_id) for history_id in missing_ids),
+            message="整理记录不存在: " + ", ".join(str(history_id) for history_id in missing_ids),
         )
 
     prompt = build_batch_manual_redo_prompt(histories)

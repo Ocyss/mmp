@@ -4,10 +4,9 @@ MFA (Multi-Factor Authentication) API 端点
 """
 
 from datetime import timedelta
-from typing import Any, Annotated, Optional
+from typing import Annotated, Any, Optional
 
-from app.helper.sites import SitesHelper
-from fastapi import APIRouter, Depends, HTTPException, Body, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
@@ -19,11 +18,12 @@ from app.db.models.user import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import get_current_active_user, get_current_active_user_async
 from app.helper.passkey import (
+    PasskeyChallengeStore,
     PassKeyHelper,
     PassKeyRegistrationOriginMismatchError,
     PassKeyRegistrationVerificationError,
-    PasskeyChallengeStore,
 )
+from app.helper.sites import SitesHelper
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 from app.utils.otp import OtpUtils
@@ -40,14 +40,7 @@ def _build_credential_list(passkeys: list[PassKey]) -> list[dict[str, Any]]:
     :param passkeys: PassKey 列表
     :return: 凭证字典列表
     """
-    return (
-        [
-            {"credential_id": pk.credential_id, "transports": pk.transports}
-            for pk in passkeys
-        ]
-        if passkeys
-        else []
-    )
+    return [{"credential_id": pk.credential_id, "transports": pk.transports} for pk in passkeys] if passkeys else []
 
 
 def _extract_and_standardize_credential_id(credential: dict) -> str:
@@ -64,9 +57,7 @@ def _extract_and_standardize_credential_id(credential: dict) -> str:
     return PassKeyHelper.standardize_credential_id(credential_id_raw)
 
 
-def _verify_passkey_and_update(
-    credential: dict, challenge: str, passkey: PassKey
-) -> tuple[bool, int]:
+def _verify_passkey_and_update(credential: dict, challenge: str, passkey: PassKey) -> tuple[bool, int]:
     """
     验证 PassKey 并更新使用时间和签名计数
 
@@ -136,9 +127,7 @@ async def mfa_status(username: str, db: AsyncSession = Depends(get_async_db)) ->
 # ==================== OTP 相关接口 ====================
 
 
-@router.post(
-    "/otp/generate", summary="生成 OTP 验证 URI", response_model=schemas.Response
-)
+@router.post("/otp/generate", summary="生成 OTP 验证 URI", response_model=schemas.Response)
 def otp_generate(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Any:
@@ -156,15 +145,11 @@ async def otp_verify(
     """验证用户输入的 OTP 码，验证通过后正式开启 OTP 验证"""
     if not OtpUtils.is_legal(data.uri, data.otpPassword):
         return schemas.Response(success=False, message="验证码错误")
-    await current_user.async_update_otp_by_name(
-        db, current_user.name, True, OtpUtils.get_secret(data.uri)
-    )
+    await current_user.async_update_otp_by_name(db, current_user.name, True, OtpUtils.get_secret(data.uri))
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/otp/disable", summary="关闭当前用户的 OTP 验证", response_model=schemas.Response
-)
+@router.post("/otp/disable", summary="关闭当前用户的 OTP 验证", response_model=schemas.Response)
 async def otp_disable(
     data: OtpDisableRequest,
     db: AsyncSession = Depends(get_async_db),
@@ -198,7 +183,7 @@ class PassKeyRegistrationFinish(schemas.BaseModel):
 class PassKeyAuthenticationStart(schemas.BaseModel):
     """PassKey认证开始请求"""
 
-    username: Optional[str] = None
+    username: str | None = None
 
 
 class PassKeyAuthenticationFinish(schemas.BaseModel):
@@ -220,17 +205,13 @@ def passkey_register_start(
     try:
         # 获取用户已有的PassKey
         existing_passkeys = PassKey.get_by_user_id(db=None, user_id=current_user.id)
-        existing_credentials = (
-            _build_credential_list(existing_passkeys) if existing_passkeys else None
-        )
+        existing_credentials = _build_credential_list(existing_passkeys) if existing_passkeys else None
 
         # 生成注册选项
         options_json, challenge = PassKeyHelper.generate_registration_options(
             user_id=current_user.id,
             username=current_user.name,
-            display_name=current_user.settings.get("nickname")
-            if current_user.settings
-            else None,
+            display_name=current_user.settings.get("nickname") if current_user.settings else None,
             existing_credentials=existing_credentials,
         )
 
@@ -270,19 +251,14 @@ def passkey_register_finish(
             )
 
         # 验证注册响应
-        credential_id, public_key, sign_count, aaguid = (
-            PassKeyHelper.verify_registration_response(
-                credential=passkey_req.credential,
-                expected_challenge=challenge_state.challenge,
-            )
+        credential_id, public_key, sign_count, aaguid = PassKeyHelper.verify_registration_response(
+            credential=passkey_req.credential,
+            expected_challenge=challenge_state.challenge,
         )
 
         # 提取transports
         transports = None
-        if (
-            "response" in passkey_req.credential
-            and "transports" in passkey_req.credential["response"]
-        ):
+        if "response" in passkey_req.credential and "transports" in passkey_req.credential["response"]:
             transports = ",".join(passkey_req.credential["response"]["transports"])
 
         # 保存到数据库
@@ -331,9 +307,7 @@ def passkey_authenticate_start(
         # 如果指定了用户名，只允许该用户的PassKey
         if passkey_req.username:
             user = User.get_by_name(db=None, name=passkey_req.username)
-            existing_passkeys = (
-                PassKey.get_by_user_id(db=None, user_id=user.id) if user else None
-            )
+            existing_passkeys = PassKey.get_by_user_id(db=None, user_id=user.id) if user else None
 
             if not user or not existing_passkeys:
                 return schemas.Response(success=False, message="认证失败")
@@ -365,9 +339,7 @@ def passkey_authenticate_start(
     summary="完成 PassKey 认证",
     response_model=schemas.Token,
 )
-def passkey_authenticate_finish(
-    request: Request, response: Response, passkey_req: PassKeyAuthenticationFinish
-) -> Any:
+def passkey_authenticate_finish(request: Request, response: Response, passkey_req: PassKeyAuthenticationFinish) -> Any:
     """完成 PassKey 认证 - 验证凭证并返回 token"""
     try:
         challenge_state = PasskeyChallengeStore.consume(
@@ -379,9 +351,7 @@ def passkey_authenticate_finish(
 
         # 提取并标准化凭证ID
         try:
-            credential_id = _extract_and_standardize_credential_id(
-                passkey_req.credential
-            )
+            credential_id = _extract_and_standardize_credential_id(passkey_req.credential)
         except ValueError as e:
             logger.warning(f"PassKey认证失败，提供的凭证无效: {e}")
             raise HTTPException(status_code=401, detail="认证失败")
@@ -408,10 +378,7 @@ def passkey_authenticate_finish(
 
         # 生成token
         level = SitesHelper().auth_level
-        show_wizard = (
-            not SystemConfigOper().get(SystemConfigKey.SetupWizardState)
-            and not settings.ADVANCED_MODE
-        )
+        show_wizard = not SystemConfigOper().get(SystemConfigKey.SetupWizardState) and not settings.ADVANCED_MODE
 
         access_token = security.create_access_token(
             userid=user.id,
@@ -468,9 +435,7 @@ def passkey_list(
                     "id": pk.id,
                     "name": pk.name,
                     "created_at": pk.created_at.isoformat() if pk.created_at else None,
-                    "last_used_at": pk.last_used_at.isoformat()
-                    if pk.last_used_at
-                    else None,
+                    "last_used_at": pk.last_used_at.isoformat() if pk.last_used_at else None,
                     "aaguid": pk.aaguid,
                     "transports": pk.transports,
                 }
@@ -494,14 +459,10 @@ async def passkey_delete(
     """删除指定的 PassKey"""
     try:
         # 验证密码
-        if not security.verify_password(
-            data.password, str(current_user.hashed_password)
-        ):
+        if not security.verify_password(data.password, str(current_user.hashed_password)):
             return schemas.Response(success=False, message="密码错误")
 
-        success = PassKey.delete_by_id(
-            db=None, passkey_id=data.passkey_id, user_id=current_user.id
-        )
+        success = PassKey.delete_by_id(db=None, passkey_id=data.passkey_id, user_id=current_user.id)
 
         if success:
             logger.info(f"用户 {current_user.name} 删除了PassKey: {data.passkey_id}")

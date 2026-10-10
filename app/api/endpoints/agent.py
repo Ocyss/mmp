@@ -8,10 +8,11 @@ import subprocess
 import time
 import uuid
 from collections import deque
-from queue import Empty, Queue
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
+from queue import Empty, Queue
 from threading import Lock
-from typing import Any, AsyncIterator, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -66,13 +67,11 @@ class _WebAgentEventPublisher:
     """合并 WebAgent 文本增量，并通过有界队列向 SSE 消费者提供事件。"""
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[dict] = asyncio.Queue(
-            maxsize=WEB_AGENT_STREAM_QUEUE_MAX_SIZE
-        )
+        self._queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=WEB_AGENT_STREAM_QUEUE_MAX_SIZE)
         self._pending_events: deque[dict] = deque()
         self._pending_signal = asyncio.Event()
         self._pending_delta = ""
-        self._delta_timer: Optional[asyncio.TimerHandle] = None
+        self._delta_timer: asyncio.TimerHandle | None = None
         self._disposed = False
         self._max_depth = 0
         self._last_logged_depth = 0
@@ -138,11 +137,7 @@ class _WebAgentEventPublisher:
 
     def _append_event(self, event: dict) -> None:
         """追加待发布事件，相邻文本在出口阻塞时继续合并。"""
-        if (
-            event.get("type") == "delta"
-            and self._pending_events
-            and self._pending_events[-1].get("type") == "delta"
-        ):
+        if event.get("type") == "delta" and self._pending_events and self._pending_events[-1].get("type") == "delta":
             self._pending_events[-1]["content"] += str(event.get("content") or "")
         else:
             self._pending_events.append(event)
@@ -255,8 +250,8 @@ class _WebAgentStreamingHandler(StreamingHandler):
     def record_tool_call(
         self,
         tool_name: str,
-        tool_message: Optional[str] = None,
-        tool_kwargs: Optional[dict[str, Any]] = None,
+        tool_message: str | None = None,
+        tool_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """记录并立即输出 Web 工具事件，避免汇总延迟到正文结束后。"""
         super().record_tool_call(
@@ -282,12 +277,12 @@ class _WebAgentStreamingHandler(StreamingHandler):
 
     async def start_streaming(
         self,
-        channel: Optional[str] = None,
-        source: Optional[str] = None,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-        original_message_id: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
+        channel: str | None = None,
+        source: str | None = None,
+        user_id: str | None = None,
+        username: str | None = None,
+        original_message_id: str | None = None,
+        original_chat_id: str | None = None,
         title: str = "",
     ) -> None:
         """Web SSE 自身负责外发，不启动消息模块编辑循环。"""
@@ -331,7 +326,7 @@ class _WebAgentMoviePilotAgent(MoviePilotAgent):
     def __init__(
         self,
         *args: Any,
-        notification_callback: Optional[Callable[[schemas.Notification], None]] = None,
+        notification_callback: Callable[[schemas.Notification], None] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -345,8 +340,8 @@ class _WebAgentMoviePilotAgent(MoviePilotAgent):
         return True
 
     def set_notification_callback(
-            self,
-            notification_callback: Optional[Callable[[schemas.Notification], None]],
+        self,
+        notification_callback: Callable[[schemas.Notification], None] | None,
     ) -> None:
         """
         更新 Web SSE 通知回调，复用 Agent 实例时指向当前请求队列。
@@ -355,7 +350,7 @@ class _WebAgentMoviePilotAgent(MoviePilotAgent):
         """
         self._notification_callback = notification_callback
 
-    def set_output_callback(self, output_callback: Optional[Callable[[str], None]]) -> None:
+    def set_output_callback(self, output_callback: Callable[[str], None] | None) -> None:
         """
         更新 Web SSE 输出回调，复用 Agent 实例时指向当前请求队列。
 
@@ -371,7 +366,7 @@ class _WebAgentMoviePilotAgent(MoviePilotAgent):
             return False
         try:
             user = await UserOper().async_get_by_id(int(self.user_id))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         except Exception as e:
             logger.error(f"检查 Web Agent 用户管理员身份失败: {e}")
@@ -401,7 +396,7 @@ class _WebAgentMoviePilotAgent(MoviePilotAgent):
             logger.debug(f"Web智能体输出回调失败: {e}")
 
 
-def _build_web_agent_session_id(user: User, session_id: Optional[str]) -> str:
+def _build_web_agent_session_id(user: User, session_id: str | None) -> str:
     """
     构建前端 Agent 会话 ID。
 
@@ -419,7 +414,7 @@ def _build_web_agent_session_id(user: User, session_id: Optional[str]) -> str:
     except Exception as e:
         logger.debug(f"读取WebAgent历史会话失败: {e}")
     user_part = user.name or str(user.id)
-    digest = hashlib.sha256(f"{user_part}:{seed}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{user_part}:{seed}".encode()).hexdigest()
     return f"{WEB_AGENT_SESSION_PREFIX}{digest[:32]}"
 
 
@@ -438,9 +433,7 @@ def _can_access_agent_chat(chat: AgentChat, user: User) -> bool:
     return chat.user_id == user_id or (bool(username) and chat.username == username)
 
 
-async def _get_accessible_agent_chat(
-    oper: AgentChatOper, session_id: str, user: User
-) -> Optional[AgentChat]:
+async def _get_accessible_agent_chat(oper: AgentChatOper, session_id: str, user: User) -> AgentChat | None:
     """
     读取当前用户可访问的 Agent 会话。
     """
@@ -475,10 +468,7 @@ def _build_legacy_web_agent_segments(content: str, tools: list[dict]) -> list[di
     :param tools: 工具提示列表
     :return: 按旧版工具在前、文本在后的顺序生成的片段
     """
-    segments = [
-        {"type": "tool", "toolIndex": index}
-        for index in range(len(tools))
-    ]
+    segments = [{"type": "tool", "toolIndex": index} for index in range(len(tools))]
     if content:
         segments.append({"type": "text", "content": content})
     return segments
@@ -490,9 +480,7 @@ def _apply_web_agent_display_event(event: dict, assistant_message: dict) -> None
     """
     event_type = event.get("type")
     if event_type == "delta":
-        _append_web_agent_text_segment(
-            assistant_message, event.get("content") or ""
-        )
+        _append_web_agent_text_segment(assistant_message, event.get("content") or "")
     elif event_type == "tool":
         for tool in assistant_message["tools"]:
             tool["status"] = "done"
@@ -504,9 +492,7 @@ def _apply_web_agent_display_event(event: dict, assistant_message: dict) -> None
                 "status": "running",
             }
         )
-        assistant_message.setdefault("segments", []).append(
-            {"type": "tool", "toolIndex": tool_index}
-        )
+        assistant_message.setdefault("segments", []).append({"type": "tool", "toolIndex": tool_index})
     elif event_type == "attachment" and event.get("attachment"):
         assistant_message["attachments"].append(event["attachment"])
     elif event_type == "choice" and event.get("choice"):
@@ -522,9 +508,7 @@ def _apply_web_agent_display_event(event: dict, assistant_message: dict) -> None
         assistant_message["segments"] = (
             target_segments
             if isinstance(target_segments, list)
-            else _build_legacy_web_agent_segments(
-                assistant_message["content"], assistant_message["tools"]
-            )
+            else _build_legacy_web_agent_segments(assistant_message["content"], assistant_message["tools"])
         )
         assistant_message["status"] = target_message.get("status") or "done"
     elif event_type == "error":
@@ -548,7 +532,7 @@ def _save_web_agent_display_snapshot(
     session_id: str,
     current_user: User,
     messages: list[dict],
-    client_session_id: Optional[str] = None,
+    client_session_id: str | None = None,
 ) -> None:
     """
     保存 WebAgent 当前展示消息快照。
@@ -560,16 +544,8 @@ def _save_web_agent_display_snapshot(
             session_id=session_id,
             user_id=(existing_chat.user_id if existing_chat else str(current_user.id)),
             username=(existing_chat.username if existing_chat else current_user.name),
-            channel=(
-                existing_chat.channel
-                if existing_chat and existing_chat.channel
-                else MessageChannel.WebAgent
-            ),
-            source=(
-                existing_chat.source
-                if existing_chat and existing_chat.source
-                else WEB_AGENT_SOURCE
-            ),
+            channel=(existing_chat.channel if existing_chat and existing_chat.channel else MessageChannel.WebAgent),
+            source=(existing_chat.source if existing_chat and existing_chat.source else WEB_AGENT_SOURCE),
             original_chat_id=existing_chat.original_chat_id if existing_chat else None,
             client_session_id=(
                 existing_chat.client_session_id
@@ -583,9 +559,9 @@ def _save_web_agent_display_snapshot(
 
 
 def _build_web_agent_sse(
-        event_type: str,
-        data: Optional[dict] = None,
-        locale: Optional[str] = None,
+    event_type: str,
+    data: dict | None = None,
+    locale: str | None = None,
 ) -> str:
     """
     构建 Web Agent SSE 消息。
@@ -598,15 +574,11 @@ def _build_web_agent_sse(
     payload = {"type": event_type, **(data or {})}
     message = payload.get("message")
     if event_type == "error" and isinstance(message, str):
-        payload["message_i18n"] = LocaleHelper.translate_text(
-            message, locale=locale
-        )
+        payload["message_i18n"] = LocaleHelper.translate_text(message, locale=locale)
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-def _sanitize_web_agent_upload_name(
-    filename: Optional[str], mime_type: Optional[str] = None
-) -> str:
+def _sanitize_web_agent_upload_name(filename: str | None, mime_type: str | None = None) -> str:
     """
     规范化 Web Agent 上传文件名，避免路径穿越和空文件名。
 
@@ -615,9 +587,7 @@ def _sanitize_web_agent_upload_name(
     :return: 可安全落盘的文件名
     """
     name = Path(filename or "attachment").name.strip()
-    safe_name = "".join(
-        char for char in name if char.isalnum() or char in (" ", ".", "_", "-")
-    ).strip(" .")
+    safe_name = "".join(char for char in name if char.isalnum() or char in (" ", ".", "_", "-")).strip(" .")
     if not safe_name:
         safe_name = "attachment"
     if "." not in safe_name:
@@ -626,7 +596,7 @@ def _sanitize_web_agent_upload_name(
     return safe_name
 
 
-def _get_web_agent_upload_dir(user: User, session_id: Optional[str]) -> Path:
+def _get_web_agent_upload_dir(user: User, session_id: str | None) -> Path:
     """
     计算当前 Web Agent 会话的临时附件目录。
 
@@ -693,9 +663,7 @@ def _cleanup_web_agent_file_registry() -> None:
         _WEB_AGENT_FILE_REGISTRY.pop(file_id, None)
 
 
-def _guess_web_agent_attachment_kind(
-    mime_type: Optional[str], fallback: str = "file"
-) -> str:
+def _guess_web_agent_attachment_kind(mime_type: str | None, fallback: str = "file") -> str:
     """
     根据 MIME 类型推断前端附件展示方式。
 
@@ -713,8 +681,8 @@ def _guess_web_agent_attachment_kind(
 def _build_web_agent_url_attachment(
     url: str,
     kind: str,
-    name: Optional[str] = None,
-    mime_type: Optional[str] = None,
+    name: str | None = None,
+    mime_type: str | None = None,
 ) -> dict:
     """
     构建远程或 data URL 附件事件。
@@ -781,11 +749,11 @@ def _build_web_agent_input_attachments(
 
 
 def _register_web_agent_file(
-    file_path: Optional[str],
-    file_name: Optional[str] = None,
-    kind: Optional[str] = None,
-    mime_type: Optional[str] = None,
-) -> Optional[dict]:
+    file_path: str | None,
+    file_name: str | None = None,
+    kind: str | None = None,
+    mime_type: str | None = None,
+) -> dict | None:
     """
     注册 Web Agent 本地附件并返回前端可访问的短期下载地址。
 
@@ -807,9 +775,7 @@ def _register_web_agent_file(
     _cleanup_web_agent_file_registry()
     file_id = uuid.uuid4().hex
     display_name = file_name or resolved_path.name
-    resolved_mime_type = mime_type or mimetypes.guess_type(
-        display_name or str(resolved_path)
-    )[0]
+    resolved_mime_type = mime_type or mimetypes.guess_type(display_name or str(resolved_path))[0]
     file_url = f"message/agent/file/{file_id}"
     _WEB_AGENT_FILE_REGISTRY[file_id] = {
         "path": resolved_path,
@@ -827,7 +793,7 @@ def _register_web_agent_file(
     }
 
 
-def _get_web_agent_audio_mime_type(audio_path: Path) -> Optional[str]:
+def _get_web_agent_audio_mime_type(audio_path: Path) -> str | None:
     """
     生成浏览器播放更友好的音频 MIME 类型。
 
@@ -891,7 +857,7 @@ def _prepare_web_agent_audio_attachment_path(voice_path: str) -> Path:
     return output_path
 
 
-def _get_web_agent_registered_file(ref: str) -> Optional[dict[str, Any]]:
+def _get_web_agent_registered_file(ref: str) -> dict[str, Any] | None:
     """
     根据前端附件引用读取 WebAgent 临时文件登记信息。
 
@@ -904,11 +870,11 @@ def _get_web_agent_registered_file(ref: str) -> Optional[dict[str, Any]]:
         return None
 
     _cleanup_web_agent_file_registry()
-    file_id = normalized_ref[len(prefix):].split("/", 1)[0]
+    file_id = normalized_ref[len(prefix) :].split("/", 1)[0]
     return _WEB_AGENT_FILE_REGISTRY.get(file_id)
 
 
-def _transcribe_web_agent_audio_refs(audio_refs: list[str]) -> Optional[str]:
+def _transcribe_web_agent_audio_refs(audio_refs: list[str]) -> str | None:
     """
     转写 WebAgent 上传的本地录音附件。
 
@@ -945,7 +911,7 @@ def _transcribe_web_agent_audio_refs(audio_refs: list[str]) -> Optional[str]:
     return "\n".join(transcripts).strip() if transcripts else None
 
 
-def _merge_web_agent_prompt_with_transcript(prompt: str, transcript: Optional[str]) -> str:
+def _merge_web_agent_prompt_with_transcript(prompt: str, transcript: str | None) -> str:
     """合并用户输入文本和语音转写文本，避免重复发送相同内容。"""
     merged_parts = []
     seen_parts = set()
@@ -958,7 +924,7 @@ def _merge_web_agent_prompt_with_transcript(prompt: str, transcript: Optional[st
     return "\n".join(merged_parts).strip()
 
 
-def _parse_web_agent_choice_callback(callback_data: str) -> Optional[tuple[str, int]]:
+def _parse_web_agent_choice_callback(callback_data: str) -> tuple[str, int] | None:
     """
     解析 Web Agent 按钮选择回调数据。
 
@@ -976,7 +942,7 @@ def _parse_web_agent_choice_callback(callback_data: str) -> Optional[tuple[str, 
     return request_id, int(option_index)
 
 
-def _normalize_web_agent_choice_button_rows(buttons: Optional[list[list[dict]]]) -> list[list[dict]]:
+def _normalize_web_agent_choice_button_rows(buttons: list[list[dict]] | None) -> list[list[dict]]:
     """
     将消息渠道按钮二维结构转换为 Web 前端可渲染的按钮行。
 
@@ -1004,7 +970,7 @@ def _normalize_web_agent_choice_button_rows(buttons: Optional[list[list[dict]]])
     return normalized_rows
 
 
-def _build_web_agent_choice_event(notification: schemas.Notification) -> Optional[dict]:
+def _build_web_agent_choice_event(notification: schemas.Notification) -> dict | None:
     """
     将带按钮通知转换为 Web Agent 选择卡片事件。
 
@@ -1054,7 +1020,7 @@ def _build_web_agent_choice_buttons_from_request(
     return buttons, button_rows
 
 
-def _resolve_web_agent_choice_payload(callback_data: str, user_id: str) -> Optional[dict]:
+def _resolve_web_agent_choice_payload(callback_data: str, user_id: str) -> dict | None:
     """
     解析并消费 Web Agent 按钮选择，生成前端反馈与下一条用户消息。
 
@@ -1119,11 +1085,7 @@ def _build_web_agent_notification_events(
     if choice_event:
         events.append(choice_event)
 
-    text_parts = [
-        str(item).strip()
-        for item in (notification.title, notification.text)
-        if str(item or "").strip()
-    ]
+    text_parts = [str(item).strip() for item in (notification.title, notification.text) if str(item or "").strip()]
     if text_parts and not choice_event:
         events.append({"type": "delta", "content": "\n\n".join(text_parts)})
 
@@ -1132,9 +1094,7 @@ def _build_web_agent_notification_events(
         image_path = Path(image_ref).expanduser()
         attachment = None
         if not image_ref.startswith(("http://", "https://", "data:", "blob:")):
-            attachment = _register_web_agent_file(
-                image_ref, file_name=Path(image_ref).name, kind="image"
-            )
+            attachment = _register_web_agent_file(image_ref, file_name=Path(image_ref).name, kind="image")
         if not attachment:
             attachment = _build_web_agent_url_attachment(
                 image_ref,
@@ -1215,7 +1175,7 @@ def _has_web_agent_traditional_interaction(user_id: str) -> bool:
 
 def _extract_web_agent_notification_from_event_data(
     data: dict,
-) -> Optional[schemas.Notification]:
+) -> schemas.Notification | None:
     """
     从 NoticeMessage 事件数据中提取 WebAgent 通知。
 
@@ -1267,7 +1227,7 @@ def _is_web_agent_notice_for_user(
         return False
 
 
-def _get_web_agent_notice_user_id(notification: schemas.Notification) -> Optional[str]:
+def _get_web_agent_notice_user_id(notification: schemas.Notification) -> str | None:
     """
     从 NoticeMessage 事件中解析 WebAgent 目标用户。
 
@@ -1298,11 +1258,7 @@ def _dispatch_web_agent_notice_event(event: Event) -> None:
     with _WEB_AGENT_NOTICE_LOCK:
         user_id = _get_web_agent_notice_user_id(notification)
         if user_id is None:
-            queues = [
-                notice_queue
-                for user_queues in _WEB_AGENT_NOTICE_QUEUES.values()
-                for notice_queue in user_queues
-            ]
+            queues = [notice_queue for user_queues in _WEB_AGENT_NOTICE_QUEUES.values() for notice_queue in user_queues]
         else:
             queues = list(_WEB_AGENT_NOTICE_QUEUES.get(user_id) or [])
     for notice_queue in queues:
@@ -1349,9 +1305,7 @@ def _detach_web_agent_notice_queue(user_id: str, notice_queue: Queue[schemas.Not
         queues = _WEB_AGENT_NOTICE_QUEUES.get(str(user_id))
         if not queues:
             return
-        _WEB_AGENT_NOTICE_QUEUES[str(user_id)] = [
-            item for item in queues if item is not notice_queue
-        ]
+        _WEB_AGENT_NOTICE_QUEUES[str(user_id)] = [item for item in queues if item is not notice_queue]
         if not _WEB_AGENT_NOTICE_QUEUES[str(user_id)]:
             _WEB_AGENT_NOTICE_QUEUES.pop(str(user_id), None)
 
@@ -1381,7 +1335,7 @@ def _build_web_agent_command_items() -> list[dict]:
     return sorted(items, key=lambda item: (item["category"], item["command"]))
 
 
-def _extract_web_agent_slash_command(text: str) -> Optional[str]:
+def _extract_web_agent_slash_command(text: str) -> str | None:
     """
     从 WebAgent 输入中提取斜杠命令名。
 
@@ -1395,7 +1349,7 @@ def _extract_web_agent_slash_command(text: str) -> Optional[str]:
     return command or None
 
 
-def _get_web_agent_unknown_command_message(text: str) -> Optional[str]:
+def _get_web_agent_unknown_command_message(text: str) -> str | None:
     """
     判断 WebAgent 斜杠命令是否不存在。
 
@@ -1410,7 +1364,7 @@ def _get_web_agent_unknown_command_message(text: str) -> Optional[str]:
     return f"命令不存在：{command}"
 
 
-def _ensure_web_agent_command_allowed(current_user: User) -> Optional[str]:
+def _ensure_web_agent_command_allowed(current_user: User) -> str | None:
     """
     校验当前 Web 用户是否可以执行传统斜杠命令。
 
@@ -1426,8 +1380,8 @@ async def _collect_web_agent_traditional_events(
     *,
     text: str,
     current_user: User,
-    original_message_id: Optional[Union[str, int]] = None,
-    original_chat_id: Optional[Union[str, int]] = None,
+    original_message_id: str | int | None = None,
+    original_chat_id: str | int | None = None,
 ) -> list[dict]:
     """
     执行传统消息链路并收集本次 WebAgent 用户产生的通知事件。
@@ -1458,7 +1412,7 @@ async def _collect_web_agent_traditional_events(
 
         events = []
         deadline = time.monotonic() + WEB_AGENT_TRADITIONAL_MAX_WAIT_SECONDS
-        idle_deadline: Optional[float] = None
+        idle_deadline: float | None = None
         while time.monotonic() < deadline:
             now = time.monotonic()
             drained_edit_event = False
@@ -1493,8 +1447,8 @@ async def _collect_web_agent_traditional_events(
 
 def _build_web_agent_traditional_callback_payload(
     callback_data: str,
-    original_message_id: Optional[Union[str, int]] = None,
-    original_chat_id: Optional[Union[str, int]] = None,
+    original_message_id: str | int | None = None,
+    original_chat_id: str | int | None = None,
 ) -> dict:
     """
     构造传统消息链按钮回调的前端执行载荷。
@@ -1559,7 +1513,7 @@ def _split_web_agent_output(text: str) -> list[dict]:
         if marker_index > 0:
             append_text(remaining[:marker_index])
 
-        after_marker = remaining[marker_index + len(marker):]
+        after_marker = remaining[marker_index + len(marker) :]
         line_end = after_marker.find("\n")
         if line_end < 0:
             message = after_marker.strip()
@@ -1602,7 +1556,7 @@ async def download_web_agent_file(file_id: str) -> FileResponse:
 @router.post("/upload", summary="上传 Web 智能助手附件", response_model=schemas.Response)
 async def upload_web_agent_file(
     file: UploadFile = File(...),
-    session_id: Optional[str] = Form(None),
+    session_id: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
 ) -> schemas.Response:
     """
@@ -1693,8 +1647,8 @@ async def list_web_agent_commands(
 async def list_agent_chat_sessions(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    page: int | None = 1,
+    count: int | None = 30,
 ) -> schemas.Response:
     """
     获取当前用户可访问的 Agent 历史会话列表。
@@ -1778,10 +1732,7 @@ async def save_agent_chat_display(
     if existing_chat and not _can_access_agent_chat(existing_chat, current_user):
         return schemas.Response(success=False, message="会话不存在或无权访问")
 
-    messages = [
-        message.model_dump(exclude_none=True)
-        for message in payload.messages
-    ]
+    messages = [message.model_dump(exclude_none=True) for message in payload.messages]
     await run_in_threadpool(
         _save_web_agent_display_snapshot,
         session_id=session_id,
@@ -1832,9 +1783,7 @@ async def stop_web_agent_session_task(
     :return: 停止结果
     """
     server_session_id = _build_web_agent_session_id(current_user, session_id)
-    chat = await _get_accessible_agent_chat(
-        AgentChatOper(db), server_session_id, current_user
-    )
+    chat = await _get_accessible_agent_chat(AgentChatOper(db), server_session_id, current_user)
     if not chat and server_session_id != session_id:
         chat = await _get_accessible_agent_chat(AgentChatOper(db), session_id, current_user)
     if chat and not _can_access_agent_chat(chat, current_user):
@@ -1865,43 +1814,43 @@ async def web_agent_stream(
     prompt = payload.text.strip()
     locale = LocaleHelper.get_locale_from_request(request)
     display_prompt = (payload.display_text or payload.text).strip()
-    is_traditional_message = (
-        _is_web_agent_traditional_message(prompt)
-        or _has_web_agent_traditional_interaction(str(current_user.id))
+    is_traditional_message = _is_web_agent_traditional_message(prompt) or _has_web_agent_traditional_interaction(
+        str(current_user.id)
     )
     if is_traditional_message:
         denied_message = _ensure_web_agent_command_allowed(current_user)
         if denied_message:
             return StreamingResponse(
-                iter([
-                    _build_web_agent_sse(
-                        "error",
-                        {"message": denied_message},
-                        locale=locale,
-                    )
-                ]),
+                iter(
+                    [
+                        _build_web_agent_sse(
+                            "error",
+                            {"message": denied_message},
+                            locale=locale,
+                        )
+                    ]
+                ),
                 media_type="text/event-stream",
             )
         unknown_command_message = _get_web_agent_unknown_command_message(prompt)
         if unknown_command_message:
             return StreamingResponse(
-                iter([
-                    _build_web_agent_sse(
-                        "error",
-                        {"message": unknown_command_message},
-                        locale=locale,
-                    )
-                ]),
+                iter(
+                    [
+                        _build_web_agent_sse(
+                            "error",
+                            {"message": unknown_command_message},
+                            locale=locale,
+                        )
+                    ]
+                ),
                 media_type="text/event-stream",
             )
 
         session_id = _build_web_agent_session_id(current_user, payload.session_id)
         user_attachments = _build_web_agent_input_attachments(
             images=payload.images or [],
-            files=[
-                file.model_dump(exclude_none=True)
-                for file in (payload.files or [])
-            ],
+            files=[file.model_dump(exclude_none=True) for file in (payload.files or [])],
             audio_refs=payload.audio_refs or [],
         )
         display_messages = []
@@ -1939,7 +1888,7 @@ async def web_agent_stream(
                             timeout=WEB_AGENT_STREAM_HEARTBEAT_SECONDS,
                         )
                         break
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         if await request.is_disconnected():
                             collection_task.cancel()
                             return
@@ -1992,13 +1941,15 @@ async def web_agent_stream(
 
     if not settings.AI_AGENT_ENABLE:
         return StreamingResponse(
-            iter([
-                _build_web_agent_sse(
-                    "error",
-                    {"message": "智能助手未启用，请先在系统设置中开启。"},
-                    locale=locale,
-                )
-            ]),
+            iter(
+                [
+                    _build_web_agent_sse(
+                        "error",
+                        {"message": "智能助手未启用，请先在系统设置中开启。"},
+                        locale=locale,
+                    )
+                ]
+            ),
             media_type="text/event-stream",
         )
 
@@ -2008,24 +1959,28 @@ async def web_agent_stream(
     has_audio_input = bool(transcript)
     if not prompt and payload.audio_refs and not payload.images and not payload.files:
         return StreamingResponse(
-            iter([
-                _build_web_agent_sse(
-                    "error",
-                    {"message": "语音识别失败，请稍后重试。"},
-                    locale=locale,
-                )
-            ]),
+            iter(
+                [
+                    _build_web_agent_sse(
+                        "error",
+                        {"message": "语音识别失败，请稍后重试。"},
+                        locale=locale,
+                    )
+                ]
+            ),
             media_type="text/event-stream",
         )
     if not prompt and not payload.images and not payload.files and not payload.audio_refs:
         return StreamingResponse(
-            iter([
-                _build_web_agent_sse(
-                    "error",
-                    {"message": "请输入要发送给智能助手的内容或选择附件。"},
-                    locale=locale,
-                )
-            ]),
+            iter(
+                [
+                    _build_web_agent_sse(
+                        "error",
+                        {"message": "请输入要发送给智能助手的内容或选择附件。"},
+                        locale=locale,
+                    )
+                ]
+            ),
             media_type="text/event-stream",
         )
 
@@ -2034,10 +1989,7 @@ async def web_agent_stream(
     event_publisher = _WebAgentEventPublisher()
     user_attachments = _build_web_agent_input_attachments(
         images=payload.images or [],
-        files=[
-            file.model_dump(exclude_none=True)
-            for file in (payload.files or [])
-        ],
+        files=[file.model_dump(exclude_none=True) for file in (payload.files or [])],
         audio_refs=payload.audio_refs or [],
     )
     display_messages = []
@@ -2077,11 +2029,7 @@ async def web_agent_stream(
         生成前端 Agent SSE 事件。
         """
         audio_ref_set = set(payload.audio_refs or [])
-        files = [
-            file.model_dump(exclude_none=True)
-            for file in (payload.files or [])
-            if file.ref not in audio_ref_set
-        ]
+        files = [file.model_dump(exclude_none=True) for file in (payload.files or []) if file.ref not in audio_ref_set]
         for audio_ref in payload.audio_refs or []:
             files.append({"ref": audio_ref, "mime_type": "audio/*"})
 
@@ -2146,7 +2094,7 @@ async def web_agent_stream(
                         event_publisher.get(),
                         timeout=WEB_AGENT_STREAM_HEARTBEAT_SECONDS,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     yield ": heartbeat\n\n"
                     continue
                 event_type = str(event.get("type") or "")

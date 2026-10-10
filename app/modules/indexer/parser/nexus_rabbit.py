@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
-import re
 import json
+import re
 from typing import Optional
-from lxml import etree
 from urllib.parse import urljoin
+
+from lxml import etree
+
 from app.log import logger
-from app.modules.indexer.parser import SiteSchema
-from app.modules.indexer.parser import SiteParserBase
+from app.modules.indexer.parser import SiteParserBase, SiteSchema
 from app.utils.string import StringUtils
 
 
@@ -52,9 +52,7 @@ class NexusRabbitSiteUserInfo(SiteParserBase):
             "X-Requested-With": "XMLHttpRequest",
         }
 
-    def _parse_user_torrent_seeding_info(
-        self, html_text: str, multi_page: bool = False
-    ) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool = False) -> str | None:
         """
         做种相关信息
         :param html_text:
@@ -81,9 +79,7 @@ class NexusRabbitSiteUserInfo(SiteParserBase):
         self.seeding_size = seeding_size
         self.seeding_info = seeding_info
 
-    def _parse_message_unread_links(
-        self, html_text: str, msg_links: list
-    ) -> str | None:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         unread_ids = []
         try:
             messages = json.loads(html_text).get("data", [])
@@ -117,9 +113,7 @@ class NexusRabbitSiteUserInfo(SiteParserBase):
         try:
             if not StringUtils.is_valid_html_element(html):
                 return
-            bonus = html.xpath(
-                '//div[contains(text(), "奶糖余额")]/following-sibling::div[1]/text()'
-            )
+            bonus = html.xpath('//div[contains(text(), "奶糖余额")]/following-sibling::div[1]/text()')
             if bonus:
                 self.bonus = StringUtils.str_float(bonus[0].strip())
         finally:
@@ -137,9 +131,7 @@ class NexusRabbitSiteUserInfo(SiteParserBase):
                 return
             user_info = user_info[0]
             # 用户名
-            if username := user_info.xpath(
-                './/span[contains(text(), "用户名")]/a/span/text()'
-            ):
+            if username := user_info.xpath('.//span[contains(text(), "用户名")]/a/span/text()'):
                 self.username = username[0].strip()
             # 等级
             if user_level := user_info.xpath('.//span[contains(text(), "等级")]/b/text()'):
@@ -150,14 +142,10 @@ class NexusRabbitSiteUserInfo(SiteParserBase):
                 self.join_at = StringUtils.unify_datetime_str(join_date)
             # 上传量
             if upload := user_info.xpath('.//span[contains(text(), "上传量")]/text()'):
-                self.upload = StringUtils.num_filesize(
-                    upload[0].strip().removeprefix("上传量：")
-                )
+                self.upload = StringUtils.num_filesize(upload[0].strip().removeprefix("上传量："))
             # 下载量
             if download := user_info.xpath('.//span[contains(text(), "下载量")]/text()'):
-                self.download = StringUtils.num_filesize(
-                    download[0].strip().removeprefix("下载量：")
-                )
+                self.download = StringUtils.num_filesize(download[0].strip().removeprefix("下载量："))
             # 分享率
             if ratio := user_info.xpath('.//span[contains(text(), "分享率")]/em/text()'):
                 self.ratio = StringUtils.str_float(ratio[0].strip())

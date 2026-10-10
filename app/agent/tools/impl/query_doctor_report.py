@@ -14,14 +14,14 @@ from app.log import logger
 class QueryDoctorReportInput(BaseModel):
     """查询 Doctor 诊断报告工具的输入参数模型。"""
 
-    deep: Optional[bool] = Field(
+    deep: bool | None = Field(
         False,
         description=(
             "Whether to run deeper checks. When true, doctor may perform slower environment probes "
             "such as PostgreSQL TCP connectivity checks."
         ),
     )
-    include_details: Optional[bool] = Field(
+    include_details: bool | None = Field(
         True,
         description=(
             "Whether to include full doctor findings with details and context. Set false for a compact "
@@ -49,9 +49,9 @@ class QueryDoctorReportTool(MoviePilotTool):
         "fixes."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryDoctorReportInput
+    args_schema: type[BaseModel] = QueryDoctorReportInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息。"""
         if kwargs.get("deep"):
             return "运行 Doctor 深度诊断"
@@ -89,16 +89,14 @@ class QueryDoctorReportTool(MoviePilotTool):
 
     async def run(
         self,
-        deep: Optional[bool] = False,
-        include_details: Optional[bool] = True,
+        deep: bool | None = False,
+        include_details: bool | None = True,
         **kwargs,
     ) -> str:
         """
         运行只读 Doctor 诊断并返回 JSON 字符串。
         """
-        logger.info(
-            f"执行工具: {self.name}, deep={bool(deep)}, include_details={bool(include_details)}"
-        )
+        logger.info(f"执行工具: {self.name}, deep={bool(deep)}, include_details={bool(include_details)}")
         try:
             report = await self.run_blocking("default", self._run_doctor_report, bool(deep))
             if not include_details:

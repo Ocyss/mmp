@@ -2,24 +2,24 @@ from typing import List, Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.chain.recommend import RecommendChain
-from app.schemas import ActionParams, ActionContext
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.event import eventmanager
 from app.log import logger
-from app.schemas import RecommendSourceEventData, MediaInfo
+from app.schemas import ActionContext, ActionParams, MediaInfo, RecommendSourceEventData
 from app.schemas.types import ChainEventType
 from app.utils.http import RequestUtils
+from app.workflow.actions import BaseAction
 
 
 class FetchMediasParams(ActionParams):
     """
     获取媒体数据参数
     """
-    source_type: Optional[str] = Field(default="ranking", description="来源")
-    sources: Optional[List[str]] = Field(default=[], description="榜单")
-    api_path: Optional[str] = Field(default=None, description="API路径")
+
+    source_type: str | None = Field(default="ranking", description="来源")
+    sources: list[str] | None = Field(default=[], description="榜单")
+    api_path: str | None = Field(default=None, description="API路径")
 
 
 class FetchMediasAction(BaseAction):
@@ -37,71 +37,47 @@ class FetchMediasAction(BaseAction):
         self._medias = []
         self._has_error = False
         self.__inner_sources = [
-            {
-                "func": RecommendChain().tmdb_trending,
-                "name": '流行趋势',
-                "api_path": "recommend/tmdb_trending"
-            },
-            {
-                "func": RecommendChain().douban_movie_showing,
-                "name": '正在热映',
-                "api_path": "recommend/douban_showing"
-            },
+            {"func": RecommendChain().tmdb_trending, "name": "流行趋势", "api_path": "recommend/tmdb_trending"},
+            {"func": RecommendChain().douban_movie_showing, "name": "正在热映", "api_path": "recommend/douban_showing"},
             {
                 "func": RecommendChain().bangumi_calendar,
-                "name": 'Bangumi每日放送',
-                "api_path": "recommend/bangumi_calendar"
+                "name": "Bangumi每日放送",
+                "api_path": "recommend/bangumi_calendar",
             },
-            {
-                "func": RecommendChain().tmdb_movies,
-                "name": 'TMDB热门电影',
-                "api_path": "recommend/tmdb_movies"
-            },
+            {"func": RecommendChain().tmdb_movies, "name": "TMDB热门电影", "api_path": "recommend/tmdb_movies"},
             {
                 "func": RecommendChain().tmdb_tvs,
-                "name": 'TMDB热门电视剧',
-                "api_path": "recommend/tmdb_tvs?with_original_language=zh|en|ja|ko"
+                "name": "TMDB热门电视剧",
+                "api_path": "recommend/tmdb_tvs?with_original_language=zh|en|ja|ko",
             },
             {
                 "func": RecommendChain().douban_movie_hot,
-                "name": '豆瓣热门电影',
-                "api_path": "recommend/douban_movie_hot"
+                "name": "豆瓣热门电影",
+                "api_path": "recommend/douban_movie_hot",
             },
-            {
-                "func": RecommendChain().douban_tv_hot,
-                "name": '豆瓣热门电视剧',
-                "api_path": "recommend/douban_tv_hot"
-            },
+            {"func": RecommendChain().douban_tv_hot, "name": "豆瓣热门电视剧", "api_path": "recommend/douban_tv_hot"},
             {
                 "func": RecommendChain().douban_tv_animation,
-                "name": '豆瓣热门动漫',
-                "api_path": "recommend/douban_tv_animation"
+                "name": "豆瓣热门动漫",
+                "api_path": "recommend/douban_tv_animation",
             },
-            {
-                "func": RecommendChain().douban_movies,
-                "name": '豆瓣最新电影',
-                "api_path": "recommend/douban_movies"
-            },
-            {
-                "func": RecommendChain().douban_tvs,
-                "name": '豆瓣最新电视剧',
-                "api_path": "recommend/douban_tvs"
-            },
+            {"func": RecommendChain().douban_movies, "name": "豆瓣最新电影", "api_path": "recommend/douban_movies"},
+            {"func": RecommendChain().douban_tvs, "name": "豆瓣最新电视剧", "api_path": "recommend/douban_tvs"},
             {
                 "func": RecommendChain().douban_movie_top250,
-                "name": '豆瓣电影TOP250',
-                "api_path": "recommend/douban_movie_top250"
+                "name": "豆瓣电影TOP250",
+                "api_path": "recommend/douban_movie_top250",
             },
             {
                 "func": RecommendChain().douban_tv_weekly_chinese,
-                "name": '豆瓣国产剧集榜',
-                "api_path": "recommend/douban_tv_weekly_chinese"
+                "name": "豆瓣国产剧集榜",
+                "api_path": "recommend/douban_tv_weekly_chinese",
             },
             {
                 "func": RecommendChain().douban_tv_weekly_global,
-                "name": '豆瓣全球剧集榜',
-                "api_path": "recommend/douban_tv_weekly_global"
-            }
+                "name": "豆瓣全球剧集榜",
+                "api_path": "recommend/douban_tv_weekly_global",
+            },
         ]
 
         # 广播事件，请示额外的推荐数据源支持
@@ -115,17 +91,17 @@ class FetchMediasAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "获取媒体数据"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "获取榜单等媒体数据列表"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return FetchMediasParams().model_dump()
 
     @property
@@ -137,7 +113,7 @@ class FetchMediasAction(BaseAction):
         获取数据源
         """
         for s in self.__inner_sources:
-            if s['api_path'] == source:
+            if s["api_path"] == source:
                 return s
         return None
 
@@ -158,10 +134,12 @@ class FetchMediasAction(BaseAction):
                     name = source.get("name")
                     results = []
                     if source.get("func"):
-                        results = source['func']()
+                        results = source["func"]()
                     else:
                         # 调用内部API获取数据
-                        api_url = f"http://127.0.0.1:{settings.PORT}/api/v1/{source['api_path']}?token={settings.API_TOKEN}"
+                        api_url = (
+                            f"http://127.0.0.1:{settings.PORT}/api/v1/{source['api_path']}?token={settings.API_TOKEN}"
+                        )
                         res = RequestUtils(timeout=15).post_res(api_url)
                         if res:
                             results = res.json()

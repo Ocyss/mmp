@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get(
     "/source",
     summary="获取探索数据源",
-    response_model=List[schemas.DiscoverMediaSource],
+    response_model=list[schemas.DiscoverMediaSource],
 )
 def source(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
@@ -34,14 +34,14 @@ def source(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     return []
 
 
-@router.get("/bangumi", summary="探索Bangumi", response_model=List[schemas.MediaInfo])
+@router.get("/bangumi", summary="探索Bangumi", response_model=list[schemas.MediaInfo])
 async def bangumi(
-    type: Optional[int] = 2,
-    cat: Optional[int] = None,
-    sort: Optional[str] = "rank",
-    year: Optional[str] = None,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    type: int | None = 2,
+    cat: int | None = None,
+    sort: str | None = "rank",
+    year: str | None = None,
+    page: int | None = 1,
+    count: int | None = 30,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -55,14 +55,12 @@ async def bangumi(
     return []
 
 
-@router.get(
-    "/douban_movies", summary="探索豆瓣电影", response_model=List[schemas.MediaInfo]
-)
+@router.get("/douban_movies", summary="探索豆瓣电影", response_model=list[schemas.MediaInfo])
 async def douban_movies(
-    sort: Optional[str] = "R",
-    tags: Optional[str] = "",
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    sort: str | None = "R",
+    tags: str | None = "",
+    page: int | None = 1,
+    count: int | None = 30,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -74,38 +72,32 @@ async def douban_movies(
     return [media.to_dict() for media in movies] if movies else []
 
 
-@router.get(
-    "/douban_tvs", summary="探索豆瓣剧集", response_model=List[schemas.MediaInfo]
-)
+@router.get("/douban_tvs", summary="探索豆瓣剧集", response_model=list[schemas.MediaInfo])
 async def douban_tvs(
-    sort: Optional[str] = "R",
-    tags: Optional[str] = "",
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    sort: str | None = "R",
+    tags: str | None = "",
+    page: int | None = 1,
+    count: int | None = 30,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
     浏览豆瓣剧集信息
     """
-    tvs = await DoubanChain().async_douban_discover(
-        mtype=MediaType.TV, sort=sort, tags=tags, page=page, count=count
-    )
+    tvs = await DoubanChain().async_douban_discover(mtype=MediaType.TV, sort=sort, tags=tags, page=page, count=count)
     return [media.to_dict() for media in tvs] if tvs else []
 
 
-@router.get(
-    "/tmdb_movies", summary="探索TMDB电影", response_model=List[schemas.MediaInfo]
-)
+@router.get("/tmdb_movies", summary="探索TMDB电影", response_model=list[schemas.MediaInfo])
 async def tmdb_movies(
-    sort_by: Optional[str] = "popularity.desc",
-    with_genres: Optional[str] = "",
-    with_original_language: Optional[str] = "",
-    with_keywords: Optional[str] = "",
-    with_watch_providers: Optional[str] = "",
-    vote_average: Optional[float] = 0.0,
-    vote_count: Optional[int] = 0,
-    release_date: Optional[str] = "",
-    page: Optional[int] = 1,
+    sort_by: str | None = "popularity.desc",
+    with_genres: str | None = "",
+    with_original_language: str | None = "",
+    with_keywords: str | None = "",
+    with_watch_providers: str | None = "",
+    vote_average: float | None = 0.0,
+    vote_count: int | None = 0,
+    release_date: str | None = "",
+    page: int | None = 1,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -126,17 +118,17 @@ async def tmdb_movies(
     return [movie.to_dict() for movie in movies] if movies else []
 
 
-@router.get("/tmdb_tvs", summary="探索TMDB剧集", response_model=List[schemas.MediaInfo])
+@router.get("/tmdb_tvs", summary="探索TMDB剧集", response_model=list[schemas.MediaInfo])
 async def tmdb_tvs(
-    sort_by: Optional[str] = "popularity.desc",
-    with_genres: Optional[str] = "",
-    with_original_language: Optional[str] = "",
-    with_keywords: Optional[str] = "",
-    with_watch_providers: Optional[str] = "",
-    vote_average: Optional[float] = 0.0,
-    vote_count: Optional[int] = 0,
-    release_date: Optional[str] = "",
-    page: Optional[int] = 1,
+    sort_by: str | None = "popularity.desc",
+    with_genres: str | None = "",
+    with_original_language: str | None = "",
+    with_keywords: str | None = "",
+    with_watch_providers: str | None = "",
+    vote_average: float | None = 0.0,
+    vote_count: int | None = 0,
+    release_date: str | None = "",
+    page: int | None = 1,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """

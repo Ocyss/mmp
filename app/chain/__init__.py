@@ -6,13 +6,13 @@ from abc import ABCMeta
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Any, Tuple, List, Set, Union, Dict
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from fastapi.concurrency import run_in_threadpool
 from qbittorrentapi import TorrentFilesList
 from transmission_rpc import File
 
-from app.core.cache import FileCache, AsyncFileCache, fresh, async_fresh
+from app.core.cache import AsyncFileCache, FileCache, async_fresh, fresh
 from app.core.config import settings
 from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
 from app.core.event import EventManager
@@ -27,31 +27,31 @@ from app.helper.server import MoviePilotServerHelper
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
 from app.schemas import (
-    RateLimitExceededException,
-    TransferInfo,
-    ExistMediaInfo,
-    DownloaderTorrent,
     CommingMessage,
-    Notification,
-    WebhookEventInfo,
-    TmdbEpisode,
-    MediaPerson,
+    DownloaderTorrent,
+    ExistMediaInfo,
     FileItem,
-    TransferDirectoryConf,
+    MediaPerson,
     MessageResponse,
+    Notification,
+    RateLimitExceededException,
+    TmdbEpisode,
+    TransferDirectoryConf,
+    TransferInfo,
+    WebhookEventInfo,
+)
+from app.schemas.category import CategoryConfig
+from app.schemas.message import ChannelCapability, ChannelCapabilityManager
+from app.schemas.types import (
+    EventType,
+    MediaImageType,
+    MediaType,
+    MessageChannel,
+    SystemConfigKey,
+    TorrentStatus,
 )
 from app.utils.identity import normalize_internal_user_id
 from app.utils.media import normalize_media_source
-from app.schemas.message import ChannelCapability, ChannelCapabilityManager
-from app.schemas.category import CategoryConfig
-from app.schemas.types import (
-    TorrentStatus,
-    MediaType,
-    MediaImageType,
-    EventType,
-    MessageChannel,
-    SystemConfigKey,
-)
 from app.utils.object import ObjectUtils
 
 
@@ -126,20 +126,20 @@ class ChainBase(metaclass=ABCMeta):
         self.filecache.delete(filename)
 
     def start_message_processing_status(
-            self,
-            channel: MessageChannel,
-            source: Optional[str],
-            userid: Optional[Union[str, int]] = None,
-            message_id: Optional[Union[str, int]] = None,
-            chat_id: Optional[Union[str, int]] = None,
-            text: Optional[str] = None,
-    ) -> Optional[dict]:
+        self,
+        channel: MessageChannel,
+        source: str | None,
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        text: str | None = None,
+    ) -> dict | None:
         """
         启动渠道侧消息输入/处理状态。
         具体表现由消息模块实现，例如 typing 保活或消息 reaction。
         """
         if not channel or not ChannelCapabilityManager.supports_capability(
-                channel, ChannelCapability.PROCESSING_STATUS
+            channel, ChannelCapability.PROCESSING_STATUS
         ):
             return None
         try:
@@ -158,13 +158,13 @@ class ChainBase(metaclass=ABCMeta):
         return status if isinstance(status, dict) else None
 
     def finish_message_processing_status(
-            self,
-            status: Optional[dict] = None,
-            channel: Optional[MessageChannel] = None,
-            source: Optional[str] = None,
-            userid: Optional[Union[str, int]] = None,
-            message_id: Optional[Union[str, int]] = None,
-            chat_id: Optional[Union[str, int]] = None,
+        self,
+        status: dict | None = None,
+        channel: MessageChannel | None = None,
+        source: str | None = None,
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
     ) -> None:
         """
         结束渠道侧消息输入/处理状态。
@@ -177,7 +177,7 @@ class ChainBase(metaclass=ABCMeta):
             except Exception:
                 target_channel = channel
         if not target_channel or not ChannelCapabilityManager.supports_capability(
-                target_channel, ChannelCapability.PROCESSING_STATUS
+            target_channel, ChannelCapability.PROCESSING_STATUS
         ):
             return
         try:
@@ -194,18 +194,14 @@ class ChainBase(metaclass=ABCMeta):
             logger.debug(f"结束消息处理状态失败: {err}")
 
     @staticmethod
-    def _normalize_notification_for_dispatch(
-            message: Notification
-    ) -> Notification:
+    def _normalize_notification_for_dispatch(message: Notification) -> Notification:
         """
         规范化待发送的通知消息。
         后台任务会复用内部占位用户ID作为会话身份，这里在真正发送前清空，
         让消息重新走默认通知路由或基于 targets 的目标解析。
         """
         dispatch_message = copy.deepcopy(message)
-        dispatch_message.userid = normalize_internal_user_id(
-            dispatch_message.userid
-        )
+        dispatch_message.userid = normalize_internal_user_id(dispatch_message.userid)
         return dispatch_message
 
     @staticmethod
@@ -231,20 +227,14 @@ class ChainBase(metaclass=ABCMeta):
         else:
             return ret is None
 
-    def __handle_plugin_error(
-            self, err: Exception, plugin_id: str, plugin_name: str, method: str, **kwargs
-    ):
+    def __handle_plugin_error(self, err: Exception, plugin_id: str, plugin_name: str, method: str, **kwargs):
         """
         处理插件模块执行错误
         """
         if kwargs.get("raise_exception"):
             raise err
-        logger.error(
-            f"运行插件 {plugin_id} 模块 {method} 出错：{str(err)}\n{traceback.format_exc()}"
-        )
-        self.messagehelper.put(
-            title=f"{plugin_name} 发生了错误", message=str(err), role="plugin"
-        )
+        logger.error(f"运行插件 {plugin_id} 模块 {method} 出错：{str(err)}\n{traceback.format_exc()}")
+        self.messagehelper.put(title=f"{plugin_name} 发生了错误", message=str(err), role="plugin")
         self.eventmanager.send_event(
             EventType.SystemError,
             {
@@ -257,20 +247,14 @@ class ChainBase(metaclass=ABCMeta):
             },
         )
 
-    def __handle_system_error(
-            self, err: Exception, module_id: str, module_name: str, method: str, **kwargs
-    ):
+    def __handle_system_error(self, err: Exception, module_id: str, module_name: str, method: str, **kwargs):
         """
         处理系统模块执行错误
         """
         if kwargs.get("raise_exception"):
             raise err
-        logger.error(
-            f"运行模块 {module_id}.{method} 出错：{str(err)}\n{traceback.format_exc()}"
-        )
-        self.messagehelper.put(
-            title=f"{module_name}发生了错误", message=str(err), role="system"
-        )
+        logger.error(f"运行模块 {module_id}.{method} 出错：{str(err)}\n{traceback.format_exc()}")
+        self.messagehelper.put(title=f"{module_name}发生了错误", message=str(err), role="system")
         self.eventmanager.send_event(
             EventType.SystemError,
             {
@@ -285,8 +269,7 @@ class ChainBase(metaclass=ABCMeta):
 
     @staticmethod
     def __handle_rate_limit_error(
-            err: RateLimitExceededException, source_type: str, source_id: str,
-            method: str, **kwargs
+        err: RateLimitExceededException, source_type: str, source_id: str, method: str, **kwargs
     ) -> None:
         """
         处理本地限流跳过，避免预期的限流状态进入系统错误告警。
@@ -295,9 +278,7 @@ class ChainBase(metaclass=ABCMeta):
             raise err
         logger.info(f"{source_type} {source_id}.{method} 已限流，跳过执行：{str(err)}")
 
-    def __execute_plugin_modules(
-            self, method: str, result: Any, *args, **kwargs
-    ) -> Any:
+    def __execute_plugin_modules(self, method: str, result: Any, *args, **kwargs) -> Any:
         """
         执行插件模块
         """
@@ -319,18 +300,12 @@ class ChainBase(metaclass=ABCMeta):
                         else:
                             break
                     except RateLimitExceededException as err:
-                        self.__handle_rate_limit_error(
-                            err, "插件", plugin_id, method, **kwargs
-                        )
+                        self.__handle_rate_limit_error(err, "插件", plugin_id, method, **kwargs)
                     except Exception as err:
-                        self.__handle_plugin_error(
-                            err, plugin_id, plugin_name, method, **kwargs
-                        )
+                        self.__handle_plugin_error(err, plugin_id, plugin_name, method, **kwargs)
         return result
 
-    async def __async_execute_plugin_modules(
-            self, method: str, result: Any, *args, **kwargs
-    ) -> Any:
+    async def __async_execute_plugin_modules(self, method: str, result: Any, *args, **kwargs) -> Any:
         """
         异步执行插件模块
         """
@@ -360,25 +335,19 @@ class ChainBase(metaclass=ABCMeta):
                         else:
                             break
                     except RateLimitExceededException as err:
-                        self.__handle_rate_limit_error(
-                            err, "插件", plugin_id, method, **kwargs
-                        )
+                        self.__handle_rate_limit_error(err, "插件", plugin_id, method, **kwargs)
                     except Exception as err:
-                        self.__handle_plugin_error(
-                            err, plugin_id, plugin_name, method, **kwargs
-                        )
+                        self.__handle_plugin_error(err, plugin_id, plugin_name, method, **kwargs)
         return result
 
-    def __execute_system_modules(
-            self, method: str, result: Any, *args, **kwargs
-    ) -> Any:
+    def __execute_system_modules(self, method: str, result: Any, *args, **kwargs) -> Any:
         """
         执行系统模块
         """
         logger.debug(f"请求系统模块执行：{method} ...")
         for module in sorted(
-                self.modulemanager.get_running_modules(method),
-                key=lambda x: x.get_priority(),
+            self.modulemanager.get_running_modules(method),
+            key=lambda x: x.get_priority(),
         ):
             module_id = module.__class__.__name__
             try:
@@ -403,26 +372,20 @@ class ChainBase(metaclass=ABCMeta):
                     # 中止继续执行
                     break
             except RateLimitExceededException as err:
-                self.__handle_rate_limit_error(
-                    err, "模块", module_id, method, **kwargs
-                )
+                self.__handle_rate_limit_error(err, "模块", module_id, method, **kwargs)
             except Exception as err:
                 logger.error(traceback.format_exc())
-                self.__handle_system_error(
-                    err, module_id, module_name, method, **kwargs
-                )
+                self.__handle_system_error(err, module_id, module_name, method, **kwargs)
         return result
 
-    async def __async_execute_system_modules(
-            self, method: str, result: Any, *args, **kwargs
-    ) -> Any:
+    async def __async_execute_system_modules(self, method: str, result: Any, *args, **kwargs) -> Any:
         """
         异步执行系统模块
         """
         logger.debug(f"请求系统模块执行：{method} ...")
         for module in sorted(
-                self.modulemanager.get_running_modules(method),
-                key=lambda x: x.get_priority(),
+            self.modulemanager.get_running_modules(method),
+            key=lambda x: x.get_priority(),
         ):
             module_id = module.__class__.__name__
             try:
@@ -457,21 +420,17 @@ class ChainBase(metaclass=ABCMeta):
                     # 中止继续执行
                     break
             except RateLimitExceededException as err:
-                self.__handle_rate_limit_error(
-                    err, "模块", module_id, method, **kwargs
-                )
+                self.__handle_rate_limit_error(err, "模块", module_id, method, **kwargs)
             except Exception as err:
                 logger.error(traceback.format_exc())
-                self.__handle_system_error(
-                    err, module_id, module_name, method, **kwargs
-                )
+                self.__handle_system_error(err, module_id, module_name, method, **kwargs)
         return result
 
     def run_module(
-            self,
-            method: str,
-            *args,
-            **kwargs,
+        self,
+        method: str,
+        *args,
+        **kwargs,
     ) -> Any:
         """
         运行包含该方法的所有模块，然后返回结果
@@ -490,10 +449,10 @@ class ChainBase(metaclass=ABCMeta):
         return self.__execute_system_modules(method, result, *args, **kwargs)
 
     async def async_run_module(
-            self,
-            method: str,
-            *args,
-            **kwargs,
+        self,
+        method: str,
+        *args,
+        **kwargs,
     ) -> Any:
         """
         异步运行包含该方法的所有模块，然后返回结果
@@ -503,38 +462,30 @@ class ChainBase(metaclass=ABCMeta):
         :param method: 模块方法名称
         """
         # 执行插件模块
-        result = await self.__async_execute_plugin_modules(
-            method, None, *args, **kwargs
-        )
+        result = await self.__async_execute_plugin_modules(method, None, *args, **kwargs)
 
         if not self.__is_valid_empty(result) and not isinstance(result, list):
             # 插件模块返回结果不为空且不是列表，直接返回
             return result
 
         # 执行系统模块
-        return await self.__async_execute_system_modules(
-            method, result, *args, **kwargs
-        )
+        return await self.__async_execute_system_modules(method, result, *args, **kwargs)
 
     @staticmethod
     def _can_use_media_recognize_share(
-            meta: Optional[MetaBase],
-            tmdbid: Optional[int],
-            doubanid: Optional[str],
-            bangumiid: Optional[int],
-            anilistid: Optional[int],
+        meta: MetaBase | None,
+        tmdbid: int | None,
+        doubanid: str | None,
+        bangumiid: int | None,
+        anilistid: int | None,
     ) -> bool:
         """
         仅在名称识别场景下使用共享识别，显式ID识别不再重复回查
         """
-        return bool(
-            settings.MEDIA_RECOGNIZE_SHARE
-            and meta
-            and not any([tmdbid, doubanid, bangumiid, anilistid])
-        )
+        return bool(settings.MEDIA_RECOGNIZE_SHARE and meta and not any([tmdbid, doubanid, bangumiid, anilistid]))
 
     @staticmethod
-    def _snapshot_recognize_cache_meta(meta: Optional[MetaBase]) -> Optional[MetaBase]:
+    def _snapshot_recognize_cache_meta(meta: MetaBase | None) -> MetaBase | None:
         """
         保存共享识别前的本地缓存关键元数据，用于共享成功后回填正缓存覆盖负缓存。
         """
@@ -543,9 +494,9 @@ class ChainBase(metaclass=ABCMeta):
         return copy.deepcopy(meta)
 
     def _update_local_recognize_cache(
-            self,
-            meta: Optional[MetaBase],
-            mediainfo: Optional[MediaInfo],
+        self,
+        meta: MetaBase | None,
+        mediainfo: MediaInfo | None,
     ) -> None:
         """
         共享识别成功后回填本地识别缓存，避免名称负缓存导致后续重复回查共享。
@@ -559,9 +510,9 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     async def _async_update_local_recognize_cache(
-            self,
-            meta: Optional[MetaBase],
-            mediainfo: Optional[MediaInfo],
+        self,
+        meta: MetaBase | None,
+        mediainfo: MediaInfo | None,
     ) -> None:
         """
         异步回填本地识别缓存。
@@ -584,13 +535,13 @@ class ChainBase(metaclass=ABCMeta):
 
     @staticmethod
     def _resolve_media_source_params(
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-    ) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int], Optional[int]]:
+        source: str | None = None,
+        mediaid: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+    ) -> tuple[str | None, int | None, str | None, int | None, int | None]:
         """
         统一请求级数据源ID与兼容字段，并保证同一次识别只携带一个来源ID。
 
@@ -604,7 +555,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         source = normalize_media_source(source)
 
-        def to_int(value) -> Optional[int]:
+        def to_int(value) -> int | None:
             """将数字ID安全转换为整数。"""
             return int(value) if value is not None and str(value).isdigit() else None
 
@@ -635,19 +586,19 @@ class ChainBase(metaclass=ABCMeta):
         return source, None, None, None, None
 
     def recognize_media(
-            self,
-            meta: MetaBase = None,
-            mtype: Optional[MediaType] = None,
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-            episode_group: Optional[str] = None,
-            cache: bool = True,
-            share_meta: MetaBase = None,
-    ) -> Optional[MediaInfo]:
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        episode_group: str | None = None,
+        cache: bool = True,
+        share_meta: MetaBase = None,
+    ) -> MediaInfo | None:
         """
         识别媒体信息，不含Fanart图片
         :param meta:     识别的元数据
@@ -713,9 +664,7 @@ class ChainBase(metaclass=ABCMeta):
                 )
             return mediainfo
 
-        if not source and self._can_use_media_recognize_share(
-                share_query_meta, tmdbid, doubanid, bangumiid, anilistid
-        ):
+        if not source and self._can_use_media_recognize_share(share_query_meta, tmdbid, doubanid, bangumiid, anilistid):
             shared_cache_meta = self._snapshot_recognize_cache_meta(meta)
             shared_item = MoviePilotServerHelper.query_recognize_share(
                 meta=meta,
@@ -745,19 +694,19 @@ class ChainBase(metaclass=ABCMeta):
         return None
 
     async def async_recognize_media(
-            self,
-            meta: MetaBase = None,
-            mtype: Optional[MediaType] = None,
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-            episode_group: Optional[str] = None,
-            cache: bool = True,
-            share_meta: MetaBase = None,
-    ) -> Optional[MediaInfo]:
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        episode_group: str | None = None,
+        cache: bool = True,
+        share_meta: MetaBase = None,
+    ) -> MediaInfo | None:
         """
         识别媒体信息，不含Fanart图片（异步版本）
         :param meta:     识别的元数据
@@ -823,9 +772,7 @@ class ChainBase(metaclass=ABCMeta):
                 )
             return mediainfo
 
-        if not source and self._can_use_media_recognize_share(
-                share_query_meta, tmdbid, doubanid, bangumiid, anilistid
-        ):
+        if not source and self._can_use_media_recognize_share(share_query_meta, tmdbid, doubanid, bangumiid, anilistid):
             shared_cache_meta = self._snapshot_recognize_cache_meta(meta)
             shared_item = await MoviePilotServerHelper.async_query_recognize_share(
                 meta=meta,
@@ -855,14 +802,14 @@ class ChainBase(metaclass=ABCMeta):
         return None
 
     def match_doubaninfo(
-            self,
-            name: str,
-            imdbid: Optional[str] = None,
-            mtype: Optional[MediaType] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-            raise_exception: bool = False,
-    ) -> Optional[dict]:
+        self,
+        name: str,
+        imdbid: str | None = None,
+        mtype: MediaType | None = None,
+        year: str | None = None,
+        season: int | None = None,
+        raise_exception: bool = False,
+    ) -> dict | None:
         """
         搜索和匹配豆瓣信息
         :param name: 标题
@@ -883,14 +830,14 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     async def async_match_doubaninfo(
-            self,
-            name: str,
-            imdbid: Optional[str] = None,
-            mtype: Optional[MediaType] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-            raise_exception: bool = False,
-    ) -> Optional[dict]:
+        self,
+        name: str,
+        imdbid: str | None = None,
+        mtype: MediaType | None = None,
+        year: str | None = None,
+        season: int | None = None,
+        raise_exception: bool = False,
+    ) -> dict | None:
         """
         搜索和匹配豆瓣信息（异步版本）
         :param name: 标题
@@ -911,12 +858,12 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def match_tmdbinfo(
-            self,
-            name: str,
-            mtype: Optional[MediaType] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-    ) -> Optional[dict]:
+        self,
+        name: str,
+        mtype: MediaType | None = None,
+        year: str | None = None,
+        season: int | None = None,
+    ) -> dict | None:
         """
         搜索和匹配TMDB信息
         :param name: 标题
@@ -924,17 +871,15 @@ class ChainBase(metaclass=ABCMeta):
         :param year: 年份
         :param season: 季
         """
-        return self.run_module(
-            "match_tmdbinfo", name=name, mtype=mtype, year=year, season=season
-        )
+        return self.run_module("match_tmdbinfo", name=name, mtype=mtype, year=year, season=season)
 
     async def async_match_tmdbinfo(
-            self,
-            name: str,
-            mtype: Optional[MediaType] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-    ) -> Optional[dict]:
+        self,
+        name: str,
+        mtype: MediaType | None = None,
+        year: str | None = None,
+        season: int | None = None,
+    ) -> dict | None:
         """
         搜索和匹配TMDB信息（异步版本）
         :param name: 标题
@@ -942,11 +887,9 @@ class ChainBase(metaclass=ABCMeta):
         :param year: 年份
         :param season: 季
         """
-        return await self.async_run_module(
-            "async_match_tmdbinfo", name=name, mtype=mtype, year=year, season=season
-        )
+        return await self.async_run_module("async_match_tmdbinfo", name=name, mtype=mtype, year=year, season=season)
 
-    def obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片
         :param mediainfo:  识别的媒体信息
@@ -954,7 +897,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("obtain_images", mediainfo=mediainfo)
 
-    async def async_obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    async def async_obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片（异步版本）
         :param mediainfo:  识别的媒体信息
@@ -963,14 +906,14 @@ class ChainBase(metaclass=ABCMeta):
         return await self.async_run_module("async_obtain_images", mediainfo=mediainfo)
 
     def obtain_specific_image(
-            self,
-            mediaid: Union[str, int],
-            mtype: MediaType,
-            image_type: MediaImageType,
-            image_prefix: Optional[str] = None,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-    ) -> Optional[str]:
+        self,
+        mediaid: str | int,
+        mtype: MediaType,
+        image_type: MediaImageType,
+        image_prefix: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> str | None:
         """
         获取指定媒体信息图片，返回图片地址
         :param mediaid:     媒体ID
@@ -991,11 +934,11 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def douban_info(
-            self,
-            doubanid: str,
-            mtype: Optional[MediaType] = None,
-            raise_exception: bool = False,
-    ) -> Optional[dict]:
+        self,
+        doubanid: str,
+        mtype: MediaType | None = None,
+        raise_exception: bool = False,
+    ) -> dict | None:
         """
         获取豆瓣信息
         :param doubanid: 豆瓣ID
@@ -1011,11 +954,11 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     async def async_douban_info(
-            self,
-            doubanid: str,
-            mtype: Optional[MediaType] = None,
-            raise_exception: bool = False,
-    ) -> Optional[dict]:
+        self,
+        doubanid: str,
+        mtype: MediaType | None = None,
+        raise_exception: bool = False,
+    ) -> dict | None:
         """
         获取豆瓣信息（异步版本）
         :param doubanid: 豆瓣ID
@@ -1030,7 +973,7 @@ class ChainBase(metaclass=ABCMeta):
             raise_exception=raise_exception,
         )
 
-    def tvdb_info(self, tvdbid: int) -> Optional[dict]:
+    def tvdb_info(self, tvdbid: int) -> dict | None:
         """
         获取TVDB信息
         :param tvdbid: int
@@ -1038,9 +981,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("tvdb_info", tvdbid=tvdbid)
 
-    def tmdb_info(
-            self, tmdbid: int, mtype: MediaType, season: Optional[int] = None
-    ) -> Optional[dict]:
+    def tmdb_info(self, tmdbid: int, mtype: MediaType, season: int | None = None) -> dict | None:
         """
         获取TMDB信息
         :param tmdbid: int
@@ -1050,9 +991,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("tmdb_info", tmdbid=tmdbid, mtype=mtype, season=season)
 
-    async def async_tmdb_info(
-            self, tmdbid: int, mtype: MediaType, season: Optional[int] = None
-    ) -> Optional[dict]:
+    async def async_tmdb_info(self, tmdbid: int, mtype: MediaType, season: int | None = None) -> dict | None:
         """
         获取TMDB信息（异步版本）
         :param tmdbid: int
@@ -1060,11 +999,9 @@ class ChainBase(metaclass=ABCMeta):
         :param season: 季
         :return: TVDB信息
         """
-        return await self.async_run_module(
-            "async_tmdb_info", tmdbid=tmdbid, mtype=mtype, season=season
-        )
+        return await self.async_run_module("async_tmdb_info", tmdbid=tmdbid, mtype=mtype, season=season)
 
-    def bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    def bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息
         :param bangumiid: int
@@ -1072,7 +1009,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("bangumi_info", bangumiid=bangumiid)
 
-    async def async_bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    async def async_bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息（异步版本）
         :param bangumiid: int
@@ -1080,9 +1017,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return await self.async_run_module("async_bangumi_info", bangumiid=bangumiid)
 
-    def message_parser(
-            self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -1094,13 +1029,9 @@ class ChainBase(metaclass=ABCMeta):
         :param args: 参数
         :return: 消息渠道、消息内容
         """
-        return self.run_module(
-            "message_parser", source=source, body=body, form=form, args=args
-        )
+        return self.run_module("message_parser", source=source, body=body, form=form, args=args)
 
-    def webhook_parser(
-            self, body: Any, form: Any, args: Any
-    ) -> Optional[WebhookEventInfo]:
+    def webhook_parser(self, body: Any, form: Any, args: Any) -> WebhookEventInfo | None:
         """
         解析Webhook报文体
         :param body:  请求体
@@ -1110,9 +1041,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("webhook_parser", body=body, form=form, args=args)
 
-    def search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息
         :param meta:  识别的元数据
@@ -1121,22 +1050,16 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("search_medias", meta=meta, source=source)
 
-    async def async_search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息（异步版本）
         :param meta:  识别的元数据
         :param source: 请求级搜索数据源
         :return: 媒体信息列表
         """
-        return await self.async_run_module(
-            "async_search_medias", meta=meta, source=source
-        )
+        return await self.async_run_module("async_search_medias", meta=meta, source=source)
 
-    def search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaPerson]]:
+    def search_persons(self, name: str, source: str | None = None) -> list[MediaPerson] | None:
         """
         搜索人物信息
         :param name:  人物名称
@@ -1145,22 +1068,16 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("search_persons", name=name, source=source)
 
-    async def async_search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaPerson]]:
+    async def async_search_persons(self, name: str, source: str | None = None) -> list[MediaPerson] | None:
         """
         搜索人物信息（异步版本）
         :param name:  人物名称
         :param source: 请求级搜索数据源
         :return: 人物信息列表
         """
-        return await self.async_run_module(
-            "async_search_persons", name=name, source=source
-        )
+        return await self.async_run_module("async_search_persons", name=name, source=source)
 
-    def search_collections(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_collections(self, name: str, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索集合信息
         :param name:  集合名称
@@ -1169,38 +1086,32 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("search_collections", name=name, source=source)
 
-    async def async_search_collections(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_collections(self, name: str, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索集合信息（异步版本）
         :param name:  集合名称
         :param source: 请求级搜索数据源
         :return: 合集信息列表
         """
-        return await self.async_run_module(
-            "async_search_collections", name=name, source=source
-        )
+        return await self.async_run_module("async_search_collections", name=name, source=source)
 
     def get_search_page_size(
-            self,
-            site: dict,
-            keyword: Optional[str] = None,
-    ) -> Optional[int]:
+        self,
+        site: dict,
+        keyword: str | None = None,
+    ) -> int | None:
         """
         获取站点搜索单页容量；返回 None 表示当前搜索入口不支持可靠翻页。
         """
-        return self.run_module(
-            "get_search_page_size", site=site, keyword=keyword
-        )
+        return self.run_module("get_search_page_size", site=site, keyword=keyword)
 
     def search_torrents(
-            self,
-            site: dict,
-            keyword: str,
-            mtype: Optional[MediaType] = None,
-            page: Optional[int] = 0,
-    ) -> List[TorrentInfo]:
+        self,
+        site: dict,
+        keyword: str,
+        mtype: MediaType | None = None,
+        page: int | None = 0,
+    ) -> list[TorrentInfo]:
         """
         搜索一个站点的种子资源
         :param site:  站点
@@ -1209,16 +1120,14 @@ class ChainBase(metaclass=ABCMeta):
         :param page:  页码
         :reutrn: 资源列表
         """
-        return self.run_module(
-            "search_torrents", site=site, keyword=keyword, mtype=mtype, page=page
-        )
+        return self.run_module("search_torrents", site=site, keyword=keyword, mtype=mtype, page=page)
 
     def search_subtitles(
-            self,
-            site: dict,
-            keyword: str,
-            page: Optional[int] = 0,
-    ) -> List[SubtitleInfo]:
+        self,
+        site: dict,
+        keyword: str,
+        page: int | None = 0,
+    ) -> list[SubtitleInfo]:
         """
         搜索一个站点的字幕资源。
         :param site: 站点
@@ -1226,17 +1135,15 @@ class ChainBase(metaclass=ABCMeta):
         :param page: 页码
         :return: 字幕列表
         """
-        return self.run_module(
-            "search_subtitles", site=site, keyword=keyword, page=page
-        )
+        return self.run_module("search_subtitles", site=site, keyword=keyword, page=page)
 
     async def async_search_torrents(
-            self,
-            site: dict,
-            keyword: str,
-            mtype: Optional[MediaType] = None,
-            page: Optional[int] = 0,
-    ) -> List[TorrentInfo]:
+        self,
+        site: dict,
+        keyword: str,
+        mtype: MediaType | None = None,
+        page: int | None = 0,
+    ) -> list[TorrentInfo]:
         """
         异步搜索一个站点的种子资源
         :param site:  站点
@@ -1245,16 +1152,14 @@ class ChainBase(metaclass=ABCMeta):
         :param page:  页码
         :reutrn: 资源列表
         """
-        return await self.async_run_module(
-            "async_search_torrents", site=site, keyword=keyword, mtype=mtype, page=page
-        )
+        return await self.async_run_module("async_search_torrents", site=site, keyword=keyword, mtype=mtype, page=page)
 
     async def async_search_subtitles(
-            self,
-            site: dict,
-            keyword: str,
-            page: Optional[int] = 0,
-    ) -> List[SubtitleInfo]:
+        self,
+        site: dict,
+        keyword: str,
+        page: int | None = 0,
+    ) -> list[SubtitleInfo]:
         """
         异步搜索一个站点的字幕资源。
         :param site: 站点
@@ -1262,17 +1167,15 @@ class ChainBase(metaclass=ABCMeta):
         :param page: 页码
         :return: 字幕列表
         """
-        return await self.async_run_module(
-            "async_search_subtitles", site=site, keyword=keyword, page=page
-        )
+        return await self.async_run_module("async_search_subtitles", site=site, keyword=keyword, page=page)
 
     def refresh_torrents(
-            self,
-            site: dict,
-            keyword: Optional[str] = None,
-            cat: Optional[str] = None,
-            page: Optional[int] = 0,
-    ) -> List[TorrentInfo]:
+        self,
+        site: dict,
+        keyword: str | None = None,
+        cat: str | None = None,
+        page: int | None = 0,
+    ) -> list[TorrentInfo]:
         """
         获取站点最新一页的种子，多个站点需要多线程处理
         :param site:  站点
@@ -1281,17 +1184,15 @@ class ChainBase(metaclass=ABCMeta):
         :param page:  页码
         :reutrn: 种子资源列表
         """
-        return self.run_module(
-            "refresh_torrents", site=site, keyword=keyword, cat=cat, page=page
-        )
+        return self.run_module("refresh_torrents", site=site, keyword=keyword, cat=cat, page=page)
 
     async def async_refresh_torrents(
-            self,
-            site: dict,
-            keyword: Optional[str] = None,
-            cat: Optional[str] = None,
-            page: Optional[int] = 0,
-    ) -> List[TorrentInfo]:
+        self,
+        site: dict,
+        keyword: str | None = None,
+        cat: str | None = None,
+        page: int | None = 0,
+    ) -> list[TorrentInfo]:
         """
         异步获取站点最新一页的种子，多个站点需要多线程处理
         :param site:  站点
@@ -1300,16 +1201,14 @@ class ChainBase(metaclass=ABCMeta):
         :param page:  页码
         :reutrn: 种子资源列表
         """
-        return await self.async_run_module(
-            "async_refresh_torrents", site=site, keyword=keyword, cat=cat, page=page
-        )
+        return await self.async_run_module("async_refresh_torrents", site=site, keyword=keyword, cat=cat, page=page)
 
     def filter_torrents(
-            self,
-            rule_groups: List[str],
-            torrent_list: List[TorrentInfo],
-            mediainfo: MediaInfo = None,
-    ) -> List[TorrentInfo]:
+        self,
+        rule_groups: list[str],
+        torrent_list: list[TorrentInfo],
+        mediainfo: MediaInfo = None,
+    ) -> list[TorrentInfo]:
         """
         过滤种子资源
         :param rule_groups:  过滤规则组名称列表
@@ -1325,15 +1224,15 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def download(
-            self,
-            content: Union[Path, str, bytes],
-            download_dir: Path,
-            cookie: str,
-            episodes: Set[int] = None,
-            category: Optional[str] = None,
-            label: Optional[str] = None,
-            downloader: Optional[str] = None,
-    ) -> Optional[Tuple[Optional[str], Optional[str], Optional[str], str]]:
+        self,
+        content: Path | str | bytes,
+        download_dir: Path,
+        cookie: str,
+        episodes: set[int] = None,
+        category: str | None = None,
+        label: str | None = None,
+        downloader: str | None = None,
+    ) -> tuple[str | None, str | None, str | None, str] | None:
         """
         根据种子文件，选择并添加下载任务
         :param content:  种子文件地址或者磁力链接或者种子内容
@@ -1357,10 +1256,10 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def download_added(
-            self,
-            context: Context,
-            download_dir: Path,
-            torrent_content: Union[str, bytes] = None,
+        self,
+        context: Context,
+        download_dir: Path,
+        torrent_content: str | bytes = None,
     ) -> None:
         """
         添加下载任务成功后，从站点下载字幕，保存到下载目录
@@ -1377,12 +1276,12 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def list_torrents(
-            self,
-            status: TorrentStatus = None,
-            hashs: Union[list, str] = None,
-            downloader: Optional[str] = None,
-            include_all_tags: bool = False,
-    ) -> Optional[List[DownloaderTorrent]]:
+        self,
+        status: TorrentStatus = None,
+        hashs: list | str = None,
+        downloader: str | None = None,
+        include_all_tags: bool = False,
+    ) -> list[DownloaderTorrent] | None:
         """
         获取下载器种子列表
         :param status:  种子状态
@@ -1400,22 +1299,22 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def transfer(
-            self,
-            fileitem: FileItem,
-            meta: MetaBase,
-            mediainfo: MediaInfo,
-            target_directory: TransferDirectoryConf = None,
-            target_storage: Optional[str] = None,
-            target_path: Path = None,
-            transfer_type: Optional[str] = None,
-            scrape: bool = None,
-            library_type_folder: bool = None,
-            library_category_folder: bool = None,
-            episodes_info: List[TmdbEpisode] = None,
-            source_oper: Callable = None,
-            target_oper: Callable = None,
-            preview: bool = False,
-    ) -> Optional[TransferInfo]:
+        self,
+        fileitem: FileItem,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+        target_directory: TransferDirectoryConf = None,
+        target_storage: str | None = None,
+        target_path: Path = None,
+        transfer_type: str | None = None,
+        scrape: bool = None,
+        library_type_folder: bool = None,
+        library_category_folder: bool = None,
+        episodes_info: list[TmdbEpisode] = None,
+        source_oper: Callable = None,
+        target_oper: Callable = None,
+        preview: bool = False,
+    ) -> TransferInfo | None:
         """
         文件转移
         :param fileitem:  文件信息
@@ -1452,7 +1351,7 @@ class ChainBase(metaclass=ABCMeta):
             preview=preview,
         )
 
-    def transfer_completed(self, hashs: str, downloader: Optional[str] = None) -> None:
+    def transfer_completed(self, hashs: str, downloader: str | None = None) -> None:
         """
         下载器转移完成后的处理
         :param hashs:  种子Hash
@@ -1461,10 +1360,10 @@ class ChainBase(metaclass=ABCMeta):
         return self.run_module("transfer_completed", hashs=hashs, downloader=downloader)
 
     def remove_torrents(
-            self,
-            hashs: Union[str, list],
-            delete_file: bool = True,
-            downloader: Optional[str] = None,
+        self,
+        hashs: str | list,
+        delete_file: bool = True,
+        downloader: str | None = None,
     ) -> bool:
         """
         删除下载器种子
@@ -1480,9 +1379,7 @@ class ChainBase(metaclass=ABCMeta):
             downloader=downloader,
         )
 
-    def start_torrents(
-            self, hashs: Union[list, str], downloader: Optional[str] = None
-    ) -> bool:
+    def start_torrents(self, hashs: list | str, downloader: str | None = None) -> bool:
         """
         开始下载
         :param hashs:  种子Hash
@@ -1491,9 +1388,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("start_torrents", hashs=hashs, downloader=downloader)
 
-    def stop_torrents(
-            self, hashs: Union[list, str], downloader: Optional[str] = None
-    ) -> bool:
+    def stop_torrents(self, hashs: list | str, downloader: str | None = None) -> bool:
         """
         停止下载
         :param hashs:  种子Hash
@@ -1502,9 +1397,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("stop_torrents", hashs=hashs, downloader=downloader)
 
-    def set_torrents_tag(
-            self, hashs: Union[list, str], tags: list, downloader: Optional[str] = None
-    ) -> bool:
+    def set_torrents_tag(self, hashs: list | str, tags: list, downloader: str | None = None) -> bool:
         """
         设置种子标签
         :param hashs:  种子Hash
@@ -1515,17 +1408,17 @@ class ChainBase(metaclass=ABCMeta):
         return self.run_module("set_torrents_tag", hashs=hashs, tags=tags, downloader=downloader)
 
     def update_torrent(
-            self,
-            hash_string: str,
-            downloader: Optional[str] = None,
-            download_limit: Optional[float] = None,
-            upload_limit: Optional[float] = None,
-            tracker_list: Optional[list] = None,
-            save_path: Optional[str] = None,
-            category: Optional[str] = None,
-            ratio_limit: Optional[float] = None,
-            seeding_time_limit: Optional[int] = None,
-    ) -> Optional[Dict[str, bool]]:
+        self,
+        hash_string: str,
+        downloader: str | None = None,
+        download_limit: float | None = None,
+        upload_limit: float | None = None,
+        tracker_list: list | None = None,
+        save_path: str | None = None,
+        category: str | None = None,
+        ratio_limit: float | None = None,
+        seeding_time_limit: int | None = None,
+    ) -> dict[str, bool] | None:
         """
         修改下载任务属性。
         :param hash_string: 种子Hash
@@ -1553,10 +1446,10 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def get_torrent_trackers(
-            self,
-            hash_string: str,
-            downloader: Optional[str] = None,
-    ) -> Optional[Dict[str, List[str]]]:
+        self,
+        hash_string: str,
+        downloader: str | None = None,
+    ) -> dict[str, list[str]] | None:
         """
         查询下载任务Tracker列表。
         :param hash_string: 种子Hash
@@ -1569,9 +1462,7 @@ class ChainBase(metaclass=ABCMeta):
             downloader=downloader,
         )
 
-    def torrent_files(
-            self, tid: str, downloader: Optional[str] = None
-    ) -> Optional[Union[TorrentFilesList, List[File]]]:
+    def torrent_files(self, tid: str, downloader: str | None = None) -> TorrentFilesList | list[File] | None:
         """
         获取种子文件
         :param tid:  种子Hash
@@ -1581,11 +1472,11 @@ class ChainBase(metaclass=ABCMeta):
         return self.run_module("torrent_files", tid=tid, downloader=downloader)
 
     def media_exists(
-            self,
-            mediainfo: MediaInfo,
-            itemid: Optional[str] = None,
-            server: Optional[str] = None,
-    ) -> Optional[ExistMediaInfo]:
+        self,
+        mediainfo: MediaInfo,
+        itemid: str | None = None,
+        server: str | None = None,
+    ) -> ExistMediaInfo | None:
         """
         判断媒体文件是否存在
         :param mediainfo:  识别的媒体信息
@@ -1593,11 +1484,9 @@ class ChainBase(metaclass=ABCMeta):
         :param server:  媒体服务器
         :return: 如不存在返回None，存在时返回信息，包括每季已存在所有集{type: movie/tv, seasons: {season: [episodes]}}
         """
-        return self.run_module(
-            "media_exists", mediainfo=mediainfo, itemid=itemid, server=server
-        )
+        return self.run_module("media_exists", mediainfo=mediainfo, itemid=itemid, server=server)
 
-    def media_files(self, mediainfo: MediaInfo) -> Optional[List[FileItem]]:
+    def media_files(self, mediainfo: MediaInfo) -> list[FileItem] | None:
         """
         获取媒体文件清单
         :param mediainfo:  识别的媒体信息
@@ -1606,13 +1495,13 @@ class ChainBase(metaclass=ABCMeta):
         return self.run_module("media_files", mediainfo=mediainfo)
 
     def post_message(
-            self,
-            message: Optional[Notification] = None,
-            meta: Optional[MetaBase] = None,
-            mediainfo: Optional[MediaInfo] = None,
-            torrentinfo: Optional[TorrentInfo] = None,
-            transferinfo: Optional[TransferInfo] = None,
-            **kwargs,
+        self,
+        message: Notification | None = None,
+        meta: MetaBase | None = None,
+        mediainfo: MediaInfo | None = None,
+        torrentinfo: TorrentInfo | None = None,
+        transferinfo: TransferInfo | None = None,
+        **kwargs,
     ) -> None:
         """
         发送消息
@@ -1645,9 +1534,7 @@ class ChainBase(metaclass=ABCMeta):
         # 发送消息按设置隔离
         if not dispatch_message.userid and dispatch_message.mtype:
             # 消息隔离设置
-            notify_action = ServiceConfigHelper.get_notification_switch(
-                dispatch_message.mtype
-            )
+            notify_action = ServiceConfigHelper.get_notification_switch(dispatch_message.mtype)
             if notify_action:
                 # 'admin' 'user,admin' 'user' 'all'
                 actions = notify_action.split(",")
@@ -1665,30 +1552,20 @@ class ChainBase(metaclass=ABCMeta):
                         admin_sended = True
                     elif action == "user" and send_message.username:
                         # 发送对应用户
-                        logger.info(
-                            f"{send_message.mtype} 的消息已设置发送给用户 {send_message.username}"
-                        )
+                        logger.info(f"{send_message.mtype} 的消息已设置发送给用户 {send_message.username}")
                         # 读取用户消息IDS
-                        send_message.targets = useroper.get_settings(
-                            send_message.username
-                        )
+                        send_message.targets = useroper.get_settings(send_message.username)
                         if send_message.targets is None:
                             # 没有找到用户
                             if not admin_sended:
                                 # 回滚发送管理员
-                                logger.info(
-                                    f"用户 {send_message.username} 不存在，消息将发送给管理员"
-                                )
+                                logger.info(f"用户 {send_message.username} 不存在，消息将发送给管理员")
                                 # 读取管理员消息IDS
-                                send_message.targets = useroper.get_settings(
-                                    settings.SUPERUSER
-                                )
+                                send_message.targets = useroper.get_settings(settings.SUPERUSER)
                                 admin_sended = True
                             else:
                                 # 管理员发过了，此消息不发了
-                                logger.info(
-                                    f"用户 {send_message.username} 不存在，消息无法发送到对应用户"
-                                )
+                                logger.info(f"用户 {send_message.username} 不存在，消息无法发送到对应用户")
                                 continue
                         elif send_message.username == settings.SUPERUSER:
                             # 管理员同名已发送
@@ -1703,9 +1580,7 @@ class ChainBase(metaclass=ABCMeta):
                         etype=EventType.NoticeMessage,
                         data=self._build_notice_message_data(send_message),
                     )
-                    self.messagequeue.send_message(
-                        "post_message", message=send_message, **kwargs
-                    )
+                    self.messagequeue.send_message("post_message", message=send_message, **kwargs)
                 if not send_orignal:
                     return
         # 发送消息事件
@@ -1722,13 +1597,13 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     async def async_post_message(
-            self,
-            message: Optional[Notification] = None,
-            meta: Optional[MetaBase] = None,
-            mediainfo: Optional[MediaInfo] = None,
-            torrentinfo: Optional[TorrentInfo] = None,
-            transferinfo: Optional[TransferInfo] = None,
-            **kwargs,
+        self,
+        message: Notification | None = None,
+        meta: MetaBase | None = None,
+        mediainfo: MediaInfo | None = None,
+        torrentinfo: TorrentInfo | None = None,
+        transferinfo: TransferInfo | None = None,
+        **kwargs,
     ) -> None:
         """
         异步发送消息
@@ -1761,9 +1636,7 @@ class ChainBase(metaclass=ABCMeta):
         # 发送消息按设置隔离
         if not dispatch_message.userid and dispatch_message.mtype:
             # 消息隔离设置
-            notify_action = ServiceConfigHelper.get_notification_switch(
-                dispatch_message.mtype
-            )
+            notify_action = ServiceConfigHelper.get_notification_switch(dispatch_message.mtype)
             if notify_action:
                 # 'admin' 'user,admin' 'user' 'all'
                 actions = notify_action.split(",")
@@ -1781,30 +1654,20 @@ class ChainBase(metaclass=ABCMeta):
                         admin_sended = True
                     elif action == "user" and send_message.username:
                         # 发送对应用户
-                        logger.info(
-                            f"{send_message.mtype} 的消息已设置发送给用户 {send_message.username}"
-                        )
+                        logger.info(f"{send_message.mtype} 的消息已设置发送给用户 {send_message.username}")
                         # 读取用户消息IDS
-                        send_message.targets = useroper.get_settings(
-                            send_message.username
-                        )
+                        send_message.targets = useroper.get_settings(send_message.username)
                         if send_message.targets is None:
                             # 没有找到用户
                             if not admin_sended:
                                 # 回滚发送管理员
-                                logger.info(
-                                    f"用户 {send_message.username} 不存在，消息将发送给管理员"
-                                )
+                                logger.info(f"用户 {send_message.username} 不存在，消息将发送给管理员")
                                 # 读取管理员消息IDS
-                                send_message.targets = useroper.get_settings(
-                                    settings.SUPERUSER
-                                )
+                                send_message.targets = useroper.get_settings(settings.SUPERUSER)
                                 admin_sended = True
                             else:
                                 # 管理员发过了，此消息不发了
-                                logger.info(
-                                    f"用户 {send_message.username} 不存在，消息无法发送到对应用户"
-                                )
+                                logger.info(f"用户 {send_message.username} 不存在，消息无法发送到对应用户")
                                 continue
                         elif send_message.username == settings.SUPERUSER:
                             # 管理员同名已发送
@@ -1819,9 +1682,7 @@ class ChainBase(metaclass=ABCMeta):
                         etype=EventType.NoticeMessage,
                         data=self._build_notice_message_data(send_message),
                     )
-                    await self.messagequeue.async_send_message(
-                        "post_message", message=send_message, **kwargs
-                    )
+                    await self.messagequeue.async_send_message("post_message", message=send_message, **kwargs)
                 if not send_orignal:
                     return
         # 发送消息事件
@@ -1837,9 +1698,7 @@ class ChainBase(metaclass=ABCMeta):
             **kwargs,
         )
 
-    def post_medias_message(
-            self, message: Notification, medias: List[MediaInfo]
-    ) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message:  消息体
@@ -1857,9 +1716,7 @@ class ChainBase(metaclass=ABCMeta):
             immediately=True if dispatch_message.userid else False,
         )
 
-    def post_torrents_message(
-            self, message: Notification, torrents: List[Context]
-    ) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message:  消息体
@@ -1878,11 +1735,11 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def delete_message(
-            self,
-            channel: MessageChannel,
-            source: str,
-            message_id: Union[str, int],
-            chat_id: Optional[Union[str, int]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        message_id: str | int,
+        chat_id: str | int | None = None,
     ) -> bool:
         """
         删除消息
@@ -1901,15 +1758,15 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def edit_message(
-            self,
-            channel: MessageChannel,
-            source: str,
-            message_id: Union[str, int],
-            chat_id: Union[str, int],
-            text: str,
-            title: Optional[str] = None,
-            buttons: Optional[List[List[dict]]] = None,
-            metadata: Optional[Dict[str, Any]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        message_id: str | int,
+        chat_id: str | int,
+        text: str,
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         编辑已发送的消息
@@ -1950,7 +1807,7 @@ class ChainBase(metaclass=ABCMeta):
             metadata=metadata,
         )
 
-    def send_direct_message(self, message: Notification) -> Optional[MessageResponse]:
+    def send_direct_message(self, message: Notification) -> MessageResponse | None:
         """
         直接发送消息并返回消息ID等信息（用于后续编辑消息的场景）
         不经过消息队列、不保存消息历史
@@ -1963,8 +1820,8 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     def finalize_message(
-            self,
-            response: MessageResponse,
+        self,
+        response: MessageResponse,
     ) -> bool:
         """
         对已发送消息执行渠道收尾动作。
@@ -1973,22 +1830,20 @@ class ChainBase(metaclass=ABCMeta):
         return self.run_module("finalize_message", response=response)
 
     def metadata_img(
-            self,
-            mediainfo: MediaInfo,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-    ) -> Optional[dict]:
+        self,
+        mediainfo: MediaInfo,
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> dict | None:
         """
         获取图片名称和url
         :param mediainfo: 媒体信息
         :param season: 季号
         :param episode: 集号
         """
-        return self.run_module(
-            "metadata_img", mediainfo=mediainfo, season=season, episode=episode
-        )
+        return self.run_module("metadata_img", mediainfo=mediainfo, season=season, episode=episode)
 
-    def media_category(self) -> Optional[Dict[str, list]]:
+    def media_category(self) -> dict[str, list] | None:
         """
         获取媒体分类
         :return: 获取二级分类配置字典项，需包括电影、电视剧
@@ -2007,7 +1862,7 @@ class ChainBase(metaclass=ABCMeta):
         """
         return self.run_module("save_category_config", config=config)
 
-    def register_commands(self, commands: Dict[str, dict]) -> None:
+    def register_commands(self, commands: dict[str, dict]) -> None:
         """
         注册菜单命令
         """

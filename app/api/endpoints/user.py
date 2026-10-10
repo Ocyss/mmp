@@ -2,7 +2,7 @@ import base64
 import re
 from typing import Annotated, Any, List, Union
 
-from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
@@ -11,15 +11,15 @@ from app.db import get_async_db
 from app.db.models.user import User
 from app.db.user_oper import (
     get_current_active_superuser_async,
-    get_current_active_user_async,
     get_current_active_user,
+    get_current_active_user_async,
 )
 from app.db.userconfig_oper import UserConfigOper
 
 router = APIRouter()
 
 
-@router.get("/", summary="所有用户", response_model=List[schemas.User])
+@router.get("/", summary="所有用户", response_model=list[schemas.User])
 async def list_users(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_superuser_async),
@@ -97,9 +97,7 @@ async def read_current_user(
     return current_user
 
 
-@router.post(
-    "/avatar/{user_id}", summary="上传用户头像", response_model=schemas.Response
-)
+@router.post("/avatar/{user_id}", summary="上传用户头像", response_model=schemas.Response)
 async def upload_avatar(
     user_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -134,7 +132,7 @@ def get_config(key: str, current_user: User = Depends(get_current_active_user)):
 @router.post("/config/{key}", summary="更新用户配置", response_model=schemas.Response)
 def set_config(
     key: str,
-    value: Annotated[Union[list, dict, bool, int, str] | None, Body()] = None,
+    value: Annotated[list | dict | bool | int | str | None, Body()] = None,
     current_user: User = Depends(get_current_active_user),
 ):
     """

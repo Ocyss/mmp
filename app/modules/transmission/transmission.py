@@ -1,8 +1,8 @@
-from typing import Optional, Union, Tuple, List
+from typing import List, Optional, Tuple, Union
 
 import transmission_rpc
-from transmission_rpc import Client, Torrent, File
-from transmission_rpc.session import SessionStats, Session
+from transmission_rpc import Client, File, Torrent
+from transmission_rpc.session import Session, SessionStats
 
 from app.log import logger
 from app.utils.url import UrlUtils
@@ -12,16 +12,48 @@ class Transmission:
     """
     Transmission下载器
     """
-    # 参考transmission web，仅查询需要的参数，加速种子搜索
-    _trarg = ["id", "name", "status", "labels", "hashString", "totalSize", "percentDone", "addedDate", "trackerList",
-              "trackerStats",
-              "leftUntilDone", "rateDownload", "rateUpload", "recheckProgress", "rateDownload", "rateUpload",
-              "peersGettingFromUs", "peersSendingToUs", "uploadRatio", "uploadedEver", "downloadedEver", "downloadDir",
-              "error", "errorString", "doneDate", "queuePosition", "activityDate", "trackers"]
 
-    def __init__(self, host: Optional[str] = None, port: Optional[int] = None,
-                 username: Optional[str] = None, password: Optional[str] = None,
-                 rename_partial_files: Optional[bool] = True, **kwargs):
+    # 参考transmission web，仅查询需要的参数，加速种子搜索
+    _trarg = [
+        "id",
+        "name",
+        "status",
+        "labels",
+        "hashString",
+        "totalSize",
+        "percentDone",
+        "addedDate",
+        "trackerList",
+        "trackerStats",
+        "leftUntilDone",
+        "rateDownload",
+        "rateUpload",
+        "recheckProgress",
+        "rateDownload",
+        "rateUpload",
+        "peersGettingFromUs",
+        "peersSendingToUs",
+        "uploadRatio",
+        "uploadedEver",
+        "downloadedEver",
+        "downloadDir",
+        "error",
+        "errorString",
+        "doneDate",
+        "queuePosition",
+        "activityDate",
+        "trackers",
+    ]
+
+    def __init__(
+        self,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        rename_partial_files: bool | None = True,
+        **kwargs,
+    ):
         """
         若不设置参数，则创建配置文件设置的下载器
         """
@@ -63,7 +95,7 @@ class Transmission:
         except Exception as err:
             logger.warning(f"同步 transmission 未完成文件后缀失败：{str(err)}")
 
-    def __login_transmission(self) -> Optional[Client]:
+    def __login_transmission(self) -> Client | None:
         """
         连接transmission
         :return: transmission对象
@@ -73,12 +105,14 @@ class Transmission:
         try:
             # 登录
             logger.info(f"正在连接 transmission：{self._protocol}://{self._host}:{self._port}")
-            trt = transmission_rpc.Client(protocol=self._protocol, # noqa
-                                          host=self._host,
-                                          port=self._port,
-                                          username=self._username,
-                                          password=self._password,
-                                          timeout=60)
+            trt = transmission_rpc.Client(
+                protocol=self._protocol,  # noqa
+                host=self._host,
+                port=self._port,
+                username=self._username,
+                password=self._password,
+                timeout=60,
+            )
             self.__sync_incomplete_file_suffix(trt, enabled=bool(self._rename_partial_files))
             return trt
         except Exception as err:
@@ -99,8 +133,9 @@ class Transmission:
         """
         self.trc = self.__login_transmission()
 
-    def get_torrents(self, ids: Union[str, list] = None, status: Union[str, list] = None,
-                     tags: Union[str, list] = None) -> Tuple[List[Torrent], bool]:
+    def get_torrents(
+        self, ids: str | list = None, status: str | list = None, tags: str | list = None
+    ) -> tuple[list[Torrent], bool]:
         """
         获取种子列表
         返回结果 种子列表, 是否有错误
@@ -115,7 +150,7 @@ class Transmission:
         if status and not isinstance(status, list):
             status = [status]
         if tags and not isinstance(tags, list):
-            tags = tags.split(',')
+            tags = tags.split(",")
         ret_torrents = []
         try:
             for torrent in torrents:
@@ -123,8 +158,7 @@ class Transmission:
                 if status and torrent.status not in status:
                     continue
                 # 种子标签
-                labels = [str(tag).strip()
-                          for tag in torrent.labels] if hasattr(torrent, "labels") else []
+                labels = [str(tag).strip() for tag in torrent.labels] if hasattr(torrent, "labels") else []
                 if tags and not set(tags).issubset(set(labels)):
                     continue
                 ret_torrents.append(torrent)
@@ -133,8 +167,7 @@ class Transmission:
             del torrents
         return ret_torrents, False
 
-    def get_completed_torrents(self, ids: Union[str, list] = None,
-                               tags: Union[str, list] = None) -> Optional[List[Torrent]]:
+    def get_completed_torrents(self, ids: str | list = None, tags: str | list = None) -> list[Torrent] | None:
         """
         获取已完成的种子列表
         return 种子列表, 发生错误时返回None
@@ -148,8 +181,7 @@ class Transmission:
             logger.error(f"获取已完成的种子列表出错：{str(err)}")
             return None
 
-    def get_downloading_torrents(self, ids: Union[str, list] = None,
-                                 tags: Union[str, list] = None) -> Optional[List[Torrent]]:
+    def get_downloading_torrents(self, ids: str | list = None, tags: str | list = None) -> list[Torrent] | None:
         """
         获取正在下载的种子列表
         return 种子列表, 发生错误时返回None
@@ -157,9 +189,7 @@ class Transmission:
         if not self.trc:
             return None
         try:
-            torrents, error = self.get_torrents(ids=ids,
-                                                status=["downloading", "download_pending"],
-                                                tags=tags)
+            torrents, error = self.get_torrents(ids=ids, status=["downloading", "download_pending"], tags=tags)
             return None if error else torrents or []
         except Exception as err:
             logger.error(f"获取正在下载的种子列表出错：{str(err)}")
@@ -180,7 +210,7 @@ class Transmission:
             logger.error(f"设置种子标签出错：{str(err)}")
             return False
 
-    def get_torrent_tags(self, ids: str) -> List[str]:
+    def get_torrent_tags(self, ids: str) -> list[str]:
         """
         获取所有种子标签
         """
@@ -190,19 +220,21 @@ class Transmission:
             torrents = self.trc.get_torrents(ids=ids, arguments=self._trarg)
             if len(torrents):
                 torrent = torrents[0]
-                labels = [str(tag).strip()
-                          for tag in torrent.labels] if hasattr(torrent, "labels") else []
+                labels = [str(tag).strip() for tag in torrent.labels] if hasattr(torrent, "labels") else []
                 return labels
         except Exception as err:
             logger.error(f"获取种子标签出错：{str(err)}")
             return []
         return []
 
-    def add_torrent(self, content: Union[str, bytes],
-                    is_paused: Optional[bool] = False,
-                    download_dir: Optional[str] = None,
-                    labels=None,
-                    cookie=None) -> Optional[Torrent]:
+    def add_torrent(
+        self,
+        content: str | bytes,
+        is_paused: bool | None = False,
+        download_dir: str | None = None,
+        labels=None,
+        cookie=None,
+    ) -> Torrent | None:
         """
         添加下载任务
         :param content: 种子urls或文件内容
@@ -215,16 +247,14 @@ class Transmission:
         if not self.trc:
             return None
         try:
-            return self.trc.add_torrent(torrent=content,
-                                        download_dir=download_dir,
-                                        paused=is_paused,
-                                        labels=labels,
-                                        cookies=cookie)
+            return self.trc.add_torrent(
+                torrent=content, download_dir=download_dir, paused=is_paused, labels=labels, cookies=cookie
+            )
         except Exception as err:
             logger.error(f"添加种子出错：{str(err)}")
             return None
 
-    def start_torrents(self, ids: Union[str, list]) -> bool:
+    def start_torrents(self, ids: str | list) -> bool:
         """
         启动种子
         """
@@ -237,7 +267,7 @@ class Transmission:
             logger.error(f"启动种子出错：{str(err)}")
             return False
 
-    def stop_torrents(self, ids: Union[str, list]) -> bool:
+    def stop_torrents(self, ids: str | list) -> bool:
         """
         停止种子
         """
@@ -250,7 +280,7 @@ class Transmission:
             logger.error(f"停止种子出错：{str(err)}")
             return False
 
-    def delete_torrents(self, delete_file: bool, ids: Union[str, list]) -> bool:
+    def delete_torrents(self, delete_file: bool, ids: str | list) -> bool:
         """
         删除种子
         """
@@ -265,7 +295,7 @@ class Transmission:
             logger.error(f"删除种子出错：{str(err)}")
             return False
 
-    def get_files(self, tid: str) -> Optional[List[File]]:
+    def get_files(self, tid: str) -> list[File] | None:
         """
         获取种子文件列表
         """
@@ -315,7 +345,7 @@ class Transmission:
             logger.error(f"设置下载文件状态出错：{str(err)}")
             return False
 
-    def transfer_info(self) -> Optional[SessionStats]:
+    def transfer_info(self) -> SessionStats | None:
         """
         获取传输信息
         """
@@ -342,14 +372,14 @@ class Transmission:
                 speed_limit_down=int(download_limit),
                 speed_limit_up=int(upload_limit),
                 speed_limit_down_enabled=download_limit_enabled,
-                speed_limit_up_enabled=upload_limit_enabled
+                speed_limit_up_enabled=upload_limit_enabled,
             )
             return True
         except Exception as err:
             logger.error(f"设置速度限制出错：{str(err)}")
             return False
 
-    def get_speed_limit(self) -> Optional[Tuple[float, float]]:
+    def get_speed_limit(self) -> tuple[float, float] | None:
         """
         获取TR速度
         :return: download_limit 下载速度 默认是0
@@ -361,18 +391,15 @@ class Transmission:
         download_limit = 0
         upload_limit = 0
         try:
-            download_limit = self.trc.get_session().get('speed_limit_down')
-            upload_limit = self.trc.get_session().get('speed_limit_up')
+            download_limit = self.trc.get_session().get("speed_limit_down")
+            upload_limit = self.trc.get_session().get("speed_limit_up")
 
         except Exception as err:
             logger.error(f"获取速度限制出错：{str(err)}")
 
-        return (
-            download_limit,
-            upload_limit
-        )
+        return (download_limit, upload_limit)
 
-    def recheck_torrents(self, ids: Union[str, list]) -> bool:
+    def recheck_torrents(self, ids: str | list) -> bool:
         """
         重新校验种子
         """
@@ -385,12 +412,9 @@ class Transmission:
             logger.error(f"重新校验种子出错：{str(err)}")
             return False
 
-    def change_torrent(self,
-                       hash_string: str,
-                       upload_limit=None,
-                       download_limit=None,
-                       ratio_limit=None,
-                       seeding_time_limit=None) -> bool:
+    def change_torrent(
+        self, hash_string: str, upload_limit=None, download_limit=None, ratio_limit=None, seeding_time_limit=None
+    ) -> bool:
         """
         设置种子
         :param hash_string: ID
@@ -450,14 +474,13 @@ class Transmission:
         if not self.trc:
             return False
         try:
-            self.trc.change_torrent(ids=hash_string,
-                                    tracker_list=tracker_list)
+            self.trc.change_torrent(ids=hash_string, tracker_list=tracker_list)
             return True
         except Exception as err:
             logger.error(f"修改tracker出错：{str(err)}")
             return False
 
-    def get_trackers(self, hash_string: str) -> Optional[List[str]]:
+    def get_trackers(self, hash_string: str) -> list[str] | None:
         """
         获取种子Tracker列表。
         :param hash_string: 种子Hash
@@ -470,22 +493,18 @@ class Transmission:
             if not torrents:
                 return []
             torrent = torrents[0]
-            tracker_list = getattr(torrent, "tracker_list", None) \
-                or getattr(torrent, "trackerList", None) \
-                or []
+            tracker_list = getattr(torrent, "tracker_list", None) or getattr(torrent, "trackerList", None) or []
             if tracker_list:
                 return list(tracker_list)
             trackers = getattr(torrent, "trackers", None) or []
             return [
-                tracker.get("announce")
-                for tracker in trackers
-                if isinstance(tracker, dict) and tracker.get("announce")
+                tracker.get("announce") for tracker in trackers if isinstance(tracker, dict) and tracker.get("announce")
             ]
         except Exception as err:
             logger.error(f"获取tracker出错：{str(err)}")
             return None
 
-    def get_session(self) -> Optional[Session]:
+    def get_session(self) -> Session | None:
         """
         获取Transmission当前的会话信息和配置设置
         :return dict

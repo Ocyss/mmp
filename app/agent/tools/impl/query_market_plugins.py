@@ -6,7 +6,6 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import (
     DEFAULT_PLUGIN_CANDIDATE_LIMIT,
     MAX_PLUGIN_CANDIDATE_LIMIT,
@@ -15,21 +14,22 @@ from app.agent.tools.impl._plugin_tool_utils import (
     summarize_candidates,
     summarize_plugin,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
 class QueryMarketPluginsInput(BaseModel):
     """查询插件市场工具的输入参数模型"""
 
-    query: Optional[str] = Field(
+    query: str | None = Field(
         None,
         description="Optional keyword to filter plugin market results by plugin ID, name, description, or author.",
     )
-    max_results: Optional[int] = Field(
+    max_results: int | None = Field(
         DEFAULT_PLUGIN_CANDIDATE_LIMIT,
         description="Maximum number of plugins to return. Defaults to 50, capped at 200.",
     )
-    force_refresh: Optional[bool] = Field(
+    force_refresh: bool | None = Field(
         False,
         description="Whether to refresh plugin market caches before querying.",
     )
@@ -47,33 +47,31 @@ class QueryMarketPluginsTool(MoviePilotTool):
         "Can return the full plugin list or filter by keywords before install_plugin is used."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryMarketPluginsInput
+    args_schema: type[BaseModel] = QueryMarketPluginsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         query = kwargs.get("query")
         if query:
             return f"查询插件市场: {query}"
         return "查询插件市场全部插件"
 
     @staticmethod
-    def _clamp_results(max_results: Optional[int]) -> int:
+    def _clamp_results(max_results: int | None) -> int:
         if max_results is None:
             return DEFAULT_PLUGIN_CANDIDATE_LIMIT
         try:
             return max(1, min(int(max_results), MAX_PLUGIN_CANDIDATE_LIMIT))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return DEFAULT_PLUGIN_CANDIDATE_LIMIT
 
     async def run(
         self,
-        query: Optional[str] = None,
-        max_results: Optional[int] = DEFAULT_PLUGIN_CANDIDATE_LIMIT,
+        query: str | None = None,
+        max_results: int | None = DEFAULT_PLUGIN_CANDIDATE_LIMIT,
         force_refresh: bool = False,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: query={query}, force_refresh={force_refresh}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: query={query}, force_refresh={force_refresh}")
 
         try:
             plugins = await load_market_plugins(force_refresh=force_refresh)

@@ -20,32 +20,32 @@ class DirectoryHelper:
     """
 
     @staticmethod
-    def get_dirs() -> List[schemas.TransferDirectoryConf]:
+    def get_dirs() -> list[schemas.TransferDirectoryConf]:
         """
         获取所有下载目录
         """
-        dir_confs: List[dict] = SystemConfigOper().get(SystemConfigKey.Directories)
+        dir_confs: list[dict] = SystemConfigOper().get(SystemConfigKey.Directories)
         if not dir_confs:
             return []
         return [schemas.TransferDirectoryConf(**d) for d in dir_confs]
 
-    def get_download_dirs(self) -> List[schemas.TransferDirectoryConf]:
+    def get_download_dirs(self) -> list[schemas.TransferDirectoryConf]:
         """
         获取所有下载目录
         """
         return sorted([d for d in self.get_dirs() if d.download_path], key=lambda x: x.priority)
 
-    def get_local_download_dirs(self) -> List[schemas.TransferDirectoryConf]:
+    def get_local_download_dirs(self) -> list[schemas.TransferDirectoryConf]:
         """
         获取所有本地的可下载目录
         """
         return [d for d in self.get_download_dirs() if d.storage == "local"]
 
     def get_download_dir_by_save_path(
-            self,
-            media: Optional[MediaInfo],
-            save_path: str,
-    ) -> Optional[schemas.TransferDirectoryConf]:
+        self,
+        media: MediaInfo | None,
+        save_path: str,
+    ) -> schemas.TransferDirectoryConf | None:
         """
         按媒体信息和精确保存根路径匹配下载目录配置。
 
@@ -78,22 +78,27 @@ class DirectoryHelper:
                 return dir_info
         return None
 
-    def get_library_dirs(self) -> List[schemas.TransferDirectoryConf]:
+    def get_library_dirs(self) -> list[schemas.TransferDirectoryConf]:
         """
         获取所有媒体库目录
         """
         return sorted([d for d in self.get_dirs() if d.library_path], key=lambda x: x.priority)
 
-    def get_local_library_dirs(self) -> List[schemas.TransferDirectoryConf]:
+    def get_local_library_dirs(self) -> list[schemas.TransferDirectoryConf]:
         """
         获取所有本地的媒体库目录
         """
         return [d for d in self.get_library_dirs() if d.library_storage == "local"]
 
-    def get_dir(self, media: Optional[MediaInfo], include_unsorted: Optional[bool] = False,
-                storage: Optional[str] = None, src_path: Path = None,
-                target_storage: Optional[str] = None, dest_path: Path = None
-                ) -> Optional[schemas.TransferDirectoryConf]:
+    def get_dir(
+        self,
+        media: MediaInfo | None,
+        include_unsorted: bool | None = False,
+        storage: str | None = None,
+        src_path: Path = None,
+        target_storage: str | None = None,
+        dest_path: Path = None,
+    ) -> schemas.TransferDirectoryConf | None:
         """
         根据媒体信息获取下载目录、媒体库目录配置
         :param media: 媒体信息
@@ -113,7 +118,7 @@ class DirectoryHelper:
         dirs_to_consider = matching_dirs if matching_dirs else dirs
 
         # 已匹配的目录
-        matched_dirs: List[schemas.TransferDirectoryConf] = []
+        matched_dirs: list[schemas.TransferDirectoryConf] = []
         # 按照配置顺序查找
         for d in dirs_to_consider:
             # 没有启用整理的目录
@@ -145,13 +150,15 @@ class DirectoryHelper:
                 # 优先源目录同盘
                 for matched_dir in matched_dirs:
                     matched_path = Path(matched_dir.download_path)
-                    if self._is_same_source((src_path, storage or "local"), (matched_path, matched_dir.library_storage)):
+                    if self._is_same_source(
+                        (src_path, storage or "local"), (matched_path, matched_dir.library_storage)
+                    ):
                         return matched_dir
             return matched_dirs[0]
         return None
 
     @staticmethod
-    def _is_same_source(src: Tuple[Path, str],  tar: Tuple[Path, str]) -> bool:
+    def _is_same_source(src: tuple[Path, str], tar: tuple[Path, str]) -> bool:
         """
         判断源目录和目标目录是否在同一存储盘
 
@@ -167,7 +174,7 @@ class DirectoryHelper:
         return src_storage == tar_storage
 
     @staticmethod
-    def get_media_root_path(rename_format: str, rename_path: Path) -> Optional[Path]:
+    def get_media_root_path(rename_format: str, rename_path: Path) -> Path | None:
         """
         获取重命名后的媒体文件根路径
 
@@ -190,8 +197,7 @@ class DirectoryHelper:
             if not matchs:
                 continue
             # 处理特例，有的人重命名的第一层是年份、分辨率
-            if (any("title" in m for m in matchs)
-                and not any("season" in m for m in matchs)):
+            if any("title" in m for m in matchs) and not any("season" in m for m in matchs):
                 # 找出最后一层含有标题且不含季参数的目录作为媒体根目录
                 rename_format_level = level
                 break
@@ -210,14 +216,14 @@ class DirectoryHelper:
         return media_root
 
 
-def _split_file_uri(value: str) -> Tuple[str, str]:
+def _split_file_uri(value: str) -> tuple[str, str]:
     """
     拆分 FileURI 字符串，保留原始路径用于安全校验。
     """
     for storage in StorageSchema:
         protocol = f"{storage.value}:"
         if value.startswith(protocol):
-            return storage.value, value[len(protocol):]
+            return storage.value, value[len(protocol) :]
     return "local", value
 
 
@@ -264,7 +270,7 @@ def _normalize_safe_windows_path(raw_path: str) -> PureWindowsPath:
     return path
 
 
-def _normalize_download_path(raw_path: str, storage: str) -> Tuple[str, PurePath]:
+def _normalize_download_path(raw_path: str, storage: str) -> tuple[str, PurePath]:
     """
     按存储类型解析下载路径，本地允许 POSIX 或已配置的 Windows drive，远端保持 FileURI POSIX 语义。
     """
@@ -284,7 +290,7 @@ def _download_path_uri(storage: str, path: PurePath) -> str:
     return schemas.FileURI(storage=storage, path=path_value).uri
 
 
-def _normalize_download_root(dir_info: schemas.TransferDirectoryConf) -> Optional[Tuple[str, str, PurePath]]:
+def _normalize_download_root(dir_info: schemas.TransferDirectoryConf) -> tuple[str, str, PurePath] | None:
     """
     读取下载目录配置中的根路径；无效配置不参与用户 save_path allowlist。
     """
@@ -326,9 +332,7 @@ def validate_download_save_path(save_path: str) -> str:
             return _download_path_uri(storage, target_path)
 
     # 旧版订阅界面只持久化 download_path，需要从已配置根目录恢复远程存储类型。
-    if (not has_storage_prefix
-            and storage == StorageSchema.Local.value
-            and target_style == "posix"):
+    if not has_storage_prefix and storage == StorageSchema.Local.value and target_style == "posix":
         for root_storage, root_style, root_path in download_roots:
             if root_storage == StorageSchema.Local.value or target_style != root_style:
                 continue

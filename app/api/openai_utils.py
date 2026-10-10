@@ -10,14 +10,14 @@ def _get_message_field(message: Any, field: str, default: Any = None) -> Any:
     return getattr(message, field, default)
 
 
-def extract_text_and_images(content: Any) -> Tuple[str, List[str]]:
+def extract_text_and_images(content: Any) -> tuple[str, list[str]]:
     if content is None:
         return "", []
     if isinstance(content, str):
         return content.strip(), []
 
-    text_parts: List[str] = []
-    image_urls: List[str] = []
+    text_parts: list[str] = []
+    image_urls: list[str] = []
     if isinstance(content, list):
         for item in content:
             if isinstance(item, str):
@@ -51,19 +51,15 @@ def extract_text_and_images(content: Any) -> Tuple[str, List[str]]:
                     data = source.get("data")
                     media_type = source.get("media_type") or "image/png"
                     if data and str(data).strip():
-                        image_urls.append(
-                            f"data:{media_type};base64,{str(data).strip()}"
-                        )
+                        image_urls.append(f"data:{media_type};base64,{str(data).strip()}")
     return "\n".join(text_parts).strip(), image_urls
 
 
-def build_prompt(
-    messages: List[Any], use_server_session: bool
-) -> Tuple[str, List[str]]:
-    system_texts: List[str] = []
-    transcript: List[str] = []
+def build_prompt(messages: list[Any], use_server_session: bool) -> tuple[str, list[str]]:
+    system_texts: list[str] = []
+    transcript: list[str] = []
     latest_user_text = ""
-    latest_user_images: List[str] = []
+    latest_user_images: list[str] = []
 
     for message in messages:
         role = str(_get_message_field(message, "role", "user") or "user").lower()
@@ -87,7 +83,7 @@ def build_prompt(
     if not latest_user_text and not latest_user_images:
         raise ValueError("No usable user message found in messages.")
 
-    prompt_parts: List[str] = []
+    prompt_parts: list[str] = []
     if system_texts:
         prompt_parts.append("系统要求：\n" + "\n\n".join(system_texts))
 
@@ -101,9 +97,7 @@ def build_prompt(
     else:
         prompt_parts.append("当前用户消息：\n请结合图片内容回复。")
 
-    return "\n\n".join(
-        part for part in prompt_parts if part
-    ).strip(), latest_user_images
+    return "\n\n".join(part for part in prompt_parts if part).strip(), latest_user_images
 
 
 def build_session_id(session_key: str, prefix: str) -> str:
@@ -111,7 +105,7 @@ def build_session_id(session_key: str, prefix: str) -> str:
     return f"{prefix}{digest[:32]}"
 
 
-def build_completion_payload(content: str, model_id: str) -> Dict[str, Any]:
+def build_completion_payload(content: str, model_id: str) -> dict[str, Any]:
     created = int(time.time())
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
@@ -136,10 +130,8 @@ def build_completion_payload(content: str, model_id: str) -> Dict[str, Any]:
     }
 
 
-def build_responses_input(
-    input_data: Any, instructions: str | None = None
-) -> List[Dict[str, Any]]:
-    messages: List[Dict[str, Any]] = []
+def build_responses_input(input_data: Any, instructions: str | None = None) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
     if instructions and str(instructions).strip():
         messages.append({"role": "system", "content": str(instructions).strip()})
 
@@ -159,25 +151,17 @@ def build_responses_input(
                 content = item.get("content")
                 messages.append({"role": role, "content": content})
             elif item.get("role") and "content" in item:
-                messages.append(
-                    {"role": item.get("role"), "content": item.get("content")}
-                )
+                messages.append({"role": item.get("role"), "content": item.get("content")})
         return messages
 
-    if (
-        isinstance(input_data, dict)
-        and input_data.get("role")
-        and "content" in input_data
-    ):
-        messages.append(
-            {"role": input_data.get("role"), "content": input_data.get("content")}
-        )
+    if isinstance(input_data, dict) and input_data.get("role") and "content" in input_data:
+        messages.append({"role": input_data.get("role"), "content": input_data.get("content")})
 
     return messages
 
 
-def build_anthropic_messages(system: Any, messages: List[Any]) -> List[Dict[str, Any]]:
-    normalized: List[Dict[str, Any]] = []
+def build_anthropic_messages(system: Any, messages: list[Any]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
     system_text, _ = extract_text_and_images(system)
     if system_text:
         normalized.append({"role": "system", "content": system_text})

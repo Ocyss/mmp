@@ -2,23 +2,22 @@
 
 import copy
 import re
-from typing import Any, Dict, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any, Dict, Optional
 
 from app.core.event import eventmanager
 from app.db.subscribe_oper import SubscribeOper
 from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.rule import RuleHelper
-from app.modules.filter.RuleParser import RuleParser
 from app.modules.filter.builtin_rules import BUILTIN_RULE_SET
+from app.modules.filter.RuleParser import RuleParser
 from app.schemas import CustomRule, FilterRuleGroup
 from app.schemas.event import ConfigChangeEventData
 from app.schemas.types import EventType, SystemConfigKey
 
 RULE_ID_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
 RULE_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]*|[0-9][A-Za-z0-9]+")
-NUMERIC_RANGE_PATTERN = re.compile(
-    r"^\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?$"
-)
+NUMERIC_RANGE_PATTERN = re.compile(r"^\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?$")
 
 MEDIA_TYPE_ALIASES = {
     "movie": "电影",
@@ -61,7 +60,7 @@ RULE_STRING_SYNTAX = {
 }
 
 
-def normalize_optional_text(value: Optional[str]) -> Optional[str]:
+def normalize_optional_text(value: str | None) -> str | None:
     """把空白字符串折叠为 None，避免保存无意义的空值。"""
     if value is None:
         return None
@@ -69,30 +68,24 @@ def normalize_optional_text(value: Optional[str]) -> Optional[str]:
     return value or None
 
 
-def normalize_media_type(value: Optional[str]) -> Optional[str]:
+def normalize_media_type(value: str | None) -> str | None:
     """兼容英中文媒体类型输入，最终统一为后端实际使用的中文值。"""
     value = normalize_optional_text(value)
     if not value:
         return None
     normalized = MEDIA_TYPE_ALIASES.get(value.lower(), value)
     if normalized not in {"电影", "电视剧"}:
-        raise ValueError(
-            "media_type 仅支持 '电影'、'电视剧'、'movie' 或 'tv'"
-        )
+        raise ValueError("media_type 仅支持 '电影'、'电视剧'、'movie' 或 'tv'")
     return normalized
 
 
-def validate_numeric_range(
-    field_name: str, value: Optional[str]
-) -> Optional[str]:
+def validate_numeric_range(field_name: str, value: str | None) -> str | None:
     """校验 size_range / publish_time 这类单值或区间值。"""
     value = normalize_optional_text(value)
     if not value:
         return None
     if not NUMERIC_RANGE_PATTERN.match(value):
-        raise ValueError(
-            f"{field_name} 格式无效，支持 '1000' 或 '1000-5000' 这类数字区间格式"
-        )
+        raise ValueError(f"{field_name} 格式无效，支持 '1000' 或 '1000-5000' 这类数字区间格式")
 
     parts = [float(item.strip()) for item in value.split("-")]
     if len(parts) == 2 and parts[0] > parts[1]:
@@ -100,7 +93,7 @@ def validate_numeric_range(
     return value
 
 
-def validate_seeders(value: Optional[str]) -> Optional[str]:
+def validate_seeders(value: str | None) -> str | None:
     """做种人数最终会被 int() 解析，这里提前拦住非法值。"""
     value = normalize_optional_text(value)
     if not value:
@@ -110,7 +103,7 @@ def validate_seeders(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def get_builtin_rules() -> Dict[str, dict]:
+def get_builtin_rules() -> dict[str, dict]:
     """返回内置规则的深拷贝，避免调用方误改共享常量。"""
     return copy.deepcopy(BUILTIN_RULE_SET)
 
@@ -123,25 +116,17 @@ def get_rule_groups() -> list[FilterRuleGroup]:
     return RuleHelper().get_rule_groups()
 
 
-def build_custom_rule_map(rules: Optional[Iterable[CustomRule]] = None) -> Dict[str, CustomRule]:
-    return {
-        rule.id: rule
-        for rule in (rules or get_custom_rules())
-        if rule.id
-    }
+def build_custom_rule_map(rules: Iterable[CustomRule] | None = None) -> dict[str, CustomRule]:
+    return {rule.id: rule for rule in (rules or get_custom_rules()) if rule.id}
 
 
 def build_rule_group_map(
-    groups: Optional[Iterable[FilterRuleGroup]] = None,
-) -> Dict[str, FilterRuleGroup]:
-    return {
-        group.name: group
-        for group in (groups or get_rule_groups())
-        if group.name
-    }
+    groups: Iterable[FilterRuleGroup] | None = None,
+) -> dict[str, FilterRuleGroup]:
+    return {group.name: group for group in (groups or get_rule_groups()) if group.name}
 
 
-def extract_rule_tokens(rule_string: Optional[str]) -> list[str]:
+def extract_rule_tokens(rule_string: str | None) -> list[str]:
     """从规则串里提取规则 ID，用于引用分析和未知规则校验。"""
     if not rule_string:
         return []
@@ -186,17 +171,9 @@ def validate_rule_string(rule_string: str, available_rule_ids: Iterable[str]) ->
     """校验规则串语法和引用规则是否都存在。"""
     parsed = parse_rule_string(rule_string)
     available_ids = set(available_rule_ids)
-    unknown_rules = sorted(
-        {
-            rule_id
-            for rule_id in parsed["referenced_rules"]
-            if rule_id not in available_ids
-        }
-    )
+    unknown_rules = sorted({rule_id for rule_id in parsed["referenced_rules"] if rule_id not in available_ids})
     if unknown_rules:
-        raise ValueError(
-            f"rule_string 引用了不存在的规则: {', '.join(unknown_rules)}"
-        )
+        raise ValueError(f"rule_string 引用了不存在的规则: {', '.join(unknown_rules)}")
     return parsed
 
 
@@ -208,14 +185,14 @@ def serialize_builtin_rule(rule_id: str, payload: dict) -> dict:
     return data
 
 
-def serialize_custom_rule(rule: CustomRule, group_refs: Optional[list[str]] = None) -> dict:
+def serialize_custom_rule(rule: CustomRule, group_refs: list[str] | None = None) -> dict:
     data = rule.model_dump(exclude_none=True)
     data["source"] = "custom"
     data["referenced_by_rule_groups"] = group_refs or []
     return data
 
 
-def serialize_rule_group(group: FilterRuleGroup, usage: Optional[dict] = None) -> dict:
+def serialize_rule_group(group: FilterRuleGroup, usage: dict | None = None) -> dict:
     """查询时尽量附带解析结果，便于 Agent 理解优先级层级。"""
     data = group.model_dump(exclude_none=True)
     if group.rule_string:
@@ -246,24 +223,15 @@ def default_rule_group_usage() -> dict:
 
 
 async def collect_rule_group_usages(
-    group_names: Optional[Iterable[str]] = None,
-) -> Dict[str, dict]:
+    group_names: Iterable[str] | None = None,
+) -> dict[str, dict]:
     """收集规则组在全局配置和订阅上的引用情况。"""
     target_names = set(group_names or [])
-    search_groups = set(
-        SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups) or []
-    )
-    subscribe_groups = set(
-        SystemConfigOper().get(SystemConfigKey.SubscribeFilterRuleGroups) or []
-    )
-    best_version_groups = set(
-        SystemConfigOper().get(SystemConfigKey.BestVersionFilterRuleGroups) or []
-    )
+    search_groups = set(SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups) or [])
+    subscribe_groups = set(SystemConfigOper().get(SystemConfigKey.SubscribeFilterRuleGroups) or [])
+    best_version_groups = set(SystemConfigOper().get(SystemConfigKey.BestVersionFilterRuleGroups) or [])
 
-    usage_map = {
-        name: default_rule_group_usage()
-        for name in target_names
-    }
+    usage_map = {name: default_rule_group_usage() for name in target_names}
 
     def ensure_usage(name: str) -> dict:
         if name not in usage_map:
@@ -305,14 +273,11 @@ async def collect_rule_group_usages(
 
 def collect_custom_rule_group_refs(
     rule_groups: Iterable[FilterRuleGroup],
-    rule_ids: Optional[Iterable[str]] = None,
-) -> Dict[str, list[str]]:
+    rule_ids: Iterable[str] | None = None,
+) -> dict[str, list[str]]:
     """收集自定义规则被哪些规则组引用。"""
     target_rule_ids = set(rule_ids or [])
-    refs: Dict[str, list[str]] = {
-        rule_id: []
-        for rule_id in target_rule_ids
-    }
+    refs: dict[str, list[str]] = {rule_id: [] for rule_id in target_rule_ids}
 
     for group in rule_groups:
         if not group.name or not group.rule_string:
@@ -331,13 +296,13 @@ def collect_custom_rule_group_refs(
 def normalize_custom_rule(
     rule_id: str,
     name: str,
-    include: Optional[str],
-    exclude: Optional[str],
-    size_range: Optional[str],
-    seeders: Optional[str],
-    publish_time: Optional[str],
+    include: str | None,
+    exclude: str | None,
+    size_range: str | None,
+    seeders: str | None,
+    publish_time: str | None,
     existing_rules: Iterable[CustomRule],
-    original_rule_id: Optional[str] = None,
+    original_rule_id: str | None = None,
 ) -> CustomRule:
     """新增/更新自定义规则时统一走这里，避免多处散落校验逻辑。"""
     normalized_rule_id = normalize_optional_text(rule_id)
@@ -348,24 +313,13 @@ def normalize_custom_rule(
         raise ValueError("name 不能为空")
     if not RULE_ID_PATTERN.match(normalized_rule_id):
         raise ValueError("rule_id 仅支持英文字母和数字")
-    if (
-        normalized_rule_id in BUILTIN_RULE_SET
-        and normalized_rule_id != original_rule_id
-    ):
-        raise ValueError(
-            f"rule_id '{normalized_rule_id}' 与内置规则冲突，不能覆盖内置规则"
-        )
+    if normalized_rule_id in BUILTIN_RULE_SET and normalized_rule_id != original_rule_id:
+        raise ValueError(f"rule_id '{normalized_rule_id}' 与内置规则冲突，不能覆盖内置规则")
 
     for existing_rule in existing_rules:
-        if (
-            existing_rule.id == normalized_rule_id
-            and existing_rule.id != original_rule_id
-        ):
+        if existing_rule.id == normalized_rule_id and existing_rule.id != original_rule_id:
             raise ValueError(f"rule_id '{normalized_rule_id}' 已存在")
-        if (
-            existing_rule.name == normalized_name
-            and existing_rule.id != original_rule_id
-        ):
+        if existing_rule.name == normalized_name and existing_rule.id != original_rule_id:
             raise ValueError(f"规则名称 '{normalized_name}' 已存在")
 
     return CustomRule(
@@ -382,11 +336,11 @@ def normalize_custom_rule(
 def normalize_rule_group(
     name: str,
     rule_string: str,
-    media_type: Optional[str],
-    category: Optional[str],
+    media_type: str | None,
+    category: str | None,
     existing_groups: Iterable[FilterRuleGroup],
     available_rule_ids: Iterable[str],
-    original_name: Optional[str] = None,
+    original_name: str | None = None,
 ) -> tuple[FilterRuleGroup, dict]:
     """新增/更新规则组时统一校验名字、适用范围和规则串。"""
     normalized_name = normalize_optional_text(name)
@@ -414,17 +368,11 @@ def normalize_rule_group(
     )
 
 
-async def save_system_config(
-    key: SystemConfigKey, value: Any
-) -> Optional[bool]:
+async def save_system_config(key: SystemConfigKey, value: Any) -> bool | None:
     """通过统一入口保存配置并补发 ConfigChanged 事件。"""
     normalized_value = value
     if isinstance(normalized_value, list):
-        normalized_value = [
-            item
-            for item in normalized_value
-            if item is not None and item != ""
-        ]
+        normalized_value = [item for item in normalized_value if item is not None and item != ""]
         normalized_value = normalized_value or None
 
     success = await SystemConfigOper().async_set(key, normalized_value)
@@ -440,19 +388,13 @@ async def save_system_config(
     return success
 
 
-def replace_rule_id_in_rule_string(
-    rule_string: str, old_rule_id: str, new_rule_id: str
-) -> str:
+def replace_rule_id_in_rule_string(rule_string: str, old_rule_id: str, new_rule_id: str) -> str:
     """只替换完整 token，避免误伤其他规则名。"""
-    pattern = re.compile(
-        rf"(?<![A-Za-z0-9]){re.escape(old_rule_id)}(?![A-Za-z0-9])"
-    )
+    pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(old_rule_id)}(?![A-Za-z0-9])")
     return pattern.sub(new_rule_id, rule_string)
 
 
-def replace_group_name_in_list(
-    values: Optional[Iterable[str]], old_name: str, new_name: str
-) -> list[str]:
+def replace_group_name_in_list(values: Iterable[str] | None, old_name: str, new_name: str) -> list[str]:
     """更新配置里的规则组名引用，并顺手去重。"""
     result = []
     for value in values or []:

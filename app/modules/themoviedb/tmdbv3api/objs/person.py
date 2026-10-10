@@ -23,10 +23,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["details"] % person_id,
-            params="append_to_response=%s" % append_to_response
-        )
+        return self._request_obj(self._urls["details"] % person_id, params="append_to_response=%s" % append_to_response)
 
     def changes(self, person_id, start_date=None, end_date=None, page=1):
         """
@@ -43,11 +40,7 @@ class Person(TMDb):
             params += "&start_date=%s" % start_date
         if end_date:
             params += "&end_date=%s" % end_date
-        return self._request_obj(
-            self._urls["changes"] % person_id,
-            params=params,
-            key="changes"
-        )
+        return self._request_obj(self._urls["changes"] % person_id, params=params, key="changes")
 
     def movie_credits(self, person_id):
         """
@@ -88,10 +81,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["images"] % person_id,
-            key="profiles"
-        )
+        return self._request_obj(self._urls["images"] % person_id, key="profiles")
 
     def tagged_images(self, person_id, page=1):
         """
@@ -100,11 +90,7 @@ class Person(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["tagged_images"] % person_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["tagged_images"] % person_id, params="page=%s" % page, key="results")
 
     def translations(self, person_id):
         """
@@ -112,10 +98,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["translations"] % person_id,
-            key="translations"
-        )
+        return self._request_obj(self._urls["translations"] % person_id, key="translations")
 
     def latest(self):
         """
@@ -130,11 +113,7 @@ class Person(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["popular"],
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["popular"], params="page=%s" % page, key="results")
 
     # 异步版本方法
     async def async_details(self, person_id, append_to_response="videos,images"):
@@ -145,8 +124,7 @@ class Person(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["details"] % person_id,
-            params="append_to_response=%s" % append_to_response
+            self._urls["details"] % person_id, params="append_to_response=%s" % append_to_response
         )
 
     async def async_changes(self, person_id, start_date=None, end_date=None, page=1):
@@ -164,11 +142,7 @@ class Person(TMDb):
             params += "&start_date=%s" % start_date
         if end_date:
             params += "&end_date=%s" % end_date
-        return await self._async_request_obj(
-            self._urls["changes"] % person_id,
-            params=params,
-            key="changes"
-        )
+        return await self._async_request_obj(self._urls["changes"] % person_id, params=params, key="changes")
 
     async def async_movie_credits(self, person_id):
         """
@@ -209,10 +183,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["images"] % person_id,
-            key="profiles"
-        )
+        return await self._async_request_obj(self._urls["images"] % person_id, key="profiles")
 
     async def async_tagged_images(self, person_id, page=1):
         """
@@ -222,9 +193,7 @@ class Person(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["tagged_images"] % person_id,
-            params="page=%s" % page,
-            key="results"
+            self._urls["tagged_images"] % person_id, params="page=%s" % page, key="results"
         )
 
     async def async_translations(self, person_id):
@@ -233,10 +202,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["translations"] % person_id,
-            key="translations"
-        )
+        return await self._async_request_obj(self._urls["translations"] % person_id, key="translations")
 
     async def async_latest(self):
         """
@@ -251,8 +217,4 @@ class Person(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["popular"],
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["popular"], params="page=%s" % page, key="results")

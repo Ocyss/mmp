@@ -6,9 +6,10 @@ import re
 import shutil
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -167,11 +168,14 @@ class AgentRuntimeConfig:
 
     def render_prompt_sections(self) -> str:
         """渲染进入系统提示词的运行时片段。"""
-        sections: list[str] = ["<agent_runtime_config>", f"- Active persona: `{self.active_persona}`",
-                               f"- Active persona file: `personas/{self.persona.persona_id}/{PERSONA_FILE}`",
-                               "- Use `query_personas` before switching persona when the requested speaking style is unclear.",
-                               "- Subagent availability is exposed by the subagent task tools; do not rely on this runtime section as a catalog.",
-                               "</agent_runtime_config>"]
+        sections: list[str] = [
+            "<agent_runtime_config>",
+            f"- Active persona: `{self.active_persona}`",
+            f"- Active persona file: `personas/{self.persona.persona_id}/{PERSONA_FILE}`",
+            "- Use `query_personas` before switching persona when the requested speaking style is unclear.",
+            "- Subagent availability is exposed by the subagent task tools; do not rely on this runtime section as a catalog.",
+            "</agent_runtime_config>",
+        ]
 
         if self.warnings:
             sections.extend(
@@ -217,8 +221,7 @@ class AgentRuntimeConfig:
     def list_personas(self) -> list[dict[str, Any]]:
         """返回全部人格摘要。"""
         return [
-            persona.to_dict(is_active=persona.persona_id == self.active_persona)
-            for persona in self.available_personas
+            persona.to_dict(is_active=persona.persona_id == self.active_persona) for persona in self.available_personas
         ]
 
 
@@ -228,8 +231,8 @@ class AgentRuntimeManager:
     def __init__(
         self,
         *,
-        agent_root_dir: Optional[Path] = None,
-        bundled_defaults_dir: Optional[Path] = None,
+        agent_root_dir: Path | None = None,
+        bundled_defaults_dir: Path | None = None,
     ) -> None:
         self.agent_root_dir = agent_root_dir or (settings.CONFIG_PATH / "agent")
         self.runtime_dir = self.agent_root_dir / SYSTEM_RUNTIME_DIR
@@ -238,12 +241,10 @@ class AgentRuntimeManager:
         self.jobs_dir = self.agent_root_dir / JOBS_DIR
         self.activity_dir = self.agent_root_dir / ACTIVITY_DIR
         self.subagents_dir = self.runtime_dir / SUBAGENTS_DIR
-        self.bundled_defaults_dir = bundled_defaults_dir or (
-            Path(__file__).parent / "defaults"
-        )
+        self.bundled_defaults_dir = bundled_defaults_dir or (Path(__file__).parent / "defaults")
         self._cache_lock = threading.Lock()
-        self._cached_signature: Optional[tuple[tuple[str, int, int], ...]] = None
-        self._cached_config: Optional[AgentRuntimeConfig] = None
+        self._cached_signature: tuple[tuple[str, int, int], ...] | None = None
+        self._cached_config: AgentRuntimeConfig | None = None
         self._cached_signature_checked_at = 0.0
         self._signature_check_interval = 1.0
         self._layout_ready = False
@@ -281,9 +282,7 @@ class AgentRuntimeManager:
                 logger.warning(f"Agent 根层配置无效，回退到内置默认配置: {err}")
                 config = self._load_from_root(self.bundled_defaults_dir)
                 config.used_fallback = True
-                config.warnings.insert(
-                    0, f"用户运行时配置加载失败，已回退到内置默认配置: {err}"
-                )
+                config.warnings.insert(0, f"用户运行时配置加载失败，已回退到内置默认配置: {err}")
 
             self._cached_signature = signature
             self._cached_config = config
@@ -303,8 +302,7 @@ class AgentRuntimeManager:
         with self._cache_lock:
             if (
                 self._cached_signature is not None
-                and now - self._cached_signature_checked_at
-                < self._signature_check_interval
+                and now - self._cached_signature_checked_at < self._signature_check_interval
             ):
                 return self._cached_signature
 
@@ -327,12 +325,8 @@ class AgentRuntimeManager:
 
         document = self._render_current_persona_document(
             active_persona=persona.persona_id,
-            extra_context_files=self._coerce_string_list(
-                current_meta.get("extra_context_files")
-            ),
-            deprecated_phrases=self._coerce_string_list(
-                current_meta.get("deprecated_phrases")
-            ),
+            extra_context_files=self._coerce_string_list(current_meta.get("extra_context_files")),
+            deprecated_phrases=self._coerce_string_list(current_meta.get("deprecated_phrases")),
         )
         current_path.write_text(document, encoding="utf-8")
         self.invalidate_cache()
@@ -351,11 +345,11 @@ class AgentRuntimeManager:
         self,
         persona_query: str,
         *,
-        label: Optional[str] = None,
-        description: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
-        instructions: Optional[str] = None,
-        append_instructions: Optional[list[str]] = None,
+        label: str | None = None,
+        description: str | None = None,
+        aliases: list[str] | None = None,
+        instructions: str | None = None,
+        append_instructions: list[str] | None = None,
         create_if_missing: bool = False,
     ) -> tuple[PersonaDefinition, bool]:
         """更新或创建运行时人格定义。"""
@@ -383,21 +377,11 @@ class AgentRuntimeManager:
             existing_aliases = []
             created = True
 
-        final_label = (
-            label.strip()
-            if isinstance(label, str) and label.strip()
-            else existing_label or target_persona_id
-        )
+        final_label = label.strip() if isinstance(label, str) and label.strip() else existing_label or target_persona_id
         final_description = (
-            description.strip()
-            if isinstance(description, str) and description.strip()
-            else existing_description
+            description.strip() if isinstance(description, str) and description.strip() else existing_description
         )
-        final_aliases = (
-            self._normalize_persona_aliases(aliases, "aliases")
-            if aliases is not None
-            else existing_aliases
-        )
+        final_aliases = self._normalize_persona_aliases(aliases, "aliases") if aliases is not None else existing_aliases
         final_body = (
             self._normalize_persona_body(instructions)
             if isinstance(instructions, str) and instructions.strip()
@@ -540,23 +524,16 @@ class AgentRuntimeManager:
         current_doc = self._read_markdown(current_persona_path)
         current_meta = current_doc.metadata
 
-        active_persona = str(
-            current_meta.get("active_persona") or DEFAULT_PERSONA_ID
-        ).strip()
+        active_persona = str(current_meta.get("active_persona") or DEFAULT_PERSONA_ID).strip()
         if not active_persona:
             raise AgentRuntimeConfigError("CURRENT_PERSONA.md 缺少 active_persona")
 
-        extra_context_paths = self._resolve_optional_paths(
-            root, current_meta.get("extra_context_files", [])
-        )
+        extra_context_paths = self._resolve_optional_paths(root, current_meta.get("extra_context_files", []))
 
         available_personas = self._load_personas(root)
         persona = self._resolve_persona_definition(active_persona, available_personas)
         available_subagents = self._load_subagents(root)
-        extra_contexts = [
-            (path, self._read_markdown(path).body)
-            for path in extra_context_paths
-        ]
+        extra_contexts = [(path, self._read_markdown(path).body) for path in extra_context_paths]
 
         warnings = self._validate_runtime_config(
             current_meta=current_meta,
@@ -631,9 +608,7 @@ class AgentRuntimeManager:
             if not subagent_path.exists():
                 continue
             document = self._read_markdown(subagent_path)
-            subagent_id = str(
-                document.metadata.get("subagent_id") or subagent_dir.name
-            ).strip()
+            subagent_id = str(document.metadata.get("subagent_id") or subagent_dir.name).strip()
             if not subagent_id:
                 raise AgentRuntimeConfigError(f"{subagent_path} 缺少 subagent_id")
             if not PERSONA_ID_PATTERN.fullmatch(subagent_id):
@@ -699,9 +674,7 @@ class AgentRuntimeManager:
                 return persona
 
         available = ", ".join(persona.persona_id for persona in personas)
-        raise AgentRuntimeConfigError(
-            f"未找到人格 `{persona_query}`，可用人格: {available}"
-        )
+        raise AgentRuntimeConfigError(f"未找到人格 `{persona_query}`，可用人格: {available}")
 
     @staticmethod
     def _validate_new_persona_id(persona_id: str) -> str:
@@ -731,12 +704,10 @@ class AgentRuntimeManager:
             try:
                 metadata = yaml.safe_load(match.group(1)) or {}
             except yaml.YAMLError as err:
-                raise AgentRuntimeConfigError(
-                    f"YAML frontmatter 解析失败 {path}: {err}"
-                ) from err
+                raise AgentRuntimeConfigError(f"YAML frontmatter 解析失败 {path}: {err}") from err
             if not isinstance(metadata, dict):
                 raise AgentRuntimeConfigError(f"frontmatter 必须是映射类型: {path}")
-            body = content[match.end():]
+            body = content[match.end() :]
         return ParsedMarkdownDocument(metadata=metadata, body=body.strip())
 
     @staticmethod
@@ -788,7 +759,7 @@ class AgentRuntimeManager:
     @staticmethod
     def _merge_persona_instructions(
         base_body: str,
-        append_instructions: Optional[list[str]],
+        append_instructions: list[str] | None,
     ) -> str:
         """把增量规则安全追加到人格正文末尾。"""
         merged = (base_body or "").strip()
@@ -811,7 +782,7 @@ class AgentRuntimeManager:
         return merged.rstrip() + "\n\n" + "\n".join(extras)
 
     @staticmethod
-    def _normalize_persona_body(body: Optional[str]) -> str:
+    def _normalize_persona_body(body: str | None) -> str:
         """去掉重复的 PERSONA 标题，保持正文可安全回写。"""
         normalized = (body or "").strip()
         if not normalized:
@@ -822,7 +793,7 @@ class AgentRuntimeManager:
         return normalized
 
     @staticmethod
-    def _normalize_subagent_body(body: Optional[str]) -> str:
+    def _normalize_subagent_body(body: str | None) -> str:
         """去掉重复的 SUBAGENT 标题，保持正文可安全加载。"""
         normalized = (body or "").strip()
         if not normalized:
@@ -839,7 +810,7 @@ class AgentRuntimeManager:
             return default
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return default
 
     def _validate_runtime_config(
@@ -854,14 +825,9 @@ class AgentRuntimeManager:
         required_paths = [persona_path]
         duplicates = self._find_duplicate_paths(required_paths + extra_context_paths)
         if duplicates:
-            warnings.append(
-                "检测到重复引用的根层配置文件: "
-                + ", ".join(path.as_posix() for path in duplicates)
-            )
+            warnings.append("检测到重复引用的根层配置文件: " + ", ".join(path.as_posix() for path in duplicates))
 
-        deprecated_phrases = self._normalize_string_list(
-            current_meta.get("deprecated_phrases"), "deprecated_phrases"
-        )
+        deprecated_phrases = self._normalize_string_list(current_meta.get("deprecated_phrases"), "deprecated_phrases")
         if deprecated_phrases:
             for phrase in deprecated_phrases:
                 if phrase and phrase in persona_text:

@@ -32,7 +32,7 @@ class CreateAgentTaskInput(BaseModel):
         ...,
         description="Use 'date' for one exact future run or 'cron' for recurring work.",
     )
-    trigger: Optional[str] = Field(
+    trigger: str | None = Field(
         None,
         min_length=1,
         max_length=200,
@@ -42,7 +42,7 @@ class CreateAgentTaskInput(BaseModel):
             "(minute hour day month weekday). The MoviePilot system timezone is used."
         ),
     )
-    delay_minutes: Optional[int] = Field(
+    delay_minutes: int | None = Field(
         None,
         ge=1,
         le=525600,
@@ -53,7 +53,7 @@ class CreateAgentTaskInput(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_trigger(self) -> "CreateAgentTaskInput":
+    def validate_trigger(self) -> CreateAgentTaskInput:
         """校验任务触发配置并统一格式。"""
         self.name = self.name.strip()
         self.content = self.content.strip()
@@ -90,10 +90,10 @@ class CreateAgentTaskTool(MoviePilotTool):
         "fired, MoviePilot wakes the agent in this conversation, executes content, and "
         "broadcasts user-facing messages through the configured notification channels."
     )
-    args_schema: Type[BaseModel] = CreateAgentTaskInput
+    args_schema: type[BaseModel] = CreateAgentTaskInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成创建定时任务的提示消息。"""
         return f"创建自主定时任务：{kwargs.get('name', '')}"
 
@@ -104,9 +104,9 @@ class CreateAgentTaskTool(MoviePilotTool):
         trigger_value = payload.trigger
         if payload.trigger_type == "date" and payload.delay_minutes is not None:
             timezone = pytz.timezone(settings.TZ)
-            trigger_value = (
-                datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)
-            ).isoformat(timespec="seconds")
+            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(
+                timespec="seconds"
+            )
         _, trigger_value = TimerUtils.normalize_schedule_trigger(
             trigger_type=payload.trigger_type,
             trigger_value=trigger_value,
@@ -139,13 +139,13 @@ class CreateAgentTaskTool(MoviePilotTool):
         )
 
     async def run(
-            self,
-            name: str,
-            content: str,
-            trigger_type: str,
-            trigger: Optional[str] = None,
-            delay_minutes: Optional[int] = None,
-            **kwargs: object,
+        self,
+        name: str,
+        content: str,
+        trigger_type: str,
+        trigger: str | None = None,
+        delay_minutes: int | None = None,
+        **kwargs: object,
     ) -> str:
         """创建 Agent 自主定时任务。"""
         if not settings.AI_AGENT_ENABLE:

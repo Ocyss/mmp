@@ -37,9 +37,7 @@ def qrcode(name: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     return schemas.Response(success=False, message=errmsg)
 
 
-@router.get(
-    "/auth_url/{name}", summary="获取 OAuth2 授权 URL", response_model=schemas.Response
-)
+@router.get("/auth_url/{name}", summary="获取 OAuth2 授权 URL", response_model=schemas.Response)
 def auth_url(name: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     获取 OAuth2 授权 URL
@@ -53,8 +51,8 @@ def auth_url(name: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
 @router.get("/check/{name}", summary="二维码登录确认", response_model=schemas.Response)
 def check(
     name: str,
-    ck: Optional[str] = None,
-    t: Optional[str] = None,
+    ck: str | None = None,
+    t: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -87,11 +85,11 @@ def reset(name: str, _: User = Depends(get_current_active_superuser)) -> Any:
     return schemas.Response(success=True)
 
 
-@router.post("/list", summary="所有目录和文件", response_model=List[schemas.FileItem])
+@router.post("/list", summary="所有目录和文件", response_model=list[schemas.FileItem])
 def list_files(
     fileitem: schemas.FileItem,
-    sort: Optional[str] = "updated_at",
-    keyword: Optional[str] = None,
+    sort: str | None = "updated_at",
+    keyword: str | None = None,
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
     """
@@ -135,9 +133,7 @@ def mkdir(
 
 
 @router.post("/delete", summary="删除文件或目录", response_model=schemas.Response)
-def delete(
-    fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)
-) -> Any:
+def delete(fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)) -> Any:
     """
     删除文件或目录
     :param fileitem: 文件项
@@ -150,9 +146,7 @@ def delete(
 
 
 @router.post("/download", summary="下载文件")
-def download(
-    fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)
-) -> Any:
+def download(fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)) -> Any:
     """
     下载文件或目录
     :param fileitem: 文件项
@@ -166,9 +160,7 @@ def download(
 
 
 @router.post("/image", summary="预览图片")
-def image(
-    fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)
-) -> Any:
+def image(fileitem: schemas.FileItem, _: User = Depends(get_current_active_manage_user)) -> Any:
     """
     下载文件或目录
     :param fileitem: 文件项
@@ -185,7 +177,7 @@ def image(
 def rename(
     fileitem: schemas.FileItem,
     new_name: str,
-    recursive: Optional[bool] = False,
+    recursive: bool | None = False,
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
     """
@@ -203,7 +195,7 @@ def rename(
         transferchain = TransferChain()
         media_exts = settings.RMT_MEDIAEXT + settings.RMT_SUBEXT + settings.RMT_AUDIOEXT
         # 递归修改目录内文件（智能识别命名）
-        sub_files: List[schemas.FileItem] = StorageChain().list_files(fileitem)
+        sub_files: list[schemas.FileItem] = StorageChain().list_files(fileitem)
         if sub_files:
             # 开始进度
             progress = ProgressHelper(ProgressKey.BatchRename)
@@ -212,9 +204,7 @@ def rename(
             handled = 0
             for sub_file in sub_files:
                 handled += 1
-                progress.update(
-                    value=handled / total * 100, text=f"正在处理 {sub_file.name} ..."
-                )
+                progress.update(value=handled / total * 100, text=f"正在处理 {sub_file.name} ...")
                 if sub_file.type == "dir":
                     continue
                 if not sub_file.extension:
@@ -228,25 +218,15 @@ def rename(
                 )
                 if not context or not context.media_info:
                     progress.end()
-                    return schemas.Response(
-                        success=False, message=f"{sub_path.name} 未识别到媒体信息"
-                    )
-                new_path = transferchain.recommend_name(
-                    meta=context.meta_info, mediainfo=context.media_info
-                )
+                    return schemas.Response(success=False, message=f"{sub_path.name} 未识别到媒体信息")
+                new_path = transferchain.recommend_name(meta=context.meta_info, mediainfo=context.media_info)
                 if not new_path:
                     progress.end()
-                    return schemas.Response(
-                        success=False, message=f"{sub_path.name} 未识别到新名称"
-                    )
-                ret: schemas.Response = rename(
-                    fileitem=sub_file, new_name=Path(new_path).name, recursive=False
-                )
+                    return schemas.Response(success=False, message=f"{sub_path.name} 未识别到新名称")
+                ret: schemas.Response = rename(fileitem=sub_file, new_name=Path(new_path).name, recursive=False)
                 if not ret.success:
                     progress.end()
-                    return schemas.Response(
-                        success=False, message=f"{sub_path.name} 重命名失败！"
-                    )
+                    return schemas.Response(success=False, message=f"{sub_path.name} 重命名失败！")
             progress.end()
     # 重命名自己
     result = StorageChain().rename_file(fileitem, new_name)
@@ -255,9 +235,7 @@ def rename(
     return schemas.Response(success=False)
 
 
-@router.get(
-    "/usage/{name}", summary="存储空间信息", response_model=schemas.StorageUsage
-)
+@router.get("/usage/{name}", summary="存储空间信息", response_model=schemas.StorageUsage)
 def usage(name: str, _: User = Depends(get_current_active_superuser)) -> Any:
     """
     查询存储空间
@@ -273,9 +251,7 @@ def usage(name: str, _: User = Depends(get_current_active_superuser)) -> Any:
     summary="支持的整理方式获取",
     response_model=schemas.StorageTransType,
 )
-async def transtype(
-    name: str, _: User = Depends(get_current_active_superuser_async)
-) -> Any:
+async def transtype(name: str, _: User = Depends(get_current_active_superuser_async)) -> Any:
     """
     查询支持的整理方式
     """

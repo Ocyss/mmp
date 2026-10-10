@@ -1,7 +1,7 @@
 import time
 import traceback
 from http.cookies import SimpleCookie
-from typing import Any, Optional, Union, Tuple, List
+from typing import Any, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import qbittorrentapi
@@ -18,13 +18,21 @@ class Qbittorrent:
     """
     qbittorrent下载器
     """
-    def __init__(self, host: Optional[str] = None, port: int = None,
-                 username: Optional[str] = None, password: Optional[str] = None,
-                 apikey: Optional[str] = None,
-                 category: Optional[bool] = False, sequentail: Optional[bool] = False,
-                 force_resume: Optional[bool] = False, first_last_piece=False,
-                 incomplete_files_ext: Optional[bool] = True,
-                 **kwargs):
+
+    def __init__(
+        self,
+        host: str | None = None,
+        port: int = None,
+        username: str | None = None,
+        password: str | None = None,
+        apikey: str | None = None,
+        category: bool | None = False,
+        sequentail: bool | None = False,
+        force_resume: bool | None = False,
+        first_last_piece=False,
+        incomplete_files_ext: bool | None = True,
+        **kwargs,
+    ):
         """
         若不设置参数，则创建配置文件设置的下载器
         """
@@ -69,7 +77,7 @@ class Qbittorrent:
         return result
 
     @staticmethod
-    def __cookie_key(cookie: dict) -> Optional[tuple]:
+    def __cookie_key(cookie: dict) -> tuple | None:
         name = cookie.get("name")
         domain = cookie.get("domain")
         path = cookie.get("path") or "/"
@@ -78,7 +86,7 @@ class Qbittorrent:
         return domain, path, name
 
     @staticmethod
-    def __build_site_cookies(url: str, cookie_header: str) -> List[dict]:
+    def __build_site_cookies(url: str, cookie_header: str) -> list[dict]:
         domain = urlparse(url).hostname
         if not domain:
             return []
@@ -95,7 +103,7 @@ class Qbittorrent:
             for morsel in raw_cookies.values()
         ]
 
-    def __parse_add_torrent_response(self, response: Any) -> Tuple[bool, List[str]]:
+    def __parse_add_torrent_response(self, response: Any) -> tuple[bool, list[str]]:
         if not response:
             return False, []
         if isinstance(response, str):
@@ -122,7 +130,7 @@ class Qbittorrent:
         try:
             web_api_version = self.qbc.app_web_api_version()
             return Version(str(web_api_version)) >= Version("2.11.3")
-        except (InvalidVersion, TypeError, ValueError):
+        except InvalidVersion, TypeError, ValueError:
             return False
         except Exception as err:
             logger.warn(f"获取 qbittorrent Web API 版本失败，跳过 Cookie API 兼容：{err}")
@@ -184,7 +192,7 @@ class Qbittorrent:
         """
         self.qbc = self.__login_qbittorrent()
 
-    def __login_qbittorrent(self) -> Optional[Client]:
+    def __login_qbittorrent(self) -> Client | None:
         """
         连接qbittorrent
         :return: qbittorrent对象
@@ -194,14 +202,15 @@ class Qbittorrent:
         try:
             # 登录
             logger.info(f"正在连接 qbittorrent：{self._host}:{self._port}")
-            qbt = qbittorrentapi.Client(host=self._host,
-                                        port=self._port,
-                                        username=self._username,
-                                        password=self._password,
-                                        EXTRA_HEADERS={"Authorization": f"Bearer {self._apikey}"}
-                                        if self.__use_api_key_auth() else None,
-                                        VERIFY_WEBUI_CERTIFICATE=False,
-                                        REQUESTS_ARGS={'timeout': (15, 60)})
+            qbt = qbittorrentapi.Client(
+                host=self._host,
+                port=self._port,
+                username=self._username,
+                password=self._password,
+                EXTRA_HEADERS={"Authorization": f"Bearer {self._apikey}"} if self.__use_api_key_auth() else None,
+                VERIFY_WEBUI_CERTIFICATE=False,
+                REQUESTS_ARGS={"timeout": (15, 60)},
+            )
             try:
                 if self.__use_api_key_auth():
                     qbt.app_version()
@@ -209,7 +218,9 @@ class Qbittorrent:
                     qbt.auth_log_in()
             except Exception as e:
                 if e.__class__.__name__ in {"LoginFailed", "Forbidden403Error", "Unauthorized401Error"}:
-                    error_hint = "请检查 API Key 是否正确" if self.__use_api_key_auth() else "请检查用户名和密码是否正确"
+                    error_hint = (
+                        "请检查 API Key 是否正确" if self.__use_api_key_auth() else "请检查用户名和密码是否正确"
+                    )
                     logger.error(f"qbittorrent 登录失败：{str(e).strip() or error_hint}")
                     return None
                 stack_trace = "".join(traceback.format_exception(None, e, e.__traceback__))[:2000]
@@ -221,9 +232,9 @@ class Qbittorrent:
             logger.error(f"qbittorrent 连接出错：{str(err)}")
             return None
 
-    def get_torrents(self, ids: Optional[Union[str, list]] = None,
-                     status: Optional[str] = None,
-                     tags: Optional[Union[str, list]] = None) -> Tuple[List[TorrentDictionary], bool]:
+    def get_torrents(
+        self, ids: str | list | None = None, status: str | None = None, tags: str | list | None = None
+    ) -> tuple[list[TorrentDictionary], bool]:
         """
         获取种子列表
         return: 种子列表, 是否发生异常
@@ -231,15 +242,14 @@ class Qbittorrent:
         if not self.qbc:
             return [], True
         try:
-            torrents = self.qbc.torrents_info(torrent_hashes=ids,
-                                              status_filter=status)
+            torrents = self.qbc.torrents_info(torrent_hashes=ids, status_filter=status)
             if tags:
                 results = []
                 if not isinstance(tags, list):
-                    tags = tags.split(',')
+                    tags = tags.split(",")
                 try:
                     for torrent in torrents:
-                        torrent_tags = [str(tag).strip() for tag in torrent.get("tags").split(',')]
+                        torrent_tags = [str(tag).strip() for tag in torrent.get("tags").split(",")]
                         if set(tags).issubset(set(torrent_tags)):
                             results.append(torrent)
                 finally:
@@ -251,8 +261,7 @@ class Qbittorrent:
             logger.error(f"获取种子列表出错：{str(err)}")
             return [], True
 
-    def get_completed_torrents(self, ids: Union[str, list] = None,
-                               tags: Union[str, list] = None) -> Optional[List[TorrentDictionary]]:
+    def get_completed_torrents(self, ids: str | list = None, tags: str | list = None) -> list[TorrentDictionary] | None:
         """
         获取已完成的种子
         return: 种子列表, 如发生异常则返回None
@@ -268,40 +277,40 @@ class Qbittorrent:
             progress = torrent.get("progress") or 0
             amount_left = torrent.get("amount_left") or 0
             if (
-                    progress >= 1
-                    and amount_left <= 0
-                    and state not in {
-                        "allocating",
-                        "checkingdl",
-                        "checkingup",
-                        "downloading",
-                        "error",
-                        "forceddl",
-                        "missingfiles",
-                        "metadl",
-                        "moving",
-                        "queueddl",
-                        "stalleddl",
-                        "unknown",
-                    }
+                progress >= 1
+                and amount_left <= 0
+                and state
+                not in {
+                    "allocating",
+                    "checkingdl",
+                    "checkingup",
+                    "downloading",
+                    "error",
+                    "forceddl",
+                    "missingfiles",
+                    "metadl",
+                    "moving",
+                    "queueddl",
+                    "stalleddl",
+                    "unknown",
+                }
             ):
                 ret_torrents.append(torrent)
         return ret_torrents
 
-    def get_downloading_torrents(self, ids: Union[str, list] = None,
-                                 tags: Union[str, list] = None) -> Optional[List[TorrentDictionary]]:
+    def get_downloading_torrents(
+        self, ids: str | list = None, tags: str | list = None
+    ) -> list[TorrentDictionary] | None:
         """
         获取正在下载的种子
         return: 种子列表, 如发生异常则返回None
         """
         if not self.qbc:
             return None
-        torrents, error = self.get_torrents(ids=ids,
-                                            status="downloading",
-                                            tags=tags)
+        torrents, error = self.get_torrents(ids=ids, status="downloading", tags=tags)
         return None if error else torrents or []
 
-    def delete_torrents_tag(self, ids: Union[str, list], tag: Union[str, list]) -> bool:
+    def delete_torrents_tag(self, ids: str | list, tag: str | list) -> bool:
         """
         从指定种子移除标签，并删除全局标签定义
         :param ids: 种子Hash列表
@@ -318,7 +327,7 @@ class Qbittorrent:
             logger.error(f"删除种子Tag出错：{str(err)}")
             return False
 
-    def remove_torrents_tag(self, ids: Union[str, list], tag: Union[str, list]) -> bool:
+    def remove_torrents_tag(self, ids: str | list, tag: str | list) -> bool:
         """
         移除种子Tag
         :param ids: 种子Hash列表
@@ -333,7 +342,7 @@ class Qbittorrent:
             logger.error(f"移除种子Tag出错：{str(err)}")
             return False
 
-    def set_torrents_tag(self, ids: Union[str, list], tags: list):
+    def set_torrents_tag(self, ids: str | list, tags: list):
         """
         设置种子状态为已整理，以及是否强制做种
         """
@@ -351,7 +360,7 @@ class Qbittorrent:
         """
         return self._force_resume
 
-    def torrents_set_force_start(self, ids: Union[str, list]):
+    def torrents_set_force_start(self, ids: str | list):
         """
         设置强制作种
         """
@@ -364,8 +373,7 @@ class Qbittorrent:
         except Exception as err:
             logger.error(f"设置强制作种出错：{str(err)}")
 
-    def __get_last_add_torrentid_by_tag(self, tags: Union[str, list],
-                                        status: Optional[str] = None) -> Optional[str]:
+    def __get_last_add_torrentid_by_tag(self, tags: str | list, status: str | None = None) -> str | None:
         """
         根据种子的下载链接获取下载中或暂停的钟子的ID
         :return: 种子ID
@@ -380,8 +388,7 @@ class Qbittorrent:
         else:
             return None
 
-    def get_torrent_id_by_tag(self, tags: Union[str, list],
-                              status: Optional[str] = None) -> Optional[str]:
+    def get_torrent_id_by_tag(self, tags: str | list, status: str | None = None) -> str | None:
         """
         通过标签多次尝试获取刚添加的种子ID，并移除标签
         """
@@ -389,8 +396,7 @@ class Qbittorrent:
         # QB添加下载后需要时间，重试10次每次等待3秒
         for i in range(1, 10):
             time.sleep(3)
-            torrent_id = self.__get_last_add_torrentid_by_tag(tags=tags,
-                                                              status=status)
+            torrent_id = self.__get_last_add_torrentid_by_tag(tags=tags, status=status)
             if torrent_id is None:
                 continue
             else:
@@ -398,15 +404,16 @@ class Qbittorrent:
                 break
         return torrent_id
 
-    def add_torrent(self,
-                    content: Union[str, bytes],
-                    is_paused: Optional[bool] = False,
-                    download_dir: Optional[str] = None,
-                    tag: Union[str, list] = None,
-                    category: Optional[str] = None,
-                    cookie: Optional[str] = None,
-                    **kwargs
-                    ) -> Tuple[bool, List[str]]:
+    def add_torrent(
+        self,
+        content: str | bytes,
+        is_paused: bool | None = False,
+        download_dir: str | None = None,
+        tag: str | list = None,
+        category: str | None = None,
+        cookie: str | None = None,
+        **kwargs,
+    ) -> tuple[bool, list[str]]:
         """
         添加种子
         :param content: 种子urls或文件内容
@@ -458,23 +465,25 @@ class Qbittorrent:
                     cookie_to_use = None
 
             # 添加下载
-            qbc_ret = self.qbc.torrents_add(urls=urls,
-                                            torrent_files=torrent_files,
-                                            save_path=save_path,
-                                            is_paused=is_paused,
-                                            tags=tags,
-                                            use_auto_torrent_management=is_auto,
-                                            is_sequential_download=self._sequentail,
-                                            is_first_last_piece_priority=self._first_last_piece,
-                                            cookie=cookie_to_use,
-                                            category=category,
-                                            **kwargs)
+            qbc_ret = self.qbc.torrents_add(
+                urls=urls,
+                torrent_files=torrent_files,
+                save_path=save_path,
+                is_paused=is_paused,
+                tags=tags,
+                use_auto_torrent_management=is_auto,
+                is_sequential_download=self._sequentail,
+                is_first_last_piece_priority=self._first_last_piece,
+                cookie=cookie_to_use,
+                category=category,
+                **kwargs,
+            )
             return self.__parse_add_torrent_response(qbc_ret)
         except Exception as err:
             logger.error(f"添加种子出错：{str(err)}")
             return False, []
 
-    def start_torrents(self, ids: Union[str, list]) -> bool:
+    def start_torrents(self, ids: str | list) -> bool:
         """
         启动种子
         """
@@ -487,7 +496,7 @@ class Qbittorrent:
             logger.error(f"启动种子出错：{str(err)}")
             return False
 
-    def stop_torrents(self, ids: Union[str, list]) -> bool:
+    def stop_torrents(self, ids: str | list) -> bool:
         """
         暂停种子
         """
@@ -500,7 +509,7 @@ class Qbittorrent:
             logger.error(f"暂停种子出错：{str(err)}")
             return False
 
-    def delete_torrents(self, delete_file: bool, ids: Union[str, list]) -> bool:
+    def delete_torrents(self, delete_file: bool, ids: str | list) -> bool:
         """
         删除种子
         """
@@ -515,7 +524,7 @@ class Qbittorrent:
             logger.error(f"删除种子出错：{str(err)}")
             return False
 
-    def get_files(self, tid: str, retry: int = 1, interval: float = 0) -> Optional[TorrentFilesList]:
+    def get_files(self, tid: str, retry: int = 1, interval: float = 0) -> TorrentFilesList | None:
         """
         获取种子文件清单
         :param tid: 种子Hash
@@ -549,15 +558,17 @@ class Qbittorrent:
         if not kwargs.get("torrent_hash") or not kwargs.get("file_ids"):
             return False
         try:
-            self.qbc.torrents_file_priority(torrent_hash=kwargs.get("torrent_hash"),
-                                            file_ids=kwargs.get("file_ids"),
-                                            priority=kwargs.get("priority"))
+            self.qbc.torrents_file_priority(
+                torrent_hash=kwargs.get("torrent_hash"),
+                file_ids=kwargs.get("file_ids"),
+                priority=kwargs.get("priority"),
+            )
             return True
         except Exception as err:
             logger.error(f"设置种子文件状态出错：{str(err)}")
             return False
 
-    def transfer_info(self) -> Optional[TransferInfoDictionary]:
+    def transfer_info(self) -> TransferInfoDictionary | None:
         """
         获取传输信息
         """
@@ -587,7 +598,7 @@ class Qbittorrent:
             logger.error(f"设置速度限制出错：{str(err)}")
             return False
 
-    def get_speed_limit(self) -> Optional[Tuple[float, float]]:
+    def get_speed_limit(self) -> tuple[float, float] | None:
         """
         获取QB速度
         :return: 返回download_limit 和upload_limit ，默认是0
@@ -605,7 +616,7 @@ class Qbittorrent:
 
         return download_limit / 1024, upload_limit / 1024
 
-    def recheck_torrents(self, ids: Union[str, list]) -> bool:
+    def recheck_torrents(self, ids: str | list) -> bool:
         """
         重新校验种子
         """
@@ -619,12 +630,12 @@ class Qbittorrent:
             return False
 
     def change_torrent(
-            self,
-            hash_string: str,
-            upload_limit: Optional[float] = None,
-            download_limit: Optional[float] = None,
-            ratio_limit: Optional[float] = None,
-            seeding_time_limit: Optional[int] = None,
+        self,
+        hash_string: str,
+        upload_limit: float | None = None,
+        download_limit: float | None = None,
+        ratio_limit: float | None = None,
+        seeding_time_limit: int | None = None,
     ) -> bool:
         """
         修改单个种子的限速和做种策略。
@@ -712,7 +723,7 @@ class Qbittorrent:
             logger.error(f"修改tracker出错：{str(err)}")
             return False
 
-    def get_trackers(self, hash_string: str) -> Optional[List[str]]:
+    def get_trackers(self, hash_string: str) -> list[str] | None:
         """
         获取种子Tracker列表。
         :param hash_string: 种子Hash
@@ -722,16 +733,12 @@ class Qbittorrent:
             return None
         try:
             trackers = self.qbc.torrents_trackers(torrent_hash=hash_string) or []
-            return [
-                tracker.get("url")
-                for tracker in trackers
-                if tracker.get("url")
-            ]
+            return [tracker.get("url") for tracker in trackers if tracker.get("url")]
         except Exception as err:
             logger.error(f"获取tracker出错：{str(err)}")
             return None
 
-    def get_content_layout(self) -> Optional[str]:
+    def get_content_layout(self) -> str | None:
         """
         获取内容布局
         """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from typing import Optional, Tuple
 
@@ -49,10 +48,7 @@ class HDDolbySiteUserInfo(SiteParserBase):
         self._user_detail_page = None
         self._user_basic_page = "api/v1/user/data"
         self._user_basic_params = {}
-        self._user_basic_headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/plain, */*"
-        }
+        self._user_basic_headers = {"Content-Type": "application/json", "Accept": "application/json, text/plain, */*"}
         self._sys_mail_unread_page = None
         self._user_mail_unread_page = None
         self._mail_unread_params = {}
@@ -60,7 +56,7 @@ class HDDolbySiteUserInfo(SiteParserBase):
         self._torrent_seeding_params = {}
         self._torrent_seeding_headers = {
             "Content-Type": "application/json",
-            "Accept": "application/json, text/plain, */*"
+            "Accept": "application/json, text/plain, */*",
         }
         self._addition_headers = {
             "x-api-key": self.apikey,
@@ -105,11 +101,11 @@ class HDDolbySiteUserInfo(SiteParserBase):
         self.username = user_info.get("username")
         self.user_level = self.HDDolby_sysRoleList.get(user_info.get("class") or "1")
         self.join_at = user_info.get("added")
-        self.upload = int(user_info.get("uploaded") or '0')
-        self.download = int(user_info.get("downloaded") or '0')
+        self.upload = int(user_info.get("uploaded") or "0")
+        self.download = int(user_info.get("downloaded") or "0")
         self.ratio = round(self.upload / self.download, 2) if self.download else 0
         self.bonus = float(user_info.get("seedbonus") or "0")
-        self.message_unread = int(user_info.get("unread_messages") or '0')
+        self.message_unread = int(user_info.get("unread_messages") or "0")
 
     def _parse_user_traffic_info(self, html_text: str):
         """
@@ -123,7 +119,7 @@ class HDDolbySiteUserInfo(SiteParserBase):
         """
         pass
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
         解析用户做种信息
         """
@@ -146,14 +142,14 @@ class HDDolbySiteUserInfo(SiteParserBase):
 
         return None
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         解析未读消息链接
         HDDolby 使用 API 模式，消息正文通过 _pase_unread_msgs 走网页接口读取。
         """
         return None
 
-    def _parse_message_content(self, html_text) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def _parse_message_content(self, html_text) -> tuple[str | None, str | None, str | None]:
         """
         解析消息内容
         HDDolby 使用 API 模式，消息正文通过 _pase_unread_msgs 走网页接口读取。

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 from typing import Optional
 
@@ -16,7 +15,7 @@ class FileListSiteUserInfo(SiteParserBase):
 
         user_detail = re.search(r"userdetails.php\?id=(\d+)", html_text)
         if user_detail and user_detail.group().strip():
-            self._user_detail_page = user_detail.group().strip().lstrip('/')
+            self._user_detail_page = user_detail.group().strip().lstrip("/")
             self.userid = user_detail.group(1)
 
         self._torrent_seeding_page = f"snatchlist.php?id={self.userid}&action=torrents&type=seeding"
@@ -79,7 +78,7 @@ class FileListSiteUserInfo(SiteParserBase):
             if html is not None:
                 del html
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
         做种相关信息
         :param html_text:
@@ -96,8 +95,8 @@ class FileListSiteUserInfo(SiteParserBase):
 
             page_seeding_size = 0
             page_seeding_info = []
-            seeding_sizes = html.xpath(f'//table/tr[position()>1]/td[{size_col}]')
-            seeding_seeders = html.xpath(f'//table/tr[position()>1]/td[{seeders_col}]')
+            seeding_sizes = html.xpath(f"//table/tr[position()>1]/td[{size_col}]")
+            seeding_seeders = html.xpath(f"//table/tr[position()>1]/td[{seeders_col}]")
             if seeding_sizes and seeding_seeders:
                 for i in range(0, len(seeding_sizes)):
                     size = StringUtils.num_filesize(seeding_sizes[i].xpath("string(.)").strip())
@@ -116,7 +115,7 @@ class FileListSiteUserInfo(SiteParserBase):
 
         return next_page
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         return None
 
     def _parse_message_content(self, html_text):

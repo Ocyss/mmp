@@ -12,8 +12,8 @@ from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.douban.apiv2 import DoubanApi
 from app.modules.douban.scraper import DoubanScraper
-from app.schemas import MediaPerson, APIRateLimitException
-from app.schemas.types import MediaType, ModuleType, MediaRecognizeType
+from app.schemas import APIRateLimitException, MediaPerson
+from app.schemas.types import MediaRecognizeType, MediaType, ModuleType
 from app.utils.common import retry
 from app.utils.http import RequestUtils
 from app.utils.limit import rate_limit_exponential
@@ -31,7 +31,7 @@ class DoubanModule(_ModuleBase):
     def stop(self):
         self.doubanapi.close()
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -40,7 +40,7 @@ class DoubanModule(_ModuleBase):
             return False, "豆瓣网络连接失败"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
@@ -69,7 +69,7 @@ class DoubanModule(_ModuleBase):
         return 2
 
     @staticmethod
-    def _prepare_search_names(meta: MetaBase) -> List[str]:
+    def _prepare_search_names(meta: MetaBase) -> list[str]:
         """
         准备搜索名称列表，保留中英文名称分别识别且按顺序去重的历史行为。
         """
@@ -79,7 +79,7 @@ class DoubanModule(_ModuleBase):
         return list(dict.fromkeys([k for k in [meta.cn_name, zh_name, meta.en_name] if k]))
 
     @staticmethod
-    def _build_search_medias_result(meta: MetaBase, items: Optional[List[dict]]) -> List[MediaInfo]:
+    def _build_search_medias_result(meta: MetaBase, items: list[dict] | None) -> list[MediaInfo]:
         """
         构建豆瓣搜索结果，并沿用原有的类型、标题包含和季信息处理规则。
         """
@@ -104,12 +104,15 @@ class DoubanModule(_ModuleBase):
                     media.season = meta.begin_season
         return ret_medias
 
-    def _recognize_media_core(self, meta: MetaBase = None,
-                              mtype: MediaType = None,
-                              doubanid: Optional[str] = None,
-                              douban_info_func=None,
-                              match_doubaninfo_func=None,
-                              **kwargs) -> Optional[MediaInfo]:
+    def _recognize_media_core(
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType = None,
+        doubanid: str | None = None,
+        douban_info_func=None,
+        match_doubaninfo_func=None,
+        **kwargs,
+    ) -> MediaInfo | None:
         """
         识别媒体信息的核心逻辑
         :param meta:     识别的元数据
@@ -122,11 +125,7 @@ class DoubanModule(_ModuleBase):
         if not doubanid and not meta:
             return None
 
-        if (
-            meta
-            and not doubanid
-            and (kwargs.get("source") or settings.RECOGNIZE_SOURCE) != "douban"
-        ):
+        if meta and not doubanid and (kwargs.get("source") or settings.RECOGNIZE_SOURCE) != "douban":
             return None
 
         if doubanid:
@@ -163,24 +162,26 @@ class DoubanModule(_ModuleBase):
         if info:
             mediainfo = MediaInfo(douban_info=info)
             if meta:
-                logger.info(f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} "
-                            f"{mediainfo.title_year} "
-                            f"{mediainfo.douban_id}")
+                logger.info(
+                    f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}"
+                )
             else:
-                logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} "
-                            f"{mediainfo.title_year}")
+                logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
         else:
             logger.info(f"{meta.name if meta else doubanid} 未匹配到豆瓣媒体信息")
 
         return None
 
-    async def _async_recognize_media_core(self, meta: MetaBase = None,
-                                          mtype: MediaType = None,
-                                          doubanid: Optional[str] = None,
-                                          async_douban_info_func=None,
-                                          async_match_doubaninfo_func=None,
-                                          **kwargs) -> Optional[MediaInfo]:
+    async def _async_recognize_media_core(
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType = None,
+        doubanid: str | None = None,
+        async_douban_info_func=None,
+        async_match_doubaninfo_func=None,
+        **kwargs,
+    ) -> MediaInfo | None:
         """
         识别媒体信息的核心逻辑（异步版本）
         :param meta:     识别的元数据
@@ -193,11 +194,7 @@ class DoubanModule(_ModuleBase):
         if not doubanid and not meta:
             return None
 
-        if (
-            meta
-            and not doubanid
-            and (kwargs.get("source") or settings.RECOGNIZE_SOURCE) != "douban"
-        ):
+        if meta and not doubanid and (kwargs.get("source") or settings.RECOGNIZE_SOURCE) != "douban":
             return None
 
         if doubanid:
@@ -234,22 +231,20 @@ class DoubanModule(_ModuleBase):
         if info:
             mediainfo = MediaInfo(douban_info=info)
             if meta:
-                logger.info(f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} "
-                            f"{mediainfo.title_year} "
-                            f"{mediainfo.douban_id}")
+                logger.info(
+                    f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}"
+                )
             else:
-                logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} "
-                            f"{mediainfo.title_year}")
+                logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
         else:
             logger.info(f"{meta.name if meta else doubanid} 未匹配到豆瓣媒体信息")
 
         return None
 
-    def recognize_media(self, meta: MetaBase = None,
-                        mtype: MediaType = None,
-                        doubanid: Optional[str] = None,
-                        **kwargs) -> Optional[MediaInfo]:
+    def recognize_media(
+        self, meta: MetaBase = None, mtype: MediaType = None, doubanid: str | None = None, **kwargs
+    ) -> MediaInfo | None:
         """
         识别媒体信息
         :param meta:     识别的元数据
@@ -263,13 +258,12 @@ class DoubanModule(_ModuleBase):
             doubanid=doubanid,
             douban_info_func=self.douban_info,
             match_doubaninfo_func=self.match_doubaninfo,
-            **kwargs
+            **kwargs,
         )
 
-    async def async_recognize_media(self, meta: MetaBase = None,
-                                    mtype: MediaType = None,
-                                    doubanid: Optional[str] = None,
-                                    **kwargs) -> Optional[MediaInfo]:
+    async def async_recognize_media(
+        self, meta: MetaBase = None, mtype: MediaType = None, doubanid: str | None = None, **kwargs
+    ) -> MediaInfo | None:
         """
         识别媒体信息（异步版本）
         :param meta:     识别的元数据
@@ -283,11 +277,11 @@ class DoubanModule(_ModuleBase):
             doubanid=doubanid,
             async_douban_info_func=self.async_douban_info,
             async_match_doubaninfo_func=self.async_match_doubaninfo,
-            **kwargs
+            **kwargs,
         )
 
     @rate_limit_exponential(source="douban_info")
-    def douban_info(self, doubanid: str, mtype: MediaType = None, raise_exception: bool = True) -> Optional[dict]:
+    def douban_info(self, doubanid: str, mtype: MediaType = None, raise_exception: bool = True) -> dict | None:
         """
         获取豆瓣信息
         :param doubanid: 豆瓣ID
@@ -604,8 +598,9 @@ class DoubanModule(_ModuleBase):
             return __douban_movie() or __douban_tv()
 
     @rate_limit_exponential(source="douban_info")
-    async def async_douban_info(self, doubanid: str, mtype: MediaType = None,
-                                raise_exception: bool = True) -> Optional[dict]:
+    async def async_douban_info(
+        self, doubanid: str, mtype: MediaType = None, raise_exception: bool = True
+    ) -> dict | None:
         """
         获取豆瓣信息（异步版本）
         :param doubanid: 豆瓣ID
@@ -659,8 +654,9 @@ class DoubanModule(_ModuleBase):
                 return movie_result
             return await __async_douban_tv()
 
-    def douban_discover(self, mtype: MediaType, sort: str, tags: str,
-                        page: int = 1, count: int = 30) -> Optional[List[MediaInfo]]:
+    def douban_discover(
+        self, mtype: MediaType, sort: str, tags: str, page: int = 1, count: int = 30
+    ) -> list[MediaInfo] | None:
         """
         发现豆瓣电影、剧集
         :param mtype:  媒体类型
@@ -672,23 +668,26 @@ class DoubanModule(_ModuleBase):
         """
         logger.info(f"开始发现豆瓣 {mtype.value} ...")
         if mtype == MediaType.MOVIE:
-            infos = self.doubanapi.movie_recommend(start=(page - 1) * count, count=count,
-                                                   sort=sort, tags=tags)
+            infos = self.doubanapi.movie_recommend(start=(page - 1) * count, count=count, sort=sort, tags=tags)
         else:
-            infos = self.doubanapi.tv_recommend(start=(page - 1) * count, count=count,
-                                                sort=sort, tags=tags)
+            infos = self.doubanapi.tv_recommend(start=(page - 1) * count, count=count, sort=sort, tags=tags)
         if infos and infos.get("items"):
             medias = [MediaInfo(douban_info=info) for info in infos.get("items")]
-            return [media for media in medias if media.poster_path
-                    and "movie_large.jpg" not in media.poster_path
-                    and "tv_normal.png" not in media.poster_path
-                    and "movie_large.jpg" not in media.poster_path
-                    and "tv_normal.jpg" not in media.poster_path
-                    and "tv_large.jpg" not in media.poster_path]
+            return [
+                media
+                for media in medias
+                if media.poster_path
+                and "movie_large.jpg" not in media.poster_path
+                and "tv_normal.png" not in media.poster_path
+                and "movie_large.jpg" not in media.poster_path
+                and "tv_normal.jpg" not in media.poster_path
+                and "tv_large.jpg" not in media.poster_path
+            ]
         return []
 
-    async def async_douban_discover(self, mtype: MediaType, sort: str, tags: str,
-                                    page: int = 1, count: int = 30) -> Optional[List[MediaInfo]]:
+    async def async_douban_discover(
+        self, mtype: MediaType, sort: str, tags: str, page: int = 1, count: int = 30
+    ) -> list[MediaInfo] | None:
         """
         发现豆瓣电影、剧集（异步版本）
         :param mtype:  媒体类型
@@ -700,144 +699,134 @@ class DoubanModule(_ModuleBase):
         """
         logger.info(f"开始发现豆瓣 {mtype.value} ...")
         if mtype == MediaType.MOVIE:
-            infos = await self.doubanapi.async_movie_recommend(start=(page - 1) * count, count=count,
-                                                               sort=sort, tags=tags)
+            infos = await self.doubanapi.async_movie_recommend(
+                start=(page - 1) * count, count=count, sort=sort, tags=tags
+            )
         else:
-            infos = await self.doubanapi.async_tv_recommend(start=(page - 1) * count, count=count,
-                                                            sort=sort, tags=tags)
+            infos = await self.doubanapi.async_tv_recommend(start=(page - 1) * count, count=count, sort=sort, tags=tags)
         if infos and infos.get("items"):
             medias = [MediaInfo(douban_info=info) for info in infos.get("items")]
-            return [media for media in medias if media.poster_path
-                    and "movie_large.jpg" not in media.poster_path
-                    and "tv_normal.png" not in media.poster_path
-                    and "movie_large.jpg" not in media.poster_path
-                    and "tv_normal.jpg" not in media.poster_path
-                    and "tv_large.jpg" not in media.poster_path]
+            return [
+                media
+                for media in medias
+                if media.poster_path
+                and "movie_large.jpg" not in media.poster_path
+                and "tv_normal.png" not in media.poster_path
+                and "movie_large.jpg" not in media.poster_path
+                and "tv_normal.jpg" not in media.poster_path
+                and "tv_large.jpg" not in media.poster_path
+            ]
         return []
 
-    def movie_showing(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def movie_showing(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取正在上映的电影
         """
-        infos = self.doubanapi.movie_showing(start=(page - 1) * count,
-                                             count=count)
+        infos = self.doubanapi.movie_showing(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_movie_showing(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_movie_showing(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取正在上映的电影（异步版本）
         """
-        infos = await self.doubanapi.async_movie_showing(start=(page - 1) * count,
-                                                         count=count)
+        infos = await self.doubanapi.async_movie_showing(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def tv_weekly_chinese(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def tv_weekly_chinese(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣本周口碑国产剧
         """
-        infos = self.doubanapi.tv_chinese_best_weekly(start=(page - 1) * count,
-                                                      count=count)
+        infos = self.doubanapi.tv_chinese_best_weekly(start=(page - 1) * count, count=count)
         if infos:
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_tv_weekly_chinese(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_tv_weekly_chinese(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣本周口碑国产剧（异步版本）
         """
-        infos = await self.doubanapi.async_tv_chinese_best_weekly(start=(page - 1) * count,
-                                                                  count=count)
+        infos = await self.doubanapi.async_tv_chinese_best_weekly(start=(page - 1) * count, count=count)
         if infos:
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def tv_weekly_global(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def tv_weekly_global(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣本周口碑外国剧
         """
-        infos = self.doubanapi.tv_global_best_weekly(start=(page - 1) * count,
-                                                     count=count)
+        infos = self.doubanapi.tv_global_best_weekly(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_tv_weekly_global(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_tv_weekly_global(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣本周口碑外国剧（异步版本）
         """
-        infos = await self.doubanapi.async_tv_global_best_weekly(start=(page - 1) * count,
-                                                                 count=count)
+        infos = await self.doubanapi.async_tv_global_best_weekly(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def tv_animation(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def tv_animation(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣动画剧
         """
-        infos = self.doubanapi.tv_animation(start=(page - 1) * count,
-                                            count=count)
+        infos = self.doubanapi.tv_animation(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_tv_animation(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_tv_animation(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣动画剧（异步版本）
         """
-        infos = await self.doubanapi.async_tv_animation(start=(page - 1) * count,
-                                                        count=count)
+        infos = await self.doubanapi.async_tv_animation(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def movie_hot(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def movie_hot(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣热门电影
         """
-        infos = self.doubanapi.movie_hot_gaia(start=(page - 1) * count,
-                                              count=count)
+        infos = self.doubanapi.movie_hot_gaia(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_movie_hot(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_movie_hot(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣热门电影（异步版本）
         """
-        infos = await self.doubanapi.async_movie_hot_gaia(start=(page - 1) * count,
-                                                          count=count)
+        infos = await self.doubanapi.async_movie_hot_gaia(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def tv_hot(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def tv_hot(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣热门剧集
         """
-        infos = self.doubanapi.tv_hot(start=(page - 1) * count,
-                                      count=count)
+        infos = self.doubanapi.tv_hot(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_tv_hot(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_tv_hot(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣热门剧集（异步版本）
         """
-        infos = await self.doubanapi.async_tv_hot(start=(page - 1) * count,
-                                                  count=count)
+        infos = await self.doubanapi.async_tv_hot(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息
         :param meta:  识别的元数据
@@ -856,9 +845,7 @@ class DoubanModule(_ModuleBase):
         # 返回数据
         return self._build_search_medias_result(meta, result.get("items"))
 
-    async def async_search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息（异步版本）
         :param meta:  识别的元数据
@@ -877,9 +864,7 @@ class DoubanModule(_ModuleBase):
         # 返回数据
         return self._build_search_medias_result(meta, result.get("items"))
 
-    def search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaPerson]]:
+    def search_persons(self, name: str, source: str | None = None) -> list[MediaPerson] | None:
         """
         搜索人物信息
         :param name: 人物名称
@@ -893,20 +878,26 @@ class DoubanModule(_ModuleBase):
         if not name:
             return []
         result = self.doubanapi.person_search(keyword=name)
-        if result and result.get('items'):
-            return [MediaPerson(source='douban', **{
-                'id': item.get('target_id'),
-                'name': item.get('target', {}).get('title'),
-                'url': item.get('target', {}).get('url'),
-                'images': item.get('target', {}).get('cover', {}),
-                'avatar': (item.get('target', {}).get('cover_img', {}).get('url')
-                           or '').replace("/l/public/", "/s/public/"),
-            }) for item in result.get('items') if name in item.get('target', {}).get('title')]
+        if result and result.get("items"):
+            return [
+                MediaPerson(
+                    source="douban",
+                    **{
+                        "id": item.get("target_id"),
+                        "name": item.get("target", {}).get("title"),
+                        "url": item.get("target", {}).get("url"),
+                        "images": item.get("target", {}).get("cover", {}),
+                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace(
+                            "/l/public/", "/s/public/"
+                        ),
+                    },
+                )
+                for item in result.get("items")
+                if name in item.get("target", {}).get("title")
+            ]
         return []
 
-    async def async_search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaPerson]]:
+    async def async_search_persons(self, name: str, source: str | None = None) -> list[MediaPerson] | None:
         """
         搜索人物信息（异步版本）
         :param name: 人物名称
@@ -920,19 +911,27 @@ class DoubanModule(_ModuleBase):
         if not name:
             return []
         result = await self.doubanapi.async_person_search(keyword=name)
-        if result and result.get('items'):
-            return [MediaPerson(source='douban', **{
-                'id': item.get('target_id'),
-                'name': item.get('target', {}).get('title'),
-                'url': item.get('target', {}).get('url'),
-                'images': item.get('target', {}).get('cover', {}),
-                'avatar': (item.get('target', {}).get('cover_img', {}).get('url')
-                           or '').replace("/l/public/", "/s/public/"),
-            }) for item in result.get('items') if name in item.get('target', {}).get('title')]
+        if result and result.get("items"):
+            return [
+                MediaPerson(
+                    source="douban",
+                    **{
+                        "id": item.get("target_id"),
+                        "name": item.get("target", {}).get("title"),
+                        "url": item.get("target", {}).get("url"),
+                        "images": item.get("target", {}).get("cover", {}),
+                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace(
+                            "/l/public/", "/s/public/"
+                        ),
+                    },
+                )
+                for item in result.get("items")
+                if name in item.get("target", {}).get("title")
+            ]
         return []
 
     @staticmethod
-    def _process_imdbid_result(result: dict, imdbid: str) -> Optional[dict]:
+    def _process_imdbid_result(result: dict, imdbid: str) -> dict | None:
         """
         处理IMDBID查询结果
         :param result: IMDBID查询返回的结果
@@ -951,8 +950,9 @@ class DoubanModule(_ModuleBase):
         return None
 
     @staticmethod
-    def _process_search_results(result: dict, name: str, mtype: MediaType = None,
-                                year: str = None, season: int = None) -> dict:
+    def _process_search_results(
+        result: dict, name: str, mtype: MediaType = None, year: str = None, season: int = None
+    ) -> dict:
         """
         处理搜索结果并进行匹配
         :param result: 搜索返回的结果
@@ -992,18 +992,26 @@ class DoubanModule(_ModuleBase):
             if type_name == MediaType.TV.value:
                 meta.type = MediaType.TV
                 meta.begin_season = meta.begin_season if meta.begin_season is not None else 1
-            if meta.name == name \
-                    and ((season is None and meta.begin_season is None) or meta.begin_season == season) \
-                    and (not year or item.get('year') == year):
+            if (
+                meta.name == name
+                and ((season is None and meta.begin_season is None) or meta.begin_season == season)
+                and (not year or item.get("year") == year)
+            ):
                 logger.info(f"{name} 匹配到豆瓣信息：{item.get('id')} {item.get('title')}")
                 return item
         return {}
 
     @retry(Exception, 5, 3, 3, logger=logger)
     @rate_limit_exponential(source="match_doubaninfo")
-    def match_doubaninfo(self, name: str, imdbid: str = None,
-                         mtype: MediaType = None, year: str = None, season: int = None,
-                         raise_exception: bool = False) -> dict:
+    def match_doubaninfo(
+        self,
+        name: str,
+        imdbid: str = None,
+        mtype: MediaType = None,
+        year: str = None,
+        season: int = None,
+        raise_exception: bool = False,
+    ) -> dict:
         """
         搜索和匹配豆瓣信息
         :param name:  名称
@@ -1028,9 +1036,15 @@ class DoubanModule(_ModuleBase):
 
     @retry(Exception, 5, 3, 3, logger=logger)
     @rate_limit_exponential(source="match_doubaninfo")
-    async def async_match_doubaninfo(self, name: str, imdbid: str = None,
-                                     mtype: MediaType = None, year: str = None, season: int = None,
-                                     raise_exception: bool = False) -> dict:
+    async def async_match_doubaninfo(
+        self,
+        name: str,
+        imdbid: str = None,
+        mtype: MediaType = None,
+        year: str = None,
+        season: int = None,
+        raise_exception: bool = False,
+    ) -> dict:
         """
         搜索和匹配豆瓣信息（异步版本）
         :param name:  名称
@@ -1053,27 +1067,25 @@ class DoubanModule(_ModuleBase):
         result = await self.doubanapi.async_search(f"{name} {year or ''}".strip())
         return self._process_search_results(result, name, mtype, year, season)
 
-    def movie_top250(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    def movie_top250(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣电影TOP250
         """
-        infos = self.doubanapi.movie_top250(start=(page - 1) * count,
-                                            count=count)
+        infos = self.doubanapi.movie_top250(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    async def async_movie_top250(self, page: int = 1, count: int = 30) -> List[MediaInfo]:
+    async def async_movie_top250(self, page: int = 1, count: int = 30) -> list[MediaInfo]:
         """
         获取豆瓣电影TOP250（异步版本）
         """
-        infos = await self.doubanapi.async_movie_top250(start=(page - 1) * count,
-                                                        count=count)
+        infos = await self.doubanapi.async_movie_top250(start=(page - 1) * count, count=count)
         if infos and infos.get("subject_collection_items"):
             return [MediaInfo(douban_info=info) for info in infos.get("subject_collection_items")]
         return []
 
-    def metadata_nfo(self, mediainfo: MediaInfo, season: int = None, **kwargs) -> Optional[str]:
+    def metadata_nfo(self, mediainfo: MediaInfo, season: int = None, **kwargs) -> str | None:
         """
         获取NFO文件内容文本
         :param mediainfo: 媒体信息
@@ -1083,7 +1095,7 @@ class DoubanModule(_ModuleBase):
             return None
         return self.scraper.get_metadata_nfo(mediainfo=mediainfo, season=season)
 
-    def metadata_img(self, mediainfo: MediaInfo, season: int = None, episode: int = None) -> Optional[dict]:
+    def metadata_img(self, mediainfo: MediaInfo, season: int = None, episode: int = None) -> dict | None:
         """
         获取图片名称和url
         :param mediainfo: 媒体信息
@@ -1095,7 +1107,7 @@ class DoubanModule(_ModuleBase):
         return self.scraper.get_metadata_img(mediainfo=mediainfo, season=season, episode=episode)
 
     @staticmethod
-    def _validate_douban_obtain_images_params(mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def _validate_douban_obtain_images_params(mediainfo: MediaInfo) -> MediaInfo | None:
         """
         验证豆瓣 obtain_images 参数
         :param mediainfo: 媒体信息
@@ -1128,7 +1140,7 @@ class DoubanModule(_ModuleBase):
                 mediainfo.backdrop_path = backdrop.get("url")
         return mediainfo
 
-    def obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片
         :param mediainfo:  识别的媒体信息
@@ -1148,7 +1160,7 @@ class DoubanModule(_ModuleBase):
         # 处理图片数据
         return self._process_douban_images(mediainfo, info)
 
-    async def async_obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    async def async_obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片（异步版本）
         :param mediainfo:  识别的媒体信息
@@ -1176,7 +1188,7 @@ class DoubanModule(_ModuleBase):
         self.doubanapi.clear_cache()
         logger.info("豆瓣缓存清除完成")
 
-    def douban_movie_credits(self, doubanid: str) -> List[schemas.MediaPerson]:
+    def douban_movie_credits(self, doubanid: str) -> list[schemas.MediaPerson]:
         """
         根据豆瓣ID查询电影演职员表
         :param doubanid:  豆瓣ID
@@ -1184,7 +1196,7 @@ class DoubanModule(_ModuleBase):
         result = self.doubanapi.movie_celebrities(subject_id=doubanid)
         return self._process_celebrity_data(result)
 
-    def douban_tv_credits(self, doubanid: str) -> List[schemas.MediaPerson]:
+    def douban_tv_credits(self, doubanid: str) -> list[schemas.MediaPerson]:
         """
         根据豆瓣ID查询电视剧演职员表
         :param doubanid:  豆瓣ID
@@ -1192,7 +1204,7 @@ class DoubanModule(_ModuleBase):
         result = self.doubanapi.tv_celebrities(subject_id=doubanid)
         return self._process_celebrity_data(result)
 
-    def douban_movie_recommend(self, doubanid: str) -> List[MediaInfo]:
+    def douban_movie_recommend(self, doubanid: str) -> list[MediaInfo]:
         """
         根据豆瓣ID查询推荐电影
         :param doubanid:  豆瓣ID
@@ -1202,7 +1214,7 @@ class DoubanModule(_ModuleBase):
             return [MediaInfo(douban_info=info) for info in recommend]
         return []
 
-    def douban_tv_recommend(self, doubanid: str) -> List[MediaInfo]:
+    def douban_tv_recommend(self, doubanid: str) -> list[MediaInfo]:
         """
         根据豆瓣ID查询推荐电视剧
         :param doubanid:  豆瓣ID
@@ -1226,16 +1238,19 @@ class DoubanModule(_ModuleBase):
             image = detail.get("cover_img", {}).get("url")
             if image:
                 image = image.replace("/l/public/", "/s/public/")
-            return schemas.MediaPerson(source='douban', **{
-                "id": detail.get("id"),
-                "name": detail.get("title"),
-                "avatar": image,
-                "biography": detail.get("extra", {}).get("short_info"),
-                "also_known_as": also_known_as,
-            })
-        return schemas.MediaPerson(source='douban')
+            return schemas.MediaPerson(
+                source="douban",
+                **{
+                    "id": detail.get("id"),
+                    "name": detail.get("title"),
+                    "avatar": image,
+                    "biography": detail.get("extra", {}).get("short_info"),
+                    "also_known_as": also_known_as,
+                },
+            )
+        return schemas.MediaPerson(source="douban")
 
-    def douban_person_credits(self, person_id: int, page: int = 1) -> List[MediaInfo]:
+    def douban_person_credits(self, person_id: int, page: int = 1) -> list[MediaInfo]:
         """
         根据TMDBID查询人物参演作品
         :param person_id:  人物ID
@@ -1258,7 +1273,7 @@ class DoubanModule(_ModuleBase):
         return []
 
     @staticmethod
-    def _process_celebrity_data(result: dict) -> List[schemas.MediaPerson]:
+    def _process_celebrity_data(result: dict) -> list[schemas.MediaPerson]:
         """
         处理演职员表数据的公共方法
         :param result: API返回的演职员表数据
@@ -1270,11 +1285,11 @@ class DoubanModule(_ModuleBase):
         if ret_list:
             # 更新豆瓣演员信息中的ID，从URI中提取'douban://douban.com/celebrity/1316132?subject_id=27503705' subject_id
             for doubaninfo in ret_list:
-                doubaninfo['id'] = doubaninfo.get('uri', '').split('?subject_id=')[-1]
-            return [schemas.MediaPerson(source='douban', **doubaninfo) for doubaninfo in ret_list]
+                doubaninfo["id"] = doubaninfo.get("uri", "").split("?subject_id=")[-1]
+            return [schemas.MediaPerson(source="douban", **doubaninfo) for doubaninfo in ret_list]
         return []
 
-    async def async_douban_movie_credits(self, doubanid: str) -> List[schemas.MediaPerson]:
+    async def async_douban_movie_credits(self, doubanid: str) -> list[schemas.MediaPerson]:
         """
         根据豆瓣ID查询电影演职员表（异步版本）
         :param doubanid:  豆瓣ID
@@ -1282,7 +1297,7 @@ class DoubanModule(_ModuleBase):
         result = await self.doubanapi.async_movie_celebrities(subject_id=doubanid)
         return self._process_celebrity_data(result)
 
-    async def async_douban_tv_credits(self, doubanid: str) -> List[schemas.MediaPerson]:
+    async def async_douban_tv_credits(self, doubanid: str) -> list[schemas.MediaPerson]:
         """
         根据豆瓣ID查询电视剧演职员表（异步版本）
         :param doubanid:  豆瓣ID
@@ -1290,7 +1305,7 @@ class DoubanModule(_ModuleBase):
         result = await self.doubanapi.async_tv_celebrities(subject_id=doubanid)
         return self._process_celebrity_data(result)
 
-    async def async_douban_movie_recommend(self, doubanid: str) -> List[MediaInfo]:
+    async def async_douban_movie_recommend(self, doubanid: str) -> list[MediaInfo]:
         """
         根据豆瓣ID查询推荐电影（异步版本）
         :param doubanid:  豆瓣ID
@@ -1300,7 +1315,7 @@ class DoubanModule(_ModuleBase):
             return [MediaInfo(douban_info=info) for info in recommend]
         return []
 
-    async def async_douban_tv_recommend(self, doubanid: str) -> List[MediaInfo]:
+    async def async_douban_tv_recommend(self, doubanid: str) -> list[MediaInfo]:
         """
         根据豆瓣ID查询推荐电视剧（异步版本）
         :param doubanid:  豆瓣ID
@@ -1324,16 +1339,19 @@ class DoubanModule(_ModuleBase):
             image = detail.get("cover_img", {}).get("url")
             if image:
                 image = image.replace("/l/public/", "/s/public/")
-            return schemas.MediaPerson(source='douban', **{
-                "id": detail.get("id"),
-                "name": detail.get("title"),
-                "avatar": image,
-                "biography": detail.get("extra", {}).get("short_info"),
-                "also_known_as": also_known_as,
-            })
-        return schemas.MediaPerson(source='douban')
+            return schemas.MediaPerson(
+                source="douban",
+                **{
+                    "id": detail.get("id"),
+                    "name": detail.get("title"),
+                    "avatar": image,
+                    "biography": detail.get("extra", {}).get("short_info"),
+                    "also_known_as": also_known_as,
+                },
+            )
+        return schemas.MediaPerson(source="douban")
 
-    async def async_douban_person_credits(self, person_id: int, page: int = 1) -> List[MediaInfo]:
+    async def async_douban_person_credits(self, person_id: int, page: int = 1) -> list[MediaInfo]:
         """
         根据豆瓣ID查询人物参演作品（异步版本）
         :param person_id:  人物ID
@@ -1349,8 +1367,9 @@ class DoubanModule(_ModuleBase):
                 collection_id = module.get("payload", {}).get("id")
         # 查询作品集内容
         if collection_id:
-            collections = await self.doubanapi.async_person_work(subject_id=collection_id, start=(page - 1) * 20,
-                                                                 count=20)
+            collections = await self.doubanapi.async_person_work(
+                subject_id=collection_id, start=(page - 1) * 20, count=20
+            )
             if collections:
                 works = collections.get("works")
                 return [MediaInfo(douban_info=work.get("subject")) for work in works]

@@ -1,18 +1,18 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, JSON, Index, or_
-from sqlalchemy import select
+from sqlalchemy import JSON, Column, Index, Integer, String, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, get_id_column, async_db_query, Base
+from app.db import Base, async_db_query, db_query, db_update, get_id_column
 
 
 class MediaServerItem(Base):
     """
     媒体服务器媒体条目表
     """
+
     id = get_id_column()
     # 服务器类型
     server = Column(String)
@@ -44,8 +44,8 @@ class MediaServerItem(Base):
     lst_mod_date = Column(String, default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     __table_args__ = (
-        Index('ux_mediaserveritem_server_item_id', 'server', 'item_id', unique=True),
-        Index('ix_mediaserveritem_tmdbid_item_type', 'tmdbid', 'item_type'),
+        Index("ux_mediaserveritem_server_item_id", "server", "item_id", unique=True),
+        Index("ix_mediaserveritem_tmdbid_item_type", "tmdbid", "item_type"),
     )
 
     @classmethod
@@ -56,12 +56,11 @@ class MediaServerItem(Base):
     @classmethod
     @db_query
     def get_by_server_itemid(cls, db: Session, server: str, item_id: str):
-        return db.query(cls).filter(cls.server == server,
-                                    cls.item_id == item_id).first()
+        return db.query(cls).filter(cls.server == server, cls.item_id == item_id).first()
 
     @classmethod
     @db_update
-    def empty(cls, db: Session, server: Optional[str] = None):
+    def empty(cls, db: Session, server: str | None = None):
         if server is None:
             db.query(cls).delete(synchronize_session=False)
         else:
@@ -70,23 +69,25 @@ class MediaServerItem(Base):
     @classmethod
     @db_update
     def delete_stale(cls, db: Session, server: str, sync_time: str):
-        return db.query(cls).filter(cls.server == server,
-                                    or_(cls.lst_mod_date.is_(None),
-                                        cls.lst_mod_date != sync_time)).delete(synchronize_session=False)
+        return (
+            db.query(cls)
+            .filter(cls.server == server, or_(cls.lst_mod_date.is_(None), cls.lst_mod_date != sync_time))
+            .delete(synchronize_session=False)
+        )
 
     @classmethod
     @db_update
-    def delete_excluded_servers(cls, db: Session, servers: List[str]):
+    def delete_excluded_servers(cls, db: Session, servers: list[str]):
         if not servers:
             return db.query(cls).delete(synchronize_session=False)
-        return db.query(cls).filter(or_(cls.server.is_(None),
-                                        ~cls.server.in_(servers))).delete(synchronize_session=False)
+        return (
+            db.query(cls).filter(or_(cls.server.is_(None), ~cls.server.in_(servers))).delete(synchronize_session=False)
+        )
 
     @classmethod
     @db_query
     def exist_by_tmdbid(cls, db: Session, tmdbid: int, mtype: str):
-        return db.query(cls).filter(cls.tmdbid == tmdbid,
-                                    cls.item_type == mtype).first()
+        return db.query(cls).filter(cls.tmdbid == tmdbid, cls.item_type == mtype).first()
 
     @classmethod
     @db_query
@@ -94,14 +95,10 @@ class MediaServerItem(Base):
         if not mtype and not year:
             return db.query(cls).filter(cls.title == title).first()
         elif not year:
-            return db.query(cls).filter(cls.title == title,
-                                        cls.item_type == mtype).first()
+            return db.query(cls).filter(cls.title == title, cls.item_type == mtype).first()
         elif not mtype:
-            return db.query(cls).filter(cls.title == title,
-                                        cls.year == str(year)).first()
-        return db.query(cls).filter(cls.title == title,
-                                    cls.item_type == mtype,
-                                    cls.year == str(year)).first()
+            return db.query(cls).filter(cls.title == title, cls.year == str(year)).first()
+        return db.query(cls).filter(cls.title == title, cls.item_type == mtype, cls.year == str(year)).first()
 
     @classmethod
     @async_db_query
@@ -112,8 +109,7 @@ class MediaServerItem(Base):
     @classmethod
     @async_db_query
     async def async_exist_by_tmdbid(cls, db: AsyncSession, tmdbid: int, mtype: str):
-        result = await db.execute(select(cls).filter(cls.tmdbid == tmdbid,
-                                                     cls.item_type == mtype))
+        result = await db.execute(select(cls).filter(cls.tmdbid == tmdbid, cls.item_type == mtype))
         return result.scalars().first()
 
     @classmethod
@@ -122,13 +118,11 @@ class MediaServerItem(Base):
         if not mtype and not year:
             result = await db.execute(select(cls).filter(cls.title == title))
         elif not year:
-            result = await db.execute(select(cls).filter(cls.title == title,
-                                                         cls.item_type == mtype))
+            result = await db.execute(select(cls).filter(cls.title == title, cls.item_type == mtype))
         elif not mtype:
-            result = await db.execute(select(cls).filter(cls.title == title,
-                                                         cls.year == str(year)))
+            result = await db.execute(select(cls).filter(cls.title == title, cls.year == str(year)))
         else:
-            result = await db.execute(select(cls).filter(cls.title == title,
-                                                     cls.item_type == mtype,
-                                                     cls.year == str(year)))
+            result = await db.execute(
+                select(cls).filter(cls.title == title, cls.item_type == mtype, cls.year == str(year))
+            )
         return result.scalars().first()

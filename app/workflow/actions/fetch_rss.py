@@ -2,27 +2,28 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.chain.media import MediaChain
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.context import Context, TorrentInfo
 from app.core.metainfo import MetaInfo
 from app.helper.rss import RssHelper
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class FetchRssParams(ActionParams):
     """
     获取RSS资源列表参数
     """
+
     url: str = Field(default=None, description="RSS地址")
-    proxy: Optional[bool] = Field(default=False, description="是否使用代理")
-    timeout: Optional[int] = Field(default=15, description="超时时间")
-    content_type: Optional[str] = Field(default=None, description="Content-Type")
-    referer: Optional[str] = Field(default=None, description="Referer")
-    ua: Optional[str] = Field(default=None, description="User-Agent")
-    match_media: Optional[bool] = Field(default=False, description="匹配媒体信息")
+    proxy: bool | None = Field(default=False, description="是否使用代理")
+    timeout: int | None = Field(default=15, description="超时时间")
+    content_type: str | None = Field(default=None, description="Content-Type")
+    referer: str | None = Field(default=None, description="Referer")
+    ua: str | None = Field(default=None, description="User-Agent")
+    match_media: bool | None = Field(default=False, description="匹配媒体信息")
 
 
 class FetchRssAction(BaseAction):
@@ -74,17 +75,16 @@ class FetchRssAction(BaseAction):
         if params.ua:
             headers["User-Agent"] = params.ua
 
-        rss_items = RssHelper().parse(url=params.url,
-                                      proxy=settings.PROXY if params.proxy else None,
-                                      timeout=params.timeout,
-                                      headers=headers)
+        rss_items = RssHelper().parse(
+            url=params.url, proxy=settings.PROXY if params.proxy else None, timeout=params.timeout, headers=headers
+        )
         if rss_items is None or rss_items is False:
-            logger.error(f'RSS地址 {params.url} 请求失败！')
+            logger.error(f"RSS地址 {params.url} 请求失败！")
             self._has_error = True
             return context
 
         if not rss_items:
-            logger.error(f'RSS地址 {params.url} 未获取到RSS数据！')
+            logger.error(f"RSS地址 {params.url} 未获取到RSS数据！")
             return context
 
         # 组装种子

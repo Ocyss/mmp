@@ -24,17 +24,13 @@ class RuntimeConfigMiddleware(AgentMiddleware[dict, ContextT, ResponseT]):  # no
     def modify_request(self, request: ModelRequest[ContextT]) -> ModelRequest[ContextT]:  # noqa
         runtime_config = agent_runtime_manager.load_runtime_config()
         runtime_sections = runtime_config.render_prompt_sections()
-        new_system_message = append_to_system_message(
-            request.system_message, runtime_sections
-        )
+        new_system_message = append_to_system_message(request.system_message, runtime_sections)
         return request.override(system_message=new_system_message)
 
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         return await handler(self.modify_request(request))
 

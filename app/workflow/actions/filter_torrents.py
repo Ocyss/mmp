@@ -1,25 +1,26 @@
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction, ActionChain
 from app.core.config import global_vars
 from app.helper.torrent import TorrentHelper
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import ActionChain, BaseAction
 
 
 class FilterTorrentsParams(ActionParams):
     """
     过滤资源数据参数
     """
-    rule_groups: Optional[List[str]] = Field(default=[], description="规则组")
-    quality: Optional[str] = Field(default=None, description="资源质量")
-    resolution: Optional[str] = Field(default=None, description="资源分辨率")
-    effect: Optional[str] = Field(default=None, description="特效")
-    include: Optional[str] = Field(default=None, description="包含规则")
-    exclude: Optional[str] = Field(default=None, description="排除规则")
-    size: Optional[str] = Field(default=None, description="资源大小范围（MB）")
+
+    rule_groups: list[str] | None = Field(default=[], description="规则组")
+    quality: str | None = Field(default=None, description="资源质量")
+    resolution: str | None = Field(default=None, description="资源分辨率")
+    effect: str | None = Field(default=None, description="特效")
+    include: str | None = Field(default=None, description="包含规则")
+    exclude: str | None = Field(default=None, description="排除规则")
+    size: str | None = Field(default=None, description="资源大小范围（MB）")
 
 
 class FilterTorrentsAction(BaseAction):
@@ -38,17 +39,17 @@ class FilterTorrentsAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "过滤资源"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "对资源列表数据进行过滤"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return FilterTorrentsParams().model_dump()
 
     @property
@@ -64,20 +65,18 @@ class FilterTorrentsAction(BaseAction):
             if global_vars.is_workflow_stopped(workflow_id):
                 break
             if TorrentHelper().filter_torrent(
-                    torrent_info=torrent.torrent_info,
-                    filter_params={
-                        "quality": params.quality,
-                        "resolution": params.resolution,
-                        "effect": params.effect,
-                        "include": params.include,
-                        "exclude": params.exclude,
-                        "size": params.size
-                    }
+                torrent_info=torrent.torrent_info,
+                filter_params={
+                    "quality": params.quality,
+                    "resolution": params.resolution,
+                    "effect": params.effect,
+                    "include": params.include,
+                    "exclude": params.exclude,
+                    "size": params.size,
+                },
             ):
                 if ActionChain().filter_torrents(
-                        rule_groups=params.rule_groups,
-                        torrent_list=[torrent.torrent_info],
-                        mediainfo=torrent.media_info
+                    rule_groups=params.rule_groups, torrent_list=[torrent.torrent_info], mediainfo=torrent.media_info
                 ):
                     self._torrents.append(torrent)
 

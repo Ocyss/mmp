@@ -6,8 +6,8 @@ Revises: c4e8f7a1b2d3
 Create Date: 2026-07-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "e6a1c4b8d2f0"
 down_revision = "c4e8f7a1b2d3"
@@ -30,10 +30,7 @@ def _has_column(
     """
     if table_name not in inspector.get_table_names():
         return False
-    return any(
-        column["name"] == column_name
-        for column in inspector.get_columns(table_name)
-    )
+    return any(column["name"] == column_name for column in inspector.get_columns(table_name))
 
 
 def upgrade() -> None:

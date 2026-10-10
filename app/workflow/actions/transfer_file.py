@@ -4,21 +4,22 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
-from app.core.config import global_vars
-from app.db.transferhistory_oper import TransferHistoryOper
-from app.schemas import ActionParams, ActionContext
 from app.chain.storage import StorageChain
 from app.chain.transfer import TransferChain
+from app.core.config import global_vars
+from app.db.transferhistory_oper import TransferHistoryOper
 from app.log import logger
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class TransferFileParams(ActionParams):
     """
     整理文件参数
     """
+
     # 来源
-    source: Optional[str] = Field(default="downloads", description="来源")
+    source: str | None = Field(default="downloads", description="来源")
 
 
 class TransferFileAction(BaseAction):
@@ -123,8 +124,7 @@ class TransferFileAction(BaseAction):
                     # 已经整理过的文件不再整理
                     continue
                 logger.info(f"开始整理文件 {fileitem.path} ...")
-                state, errmsg = transferchain.do_transfer(fileitem, background=False,
-                                                          continue_callback=check_continue)
+                state, errmsg = transferchain.do_transfer(fileitem, background=False, continue_callback=check_continue)
                 if not state:
                     _failed_count += 1
                     logger.error(f"整理文件 {fileitem.path} 失败: {errmsg}")

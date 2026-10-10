@@ -30,17 +30,17 @@ class ILinkIncomingMessage:
     """iLink 归一化后的入站消息。"""
 
     user_id: str
-    text: Optional[str] = None
-    username: Optional[str] = None
-    message_id: Optional[str] = None
-    chat_id: Optional[str] = None
-    context_token: Optional[str] = None
-    images: List[Dict[str, Any]] = field(default_factory=list)
-    audio_refs: List[str] = field(default_factory=list)
-    files: List[Dict[str, Any]] = field(default_factory=list)
-    raw: Dict[str, Any] = field(default_factory=dict)
+    text: str | None = None
+    username: str | None = None
+    message_id: str | None = None
+    chat_id: str | None = None
+    context_token: str | None = None
+    images: list[dict[str, Any]] = field(default_factory=list)
+    audio_refs: list[str] = field(default_factory=list)
+    files: list[dict[str, Any]] = field(default_factory=list)
+    raw: dict[str, Any] = field(default_factory=dict)
 
-    def to_message_payload(self) -> Dict[str, Any]:
+    def to_message_payload(self) -> dict[str, Any]:
         payload = {
             "__channel__": "wechatclawbot",
             "userid": self.user_id,
@@ -65,9 +65,9 @@ class ILinkClient:
     def __init__(
         self,
         base_url: str,
-        bot_token: Optional[str] = None,
-        account_id: Optional[str] = None,
-        sync_buf: Optional[str] = None,
+        bot_token: str | None = None,
+        account_id: str | None = None,
+        sync_buf: str | None = None,
         timeout: int = 20,
     ):
         """保存 iLink 会话参数，供二维码登录、长轮询和消息发送复用。"""
@@ -79,9 +79,9 @@ class ILinkClient:
 
     def set_credentials(
         self,
-        bot_token: Optional[str],
-        account_id: Optional[str] = None,
-        sync_buf: Optional[str] = None,
+        bot_token: str | None,
+        account_id: str | None = None,
+        sync_buf: str | None = None,
     ) -> None:
         """更新 iLink 登录凭证与会话状态。"""
         self.bot_token = bot_token
@@ -89,7 +89,7 @@ class ILinkClient:
         if sync_buf is not None:
             self.sync_buf = sync_buf
 
-    def _headers(self, auth_required: bool = True) -> Dict[str, str]:
+    def _headers(self, auth_required: bool = True) -> dict[str, str]:
         """构建请求头，包含必要的身份验证信息。"""
         headers = {
             "Content-Type": "application/json",
@@ -108,7 +108,7 @@ class ILinkClient:
         random_u32 = random.getrandbits(32)
         return base64.b64encode(str(random_u32).encode("utf-8")).decode("ascii")
 
-    def _with_base_info(self, body: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _with_base_info(self, body: dict[str, Any] | None) -> dict[str, Any]:
         """向请求体中补充基础信息（如版本号）。"""
         payload = dict(body or {})
         base_info = payload.get("base_info")
@@ -119,7 +119,7 @@ class ILinkClient:
         return payload
 
     @staticmethod
-    def _json(resp: Any) -> Dict[str, Any]:
+    def _json(resp: Any) -> dict[str, Any]:
         """尝试将响应解析为 JSON，处理异常情况。"""
         if not resp:
             return {}
@@ -152,7 +152,7 @@ class ILinkClient:
         return text
 
     @staticmethod
-    def _normalize_qrcode_url(value: Any) -> Optional[str]:
+    def _normalize_qrcode_url(value: Any) -> str | None:
         """规范化二维码展示字段，兼容图片 URL、data URL 与裸 base64。"""
         if value is None:
             return None
@@ -170,7 +170,7 @@ class ILinkClient:
         return raw
 
     @staticmethod
-    def _pick_value(obj: Dict[str, Any], keys: List[str]) -> Optional[Any]:
+    def _pick_value(obj: dict[str, Any], keys: list[str]) -> Any | None:
         """从字典中尝试获取指定键中的第一个非空值。"""
         for key in keys:
             if key in obj and obj.get(key) not in (None, ""):
@@ -178,7 +178,7 @@ class ILinkClient:
         return None
 
     @staticmethod
-    def _pick_present_value(obj: Dict[str, Any], keys: List[str]) -> Optional[Any]:
+    def _pick_present_value(obj: dict[str, Any], keys: list[str]) -> Any | None:
         """
         获取已存在的字段值，允许空字符串和 0 作为有效值。
 
@@ -191,9 +191,7 @@ class ILinkClient:
         return None
 
     @classmethod
-    def _find_first_value(
-        cls, data: Any, keys: List[str], max_depth: int = 5
-    ) -> Optional[Any]:
+    def _find_first_value(cls, data: Any, keys: list[str], max_depth: int = 5) -> Any | None:
         """在嵌套结构中递归查找指定键中的第一个非空值。"""
         if max_depth < 0 or data is None:
             return None
@@ -213,9 +211,7 @@ class ILinkClient:
         return None
 
     @classmethod
-    def _find_first_list(
-        cls, data: Any, prefer_keys: List[str], max_depth: int = 5
-    ) -> Optional[List[Any]]:
+    def _find_first_list(cls, data: Any, prefer_keys: list[str], max_depth: int = 5) -> list[Any] | None:
         """在嵌套结构中递归查找第一个符合条件的列表。"""
         if max_depth < 0 or data is None:
             return None
@@ -238,7 +234,7 @@ class ILinkClient:
         return None
 
     @staticmethod
-    def _ok(payload: Dict[str, Any]) -> bool:
+    def _ok(payload: dict[str, Any]) -> bool:
         """检查 API 响应是否表示成功。"""
         if not payload:
             return False
@@ -248,9 +244,7 @@ class ILinkClient:
         if code is None:
             code = payload.get("ret")
         if code is None:
-            err = payload.get("errmsg") or payload.get("error") or payload.get(
-                "error_msg"
-            )
+            err = payload.get("errmsg") or payload.get("error") or payload.get("error_msg")
             if err and str(err).strip().lower() not in {"ok", "success", "succeed"}:
                 return False
             state = payload.get("status") or payload.get("state")
@@ -266,21 +260,17 @@ class ILinkClient:
         except Exception:
             return str(code).strip().lower() in {"0", "ok", "success", "succeed"}
 
-    def _is_send_success(self, payload: Dict[str, Any]) -> bool:
+    def _is_send_success(self, payload: dict[str, Any]) -> bool:
         """检查 API 响应中是否包含明确的发送成功信号。"""
         if not payload:
             return False
-        code = self._find_first_value(
-            payload, ["errcode", "code", "ret", "result_code", "status_code"]
-        )
+        code = self._find_first_value(payload, ["errcode", "code", "ret", "result_code", "status_code"])
         if code is not None:
             try:
                 return int(str(code)) == 0
             except Exception:
                 return str(code).strip().lower() in {"0", "ok", "success", "succeed"}
-        success_flag = self._find_first_value(
-            payload, ["success", "ok", "is_success", "sent"]
-        )
+        success_flag = self._find_first_value(payload, ["success", "ok", "is_success", "sent"])
         if isinstance(success_flag, bool):
             return success_flag
         if success_flag is not None:
@@ -306,21 +296,17 @@ class ILinkClient:
                 return False
         return False
 
-    def _is_send_explicit_failure(self, payload: Dict[str, Any]) -> bool:
+    def _is_send_explicit_failure(self, payload: dict[str, Any]) -> bool:
         """检查 API 响应中是否包含明确的发送失败信号。"""
         if not payload:
             return False
-        code = self._find_first_value(
-            payload, ["errcode", "code", "ret", "result_code", "status_code"]
-        )
+        code = self._find_first_value(payload, ["errcode", "code", "ret", "result_code", "status_code"])
         if code is not None:
             try:
                 return int(str(code)) != 0
             except Exception:
                 return str(code).strip().lower() not in {"0", "ok", "success", "succeed"}
-        success_flag = self._find_first_value(
-            payload, ["success", "ok", "is_success", "sent"]
-        )
+        success_flag = self._find_first_value(payload, ["success", "ok", "is_success", "sent"])
         if isinstance(success_flag, bool):
             return not success_flag
         if success_flag is not None:
@@ -349,7 +335,7 @@ class ILinkClient:
                 return True
         return False
 
-    def _is_send_http_success(self, resp: Any, payload: Dict[str, Any]) -> bool:
+    def _is_send_http_success(self, resp: Any, payload: dict[str, Any]) -> bool:
         """根据 HTTP 状态码和解析后的响应判断发送是否成功。"""
         if resp is None:
             return False
@@ -367,7 +353,7 @@ class ILinkClient:
         return not self._is_send_explicit_failure(payload)
 
     @staticmethod
-    def _build_user_candidates(to_user: str) -> List[str]:
+    def _build_user_candidates(to_user: str) -> list[str]:
         """为目标用户 ID 构建多种格式的候选列表以提高匹配成功率。"""
         raw = str(to_user or "").strip()
         if not raw:
@@ -379,7 +365,7 @@ class ILinkClient:
             candidates.append(raw[: -len("@im.wechat")])
         else:
             candidates.append(f"{raw}@im.wechat")
-        uniq: List[str] = []
+        uniq: list[str] = []
         for item in candidates:
             value = str(item or "").strip()
             if value and value not in uniq:
@@ -387,7 +373,7 @@ class ILinkClient:
         return uniq
 
     @staticmethod
-    def _build_text_payloads(user_id: str, text: str) -> List[Dict[str, Any]]:
+    def _build_text_payloads(user_id: str, text: str) -> list[dict[str, Any]]:
         """构建多种格式的纯文本消息报文以兼容不同接口。"""
         return [
             {"to_user": user_id, "msg_type": "text", "text": {"content": text}},
@@ -414,9 +400,7 @@ class ILinkClient:
         """将媒体 AES 密钥进行 Base64 编码。"""
         return base64.b64encode(aeskey.hex().encode("ascii")).decode("ascii")
 
-    def _build_protocol_text_payload(
-        self, user_id: str, text: str, context_token: Optional[str]
-    ) -> Dict[str, Any]:
+    def _build_protocol_text_payload(self, user_id: str, text: str, context_token: str | None) -> dict[str, Any]:
         """构建协议层标准文本消息报文。"""
         msg = {
             "from_user_id": str(self.account_id or ""),
@@ -433,13 +417,13 @@ class ILinkClient:
     def _build_protocol_image_payload(
         self,
         user_id: str,
-        context_token: Optional[str],
+        context_token: str | None,
         download_param: str,
         aeskey_b64: str,
         cipher_size: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建协议层标准图片消息报文。"""
-        msg: Dict[str, Any] = {
+        msg: dict[str, Any] = {
             "from_user_id": str(self.account_id or ""),
             "to_user_id": user_id,
             "client_id": f"mp-{uuid.uuid4()}",
@@ -466,7 +450,7 @@ class ILinkClient:
     def _build_protocol_file_payloads(
         self,
         user_id: str,
-        context_token: Optional[str],
+        context_token: str | None,
         download_param: str,
         aeskey_b64: str,
         cipher_size: int,
@@ -474,7 +458,7 @@ class ILinkClient:
         file_name: str,
         mime_type: str,
         file_md5: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """构建协议层标准文件消息报文（含多种格式候选）。"""
         media = {
             "encrypt_query_param": download_param,
@@ -495,7 +479,7 @@ class ILinkClient:
             "md5": file_md5,
             "media": media,
         }
-        msg_base: Dict[str, Any] = {
+        msg_base: dict[str, Any] = {
             "from_user_id": str(self.account_id or ""),
             "to_user_id": user_id,
             "client_id": f"mp-{uuid.uuid4()}",
@@ -528,8 +512,8 @@ class ILinkClient:
         self,
         to_user: str,
         plaintext: bytes,
-        media_types: Optional[List[int]] = None,
-    ) -> Tuple[Optional[str], Optional[str], Optional[bytes], Optional[int], Optional[str]]:
+        media_types: list[int] | None = None,
+    ) -> tuple[str | None, str | None, bytes | None, int | None, str | None]:
         """
         向 iLink 申请 CDN 上传参数。
 
@@ -557,20 +541,12 @@ class ILinkClient:
                 }
             )
             url = f"{self.base_url}/ilink/bot/getuploadurl"
-            resp = RequestUtils(
-                headers=self._headers(auth_required=True), timeout=self.timeout
-            ).post(url, json=body)
+            resp = RequestUtils(headers=self._headers(auth_required=True), timeout=self.timeout).post(url, json=body)
             payload = self._json(resp)
             last_payload = payload or getattr(resp, "text", None)
-            upload_param = (
-                self._find_first_value(payload, ["upload_param", "uploadParam"])
-                if payload
-                else None
-            )
+            upload_param = self._find_first_value(payload, ["upload_param", "uploadParam"]) if payload else None
             upload_full_url = (
-                self._find_first_value(payload, ["upload_full_url", "uploadFullUrl", "full_url"])
-                if payload
-                else None
+                self._find_first_value(payload, ["upload_full_url", "uploadFullUrl", "full_url"]) if payload else None
             )
             if upload_param or upload_full_url:
                 return (
@@ -585,12 +561,12 @@ class ILinkClient:
 
     def _upload_encrypted_to_cdn(
         self,
-        upload_param: Optional[str],
-        upload_full_url: Optional[str],
+        upload_param: str | None,
+        upload_full_url: str | None,
         filekey: str,
         plaintext: bytes,
         aeskey: bytes,
-    ) -> Tuple[Optional[str], Optional[int]]:
+    ) -> tuple[str | None, int | None]:
         """将文件按协议加密后上传到微信 CDN，并返回后续发送消息所需的下载参数。"""
         ciphertext = self._encrypt_aes_ecb(plaintext, aeskey)
         if upload_full_url:
@@ -624,8 +600,8 @@ class ILinkClient:
     def _send_payload_candidates(
         self,
         to_user: str,
-        payload_candidates: List[Dict[str, Any]],
-        url_candidates: Optional[List[str]] = None,
+        payload_candidates: list[dict[str, Any]],
+        url_candidates: list[str] | None = None,
     ) -> bool:
         """
         尝试一组候选发送报文，兼容 iLink 不同接口形态。
@@ -642,18 +618,16 @@ class ILinkClient:
             for url in url_candidates:
                 for index, body in enumerate(payload_candidates, start=1):
                     request_body = self._with_base_info(body)
-                    resp = RequestUtils(
-                        headers=self._headers(auth_required=True), timeout=self.timeout
-                    ).post(url, json=request_body)
+                    resp = RequestUtils(headers=self._headers(auth_required=True), timeout=self.timeout).post(
+                        url, json=request_body
+                    )
                     payload = self._json(resp)
                     if self._is_send_success(payload) or self._is_send_http_success(resp, payload):
                         logger.info(f"发送消息成功: to_user={user_id}, variant={index}")
                         return True
                     http_code = getattr(resp, "status_code", None)
                     err_msg = (
-                        self._find_first_value(payload, ["errmsg", "message", "error", "detail"])
-                        if payload
-                        else None
+                        self._find_first_value(payload, ["errmsg", "message", "error", "detail"]) if payload else None
                     )
                     if not err_msg and resp is not None:
                         err_msg = self._short_text(getattr(resp, "text", ""))
@@ -666,20 +640,16 @@ class ILinkClient:
         logger.warning(f"发送消息失败: to_user={to_user}, {last_error}")
         return False
 
-    def get_qrcode(self) -> Dict[str, Any]:
+    def get_qrcode(self) -> dict[str, Any]:
         """向服务端请求并解析二维码登录信息。"""
         url = f"{self.base_url}/ilink/bot/get_bot_qrcode?bot_type=3"
         logger.debug(f"请求二维码: {url}")
-        resp = RequestUtils(
-            headers=self._headers(auth_required=False), timeout=self.timeout
-        ).get_res(url)
+        resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(url)
         payload = self._json(resp)
         if not payload:
             return {"success": False, "message": "获取二维码失败"}
         data = payload.get("data") or payload.get("result") or payload
-        qrcode = data.get("qrcode") or data.get("qr_code") or data.get(
-            "qrcode_id"
-        ) or data.get("ticket")
+        qrcode = data.get("qrcode") or data.get("qr_code") or data.get("qrcode_id") or data.get("ticket")
         qrcode_url = (
             data.get("qrcode_url")
             or data.get("url")
@@ -700,17 +670,17 @@ class ILinkClient:
             "message": payload.get("errmsg") or payload.get("message"),
         }
 
-    def get_qrcode_status(self, qrcode: str) -> Dict[str, Any]:
+    def get_qrcode_status(self, qrcode: str) -> dict[str, Any]:
         """查询二维码扫描状态并获取登录凭证。"""
         url = f"{self.base_url}/ilink/bot/get_qrcode_status"
-        resp = RequestUtils(
-            headers=self._headers(auth_required=False), timeout=self.timeout
-        ).get_res(url, params={"qrcode": qrcode})
+        resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(
+            url, params={"qrcode": qrcode}
+        )
         payload = self._json(resp)
         if not payload:
-            retry_resp = RequestUtils(
-                headers=self._headers(auth_required=False), timeout=self.timeout
-            ).get_res(f"{url}?qrcode={qrcode}")
+            retry_resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(
+                f"{url}?qrcode={qrcode}"
+            )
             payload = self._json(retry_resp)
         if not payload:
             return {
@@ -726,9 +696,7 @@ class ILinkClient:
             data.get("bot_token")
             or data.get("token")
             or data.get("access_token")
-            or self._find_first_value(
-                data, ["bot_token", "access_token", "token", "jwt", "auth_token"]
-            )
+            or self._find_first_value(data, ["bot_token", "access_token", "token", "jwt", "auth_token"])
         )
         account_id = (
             data.get("account_id")
@@ -749,12 +717,7 @@ class ILinkClient:
                 ],
             )
         )
-        base_url = (
-            data.get("baseurl")
-            or data.get("base_url")
-            or payload.get("baseurl")
-            or payload.get("base_url")
-        )
+        base_url = data.get("baseurl") or data.get("base_url") or payload.get("baseurl") or payload.get("base_url")
         if token:
             self.bot_token = token
         if account_id:
@@ -786,7 +749,7 @@ class ILinkClient:
             "message": payload.get("errmsg") or payload.get("message"),
         }
 
-    def send_text(self, to_user: str, text: str, context_token: Optional[str] = None) -> bool:
+    def send_text(self, to_user: str, text: str, context_token: str | None = None) -> bool:
         """发送纯文本消息。"""
         if not self.bot_token:
             logger.warning("发送消息失败：bot token 未配置")
@@ -795,9 +758,7 @@ class ILinkClient:
             logger.warning("发送消息失败：to_user 或 text 为空")
             return False
         payload_candidates = [
-            self._build_protocol_text_payload(
-                user_id=str(to_user), text=text, context_token=context_token
-            ),
+            self._build_protocol_text_payload(user_id=str(to_user), text=text, context_token=context_token),
             *self._build_text_payloads(str(to_user), text),
         ]
         return self._send_payload_candidates(to_user=to_user, payload_candidates=payload_candidates)
@@ -807,7 +768,7 @@ class ILinkClient:
         to_user: str,
         image_bytes: bytes,
         text: str,
-        context_token: Optional[str] = None,
+        context_token: str | None = None,
     ) -> bool:
         """发送包含图片和文本的消息。"""
         if not self.bot_token:
@@ -868,9 +829,7 @@ class ILinkClient:
                 return True
         return False
 
-    def send_image_png(
-        self, to_user: str, image_bytes: bytes, context_token: Optional[str] = None
-    ) -> bool:
+    def send_image_png(self, to_user: str, image_bytes: bytes, context_token: str | None = None) -> bool:
         """发送图片消息。"""
         if not self.bot_token:
             logger.warning("发送图片失败：bot token 未配置")
@@ -914,7 +873,7 @@ class ILinkClient:
         file_bytes: bytes,
         file_name: str,
         mime_type: str,
-        context_token: Optional[str] = None,
+        context_token: str | None = None,
     ) -> bool:
         """发送文件消息。"""
         if not self.bot_token:
@@ -961,19 +920,21 @@ class ILinkClient:
         return False
 
     @classmethod
-    def _encode_ref_payload(cls, kind: str, payload: Dict[str, Any]) -> str:
+    def _encode_ref_payload(cls, kind: str, payload: dict[str, Any]) -> str:
         """将附件元信息编码为 wxclaw:// 协议链接。"""
-        encoded = base64.urlsafe_b64encode(
-            json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        ).decode("ascii").rstrip("=")
+        encoded = (
+            base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+            .decode("ascii")
+            .rstrip("=")
+        )
         return f"wxclaw://{kind}/{encoded}"
 
     def _build_attachment_ref(
         self,
         kind: str,
-        attachment: Dict[str, Any],
-        default_name: Optional[str] = None,
-    ) -> Optional[Tuple[str, Dict[str, Any]]]:
+        attachment: dict[str, Any],
+        default_name: str | None = None,
+    ) -> tuple[str, dict[str, Any]] | None:
         """从附件信息构建 wxclaw 协议引用。"""
         if not isinstance(attachment, dict):
             return None
@@ -988,22 +949,17 @@ class ILinkClient:
             return None
         payload = {
             "url": download_url,
-            "aeskey": attachment.get("aeskey")
-            or attachment.get("encoding_aes_key")
-            or attachment.get("encrypt_key"),
+            "aeskey": attachment.get("aeskey") or attachment.get("encoding_aes_key") or attachment.get("encrypt_key"),
             "encrypt_type": attachment.get("encrypt_type"),
-            "mime_type": attachment.get("mime_type")
-            or attachment.get("content_type"),
-            "name": attachment.get("name")
-            or attachment.get("filename")
-            or default_name,
+            "mime_type": attachment.get("mime_type") or attachment.get("content_type"),
+            "name": attachment.get("name") or attachment.get("filename") or default_name,
             "size": attachment.get("size") or attachment.get("file_size"),
         }
         ref = self._encode_ref_payload(kind=kind, payload=payload)
         return ref, payload
 
     @staticmethod
-    def _as_scalar(value: Any) -> Optional[Any]:
+    def _as_scalar(value: Any) -> Any | None:
         """将值转换为标量，过滤掉字典和列表。"""
         if value in (None, ""):
             return None
@@ -1014,11 +970,11 @@ class ILinkClient:
     def _build_poll_result(
         self,
         success: bool,
-        payload: Optional[Dict[str, Any]] = None,
-        message: Optional[str] = None,
+        payload: dict[str, Any] | None = None,
+        message: str | None = None,
         item_count: int = 0,
         parsed_count: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建轮询结果摘要。"""
         payload = payload or {}
         resolved_message = message or self._find_first_value(
@@ -1032,7 +988,7 @@ class ILinkClient:
             "parsed_count": parsed_count,
         }
 
-    def _parse_incoming(self, item: Dict[str, Any]) -> Optional[ILinkIncomingMessage]:
+    def _parse_incoming(self, item: dict[str, Any]) -> ILinkIncomingMessage | None:
         """
         将 getupdates 返回的原始事件归一化为 MoviePilot 可消费的入站消息。
 
@@ -1108,16 +1064,12 @@ class ILinkClient:
             return None
         username = (
             self._pick_value(sender, ["name", "nickname", "username", "remark"])
-            or self._pick_value(
-                message, ["username", "nickname", "from_name", "fromNick", "sender_name"]
-            )
+            or self._pick_value(message, ["username", "nickname", "from_name", "fromNick", "sender_name"])
             or str(user_id)
         )
         message_id = self._pick_value(
             message, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"]
-        ) or self._pick_value(
-            item, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"]
-        )
+        ) or self._pick_value(item, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"])
         chat_id = self._pick_value(
             message,
             ["chat_id", "conversation_id", "room_id", "chatId", "conversationId", "roomId"],
@@ -1128,10 +1080,10 @@ class ILinkClient:
         context_token = self._pick_value(message, ["context_token", "contextToken"]) or self._pick_value(
             item, ["context_token", "contextToken"]
         )
-        text_parts: List[str] = []
-        images: List[Dict[str, Any]] = []
-        audio_refs: List[str] = []
-        files: List[Dict[str, Any]] = []
+        text_parts: list[str] = []
+        images: list[dict[str, Any]] = []
+        audio_refs: list[str] = []
+        files: list[dict[str, Any]] = []
 
         def append_text(value: Any) -> None:
             if value in (None, ""):
@@ -1144,9 +1096,7 @@ class ILinkClient:
             if text_value and text_value not in text_parts:
                 text_parts.append(text_value)
 
-        msgtype = str(
-            message.get("msgtype") or message.get("msg_type") or message.get("type") or ""
-        ).lower()
+        msgtype = str(message.get("msgtype") or message.get("msg_type") or message.get("type") or "").lower()
         if msgtype == "text":
             append_text((message.get("text") or {}).get("content") if isinstance(message.get("text"), dict) else None)
             append_text(message.get("content"))
@@ -1184,7 +1134,7 @@ class ILinkClient:
                 ref, _ = voice_ref
                 audio_refs.append(ref)
         elif msgtype == "mixed":
-            for msg_item in ((message.get("mixed") or {}).get("msg_item") or []):
+            for msg_item in (message.get("mixed") or {}).get("msg_item") or []:
                 item_type = str(msg_item.get("msgtype") or msg_item.get("type") or "").lower()
                 if item_type == "text":
                     append_text((msg_item.get("text") or {}).get("content"))
@@ -1231,9 +1181,7 @@ class ILinkClient:
             if item_type == 1 and isinstance(one.get("text_item"), dict):
                 append_text((one.get("text_item") or {}).get("text"))
             elif item_type == 2 and isinstance(one.get("image_item"), dict):
-                image_ref = self._build_attachment_ref(
-                    "image", (one.get("image_item") or {}).get("media") or {}
-                )
+                image_ref = self._build_attachment_ref("image", (one.get("image_item") or {}).get("media") or {})
                 if image_ref:
                     ref, payload = image_ref
                     images.append(
@@ -1245,9 +1193,7 @@ class ILinkClient:
                         }
                     )
             elif item_type in {5, 6}:
-                file_ref = self._build_attachment_ref(
-                    "file", (one.get("file_item") or {}).get("media") or {}
-                )
+                file_ref = self._build_attachment_ref("file", (one.get("file_item") or {}).get("media") or {})
                 if file_ref:
                     ref, payload = file_ref
                     files.append(
@@ -1256,10 +1202,8 @@ class ILinkClient:
                             "name": (one.get("file_item") or {}).get("name")
                             or (one.get("file_item") or {}).get("file_name")
                             or payload.get("name"),
-                            "mime_type": (one.get("file_item") or {}).get("mime_type")
-                            or payload.get("mime_type"),
-                            "size": (one.get("file_item") or {}).get("size")
-                            or payload.get("size"),
+                            "mime_type": (one.get("file_item") or {}).get("mime_type") or payload.get("mime_type"),
+                            "size": (one.get("file_item") or {}).get("size") or payload.get("size"),
                         }
                     )
 
@@ -1286,29 +1230,25 @@ class ILinkClient:
             raw=item,
         )
 
-    def _extract_updates(
-        self, payload: Dict[str, Any]
-    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    def _extract_updates(self, payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None]:
         """
         提取轮询结果中的消息列表与游标。
 
         线上存在两种等价字段命名：较新的实现返回 `get_updates_buf`，
         部分实例仍然返回 `sync_buf`。两者都表示下一轮轮询应携带的游标。
         """
-        sync_buf = self._pick_present_value(
-            payload, ["get_updates_buf", "sync_buf", "syncBuf"]
-        )
+        sync_buf = self._pick_present_value(payload, ["get_updates_buf", "sync_buf", "syncBuf"])
         items = payload.get("msgs")
         if isinstance(items, list):
             return items, sync_buf
         return [], sync_buf
 
     @staticmethod
-    def _has_canonical_poll_shape(payload: Dict[str, Any]) -> bool:
+    def _has_canonical_poll_shape(payload: dict[str, Any]) -> bool:
         """官方响应至少应包含顶层 msgs 列表。"""
         return isinstance(payload.get("msgs"), list)
 
-    def _resolve_poll_success(self, payload: Dict[str, Any]) -> Optional[bool]:
+    def _resolve_poll_success(self, payload: dict[str, Any]) -> bool | None:
         """
         判断 getupdates 是否给出了明确的成功/失败信号。
 
@@ -1318,17 +1258,13 @@ class ILinkClient:
         """
         if not payload:
             return False
-        code = self._find_first_value(
-            payload, ["errcode", "code", "ret", "result_code", "status_code"]
-        )
+        code = self._find_first_value(payload, ["errcode", "code", "ret", "result_code", "status_code"])
         if code is not None:
             try:
                 return int(str(code)) == 0
             except Exception:
                 return str(code).strip().lower() in {"0", "ok", "success", "succeed"}
-        success_flag = self._find_first_value(
-            payload, ["success", "ok", "is_success"]
-        )
+        success_flag = self._find_first_value(payload, ["success", "ok", "is_success"])
         if isinstance(success_flag, bool):
             return success_flag
         if success_flag is not None:
@@ -1348,9 +1284,7 @@ class ILinkClient:
                 return False
         return None
 
-    def poll_updates(
-        self, timeout_seconds: int = 25
-    ) -> Tuple[List[ILinkIncomingMessage], Optional[str], Dict[str, Any]]:
+    def poll_updates(self, timeout_seconds: int = 25) -> tuple[list[ILinkIncomingMessage], str | None, dict[str, Any]]:
         """
         执行一次 iLink 长轮询。
 
@@ -1370,59 +1304,70 @@ class ILinkClient:
         has_canonical_shape = self._has_canonical_poll_shape(payload)
         # 某些 iLink 部署不会返回 ret/success，但顶层 msgs + sync_buf 已经足够表明
         # 这是一次有效的轮询响应；只有出现显式失败信号时才应拒绝消费。
-        success = bool(payload) and (
-            explicit_success is True
-            or (explicit_success is None and has_canonical_shape)
-        )
+        success = bool(payload) and (explicit_success is True or (explicit_success is None and has_canonical_shape))
         last_message = None
         if payload and explicit_success is False:
             last_message = self._find_first_value(
                 payload, ["errmsg", "message", "error", "error_msg", "detail"]
             ) or self._short_text(payload)
         if not payload:
-            return [], self.sync_buf, self._build_poll_result(
-                success=False,
-                message="轮询返回空响应",
+            return (
+                [],
+                self.sync_buf,
+                self._build_poll_result(
+                    success=False,
+                    message="轮询返回空响应",
+                ),
             )
         if not success:
-            return [], self.sync_buf, self._build_poll_result(
-                success=False,
-                payload=payload,
-                message=last_message or "轮询响应未明确成功",
+            return (
+                [],
+                self.sync_buf,
+                self._build_poll_result(
+                    success=False,
+                    payload=payload,
+                    message=last_message or "轮询响应未明确成功",
+                ),
             )
         if not has_canonical_shape:
             logger.warning(
                 "getupdates 返回非官方结构，已拒绝消费: %s",
                 self._short_text(payload),
             )
-            return [], self.sync_buf, self._build_poll_result(
-                success=False,
-                payload=payload,
-                message="轮询响应结构非官方，缺少顶层 msgs 字段",
+            return (
+                [],
+                self.sync_buf,
+                self._build_poll_result(
+                    success=False,
+                    payload=payload,
+                    message="轮询响应结构非官方，缺少顶层 msgs 字段",
+                ),
             )
         items, sync_buf = self._extract_updates(payload)
-        parsed: List[ILinkIncomingMessage] = []
+        parsed: list[ILinkIncomingMessage] = []
         for item in items:
             message = self._parse_incoming(item)
             if message:
                 parsed.append(message)
         if sync_buf is not None:
             self.sync_buf = str(sync_buf)
-        return parsed, self.sync_buf, self._build_poll_result(
-            success=True,
-            payload=payload,
-            item_count=len(items),
-            parsed_count=len(parsed),
+        return (
+            parsed,
+            self.sync_buf,
+            self._build_poll_result(
+                success=True,
+                payload=payload,
+                item_count=len(items),
+                parsed_count=len(parsed),
+            ),
         )
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """测试与 iLink 服务端的连接连通性。"""
         if not self.bot_token:
             return False, "未登录，缺少 bot token"
         url = f"{self.base_url}/ilink/bot/getconfig"
-        resp = RequestUtils(
-            headers=self._headers(auth_required=True), timeout=self.timeout
-        ).post(url, json={})
+        resp = RequestUtils(headers=self._headers(auth_required=True), timeout=self.timeout).post(url, json={})
         payload = self._json(resp)
         if self._ok(payload):
             return True, "连接正常"
@@ -1447,11 +1392,11 @@ class WechatClawBot:
 
     def __init__(
         self,
-        WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-        WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-        WECHATCLAWBOT_ADMINS: Optional[str] = None,
-        WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
-        name: Optional[str] = None,
+        WECHATCLAWBOT_BASE_URL: str | None = None,
+        WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+        WECHATCLAWBOT_ADMINS: str | None = None,
+        WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
+        name: str | None = None,
         auto_start_polling: bool = True,
         **kwargs,
     ):
@@ -1460,11 +1405,7 @@ class WechatClawBot:
         self._base_url = (WECHATCLAWBOT_BASE_URL or self._default_base_url).rstrip("/")
         self._default_target = (WECHATCLAWBOT_DEFAULT_TARGET or "").strip() or None
         self._auto_start_polling = bool(auto_start_polling)
-        self._admins = [
-            admin.strip()
-            for admin in str(WECHATCLAWBOT_ADMINS or "").split(",")
-            if admin.strip()
-        ]
+        self._admins = [admin.strip() for admin in str(WECHATCLAWBOT_ADMINS or "").split(",") if admin.strip()]
         try:
             self._poll_timeout = max(10, int(WECHATCLAWBOT_POLL_TIMEOUT or 25))
         except Exception:
@@ -1473,15 +1414,13 @@ class WechatClawBot:
         self._filecache = FileCache()
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
-        self._poll_thread: Optional[threading.Thread] = None
+        self._poll_thread: threading.Thread | None = None
         self._state = self._load_state()
-        self._message_endpoint = (
-            f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={quote(self._config_name, safe='')}"
-        )
+        self._message_endpoint = f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={quote(self._config_name, safe='')}"
         if self._state.get("bot_token") and self._auto_start_polling:
             self._start_polling()
 
-    def _load_state(self) -> Dict[str, Any]:
+    def _load_state(self) -> dict[str, Any]:
         """从文件缓存加载登录状态。"""
         content = self._filecache.get(self._cache_key)
         if not content:
@@ -1548,15 +1487,13 @@ class WechatClawBot:
             self._state["user_context_tokens"] = {}
             self._save_state()
 
-    def _qrcode_expired(self, updated_at: Optional[int]) -> bool:
+    def _qrcode_expired(self, updated_at: int | None) -> bool:
         """检查二维码是否过期。"""
         if not updated_at:
             return True
         return int(time.time()) - int(updated_at) > self._qrcode_ttl_seconds
 
-    def _remember_target(
-        self, user_id: str, username: Optional[str], context_token: Optional[str]
-    ) -> None:
+    def _remember_target(self, user_id: str, username: str | None, context_token: str | None) -> None:
         """记录已知消息目标，用于消息发送时定位。"""
         if not user_id:
             return
@@ -1572,13 +1509,13 @@ class WechatClawBot:
                 tokens[str(user_id)] = str(context_token)
             self._save_state()
 
-    def _get_context_token(self, user_id: str) -> Optional[str]:
+    def _get_context_token(self, user_id: str) -> str | None:
         """获取特定用户的上下文 Token。"""
         tokens = self._state.get("user_context_tokens") or {}
         token = tokens.get(str(user_id))
         return str(token) if token else None
 
-    def _get_targets(self, userid: Optional[str] = None) -> List[str]:
+    def _get_targets(self, userid: str | None = None) -> list[str]:
         """获取消息发送的目标列表。"""
         if userid:
             return [str(userid)]
@@ -1589,8 +1526,7 @@ class WechatClawBot:
         active_targets = [
             target
             for target, data in known_targets.items()
-            if isinstance(data, dict)
-            and now_ts - int(data.get("last_active") or 0) <= self._active_target_ttl_seconds
+            if isinstance(data, dict) and now_ts - int(data.get("last_active") or 0) <= self._active_target_ttl_seconds
         ]
         if active_targets:
             return sorted(active_targets)
@@ -1614,11 +1550,11 @@ class WechatClawBot:
         return text
 
     @staticmethod
-    def _split_content(content: str, max_bytes: int = 3000) -> List[str]:
+    def _split_content(content: str, max_bytes: int = 3000) -> list[str]:
         """将长消息内容拆分为符合大小限制的块。"""
         if not content:
             return []
-        chunks: List[str] = []
+        chunks: list[str] = []
         current = bytearray()
         for line in content.splitlines():
             encoded = (line + "\n").encode("utf-8")
@@ -1644,9 +1580,9 @@ class WechatClawBot:
 
     @staticmethod
     def _compose_text(
-        title: Optional[str] = None,
-        text: Optional[str] = None,
-        link: Optional[str] = None,
+        title: str | None = None,
+        text: str | None = None,
+        link: str | None = None,
     ) -> str:
         """组合标题、文本和链接，生成消息内容。"""
         parts = []
@@ -1673,7 +1609,7 @@ class WechatClawBot:
         return "application/octet-stream"
 
     @staticmethod
-    def _load_remote_image(image: str) -> Optional[bytes]:
+    def _load_remote_image(image: str) -> bytes | None:
         """加载远程图片并返回二进制数据。"""
         image_url = str(image or "").strip()
         if not image_url:
@@ -1736,9 +1672,7 @@ class WechatClawBot:
         while not self._stop_event.is_set() and self._state.get("bot_token"):
             try:
                 client = self._build_client()
-                messages, sync_buf, result = client.poll_updates(
-                    timeout_seconds=self._poll_timeout
-                )
+                messages, sync_buf, result = client.poll_updates(timeout_seconds=self._poll_timeout)
                 if sync_buf is not None and sync_buf != self._state.get("sync_buf"):
                     self._update_state(sync_buf=sync_buf)
                 if not result.get("success"):
@@ -1757,8 +1691,7 @@ class WechatClawBot:
                         )
                         if response is None:
                             logger.error(
-                                f"转发微信 ClawBot 消息失败：message_id={message.message_id}, "
-                                "本地消息入口无响应"
+                                f"转发微信 ClawBot 消息失败：message_id={message.message_id}, 本地消息入口无响应"
                             )
                         elif response.status_code != 200:
                             logger.error(
@@ -1767,9 +1700,7 @@ class WechatClawBot:
                                 f"body={self._short_text(response.text)}"
                             )
                     except Exception as err:
-                        logger.error(
-                            f"转发微信 ClawBot 消息失败：message_id={message.message_id}, error={err}"
-                        )
+                        logger.error(f"转发微信 ClawBot 消息失败：message_id={message.message_id}, error={err}")
                     finally:
                         if response is not None:
                             try:
@@ -1787,7 +1718,7 @@ class WechatClawBot:
                     break
                 self._stop_event.wait(delay)
 
-    def _build_known_targets(self) -> List[Dict[str, Any]]:
+    def _build_known_targets(self) -> list[dict[str, Any]]:
         known_targets = self._state.get("known_targets") or {}
         items = []
         for userid, data in known_targets.items():
@@ -1802,7 +1733,7 @@ class WechatClawBot:
             )
         return sorted(items, key=lambda item: item.get("last_active") or 0, reverse=True)
 
-    def refresh_qrcode(self) -> Dict[str, Any]:
+    def refresh_qrcode(self) -> dict[str, Any]:
         if self._state.get("bot_token"):
             return self.get_status(refresh_remote=False)
         client = ILinkClient(
@@ -1825,7 +1756,7 @@ class WechatClawBot:
         self,
         refresh_remote: bool = True,
         auto_generate_qrcode: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         qrcode = self._state.get("qrcode") or {}
         if (
             auto_generate_qrcode
@@ -1845,7 +1776,7 @@ class WechatClawBot:
             updated_qrcode["updated_at"] = int(time.time())
             if result.get("qrcode_url"):
                 updated_qrcode["qrcode_url"] = result.get("qrcode_url")
-            update_payload: Dict[str, Any] = {"qrcode": updated_qrcode}
+            update_payload: dict[str, Any] = {"qrcode": updated_qrcode}
             if result.get("token"):
                 update_payload.update(
                     {
@@ -1875,7 +1806,7 @@ class WechatClawBot:
             "base_url": self._base_url,
         }
 
-    def logout(self) -> Dict[str, Any]:
+    def logout(self) -> dict[str, Any]:
         self.stop()
         with self._lock:
             self._state["bot_token"] = None
@@ -1886,7 +1817,7 @@ class WechatClawBot:
             self._save_state()
         return {"success": True, "message": "已退出微信 ClawBot 登录"}
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         if not self._state.get("bot_token"):
             return False, "未登录，请先扫码完成绑定"
         return self._build_client().test_connection()
@@ -1894,11 +1825,11 @@ class WechatClawBot:
     @classmethod
     def migrate_cached_state(
         cls,
-        old_name: Optional[str],
-        new_name: Optional[str],
+        old_name: str | None,
+        new_name: str | None,
         cleanup_old: bool = False,
         overwrite: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """迁移配置重命名后的登录缓存，默认复制而不是删除旧缓存。"""
         source_name = str(old_name or "").strip()
         target_name = str(new_name or "").strip()
@@ -1922,23 +1853,19 @@ class WechatClawBot:
         return True, f"已将微信 ClawBot 登录缓存从 {source_name} 迁移到 {target_name}"
 
     @staticmethod
-    def _decode_ref_payload(ref: str, kind: str) -> Optional[Dict[str, Any]]:
+    def _decode_ref_payload(ref: str, kind: str) -> dict[str, Any] | None:
         prefix = f"wxclaw://{kind}/"
         if not ref or not ref.startswith(prefix):
             return None
         encoded = ref.replace(prefix, "", 1)
         padding = "=" * (-len(encoded) % 4)
         try:
-            return json.loads(
-                base64.urlsafe_b64decode((encoded + padding).encode("ascii")).decode(
-                    "utf-8"
-                )
-            )
+            return json.loads(base64.urlsafe_b64decode((encoded + padding).encode("ascii")).decode("utf-8"))
         except Exception:
             return None
 
     @staticmethod
-    def _decode_aes_key(aeskey: Optional[str]) -> Optional[bytes]:
+    def _decode_aes_key(aeskey: str | None) -> bytes | None:
         if not aeskey:
             return None
         value = str(aeskey).strip()
@@ -1961,7 +1888,7 @@ class WechatClawBot:
         return None
 
     @staticmethod
-    def _unpad_bytes(content: bytes) -> Optional[bytes]:
+    def _unpad_bytes(content: bytes) -> bytes | None:
         if not content:
             return None
         padding_len = content[-1]
@@ -1975,8 +1902,8 @@ class WechatClawBot:
     def _decrypt_if_needed(
         cls,
         content: bytes,
-        aeskey: Optional[str],
-        mime_type: Optional[str] = None,
+        aeskey: str | None,
+        mime_type: str | None = None,
     ) -> bytes:
         aes_bytes = cls._decode_aes_key(aeskey)
         if not aes_bytes or not content:
@@ -1990,7 +1917,7 @@ class WechatClawBot:
             candidates.append(AES.new(aes_bytes, AES.MODE_CBC, aes_bytes[:16]).decrypt(content))
         except Exception:
             pass
-        normalized_candidates: List[bytes] = []
+        normalized_candidates: list[bytes] = []
         for candidate in candidates:
             normalized_candidates.append(candidate)
             unpadded = cls._unpad_bytes(candidate)
@@ -2010,7 +1937,19 @@ class WechatClawBot:
             if any(candidate.startswith(prefix) for prefix in preferred_prefixes):
                 return candidate
         for candidate in normalized_candidates:
-            if candidate.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"PK\x03\x04", b"#!AMR", b"ID3", b"OggS", b"RIFF")):
+            if candidate.startswith(
+                (
+                    b"\x89PNG\r\n\x1a\n",
+                    b"\xff\xd8\xff",
+                    b"GIF87a",
+                    b"GIF89a",
+                    b"PK\x03\x04",
+                    b"#!AMR",
+                    b"ID3",
+                    b"OggS",
+                    b"RIFF",
+                )
+            ):
                 return candidate
         return content
 
@@ -2036,7 +1975,7 @@ class WechatClawBot:
             return "application/zip"
         return default
 
-    def _download_ref_bytes(self, ref: str, kind: str) -> Optional[Tuple[bytes, str, Optional[str]]]:
+    def _download_ref_bytes(self, ref: str, kind: str) -> tuple[bytes, str, str | None] | None:
         payload = self._decode_ref_payload(ref=ref, kind=kind)
         if not payload:
             return None
@@ -2057,20 +1996,18 @@ class WechatClawBot:
         )
         mime_type = payload.get("mime_type") or self._guess_binary_mime(
             content,
-            (resp.headers.get("Content-Type") or "application/octet-stream").split(
-                ";", 1
-            )[0],
+            (resp.headers.get("Content-Type") or "application/octet-stream").split(";", 1)[0],
         )
         return content, mime_type, payload.get("name")
 
-    def download_image_to_data_url(self, image_ref: str) -> Optional[str]:
+    def download_image_to_data_url(self, image_ref: str) -> str | None:
         result = self._download_ref_bytes(ref=image_ref, kind="image")
         if not result:
             return None
         content, mime_type, _ = result
         return f"data:{mime_type};base64,{base64.b64encode(content).decode()}"
 
-    def download_media_bytes(self, media_ref: str) -> Optional[bytes]:
+    def download_media_bytes(self, media_ref: str) -> bytes | None:
         kind = None
         if media_ref.startswith("wxclaw://file/"):
             kind = "file"
@@ -2084,12 +2021,12 @@ class WechatClawBot:
     def send_msg(
         self,
         title: str,
-        text: Optional[str] = None,
-        image: Optional[str] = None,
-        userid: Optional[str] = None,
-        link: Optional[str] = None,
+        text: str | None = None,
+        image: str | None = None,
+        userid: str | None = None,
+        link: str | None = None,
         **kwargs,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         targets = self._get_targets(userid=userid)
         if not targets:
             logger.warning("未找到可发送的微信 ClawBot 目标")
@@ -2136,12 +2073,12 @@ class WechatClawBot:
     def send_file(
         self,
         file_path: str,
-        file_name: Optional[str] = None,
-        title: Optional[str] = None,
-        text: Optional[str] = None,
-        userid: Optional[str] = None,
+        file_name: str | None = None,
+        title: str | None = None,
+        text: str | None = None,
+        userid: str | None = None,
         **kwargs,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         path = Path(file_path)
         if not path.exists() or not path.is_file():
             logger.warning(f"待发送文件不存在：{file_path}")
@@ -2174,9 +2111,7 @@ class WechatClawBot:
             ok = ok or bool(sent)
         return ok
 
-    def send_medias_msg(
-        self, medias: List[MediaInfo], userid: Optional[str] = None
-    ) -> Optional[bool]:
+    def send_medias_msg(self, medias: list[MediaInfo], userid: str | None = None) -> bool | None:
         if not medias:
             return False
         lines = []
@@ -2191,11 +2126,11 @@ class WechatClawBot:
 
     def send_torrents_msg(
         self,
-        torrents: List[Context],
-        userid: Optional[str] = None,
-        title: Optional[str] = None,
-        link: Optional[str] = None,
-    ) -> Optional[bool]:
+        torrents: list[Context],
+        userid: str | None = None,
+        title: str | None = None,
+        link: str | None = None,
+    ) -> bool | None:
         if not torrents:
             return False
         lines = []

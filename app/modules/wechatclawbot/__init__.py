@@ -23,9 +23,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
 
     def init_module(self) -> None:
         """初始化模块。"""
-        super().init_service(
-            service_name=WechatClawBot.__name__.lower(), service_type=WechatClawBot
-        )
+        super().init_service(service_name=WechatClawBot.__name__.lower(), service_type=WechatClawBot)
         self._channel = MessageChannel.WechatClawBot
 
     @staticmethod
@@ -56,7 +54,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             except Exception as err:
                 logger.error(f"停止微信 ClawBot 模块实例失败：{err}")
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """测试模块连接性。"""
         if not self.get_instances():
             return None
@@ -66,12 +64,12 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
                 return False, f"微信 ClawBot {name} 未就绪：{message}"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """初始化模块设置。"""
         pass
 
     @staticmethod
-    def _load_json(body: Any) -> Optional[dict]:
+    def _load_json(body: Any) -> dict | None:
         """将内容解析为 JSON 字典。"""
         if isinstance(body, dict):
             payload = body
@@ -84,7 +82,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
         return payload if isinstance(payload, dict) else None
 
     @staticmethod
-    def _normalize_audio_refs(audio_refs: Any) -> Optional[List[str]]:
+    def _normalize_audio_refs(audio_refs: Any) -> list[str] | None:
         """标准化音频引用列表。"""
         if not audio_refs:
             return None
@@ -94,7 +92,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
         return normalized or None
 
     @staticmethod
-    def _normalize_files(files: Any) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _normalize_files(files: Any) -> list[CommingMessage.MessageAttachment] | None:
         """标准化文件附件列表。"""
         if not files:
             return None
@@ -110,7 +108,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             size = item.get("size")
             try:
                 size = int(size) if size is not None else None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 size = None
             normalized.append(
                 CommingMessage.MessageAttachment(
@@ -122,9 +120,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             )
         return normalized or None
 
-    def _is_duplicate_message(
-        self, source: str, message_id: Optional[Union[str, int]]
-    ) -> bool:
+    def _is_duplicate_message(self, source: str, message_id: str | int | None) -> bool:
         """按渠道名和消息ID判断是否重复，避免重复回放再次进入业务链路。"""
         if message_id in (None, ""):
             return False
@@ -134,9 +130,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
         self._recent_message_ids.set(cache_key, True)
         return False
 
-    def message_parser(
-        self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """解析微信 ClawBot 转发到消息入口的 JSON 报文。"""
         client_config = self.get_config(source)
         if not client_config:
@@ -245,9 +239,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
                     link=message.link,
                 )
 
-    def download_wechat_image_to_data_url(
-        self, image_ref: str, source: str
-    ) -> Optional[str]:
+    def download_wechat_image_to_data_url(self, image_ref: str, source: str) -> str | None:
         """下载微信 ClawBot 图片并转换为 data URL。"""
         if not image_ref or not image_ref.startswith("wxclaw://image/"):
             return None
@@ -259,9 +251,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             return None
         return client.download_image_to_data_url(image_ref)
 
-    def download_wechat_media_bytes(
-        self, media_ref: str, source: str
-    ) -> Optional[bytes]:
+    def download_wechat_media_bytes(self, media_ref: str, source: str) -> bytes | None:
         """下载微信 ClawBot 语音或文件附件。"""
         if not media_ref or not media_ref.startswith(("wxclaw://file/", "wxclaw://voice/")):
             return None
@@ -273,7 +263,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             return None
         return client.download_media_bytes(media_ref)
 
-    def post_medias_message(self, message: Notification, medias: List[MediaInfo]) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """发送媒体选择列表。"""
         for conf in self.get_configs().values():
             if not self.check_message(message, conf.name):
@@ -282,7 +272,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             if client:
                 client.send_medias_msg(medias=medias, userid=message.userid)
 
-    def post_torrents_message(self, message: Notification, torrents: List[Context]) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """发送种子选择列表。"""
         for conf in self.get_configs().values():
             if not self.check_message(message, conf.name):

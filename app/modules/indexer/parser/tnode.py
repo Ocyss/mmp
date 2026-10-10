@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import re
 from typing import Optional
@@ -17,7 +16,7 @@ class TNodeSiteUserInfo(SiteParserBase):
         # <meta name="x-csrf-token" content="fd169876a7b4846f3a7a16fcd5cccf8d">
         csrf_token = re.search(r'<meta name="x-csrf-token" content="(.+?)">', html_text)
         if csrf_token:
-            self._addition_headers = {'X-CSRF-TOKEN': csrf_token.group(1)}
+            self._addition_headers = {"X-CSRF-TOKEN": csrf_token.group(1)}
             self._user_detail_page = "api/user/getMainInfo"
             self._torrent_seeding_page = "api/user/listTorrentActivity?id=&type=seeding&page=1&size=20000"
 
@@ -56,11 +55,12 @@ class TNodeSiteUserInfo(SiteParserBase):
         self.ratio = 0 if self.download <= 0 else round(self.upload / self.download, 3)
         self.bonus = user_info.get("bonus")
 
-        self.message_unread = user_info.get("unreadAdmin", 0) + user_info.get("unreadInbox", 0) + user_info.get(
-            "unreadSystem", 0)
+        self.message_unread = (
+            user_info.get("unreadAdmin", 0) + user_info.get("unreadInbox", 0) + user_info.get("unreadSystem", 0)
+        )
         pass
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
         解析用户做种信息
         """
@@ -97,7 +97,7 @@ class TNodeSiteUserInfo(SiteParserBase):
 
         return next_page
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         return None
 
     def _parse_message_content(self, html_text):

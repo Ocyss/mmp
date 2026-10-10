@@ -2,19 +2,20 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.core.config import global_vars
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class FilterMediasParams(ActionParams):
     """
     过滤媒体数据参数
     """
-    type: Optional[str] = Field(default=None, description="媒体类型 (电影/电视剧)")
-    vote: Optional[float] = Field(default=None, description="评分（支持小数）")
-    year: Optional[str] = Field(default=None, description="年份")
+
+    type: str | None = Field(default=None, description="媒体类型 (电影/电视剧)")
+    vote: float | None = Field(default=None, description="评分（支持小数）")
+    year: str | None = Field(default=None, description="年份")
 
 
 class FilterMediasAction(BaseAction):
@@ -33,17 +34,17 @@ class FilterMediasAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "过滤媒体数据"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "对媒体数据列表进行过滤"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return FilterMediasParams().model_dump()
 
     @property

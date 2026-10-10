@@ -14,7 +14,7 @@ from app.log import logger
 class QueryPersonasInput(BaseModel):
     """查询人格工具的输入参数模型。"""
 
-    query: Optional[str] = Field(
+    query: str | None = Field(
         None,
         description=(
             "Optional search keyword for persona_id, label, description, or aliases. "
@@ -34,15 +34,15 @@ class QueryPersonasTool(MoviePilotTool):
         "Use this before switching persona when the user asks for a different speaking style but does not name "
         "an exact persona_id. The result includes persona_id, label, description, aliases, and whether it is active."
     )
-    args_schema: Type[BaseModel] = QueryPersonasInput
+    args_schema: type[BaseModel] = QueryPersonasInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         query = kwargs.get("query")
         if query:
             return f"查询人格列表: {query}"
         return "查询人格列表"
 
-    async def run(self, query: Optional[str] = None, **kwargs) -> str:
+    async def run(self, query: str | None = None, **kwargs) -> str:
         logger.info("执行工具: %s, 参数: query=%s", self.name, query)
         try:
             runtime_config = agent_runtime_manager.load_runtime_config()

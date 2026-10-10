@@ -6,11 +6,10 @@ Revises: e6a1c4b8d2f0
 Create Date: 2026-07-21
 """
 
-from typing import Iterable
+from collections.abc import Iterable
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "f7b2d5c9a301"
 down_revision = "e6a1c4b8d2f0"
@@ -19,31 +18,25 @@ depends_on = None
 
 
 def _has_column(
-        inspector: sa.Inspector,
-        table_name: str,
-        column_name: str,
+    inspector: sa.Inspector,
+    table_name: str,
+    column_name: str,
 ) -> bool:
     """检查数据表是否已存在指定字段。"""
     if table_name not in inspector.get_table_names():
         return False
-    return any(
-        column["name"] == column_name
-        for column in inspector.get_columns(table_name)
-    )
+    return any(column["name"] == column_name for column in inspector.get_columns(table_name))
 
 
 def _has_index(
-        inspector: sa.Inspector,
-        table_name: str,
-        index_name: str,
+    inspector: sa.Inspector,
+    table_name: str,
+    index_name: str,
 ) -> bool:
     """检查数据表是否已存在指定索引。"""
     if table_name not in inspector.get_table_names():
         return False
-    return any(
-        index["name"] == index_name
-        for index in inspector.get_indexes(table_name)
-    )
+    return any(index["name"] == index_name for index in inspector.get_indexes(table_name))
 
 
 def _add_columns(table_name: str, columns: Iterable[sa.Column]) -> None:
@@ -78,11 +71,11 @@ def _backfill_media_identity(table_name: str, has_mediaid: bool = False) -> None
 
     if has_mediaid:
         for prefix, source in (
-                ("tmdb", "themoviedb"),
-                ("themoviedb", "themoviedb"),
-                ("douban", "douban"),
-                ("bangumi", "bangumi"),
-                ("anilist", "anilist"),
+            ("tmdb", "themoviedb"),
+            ("themoviedb", "themoviedb"),
+            ("douban", "douban"),
+            ("bangumi", "bangumi"),
+            ("anilist", "anilist"),
         ):
             connection.execute(
                 table.update()
@@ -95,10 +88,10 @@ def _backfill_media_identity(table_name: str, has_mediaid: bool = False) -> None
             )
 
     for source, field in (
-            ("themoviedb", "tmdbid"),
-            ("douban", "doubanid"),
-            ("bangumi", "bangumiid"),
-            ("anilist", "anilistid"),
+        ("themoviedb", "tmdbid"),
+        ("douban", "doubanid"),
+        ("bangumi", "bangumiid"),
+        ("anilist", "anilistid"),
     ):
         identity_column = table.c[field]
         connection.execute(
@@ -114,32 +107,47 @@ def _backfill_media_identity(table_name: str, has_mediaid: bool = False) -> None
 
 def upgrade() -> None:
     """升级媒体身份字段并迁移存量数据。"""
-    _add_columns("subscribe", (
-        sa.Column("anilistid", sa.Integer(), nullable=True),
-        sa.Column("media_source", sa.String(), nullable=True),
-        sa.Column("media_id", sa.String(), nullable=True),
-    ))
-    _add_columns("subscribehistory", (
-        sa.Column("anilistid", sa.Integer(), nullable=True),
-        sa.Column("media_source", sa.String(), nullable=True),
-        sa.Column("media_id", sa.String(), nullable=True),
-    ))
-    _add_columns("downloadhistory", (
-        sa.Column("bangumiid", sa.Integer(), nullable=True),
-        sa.Column("anilistid", sa.Integer(), nullable=True),
-        sa.Column("media_source", sa.String(), nullable=True),
-        sa.Column("media_id", sa.String(), nullable=True),
-    ))
-    _add_columns("transferhistory", (
-        sa.Column("bangumiid", sa.Integer(), nullable=True),
-        sa.Column("anilistid", sa.Integer(), nullable=True),
-    ))
-    _add_columns("downloadfailure", (
-        sa.Column("bangumiid", sa.Integer(), nullable=True),
-        sa.Column("anilistid", sa.Integer(), nullable=True),
-        sa.Column("media_source", sa.String(), nullable=True),
-        sa.Column("media_id", sa.String(), nullable=True),
-    ))
+    _add_columns(
+        "subscribe",
+        (
+            sa.Column("anilistid", sa.Integer(), nullable=True),
+            sa.Column("media_source", sa.String(), nullable=True),
+            sa.Column("media_id", sa.String(), nullable=True),
+        ),
+    )
+    _add_columns(
+        "subscribehistory",
+        (
+            sa.Column("anilistid", sa.Integer(), nullable=True),
+            sa.Column("media_source", sa.String(), nullable=True),
+            sa.Column("media_id", sa.String(), nullable=True),
+        ),
+    )
+    _add_columns(
+        "downloadhistory",
+        (
+            sa.Column("bangumiid", sa.Integer(), nullable=True),
+            sa.Column("anilistid", sa.Integer(), nullable=True),
+            sa.Column("media_source", sa.String(), nullable=True),
+            sa.Column("media_id", sa.String(), nullable=True),
+        ),
+    )
+    _add_columns(
+        "transferhistory",
+        (
+            sa.Column("bangumiid", sa.Integer(), nullable=True),
+            sa.Column("anilistid", sa.Integer(), nullable=True),
+        ),
+    )
+    _add_columns(
+        "downloadfailure",
+        (
+            sa.Column("bangumiid", sa.Integer(), nullable=True),
+            sa.Column("anilistid", sa.Integer(), nullable=True),
+            sa.Column("media_source", sa.String(), nullable=True),
+            sa.Column("media_id", sa.String(), nullable=True),
+        ),
+    )
 
     for table_name, fields in {
         "subscribe": ("anilistid", "media_source", "media_id"),
@@ -173,20 +181,27 @@ def downgrade() -> None:
     """回滚统一媒体身份及 Bangumi/AniList 字段。"""
     for table_name, index_names in {
         "subscribe": (
-            "ix_subscribe_media_identity", "ix_subscribe_media_id",
-            "ix_subscribe_media_source", "ix_subscribe_anilistid",
+            "ix_subscribe_media_identity",
+            "ix_subscribe_media_id",
+            "ix_subscribe_media_source",
+            "ix_subscribe_anilistid",
         ),
         "subscribehistory": (
-            "ix_subscribehistory_media_identity", "ix_subscribehistory_media_id",
-            "ix_subscribehistory_media_source", "ix_subscribehistory_anilistid",
+            "ix_subscribehistory_media_identity",
+            "ix_subscribehistory_media_id",
+            "ix_subscribehistory_media_source",
+            "ix_subscribehistory_anilistid",
         ),
         "downloadhistory": (
-            "ix_downloadhistory_media_identity", "ix_downloadhistory_media_id",
-            "ix_downloadhistory_media_source", "ix_downloadhistory_anilistid",
+            "ix_downloadhistory_media_identity",
+            "ix_downloadhistory_media_id",
+            "ix_downloadhistory_media_source",
+            "ix_downloadhistory_anilistid",
             "ix_downloadhistory_bangumiid",
         ),
         "transferhistory": (
-            "ix_transferhistory_media_identity", "ix_transferhistory_anilistid",
+            "ix_transferhistory_media_identity",
+            "ix_transferhistory_anilistid",
             "ix_transferhistory_bangumiid",
         ),
         "downloadfailure": ("ix_downloadfailure_media_identity_site",),

@@ -2,10 +2,11 @@ import asyncio
 import json
 import threading
 from abc import ABCMeta, abstractmethod
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from langchain_core.tools import BaseTool
 from pydantic import PrivateAttr
@@ -46,8 +47,8 @@ def serialize_tool_result_for_agent(result: Any) -> str:
 def format_tool_result_for_agent(
     result: Any,
     *,
-    tool_name: Optional[str] = None,
-    max_chars: Optional[int] = DEFAULT_TOOL_RESULT_MAX_CHARS,
+    tool_name: str | None = None,
+    max_chars: int | None = DEFAULT_TOOL_RESULT_MAX_CHARS,
 ) -> str:
     """
     统一格式化工具结果，并在超长时返回结构化预览。
@@ -105,10 +106,7 @@ _BLOCKING_BUCKET_LIMITS = {
     "web": 2,
     "workflow": 2,
 }
-_blocking_semaphores = {
-    bucket: asyncio.Semaphore(limit)
-    for bucket, limit in _BLOCKING_BUCKET_LIMITS.items()
-}
+_blocking_semaphores = {bucket: asyncio.Semaphore(limit) for bucket, limit in _BLOCKING_BUCKET_LIMITS.items()}
 _blocking_executors: dict[str, ThreadPoolExecutor] = {}
 _blocking_executor_lock = threading.Lock()
 
@@ -143,18 +141,16 @@ class ToolExecutionTimeoutError(TimeoutError):
     """Agent 工具执行超时异常。"""
 
 
-def _get_tool_timeout_seconds() -> Optional[float]:
+def _get_tool_timeout_seconds() -> float | None:
     """读取工具执行超时时间，配置为 0 或负数时表示不限制。"""
     try:
         timeout = float(settings.LLM_TOOL_TIMEOUT or 0)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         timeout = 0
     return timeout if timeout > 0 else None
 
 
-async def run_agent_blocking(
-        bucket: str, func: Callable[..., Any], *args: Any, **kwargs: Any
-) -> Any:
+async def run_agent_blocking(bucket: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """
     在受控线程池中运行阻塞型同步代码。
 
@@ -192,14 +188,14 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
     MoviePilot专用工具基类（LangChain v1 / langchain_core）
     """
 
-    result_max_chars: ClassVar[Optional[int]] = DEFAULT_TOOL_RESULT_MAX_CHARS
+    result_max_chars: ClassVar[int | None] = DEFAULT_TOOL_RESULT_MAX_CHARS
 
     _session_id: str = PrivateAttr()
     _user_id: str = PrivateAttr()
-    _channel: Optional[str] = PrivateAttr(default=None)
-    _source: Optional[str] = PrivateAttr(default=None)
-    _username: Optional[str] = PrivateAttr(default=None)
-    _stream_handler: Optional[StreamingHandler] = PrivateAttr(default=None)
+    _channel: str | None = PrivateAttr(default=None)
+    _source: str | None = PrivateAttr(default=None)
+    _username: str | None = PrivateAttr(default=None)
+    _stream_handler: StreamingHandler | None = PrivateAttr(default=None)
     _require_admin: bool = PrivateAttr(default=False)
     _agent_context: dict = PrivateAttr(default_factory=dict)
 
@@ -214,7 +210,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
         self.tags = self._build_tool_tags()
 
     @staticmethod
-    def _normalize_tag_values(tags: Optional[Any]) -> set[str]:
+    def _normalize_tag_values(tags: Any | None) -> set[str]:
         """规范化 LangChain 工具标签。"""
         if not tags:
             return set()
@@ -261,9 +257,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
                     if tool_message:
                         self._stream_handler.emit(f"\n\n⚙️ => {tool_message}\n\n")
                 else:
-                    allow_dispatch_without_context = self._agent_context.get(
-                        "should_dispatch_reply", False
-                    )
+                    allow_dispatch_without_context = self._agent_context.get("should_dispatch_reply", False)
                     if self._channel and self._source:
                         # 渠道不支持编辑：取出 Agent 文字 + 工具消息合并独立发送
                         agent_message = await self._stream_handler.take()
@@ -308,7 +302,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
         # 执行具体工具逻辑
         try:
             result = await self.run_with_timeout(**kwargs)
-            
+
             # 记录工具执行结果摘要日志
             str_result = serialize_tool_result_for_agent(result)
             if len(str_result) > 500:
@@ -316,7 +310,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
             else:
                 summary = str_result
             logger.info(f"Agent工具 {self.name} 执行完成，结果摘要: {summary}")
-            
+
         except ToolExecutionTimeoutError as e:
             error_message = str(e)
             logger.warning(error_message)
@@ -326,11 +320,9 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
             logger.error(f"Tool {self.name} execution failed: {e}", exc_info=True)
             result = error_message
 
-        return format_tool_result_for_agent(
-            result, tool_name=self.name, max_chars=self.result_max_chars
-        )
+        return format_tool_result_for_agent(result, tool_name=self.name, max_chars=self.result_max_chars)
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """
         获取工具执行时的友好提示消息。
 
@@ -355,15 +347,13 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
             return await self.run(**kwargs)
         try:
             return await asyncio.wait_for(self.run(**kwargs), timeout=timeout)
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise ToolExecutionTimeoutError(
                 f"工具 {self.name} 执行超时（超过 {timeout:g} 秒），已停止等待结果。"
             ) from err
 
     @staticmethod
-    async def run_blocking(
-            bucket: str, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ) -> Any:
+    async def run_blocking(bucket: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         在受控线程池中运行阻塞型同步代码，避免拖住 FastAPI 主事件循环。
         """
@@ -383,7 +373,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
         """
         self._stream_handler = stream_handler
 
-    def set_agent_context(self, agent_context: Optional[dict]):
+    def set_agent_context(self, agent_context: dict | None):
         """
         设置与当前 Agent 共享的上下文。
         """
@@ -447,9 +437,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
                 resolved_roots.append(resolved_root)
         return resolved_roots
 
-    async def _check_local_file_access(
-        self, path: str, operation: str = "访问"
-    ) -> tuple[Optional[Path], Optional[str]]:
+    async def _check_local_file_access(self, path: str, operation: str = "访问") -> tuple[Path | None, str | None]:
         """
         检查当前用户是否可访问指定本地路径。
 
@@ -465,10 +453,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
             return resolved_path, None
 
         allowed_roots = self._get_non_admin_local_file_roots()
-        if any(
-            self._is_path_relative_to(resolved_path, root)
-            for root in allowed_roots
-        ):
+        if any(self._is_path_relative_to(resolved_path, root) for root in allowed_roots):
             return resolved_path, None
 
         allowed_text = "、".join(str(root) for root in allowed_roots)
@@ -480,9 +465,9 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
     async def _check_local_storage_access(
         self,
         path: str,
-        storage: Optional[str] = "local",
+        storage: str | None = "local",
         operation: str = "访问",
-    ) -> tuple[Optional[Path], Optional[str]]:
+    ) -> tuple[Path | None, str | None]:
         """
         检查当前用户是否可访问指定存储路径。
 
@@ -501,7 +486,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
 
         return await self._check_local_file_access(path=path, operation=operation)
 
-    async def _check_permission(self) -> Optional[str]:
+    async def _check_permission(self) -> str | None:
         """
         检查用户权限：
         1. 首先检查工具是否需要管理员权限
@@ -592,29 +577,17 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
                 if config.name == self._source and config.config:
                     channel_admins = config.config.get(admin_key) if admin_key else None
                     if channel_admins:
-                        admin_list = [
-                            aid.strip()
-                            for aid in str(channel_admins).split(",")
-                            if aid.strip()
-                        ]
+                        admin_list = [aid.strip() for aid in str(channel_admins).split(",") if aid.strip()]
                         if user_id_str and user_id_str in admin_list:
                             return True
 
-                        user = (
-                            await UserOper().async_get_by_name(self._username)
-                            if self._username
-                            else None
-                        )
+                        user = await UserOper().async_get_by_name(self._username) if self._username else None
                         if user and user.is_superuser:
                             return True
 
                         return False
                     else:
-                        user = (
-                            await UserOper().async_get_by_name(self._username)
-                            if self._username
-                            else None
-                        )
+                        user = await UserOper().async_get_by_name(self._username) if self._username else None
                         if user and user.is_superuser:
                             return True
 
@@ -638,10 +611,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
         其它渠道继续走统一消息链。
         """
         callback = self._agent_context.get("notification_callback")
-        if (
-            self._channel == MessageChannel.WebAgent.value
-            and callable(callback)
-        ):
+        if self._channel == MessageChannel.WebAgent.value and callable(callback):
             callback(notification)
             return
 
@@ -651,9 +621,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
                     "channel": None,
                     "source": None,
                     "userid": None,
-                    "username": notification.username
-                    or self._username
-                    or settings.SUPERUSER,
+                    "username": notification.username or self._username or settings.SUPERUSER,
                     "original_message_id": None,
                     "original_chat_id": None,
                 }
@@ -661,9 +629,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
 
         await ToolChain().async_post_message(notification)
 
-    async def send_tool_message(
-        self, message: str, title: str = "", image: Optional[str] = None
-    ) -> None:
+    async def send_tool_message(self, message: str, title: str = "", image: str | None = None) -> None:
         """
         发送工具消息
         """

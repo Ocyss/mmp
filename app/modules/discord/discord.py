@@ -2,15 +2,15 @@ import asyncio
 import re
 import threading
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 import discord
-from discord import app_commands
 import httpx
+from discord import app_commands
 
 from app.core.config import settings
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.schemas.types import NotificationType
@@ -35,9 +35,9 @@ class Discord:
 
     def __init__(
         self,
-        DISCORD_BOT_TOKEN: Optional[str] = None,
-        DISCORD_GUILD_ID: Optional[Union[str, int]] = None,
-        DISCORD_CHANNEL_ID: Optional[Union[str, int]] = None,
+        DISCORD_BOT_TOKEN: str | None = None,
+        DISCORD_GUILD_ID: str | int | None = None,
+        DISCORD_CHANNEL_ID: str | int | None = None,
         **kwargs,
     ):
         logger.debug(
@@ -52,9 +52,7 @@ class Discord:
         self._token = DISCORD_BOT_TOKEN
         self._guild_id = self._to_int(DISCORD_GUILD_ID)
         self._channel_id = self._to_int(DISCORD_CHANNEL_ID)
-        logger.debug(
-            f"[Discord] 解析后的 ID: _guild_id={self._guild_id}, _channel_id={self._channel_id}"
-        )
+        logger.debug(f"[Discord] 解析后的 ID: _guild_id={self._guild_id}, _channel_id={self._channel_id}")
         base_ds_url = f"http://127.0.0.1:{settings.PORT}/api/v1/message/"
         self._ds_url = f"{base_ds_url}?token={settings.API_TOKEN}"
         if kwargs.get("name"):
@@ -68,31 +66,27 @@ class Discord:
         intents.messages = True
         intents.guilds = True
 
-        self._client: Optional[discord.Client] = discord.Client(
-            intents=intents, proxy=settings.PROXY_HOST
-        )
-        self._tree: Optional[app_commands.CommandTree] = app_commands.CommandTree(self._client)
+        self._client: discord.Client | None = discord.Client(intents=intents, proxy=settings.PROXY_HOST)
+        self._tree: app_commands.CommandTree | None = app_commands.CommandTree(self._client)
         self._loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._ready_event = threading.Event()
-        self._user_dm_cache: Dict[str, discord.DMChannel] = {}
-        self._user_chat_mapping: Dict[
-            str, str
-        ] = {}  # userid -> chat_id mapping for reply targeting
+        self._user_dm_cache: dict[str, discord.DMChannel] = {}
+        self._user_chat_mapping: dict[str, str] = {}  # userid -> chat_id mapping for reply targeting
         self._broadcast_channel = None
-        self._bot_user_id: Optional[int] = None
-        self._typing_tasks: Dict[str, asyncio.Task] = {}
-        self._typing_stop_events: Dict[str, asyncio.Event] = {}
+        self._bot_user_id: int | None = None
+        self._typing_tasks: dict[str, asyncio.Task] = {}
+        self._typing_stop_events: dict[str, asyncio.Event] = {}
         self._typing_interval_seconds = 5
         self._typing_initial_delay_seconds = 1
         self._typing_max_duration_seconds = 10 * 60
-        self._registered_commands: Optional[Dict[str, dict]] = None
+        self._registered_commands: dict[str, dict] | None = None
 
         self._register_events()
         self._start()
 
     @staticmethod
-    def _to_int(val: Optional[Union[str, int]]) -> Optional[int]:
+    def _to_int(val: str | int | None) -> int | None:
         try:
             return int(val) if val is not None and str(val).strip() else None
         except ValueError:
@@ -118,16 +112,10 @@ class Discord:
                 return
 
             # Update user-chat mapping for reply targeting
-            self._update_user_chat_mapping(
-                str(message.author.id), str(message.channel.id)
-            )
+            self._update_user_chat_mapping(str(message.author.id), str(message.channel.id))
 
             cleaned_text = self._clean_bot_mention(message.content or "")
-            username = (
-                message.author.display_name
-                or message.author.global_name
-                or message.author.name
-            )
+            username = message.author.display_name or message.author.global_name or message.author.name
             payload = {
                 "type": "message",
                 "userid": str(message.author.id),
@@ -136,9 +124,7 @@ class Discord:
                 "text": cleaned_text,
                 "message_id": str(message.id),
                 "chat_id": str(message.channel.id),
-                "channel_type": "dm"
-                if isinstance(message.channel, discord.DMChannel)
-                else "guild",
+                "channel_type": "dm" if isinstance(message.channel, discord.DMChannel) else "guild",
             }
             if message.attachments:
                 payload["attachments"] = [
@@ -170,16 +156,10 @@ class Discord:
 
                 # Update user-chat mapping for reply targeting
                 if interaction.user and interaction.channel:
-                    self._update_user_chat_mapping(
-                        str(interaction.user.id), str(interaction.channel.id)
-                    )
+                    self._update_user_chat_mapping(str(interaction.user.id), str(interaction.channel.id))
 
                 username = (
-                    (
-                        interaction.user.display_name
-                        or interaction.user.global_name
-                        or interaction.user.name
-                    )
+                    (interaction.user.display_name or interaction.user.global_name or interaction.user.name)
                     if interaction.user
                     else None
                 )
@@ -189,12 +169,8 @@ class Discord:
                     "username": username,
                     "user_tag": str(interaction.user) if interaction.user else None,
                     "callback_data": callback_data,
-                    "message_id": str(interaction.message.id)
-                    if interaction.message
-                    else None,
-                    "chat_id": str(interaction.channel.id)
-                    if interaction.channel
-                    else None,
+                    "message_id": str(interaction.message.id) if interaction.message else None,
+                    "chat_id": str(interaction.channel.id) if interaction.channel else None,
                 }
                 await self._post_to_ds(payload)
 
@@ -222,12 +198,8 @@ class Discord:
         if not self._client or not self._loop or not self._thread:
             return
         try:
-            asyncio.run_coroutine_threadsafe(
-                self._stop_all_typing_tasks(), self._loop
-            ).result(timeout=5)
-            asyncio.run_coroutine_threadsafe(self._client.close(), self._loop).result(
-                timeout=10
-            )
+            asyncio.run_coroutine_threadsafe(self._stop_all_typing_tasks(), self._loop).result(timeout=5)
+            asyncio.run_coroutine_threadsafe(self._client.close(), self._loop).result(timeout=10)
         except Exception as err:
             logger.error(f"关闭 Discord Bot 失败：{err}")
         finally:
@@ -240,7 +212,7 @@ class Discord:
     def get_state(self) -> bool:
         return self._ready_event.is_set() and self._client is not None
 
-    def register_commands(self, commands: Dict[str, dict]) -> bool:
+    def register_commands(self, commands: dict[str, dict]) -> bool:
         """
         注册 Discord 斜杠命令。
 
@@ -267,9 +239,7 @@ class Discord:
             logger.debug("Discord Bot 未就绪，斜杠命令将在登录后同步")
             return True
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._sync_registered_commands(), self._loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._sync_registered_commands(), self._loop)
             return bool(future.result(timeout=30))
         except Exception as err:
             logger.error(f"同步 Discord 斜杠命令失败：{err}")
@@ -290,9 +260,7 @@ class Discord:
         seen_names = set()
         for command_text, command_data in commands.items():
             if registered_count >= self._MAX_SLASH_COMMANDS:
-                logger.warning(
-                    f"Discord 斜杠命令数量超过 {self._MAX_SLASH_COMMANDS} 个，后续命令已跳过"
-                )
+                logger.warning(f"Discord 斜杠命令数量超过 {self._MAX_SLASH_COMMANDS} 个，后续命令已跳过")
                 break
             command_name = self._normalize_slash_command_name(command_text)
             if not command_name or command_name in seen_names:
@@ -324,7 +292,7 @@ class Discord:
 
     @staticmethod
     def _normalize_slash_command_description(
-        description: Optional[str],
+        description: str | None,
         fallback: str,
     ) -> str:
         """整理 Discord 斜杠命令描述，满足长度要求。"""
@@ -341,7 +309,7 @@ class Discord:
 
         async def _callback(
             interaction: discord.Interaction,
-            args: Optional[str] = None,
+            args: str | None = None,
         ) -> None:
             await self._handle_slash_command(interaction, command_text, args)
 
@@ -357,7 +325,7 @@ class Discord:
         self,
         interaction: discord.Interaction,
         command_text: str,
-        args: Optional[str] = None,
+        args: str | None = None,
     ) -> None:
         """处理 Discord 斜杠命令回调，并转发到统一消息入口。"""
         try:
@@ -386,9 +354,7 @@ class Discord:
             "text": f"{command_text} {arg_text}".strip(),
             "message_id": str(interaction.id),
             "chat_id": chat_id,
-            "channel_type": "dm"
-            if isinstance(interaction.channel, discord.DMChannel)
-            else "guild",
+            "channel_type": "dm" if isinstance(interaction.channel, discord.DMChannel) else "guild",
         }
         await self._post_to_ds(payload)
 
@@ -406,18 +372,16 @@ class Discord:
     def send_msg(
         self,
         title: str,
-        text: Optional[str] = None,
-        image: Optional[str] = None,
-        userid: Optional[str] = None,
-        link: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        original_message_id: Optional[Union[int, str]] = None,
-        original_chat_id: Optional[str] = None,
-        mtype: Optional["NotificationType"] = None,
-    ) -> Optional[bool]:
-        logger.debug(
-            f"[Discord] send_msg 被调用: userid={userid}, title={title[:50] if title else None}..."
-        )
+        text: str | None = None,
+        image: str | None = None,
+        userid: str | None = None,
+        link: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: int | str | None = None,
+        original_chat_id: str | None = None,
+        mtype: NotificationType | None = None,
+    ) -> bool | None:
+        logger.debug(f"[Discord] send_msg 被调用: userid={userid}, title={title[:50] if title else None}...")
         logger.debug(
             f"[Discord] get_state() = {self.get_state()}, "
             f"_ready_event.is_set() = {self._ready_event.is_set()}, "
@@ -431,7 +395,7 @@ class Discord:
             return False
 
         try:
-            logger.debug(f"[Discord] 准备异步发送消息...")
+            logger.debug("[Discord] 准备异步发送消息...")
             future = asyncio.run_coroutine_threadsafe(
                 self._send_message(
                     title=title,
@@ -456,12 +420,12 @@ class Discord:
     def send_file(
         self,
         file_path: str,
-        title: Optional[str] = None,
-        text: Optional[str] = None,
-        userid: Optional[str] = None,
-        file_name: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
-    ) -> Optional[bool]:
+        title: str | None = None,
+        text: str | None = None,
+        userid: str | None = None,
+        file_name: str | None = None,
+        original_chat_id: str | None = None,
+    ) -> bool | None:
         if not self.get_state():
             return False
         if not file_path:
@@ -486,13 +450,13 @@ class Discord:
 
     def send_medias_msg(
         self,
-        medias: List[MediaInfo],
-        userid: Optional[str] = None,
-        title: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        original_message_id: Optional[Union[int, str]] = None,
-        original_chat_id: Optional[str] = None,
-    ) -> Optional[bool]:
+        medias: list[MediaInfo],
+        userid: str | None = None,
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: int | str | None = None,
+        original_chat_id: str | None = None,
+    ) -> bool | None:
         if not self.get_state() or not medias:
             return False
         title = title or "媒体列表"
@@ -501,9 +465,7 @@ class Discord:
                 self._send_list_message(
                     embeds=self._build_media_embeds(medias, title),
                     userid=userid,
-                    buttons=self._build_default_buttons(len(medias))
-                    if not buttons
-                    else buttons,
+                    buttons=self._build_default_buttons(len(medias)) if not buttons else buttons,
                     fallback_buttons=buttons,
                     original_message_id=original_message_id,
                     original_chat_id=original_chat_id,
@@ -517,13 +479,13 @@ class Discord:
 
     def send_torrents_msg(
         self,
-        torrents: List[Context],
-        userid: Optional[str] = None,
-        title: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        original_message_id: Optional[Union[int, str]] = None,
-        original_chat_id: Optional[str] = None,
-    ) -> Optional[bool]:
+        torrents: list[Context],
+        userid: str | None = None,
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: int | str | None = None,
+        original_chat_id: str | None = None,
+    ) -> bool | None:
         if not self.get_state() or not torrents:
             return False
         title = title or "种子列表"
@@ -532,9 +494,7 @@ class Discord:
                 self._send_list_message(
                     embeds=self._build_torrent_embeds(torrents, title),
                     userid=userid,
-                    buttons=self._build_default_buttons(len(torrents))
-                    if not buttons
-                    else buttons,
+                    buttons=self._build_default_buttons(len(torrents)) if not buttons else buttons,
                     fallback_buttons=buttons,
                     original_message_id=original_message_id,
                     original_chat_id=original_chat_id,
@@ -548,10 +508,10 @@ class Discord:
 
     def start_typing(
         self,
-        userid: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        max_duration_seconds: Optional[float] = None,
-        initial_delay_seconds: Optional[float] = None,
+        userid: str | None = None,
+        chat_id: str | None = None,
+        max_duration_seconds: float | None = None,
+        initial_delay_seconds: float | None = None,
     ) -> bool:
         """
         持续发送 Discord typing 指示，直到显式停止或达到最大续期。
@@ -579,8 +539,8 @@ class Discord:
 
     def stop_typing(
         self,
-        userid: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        userid: str | None = None,
+        chat_id: str | None = None,
     ) -> bool:
         """
         停止 Discord typing 续发任务。
@@ -589,16 +549,14 @@ class Discord:
         if not typing_key or not self._loop:
             return False
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._stop_typing_task(typing_key), self._loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._stop_typing_task(typing_key), self._loop)
             return future.result(timeout=5)
         except Exception as err:
             logger.error(f"停止 Discord typing 状态失败：{err}")
             return False
 
     @staticmethod
-    def _typing_key(userid: Optional[str] = None, chat_id: Optional[str] = None) -> str:
+    def _typing_key(userid: str | None = None, chat_id: str | None = None) -> str:
         """优先按频道维度管理 typing 状态，缺失时退回用户维度。"""
         if chat_id:
             return f"chat:{chat_id}"
@@ -609,10 +567,10 @@ class Discord:
     async def _start_typing_task(
         self,
         typing_key: str,
-        userid: Optional[str] = None,
-        chat_id: Optional[str] = None,
-        max_duration_seconds: Optional[float] = None,
-        initial_delay_seconds: Optional[float] = None,
+        userid: str | None = None,
+        chat_id: str | None = None,
+        max_duration_seconds: float | None = None,
+        initial_delay_seconds: float | None = None,
     ) -> bool:
         await self._stop_typing_task(typing_key)
         channel = await self._resolve_channel(userid=userid, chat_id=chat_id)
@@ -621,9 +579,7 @@ class Discord:
         stop_event = asyncio.Event()
         max_duration = max_duration_seconds or self._typing_max_duration_seconds
         initial_delay = (
-            self._typing_initial_delay_seconds
-            if initial_delay_seconds is None
-            else max(initial_delay_seconds, 0)
+            self._typing_initial_delay_seconds if initial_delay_seconds is None else max(initial_delay_seconds, 0)
         )
 
         async def _typing_worker() -> None:
@@ -638,7 +594,7 @@ class Discord:
                             timeout=initial_delay,
                         )
                         return
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass
                 while not stop_event.is_set():
                     if self._loop.time() - started_at >= max_duration:
@@ -656,7 +612,7 @@ class Discord:
                             stop_event.wait(),
                             timeout=self._typing_interval_seconds,
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass
             finally:
                 current_task = asyncio.current_task()
@@ -676,7 +632,7 @@ class Discord:
         if task and task is not asyncio.current_task() and not task.done():
             try:
                 await asyncio.wait_for(asyncio.shield(task), timeout=1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
         return bool(stop_event or task)
 
@@ -684,9 +640,7 @@ class Discord:
         for typing_key in list(self._typing_tasks.keys()):
             await self._stop_typing_task(typing_key)
 
-    def delete_msg(
-        self, message_id: Union[str, int], chat_id: Optional[str] = None
-    ) -> Optional[bool]:
+    def delete_msg(self, message_id: str | int, chat_id: str | None = None) -> bool | None:
         if not self.get_state():
             return False
         try:
@@ -701,29 +655,23 @@ class Discord:
     async def _send_message(
         self,
         title: str,
-        text: Optional[str],
-        image: Optional[str],
-        userid: Optional[str],
-        link: Optional[str],
-        buttons: Optional[List[List[dict]]],
-        original_message_id: Optional[Union[int, str]],
-        original_chat_id: Optional[str],
-        mtype: Optional["NotificationType"] = None,
-    ) -> Tuple[bool, Optional[Dict[str, str]]]:
-        logger.debug(
-            f"[Discord] _send_message: userid={userid}, original_chat_id={original_chat_id}"
-        )
+        text: str | None,
+        image: str | None,
+        userid: str | None,
+        link: str | None,
+        buttons: list[list[dict]] | None,
+        original_message_id: int | str | None,
+        original_chat_id: str | None,
+        mtype: NotificationType | None = None,
+    ) -> tuple[bool, dict[str, str] | None]:
+        logger.debug(f"[Discord] _send_message: userid={userid}, original_chat_id={original_chat_id}")
         channel = await self._resolve_channel(userid=userid, chat_id=original_chat_id)
-        logger.debug(
-            f"[Discord] _resolve_channel 返回: {channel}, type={type(channel)}"
-        )
+        logger.debug(f"[Discord] _resolve_channel 返回: {channel}, type={type(channel)}")
         if not channel:
             logger.error("未找到可用的 Discord 频道或私聊")
             return False, None
 
-        embed = self._build_embed(
-            title=title, text=text, image=image, link=link, mtype=mtype
-        )
+        embed = self._build_embed(title=title, text=text, image=image, link=link, mtype=mtype)
         view = self._build_view(buttons=buttons, link=link)
         content = None
 
@@ -766,12 +714,12 @@ class Discord:
     async def _send_file(
         self,
         file_path: str,
-        title: Optional[str],
-        text: Optional[str],
-        userid: Optional[str],
-        file_name: Optional[str],
-        original_chat_id: Optional[str],
-    ) -> Tuple[bool, Optional[Dict[str, str]]]:
+        title: str | None,
+        text: str | None,
+        userid: str | None,
+        file_name: str | None,
+        original_chat_id: str | None,
+    ) -> tuple[bool, dict[str, str] | None]:
         channel = await self._resolve_channel(userid=userid, chat_id=original_chat_id)
         if not channel:
             logger.error("未找到可用的 Discord 频道或私聊")
@@ -788,9 +736,7 @@ class Discord:
             content = content[:1900] + "..."
 
         try:
-            discord_file = discord.File(
-                str(local_file), filename=file_name or local_file.name
-            )
+            discord_file = discord.File(str(local_file), filename=file_name or local_file.name)
             sent_message = await channel.send(content=content, file=discord_file)
             return (
                 True,
@@ -805,12 +751,12 @@ class Discord:
 
     async def _send_list_message(
         self,
-        embeds: List[discord.Embed],
-        userid: Optional[str],
-        buttons: Optional[List[List[dict]]],
-        fallback_buttons: Optional[List[List[dict]]],
-        original_message_id: Optional[Union[int, str]],
-        original_chat_id: Optional[str],
+        embeds: list[discord.Embed],
+        userid: str | None,
+        buttons: list[list[dict]] | None,
+        fallback_buttons: list[list[dict]] | None,
+        original_message_id: int | str | None,
+        original_chat_id: str | None,
     ) -> bool:
         channel = await self._resolve_channel(userid=userid, chat_id=original_chat_id)
         if not channel:
@@ -839,12 +785,12 @@ class Discord:
 
     async def _edit_message(
         self,
-        chat_id: Union[str, int],
-        message_id: Union[str, int],
-        content: Optional[str],
-        embed: Optional[discord.Embed],
-        view: Optional[discord.ui.View],
-        embeds: Optional[List[discord.Embed]] = None,
+        chat_id: str | int,
+        message_id: str | int,
+        content: str | None,
+        embed: discord.Embed | None,
+        view: discord.ui.View | None,
+        embeds: list[discord.Embed] | None = None,
     ) -> bool:
         channel = await self._resolve_channel(chat_id=str(chat_id))
         if not channel:
@@ -852,7 +798,7 @@ class Discord:
             return False
         try:
             message = await channel.fetch_message(int(message_id))
-            kwargs: Dict[str, Any] = {"content": content, "view": view}
+            kwargs: dict[str, Any] = {"content": content, "view": view}
             if embeds:
                 if len(embeds) == 1:
                     kwargs["embed"] = embeds[0]
@@ -866,9 +812,7 @@ class Discord:
             logger.error(f"编辑 Discord 消息失败：{err}")
             return False
 
-    async def _delete_message(
-        self, message_id: Union[str, int], chat_id: Optional[str]
-    ) -> bool:
+    async def _delete_message(self, message_id: str | int, chat_id: str | None) -> bool:
         channel = await self._resolve_channel(chat_id=chat_id)
         if not channel:
             logger.error("删除 Discord 消息时未找到频道")
@@ -884,17 +828,17 @@ class Discord:
     @staticmethod
     def _build_embed(
         title: str,
-        text: Optional[str],
-        image: Optional[str],
-        link: Optional[str],
-        mtype: Optional["NotificationType"] = None,
+        text: str | None,
+        image: str | None,
+        link: str | None,
+        mtype: NotificationType | None = None,
     ) -> discord.Embed:
-        fields: List[Dict[str, str]] = []
-        desc_lines: List[str] = []
+        fields: list[dict[str, str]] = []
+        desc_lines: list[str] = []
         should_parse_fields = mtype in PARSE_FIELD_TYPES if mtype else False
 
-        def _collect_spans(s: str, left: str, right: str) -> List[Tuple[int, int]]:
-            spans: List[Tuple[int, int]] = []
+        def _collect_spans(s: str, left: str, right: str) -> list[tuple[int, int]]:
+            spans: list[tuple[int, int]] = []
             start = 0
             while True:
                 l_idx = s.find(left, start)
@@ -907,8 +851,8 @@ class Discord:
                 start = r_idx + 1
             return spans
 
-        def _find_colon_index(s: str, m: re.Match) -> Optional[int]:
-            segment = s[m.start(): m.end()]
+        def _find_colon_index(s: str, m: re.Match) -> int | None:
+            segment = s[m.start() : m.end()]
             for i, ch in enumerate(segment):
                 if ch in (":", "："):
                     return m.start() + i
@@ -917,11 +861,7 @@ class Discord:
         if text:
             # 处理上游未反序列化的 "\n" 等转义换行，避免被当成普通字符
             if "\\n" in text or "\\r" in text:
-                text = (
-                    text.replace("\\r\\n", "\n")
-                    .replace("\\n", "\n")
-                    .replace("\\r", "\n")
-                )
+                text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
             if not should_parse_fields:
                 desc_lines.append(text.strip())
             else:
@@ -939,16 +879,12 @@ class Discord:
                         continue
                     matches = list(pair_pattern.finditer(line))
                     if matches:
-                        book_spans = _collect_spans(line, "《", "》") + _collect_spans(
-                            line, "【", "】"
-                        )
+                        book_spans = _collect_spans(line, "《", "》") + _collect_spans(line, "【", "】")
                         if book_spans:
                             has_book_colon = False
                             for m in matches:
                                 colon_idx = _find_colon_index(line, m)
-                                if colon_idx is not None and any(
-                                    l < colon_idx < r for l, r in book_spans
-                                ):
+                                if colon_idx is not None and any(l < colon_idx < r for l, r in book_spans):
                                     has_book_colon = True
                                     break
                             if has_book_colon:
@@ -956,25 +892,20 @@ class Discord:
                                 continue
                         # 若整行只是 URL/时间等自然包含":"的内容，则不当作字段
                         url_like_names = {"http", "https", "ftp", "ftps", "magnet"}
-                        if all(
-                            m.group(1).lower() in url_like_names or m.group(1).isdigit()
-                            for m in matches
-                        ):
+                        if all(m.group(1).lower() in url_like_names or m.group(1).isdigit() for m in matches):
                             desc_lines.append(line)
                             continue
                         last_end = 0
                         for m in matches:
                             # 追加匹配前的非空文本到描述
-                            prefix = line[last_end: m.start()].strip(" ，,;；。、")
+                            prefix = line[last_end : m.start()].strip(" ，,;；。、")
                             # 仅当前缀不全是分隔符/空白时才记录
                             if prefix and prefix.strip(" ，,;；。、"):
                                 desc_lines.append(prefix)
                             name = m.group(1).strip()
                             value = m.group(2).strip(" ，,;；。、\t") or "-"
                             if name:
-                                fields.append(
-                                    {"name": name, "value": value, "inline": False}
-                                )
+                                fields.append({"name": name, "value": value, "inline": False})
                             last_end = m.end()
                         # 匹配末尾后的文本
                         suffix = line[last_end:].strip(" ，,;；。、")
@@ -998,14 +929,12 @@ class Discord:
         return embed
 
     @staticmethod
-    def _build_media_embeds(medias: List[MediaInfo], title: str) -> List[discord.Embed]:
-        embeds: List[discord.Embed] = []
+    def _build_media_embeds(medias: list[MediaInfo], title: str) -> list[discord.Embed]:
+        embeds: list[discord.Embed] = []
         for index, media in enumerate(medias[:10], start=1):
             overview = media.get_overview_string(80)
             desc_parts = [
-                f"{media.type.value} | {media.vote_star}"
-                if media.vote_star
-                else media.type.value,
+                f"{media.type.value} | {media.vote_star}" if media.vote_star else media.type.value,
                 overview,
             ]
             embed = discord.Embed(
@@ -1022,10 +951,8 @@ class Discord:
         return embeds
 
     @staticmethod
-    def _build_torrent_embeds(
-        torrents: List[Context], title: str
-    ) -> List[discord.Embed]:
-        embeds: List[discord.Embed] = []
+    def _build_torrent_embeds(torrents: list[Context], title: str) -> list[discord.Embed]:
+        embeds: list[discord.Embed] = []
         for index, context in enumerate(torrents[:10], start=1):
             torrent = context.torrent_info
             meta = MetaInfo(torrent.title, torrent.description)
@@ -1051,8 +978,8 @@ class Discord:
         return embeds
 
     @staticmethod
-    def _build_default_buttons(count: int) -> List[List[dict]]:
-        buttons: List[List[dict]] = []
+    def _build_default_buttons(count: int) -> list[list[dict]]:
+        buttons: list[list[dict]] = []
         max_rows = 5
         max_per_row = 5
         capped = min(count, max_rows * max_per_row)
@@ -1066,9 +993,7 @@ class Discord:
         return buttons
 
     @staticmethod
-    def _build_view(
-        buttons: Optional[List[List[dict]]], link: Optional[str] = None
-    ) -> Optional[discord.ui.View]:
+    def _build_view(buttons: list[list[dict]] | None, link: str | None = None) -> discord.ui.View | None:
         has_buttons = buttons and any(buttons)
         if not has_buttons and not link:
             return None
@@ -1084,11 +1009,7 @@ class Discord:
                             style=discord.ButtonStyle.link,
                         )
                     else:
-                        custom_id = (
-                            button.get("callback_data")
-                            or button.get("text")
-                            or f"btn-{row_index}"
-                        )[:99]
+                        custom_id = (button.get("callback_data") or button.get("text") or f"btn-{row_index}")[:99]
                         btn = discord.ui.Button(
                             label=button.get("text", "选择")[:80],
                             custom_id=custom_id,
@@ -1096,16 +1017,10 @@ class Discord:
                         )
                     view.add_item(btn)
         elif link:
-            view.add_item(
-                discord.ui.Button(
-                    label="查看详情", url=link, style=discord.ButtonStyle.link
-                )
-            )
+            view.add_item(discord.ui.Button(label="查看详情", url=link, style=discord.ButtonStyle.link))
         return view
 
-    async def _resolve_channel(
-        self, userid: Optional[str] = None, chat_id: Optional[str] = None
-    ):
+    async def _resolve_channel(self, userid: str | None = None, chat_id: str | None = None):
         """
         Resolve the channel to send messages to.
         Priority order:
@@ -1145,9 +1060,7 @@ class Discord:
                     return channel
                 try:
                     channel = await self._client.fetch_channel(int(mapped_chat_id))
-                    logger.debug(
-                        f"[Discord] 通过 fetch_channel 找到映射频道: {channel}"
-                    )
+                    logger.debug(f"[Discord] 通过 fetch_channel 找到映射频道: {channel}")
                     return channel
                 except Exception as err:
                     logger.warn(f"通过映射的 chat_id 获取 Discord 频道失败：{err}")
@@ -1157,9 +1070,7 @@ class Discord:
             logger.debug(f"[Discord] 使用缓存的广播频道: {self._broadcast_channel}")
             return self._broadcast_channel
         if self._channel_id:
-            logger.debug(
-                f"[Discord] 尝试通过配置的 _channel_id={self._channel_id} 获取频道"
-            )
+            logger.debug(f"[Discord] 尝试通过配置的 _channel_id={self._channel_id} 获取频道")
             channel = self._client.get_channel(self._channel_id)
             if not channel:
                 try:
@@ -1173,7 +1084,7 @@ class Discord:
                 return channel
 
         # Priority 4: Find any available text channel in guild (fallback)
-        logger.debug(f"[Discord] 尝试在 Guild 中寻找可用频道")
+        logger.debug("[Discord] 尝试在 Guild 中寻找可用频道")
         target_guilds = []
         if self._guild_id:
             guild = self._client.get_guild(self._guild_id)
@@ -1202,12 +1113,10 @@ class Discord:
 
         return None
 
-    async def _get_dm_channel(self, userid: str) -> Optional[discord.DMChannel]:
+    async def _get_dm_channel(self, userid: str) -> discord.DMChannel | None:
         logger.debug(f"[Discord] _get_dm_channel: userid={userid}")
         if userid in self._user_dm_cache:
-            logger.debug(
-                f"[Discord] 从缓存获取私聊频道: {self._user_dm_cache.get(userid)}"
-            )
+            logger.debug(f"[Discord] 从缓存获取私聊频道: {self._user_dm_cache.get(userid)}")
             return self._user_dm_cache.get(userid)
         try:
             logger.debug(f"[Discord] 尝试获取/创建用户 {userid} 的私聊频道")
@@ -1240,11 +1149,9 @@ class Discord:
         """
         if userid and chat_id:
             self._user_chat_mapping[userid] = chat_id
-            logger.debug(
-                f"[Discord] 更新用户频道映射: userid={userid} -> chat_id={chat_id}"
-            )
+            logger.debug(f"[Discord] 更新用户频道映射: userid={userid} -> chat_id={chat_id}")
 
-    def _get_user_chat_id(self, userid: str) -> Optional[str]:
+    def _get_user_chat_id(self, userid: str) -> str | None:
         """
         Get the chat ID where the user last sent a message.
         :param userid: User ID
@@ -1271,14 +1178,12 @@ class Discord:
             content = re.sub(mention_pattern, "", content).strip()
         return content
 
-    async def _post_to_ds(self, payload: Dict[str, Any]) -> None:
+    async def _post_to_ds(self, payload: dict[str, Any]) -> None:
         try:
             proxy = None
             if settings.PROXY:
                 proxy = settings.PROXY.get("https") or settings.PROXY.get("http")
-            async with httpx.AsyncClient(
-                timeout=10, verify=False, proxy=proxy
-            ) as client:
+            async with httpx.AsyncClient(timeout=10, verify=False, proxy=proxy) as client:
                 await client.post(self._ds_url, json=payload)
         except Exception as err:
             logger.error(f"转发 Discord 消息失败：{err}")

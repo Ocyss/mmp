@@ -33,14 +33,14 @@ class RunAgentTaskTool(MoviePilotTool):
         "after the current agent turn can finish and broadcasts its result through the "
         "configured notification channels."
     )
-    args_schema: Type[BaseModel] = RunAgentTaskInput
+    args_schema: type[BaseModel] = RunAgentTaskInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成立即执行 Agent 任务的提示消息。"""
         return f"立即执行自主定时任务：{kwargs.get('task_id', '')}"
 
-    def _get_task_state(self, task_id: int) -> tuple[str, Optional[str]]:
+    def _get_task_state(self, task_id: int) -> tuple[str, str | None]:
         """校验任务归属和状态，返回可执行性及任务名称。"""
         task = AgentTaskOper().get(
             task_id=task_id,
@@ -72,7 +72,4 @@ class RunAgentTaskTool(MoviePilotTool):
             return f"Agent 定时任务 {task_id} 正在执行，请勿重复触发"
         if not Scheduler().start_agent_task(payload.task_id):
             return f"Agent 定时任务 {task_id} 尚未注册到运行时调度器，无法立即执行"
-        return (
-            f"Agent 定时任务 {task_id} 已提交立即执行：{task_name}。"
-            "执行完成后将通过已配置的通知渠道广播结果"
-        )
+        return f"Agent 定时任务 {task_id} 已提交立即执行：{task_name}。执行完成后将通过已配置的通知渠道广播结果"

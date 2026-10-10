@@ -9,14 +9,14 @@ import sys
 import threading
 from asyncio import AbstractEventLoop
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, get_origin, get_args
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 from urllib.parse import quote, urlencode, urlparse
 
 from dotenv import set_key, unset_key
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.log import logger, log_settings, LogConfigModel
+from app.log import LogConfigModel, log_settings, logger
 from app.schemas import MediaType
 from app.utils.system import SystemUtils
 from app.utils.url import UrlUtils
@@ -75,7 +75,7 @@ class ConfigModel(BaseModel):
     # 前端监听端口
     NGINX_PORT: int = 3000
     # 配置文件目录
-    CONFIG_DIR: Optional[str] = None
+    CONFIG_DIR: str | None = None
     # 安全模式，仅保留核心 API，跳过插件、调度器、监控、命令和工作流等扩展启动项
     MOVIEPILOT_SAFE_MODE: bool = False
     # 是否启用 Btrfs FSID 子卷容量去重（仅 Linux amd64/arm64）
@@ -101,11 +101,11 @@ class ConfigModel(BaseModel):
     # 超级管理员初始用户名
     SUPERUSER: str = "admin"
     # 超级管理员初始密码
-    SUPERUSER_PASSWORD: Optional[str] = None
+    SUPERUSER_PASSWORD: str | None = None
     # 辅助认证，允许通过外部服务进行认证、单点登录以及自动创建用户
     AUXILIARY_AUTH_ENABLE: bool = False
     # API密钥，需要更换
-    API_TOKEN: Optional[str] = None
+    API_TOKEN: str | None = None
     # 用户认证站点
     AUTH_SITE: str = ""
 
@@ -161,9 +161,9 @@ class ConfigModel(BaseModel):
     # 缓存类型，支持 cachetools 和 redis，默认使用 cachetools
     CACHE_BACKEND_TYPE: str = "cachetools"
     # 缓存连接字符串，仅外部缓存（如 Redis、Memcached）需要，支持 Redis Unix Socket URL
-    CACHE_BACKEND_URL: Optional[str] = "redis://localhost:6379"
+    CACHE_BACKEND_URL: str | None = "redis://localhost:6379"
     # Redis 缓存最大内存限制，未配置时，如开启大内存模式时为 "1024mb"，未开启时为 "256mb"
-    CACHE_REDIS_MAXMEMORY: Optional[str] = None
+    CACHE_REDIS_MAXMEMORY: str | None = None
     # Redis 连接池最大连接数
     CACHE_REDIS_MAX_CONNECTIONS: int = 256
     # Redis 连接池耗尽时等待可用连接的时间（秒）
@@ -177,13 +177,13 @@ class ConfigModel(BaseModel):
     # pip/uv 包下载缓存保留天数
     PACKAGE_CACHE_DAYS: int = 90
     # pip/uv 包下载缓存根目录，留空时使用配置目录下的 .cache
-    PACKAGE_CACHE_ROOT: Optional[str] = None
+    PACKAGE_CACHE_ROOT: str | None = None
     # 单条元数据识别缓存有效期（小时），0为自动
     META_CACHE_EXPIRE: int = 0
 
     # ==================== 网络代理配置 ====================
     # 网络代理服务器地址
-    PROXY_HOST: Optional[str] = None
+    PROXY_HOST: str | None = None
     # 是否启用DOH解析域名
     DOH_ENABLE: bool = False
     # 使用 DOH 解析的域名列表
@@ -208,7 +208,7 @@ class ConfigModel(BaseModel):
     # 刮削来源 themoviedb/douban/bangumi/anilist
     SCRAP_SOURCE: str = "themoviedb"
     # 电视剧动漫的分类genre_ids
-    ANIME_GENREIDS: List[int] = Field(default=[16])
+    ANIME_GENREIDS: list[int] = Field(default=[16])
 
     # ==================== TMDB配置 ====================
     # TMDB图片地址
@@ -352,7 +352,7 @@ class ConfigModel(BaseModel):
     # CloakBrowser 拟人化输入预设：default 或 careful
     CLOAKBROWSER_HUMAN_PRESET: str = "default"
     # FlareSolverr 服务地址，例如 http://127.0.0.1:8191
-    FLARESOLVERR_URL: Optional[str] = None
+    FLARESOLVERR_URL: str | None = None
 
     # ==================== 搜索配置 ====================
     # 搜索多个名称
@@ -368,25 +368,25 @@ class ConfigModel(BaseModel):
     # 下载站点字幕
     DOWNLOAD_SUBTITLE: bool = True
     # 交互搜索自动下载用户ID，使用,分割
-    AUTO_DOWNLOAD_USER: Optional[str] = None
+    AUTO_DOWNLOAD_USER: str | None = None
     # 下载器临时文件后缀
     DOWNLOAD_TMPEXT: list = Field(default_factory=lambda: [".!qb", ".part"])
 
     # ==================== CookieCloud配置 ====================
     # CookieCloud是否启动本地服务
-    COOKIECLOUD_ENABLE_LOCAL: Optional[bool] = False
+    COOKIECLOUD_ENABLE_LOCAL: bool | None = False
     # CookieCloud服务器地址
     COOKIECLOUD_HOST: str = "https://movie-pilot.org/cookiecloud"
     # CookieCloud用户KEY
-    COOKIECLOUD_KEY: Optional[str] = None
+    COOKIECLOUD_KEY: str | None = None
     # CookieCloud端对端加密密码
-    COOKIECLOUD_PASSWORD: Optional[str] = None
+    COOKIECLOUD_PASSWORD: str | None = None
     # CookieCloud本地上传接口的X-CookieCloud-Auth期望值，留空表示不校验
-    COOKIECLOUD_AUTH_HEADER: Optional[str] = None
+    COOKIECLOUD_AUTH_HEADER: str | None = None
     # CookieCloud同步间隔（分钟）
-    COOKIECLOUD_INTERVAL: Optional[int] = 60 * 24
+    COOKIECLOUD_INTERVAL: int | None = 60 * 24
     # CookieCloud同步黑名单，多个域名,分割
-    COOKIECLOUD_BLACKLIST: Optional[str] = None
+    COOKIECLOUD_BLACKLIST: str | None = None
 
     # ==================== 整理配置 ====================
     # 文件整理线程数
@@ -409,7 +409,7 @@ class ConfigModel(BaseModel):
     # 重命名时支持的S0别名
     RENAME_FORMAT_S0_NAMES: list = Field(default=["Specials", "SPs"])
     # 为指定默认字幕添加.default后缀
-    DEFAULT_SUB: Optional[str] = "zh-cn"
+    DEFAULT_SUB: str | None = "zh-cn"
     # 新增已入库媒体是否跟随TMDB信息变化
     SCRAP_FOLLOW_TMDB: bool = True
     # 优先使用辅助识别
@@ -421,19 +421,17 @@ class ConfigModel(BaseModel):
     # 服务器地址，对应 https://github.com/jxxghp/MoviePilot-Server 项目
     MP_SERVER_HOST: str = "https://movie-pilot.org"
     # 共享媒体识别API地址，留空时默认拼接为 MP_SERVER_HOST + /recognize/share
-    MEDIA_RECOGNIZE_SHARE_API: Optional[str] = None
+    MEDIA_RECOGNIZE_SHARE_API: str | None = None
 
     # ==================== 个性化 ====================
     # 登录页面电影海报,tmdb/bing/mediaserver
     WALLPAPER: str = "tmdb"
     # 自定义壁纸api地址
-    CUSTOMIZE_WALLPAPER_API_URL: Optional[str] = None
+    CUSTOMIZE_WALLPAPER_API_URL: str | None = None
 
     # ==================== 插件配置 ====================
     # 插件市场仓库地址，多个地址使用,分隔，地址以/结尾
-    PLUGIN_MARKET: str = (
-        "https://github.com/jxxghp/MoviePilot-Plugins"
-    )
+    PLUGIN_MARKET: str = "https://github.com/jxxghp/MoviePilot-Plugins"
     # 插件安装数据共享
     PLUGIN_STATISTIC_SHARE: bool = True
     # 安装版本统计上报
@@ -441,7 +439,7 @@ class ConfigModel(BaseModel):
     # 是否开启插件热加载
     PLUGIN_AUTO_RELOAD: bool = False
     # 本地插件仓库目录，多个地址使用,分隔
-    PLUGIN_LOCAL_REPO_PATHS: Optional[str] = None
+    PLUGIN_LOCAL_REPO_PATHS: str | None = None
 
     # ==================== 技能配置 ====================
     # 技能市场仓库地址，多个地址使用,分隔
@@ -454,29 +452,29 @@ class ConfigModel(BaseModel):
 
     # ==================== Github & PIP ====================
     # Github token，提高请求api限流阈值 ghp_****
-    GITHUB_TOKEN: Optional[str] = None
+    GITHUB_TOKEN: str | None = None
     # Github代理服务器，格式：https://mirror.ghproxy.com/
-    GITHUB_PROXY: Optional[str] = ""
+    GITHUB_PROXY: str | None = ""
     # pip镜像站点，格式：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
-    PIP_PROXY: Optional[str] = ""
+    PIP_PROXY: str | None = ""
     # 指定的仓库Github token，多个仓库使用,分隔，格式：{user1}/{repo1}:ghp_****,{user2}/{repo2}:github_pat_****
-    REPO_GITHUB_TOKEN: Optional[str] = None
+    REPO_GITHUB_TOKEN: str | None = None
 
     # ==================== 飞书通知配置 ====================
     # 飞书应用 App ID
-    FEISHU_APP_ID: Optional[str] = None
+    FEISHU_APP_ID: str | None = None
     # 飞书应用 App Secret
-    FEISHU_APP_SECRET: Optional[str] = None
+    FEISHU_APP_SECRET: str | None = None
     # 飞书默认接收用户 Open ID
-    FEISHU_OPEN_ID: Optional[str] = None
+    FEISHU_OPEN_ID: str | None = None
     # 飞书默认接收群聊 Chat ID
-    FEISHU_CHAT_ID: Optional[str] = None
+    FEISHU_CHAT_ID: str | None = None
     # 飞书管理员 Open ID 列表，多个使用 , 分隔
-    FEISHU_ADMINS: Optional[str] = None
+    FEISHU_ADMINS: str | None = None
     # 飞书事件校验 Token
-    FEISHU_VERIFICATION_TOKEN: Optional[str] = None
+    FEISHU_VERIFICATION_TOKEN: str | None = None
     # 飞书事件加密 Key
-    FEISHU_ENCRYPT_KEY: Optional[str] = None
+    FEISHU_ENCRYPT_KEY: str | None = None
 
     # ==================== 性能配置 ====================
     # 大内存模式
@@ -515,9 +513,7 @@ class ConfigModel(BaseModel):
     # 图片代理允许访问的非公网 IP/CIDR，默认不放行任何非公网解析结果
     IMAGE_PROXY_ALLOWED_PRIVATE_RANGES: list = Field(default=[])
     # 允许的图片文件后缀格式
-    SECURITY_IMAGE_SUFFIXES: list = Field(
-        default=[".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".avif"]
-    )
+    SECURITY_IMAGE_SUFFIXES: list = Field(default=[".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".avif"])
     # PassKey 是否强制用户验证（生物识别等）
     PASSKEY_REQUIRE_UV: bool = True
 
@@ -535,7 +531,7 @@ class ConfigModel(BaseModel):
 
     # ==================== Docker配置 ====================
     # Docker Client API地址
-    DOCKER_CLIENT_API: Optional[str] = "tcp://127.0.0.1:38379"
+    DOCKER_CLIENT_API: str | None = "tcp://127.0.0.1:38379"
     # Playwright浏览器类型，供智能体浏览器工具和插件直接使用 Playwright 时读取
     PLAYWRIGHT_BROWSER_TYPE: str = "chromium"
 
@@ -551,7 +547,7 @@ class ConfigModel(BaseModel):
     # LLM模型名称
     LLM_MODEL: str = "deepseek-chat"
     # 思考模式/深度配置：off/auto/minimal/low/medium/high/max/xhigh
-    LLM_THINKING_LEVEL: Optional[str] = "off"
+    LLM_THINKING_LEVEL: str | None = "off"
     # OpenAI兼容接口API协议：auto（自动）/ chat_completions / responses
     LLM_API_PROTOCOL: str = "auto"
     # 联网搜索模式：local（本地）/ builtin（模型服务端）/ auto（自动）/ disabled（关闭）
@@ -563,17 +559,17 @@ class ConfigModel(BaseModel):
     # 是否启用音频输出，开启后 Agent 可在支持渠道发送语音回复
     LLM_SUPPORT_AUDIO_OUTPUT: bool = False
     # LLM API密钥
-    LLM_API_KEY: Optional[str] = None
+    LLM_API_KEY: str | None = None
     # LLM基础URL（用于自定义API端点）
-    LLM_BASE_URL: Optional[str] = "https://api.deepseek.com"
+    LLM_BASE_URL: str | None = "https://api.deepseek.com"
     # LLM调用是否使用系统代理
     LLM_USE_PROXY: bool = True
     # LLM Base URL 预设标识，用于区分同一 Base URL 下的不同模型目录
-    LLM_BASE_URL_PRESET: Optional[str] = None
+    LLM_BASE_URL_PRESET: str | None = None
     # LLM最大上下文Token数量（K），仅在模型目录未提供规格时作为回退值
     LLM_MAX_CONTEXT_TOKENS: int = 256
     # LLM OpenAI兼容接口请求User-Agent
-    LLM_USER_AGENT: Optional[str] = None
+    LLM_USER_AGENT: str | None = None
     # LLM温度参数
     LLM_TEMPERATURE: float = 0.3
     # LLM最大迭代次数
@@ -603,9 +599,9 @@ class ConfigModel(BaseModel):
     # 音频输入提供商：openai/openai_chat_audio/mimo/minimax
     AUDIO_INPUT_PROVIDER: str = "openai"
     # 音频输入 API 密钥
-    AUDIO_INPUT_API_KEY: Optional[str] = None
+    AUDIO_INPUT_API_KEY: str | None = None
     # 音频输入基础URL
-    AUDIO_INPUT_BASE_URL: Optional[str] = None
+    AUDIO_INPUT_BASE_URL: str | None = None
     # 音频输入模型
     AUDIO_INPUT_MODEL: str = "gpt-4o-mini-transcribe"
     # 音频输入识别语言
@@ -613,9 +609,9 @@ class ConfigModel(BaseModel):
     # 音频输出提供商：openai/openai_chat_audio/mimo/minimax
     AUDIO_OUTPUT_PROVIDER: str = "openai"
     # 音频输出 API 密钥
-    AUDIO_OUTPUT_API_KEY: Optional[str] = None
+    AUDIO_OUTPUT_API_KEY: str | None = None
     # 音频输出基础URL
-    AUDIO_OUTPUT_BASE_URL: Optional[str] = None
+    AUDIO_OUTPUT_BASE_URL: str | None = None
     # 音频输出模型
     AUDIO_OUTPUT_MODEL: str = "gpt-4o-mini-tts"
     # 音频输出音色/发音人
@@ -648,7 +644,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                 SystemUtils.copy(self.INNER_CONFIG_PATH / "app.env", app_env_path)
 
     @staticmethod
-    def validate_api_token(value: Any, original_value: Any) -> Tuple[Any, bool]:
+    def validate_api_token(value: Any, original_value: Any) -> tuple[Any, bool]:
         """
         校验 API_TOKEN
         """
@@ -658,13 +654,9 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         if not value or len(value) < 16:
             new_token = secrets.token_urlsafe(16)
             if not value:
-                logger.info(
-                    f"'API_TOKEN' 未设置，已随机生成新的【API_TOKEN】{new_token}"
-                )
+                logger.info(f"'API_TOKEN' 未设置，已随机生成新的【API_TOKEN】{new_token}")
             else:
-                logger.warning(
-                    f"'API_TOKEN' 长度不足 16 个字符，存在安全隐患，已随机生成新的【API_TOKEN】{new_token}"
-                )
+                logger.warning(f"'API_TOKEN' 长度不足 16 个字符，存在安全隐患，已随机生成新的【API_TOKEN】{new_token}")
             return new_token, True
         return value, str(value) != str(original_value)
 
@@ -672,11 +664,11 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
     def generic_type_converter(
         value: Any,
         original_value: Any,
-        expected_type: Type,
+        expected_type: type,
         default: Any,
         field_name: str,
         raise_exception: bool = False,
-    ) -> Tuple[Any, bool]:
+    ) -> tuple[Any, bool]:
         """
         通用类型转换函数，根据预期类型转换值。如果转换失败，返回默认值
         :return: 元组 (转换后的值, 是否需要更新)
@@ -694,12 +686,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         # 兼容 typing.Union (Python 3.9) 与 types.UnionType (Python 3.10+ PEP 604)
         origin = get_origin(expected_type)
         is_union = origin is Union or getattr(origin, "__name__", None) == "UnionType"
-        if (
-            is_union
-            and type(None) in get_args(expected_type)
-            and isinstance(value, str)
-            and not value
-        ):
+        if is_union and type(None) in get_args(expected_type) and isinstance(value, str) and not value:
             return default, str(default) != str(original_value)
 
         try:
@@ -720,14 +707,10 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                     }
                     if value_clean in bool_map:
                         converted = bool_map[value_clean]
-                        return converted, str(converted).lower() != str(
-                            original_value
-                        ).lower()
+                        return converted, str(converted).lower() != str(original_value).lower()
                 elif isinstance(value, (int, float)):
                     converted = bool(value)
-                    return converted, str(converted).lower() != str(
-                        original_value
-                    ).lower()
+                    return converted, str(converted).lower() != str(original_value).lower()
                 return default, True
             elif expected_type is int:
                 if isinstance(value, int):
@@ -758,9 +741,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                 return value, str(value) != str(original_value)
         except (ValueError, TypeError) as e:
             if raise_exception:
-                raise ValueError(
-                    f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型"
-                ) from e
+                raise ValueError(f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型") from e
             logger.error(
                 f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型，使用默认值 '{default}'，错误信息: {e}"
             )
@@ -777,9 +758,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
 
         # 处理 API_TOKEN 特殊验证
         if "API_TOKEN" in data:
-            converted_value, needs_update = cls.validate_api_token(
-                data["API_TOKEN"], data["API_TOKEN"]
-            )
+            converted_value, needs_update = cls.validate_api_token(data["API_TOKEN"], data["API_TOKEN"])
             if needs_update:
                 cls.update_env_config("API_TOKEN", data["API_TOKEN"], converted_value)
                 data["API_TOKEN"] = converted_value
@@ -804,24 +783,18 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         return data
 
     @staticmethod
-    def update_env_config(
-        field_name: str, original_value: Any, converted_value: Any
-    ) -> Tuple[bool, str]:
+    def update_env_config(field_name: str, original_value: Any, converted_value: Any) -> tuple[bool, str]:
         """
         更新 env 配置
         """
         message = None
-        is_converted = original_value is not None and str(original_value) != str(
-            converted_value
-        )
+        is_converted = original_value is not None and str(original_value) != str(converted_value)
         if is_converted:
             message = f"配置项 '{field_name}' 的值 '{original_value}' 无效，已替换为 '{converted_value}'"
             logger.warning(message)
 
         if field_name in os.environ:
-            message = (
-                f"配置项 '{field_name}' 已在环境变量中设置，请手动更新以保持一致性"
-            )
+            message = f"配置项 '{field_name}' 已在环境变量中设置，请手动更新以保持一致性"
             logger.warning(message)
             return False, message
         else:
@@ -849,7 +822,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                 logger.info(f"配置项 '{field_name}' 已自动修正并写入到 'app.env' 文件")
         return True, message
 
-    def update_setting(self, key: str, value: Any) -> Tuple[Optional[bool], str]:
+    def update_setting(self, key: str, value: Any) -> tuple[bool | None, str]:
         """
         更新单个配置项
         :param key: 配置项的名称
@@ -865,9 +838,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
                 return False, f"配置项 '{key}' 不存在"
             original_value = getattr(self, key)
             if key == "API_TOKEN":
-                converted_value, needs_update = self.validate_api_token(
-                    value, original_value
-                )
+                converted_value, needs_update = self.validate_api_token(value, original_value)
             else:
                 converted_value, needs_update = self.generic_type_converter(
                     value, original_value, field.annotation, field.default, key
@@ -885,9 +856,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         except Exception as e:
             return False, str(e)
 
-    def update_settings(
-        self, env: Dict[str, Any]
-    ) -> Dict[str, Tuple[Optional[bool], str]]:
+    def update_settings(self, env: dict[str, Any]) -> dict[str, tuple[bool | None, str]]:
         """
         更新多个配置项
         """
@@ -991,7 +960,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         )
 
     @property
-    def PROXY(self) -> Optional[Dict[str, str]]:
+    def PROXY(self) -> dict[str, str] | None:
         """
         获取 requests 兼容的系统代理配置。
         """
@@ -1012,7 +981,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         return None
 
     @staticmethod
-    def _get_env_proxy(*names: str) -> Optional[str]:
+    def _get_env_proxy(*names: str) -> str | None:
         """
         按顺序读取非空代理环境变量。
         """
@@ -1038,7 +1007,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
             return f"{self.DB_POSTGRESQL_HOST}:{self.DB_POSTGRESQL_PORT}"
         return self.DB_POSTGRESQL_HOST
 
-    def DB_POSTGRESQL_URL(self, driver: Optional[str] = None) -> str:
+    def DB_POSTGRESQL_URL(self, driver: str | None = None) -> str:
         scheme = "postgresql" if not driver else f"postgresql+{driver}"
         username = quote(str(self.DB_POSTGRESQL_USERNAME), safe="")
         database = quote(str(self.DB_POSTGRESQL_DATABASE), safe="")
@@ -1140,19 +1109,13 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         :param media_type: MediaType.TV 或 MediaType.Movie
         :return: 重命名格式
         """
-        rename_format = (
-            self.TV_RENAME_FORMAT
-            if media_type == MediaType.TV
-            else self.MOVIE_RENAME_FORMAT
-        )
+        rename_format = self.TV_RENAME_FORMAT if media_type == MediaType.TV else self.MOVIE_RENAME_FORMAT
         # 规范重命名格式
         rename_format = rename_format.replace("\\", "/")
         rename_format = re.sub(r"/+", "/", rename_format)
         return rename_format.strip("/")
 
-    def TMDB_IMAGE_URL(
-        self, file_path: Optional[str], file_size: str = "original"
-    ) -> Optional[str]:
+    def TMDB_IMAGE_URL(self, file_path: str | None, file_size: str = "original") -> str | None:
         """
         获取TMDB图片网址
 
@@ -1169,7 +1132,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
 settings = Settings()
 
 
-class GlobalVar(object):
+class GlobalVar:
     """
     全局标识
     """
@@ -1177,13 +1140,13 @@ class GlobalVar(object):
     # 系统停止事件
     STOP_EVENT: threading.Event = threading.Event()
     # webpush订阅
-    SUBSCRIPTIONS: List[dict] = []
+    SUBSCRIPTIONS: list[dict] = []
     # webpush订阅读写锁
     SUBSCRIPTIONS_LOCK: threading.Lock = threading.Lock()
     # 需应急停止的工作流
-    EMERGENCY_STOP_WORKFLOWS: List[int] = []
+    EMERGENCY_STOP_WORKFLOWS: list[int] = []
     # 需应急停止文件整理
-    EMERGENCY_STOP_TRANSFER: List[str] = []
+    EMERGENCY_STOP_TRANSFER: list[str] = []
     # 当前事件循环
     CURRENT_EVENT_LOOP: AbstractEventLoop = None
 
@@ -1239,10 +1202,7 @@ class GlobalVar(object):
             return False
         with self.SUBSCRIPTIONS_LOCK:
             before_count = len(self.SUBSCRIPTIONS)
-            self.SUBSCRIPTIONS[:] = [
-                current for current in self.SUBSCRIPTIONS
-                if current.get("endpoint") != endpoint
-            ]
+            self.SUBSCRIPTIONS[:] = [current for current in self.SUBSCRIPTIONS if current.get("endpoint") != endpoint]
             return len(self.SUBSCRIPTIONS) != before_count
 
     def stop_workflow(self, workflow_id: int):

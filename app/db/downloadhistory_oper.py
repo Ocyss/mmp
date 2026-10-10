@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 
 from app.db import DbOper
-from app.db.models.downloadhistory import DownloadHistory, DownloadFiles
+from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
 
 
 class DownloadHistoryOper(DbOper):
@@ -23,22 +23,22 @@ class DownloadHistoryOper(DbOper):
         """
         return DownloadHistory.get_by_hash(self._db, download_hash)
 
-    def get_by_hashes(self, download_hashes: List[str]) -> Dict[str, DownloadHistory]:
+    def get_by_hashes(self, download_hashes: list[str]) -> dict[str, DownloadHistory]:
         """
         批量按 Hash 查询下载记录，并返回以 Hash 为键的映射。
         """
         histories = DownloadHistory.get_by_hashes(self._db, download_hashes)
-        return {
-            history.download_hash: history
-            for history in histories
-            if history and history.download_hash
-        }
+        return {history.download_hash: history for history in histories if history and history.download_hash}
 
     def get_by_mediaid(
-            self, tmdbid: Optional[int] = None, doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None, anilistid: Optional[int] = None,
-            media_source: Optional[str] = None, media_id: Optional[str] = None,
-    ) -> List[DownloadHistory]:
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+    ) -> list[DownloadHistory]:
         """
         按媒体ID查询下载记录
         :param tmdbid: tmdbid
@@ -64,7 +64,7 @@ class DownloadHistoryOper(DbOper):
         """
         DownloadHistory(**kwargs).create(self._db)
 
-    def add_files(self, file_items: List[dict]):
+    def add_files(self, file_items: list[dict]):
         """
         新增下载历史文件
         """
@@ -78,7 +78,7 @@ class DownloadHistoryOper(DbOper):
         """
         DownloadFiles.truncate(self._db)
 
-    def get_files_by_hash(self, download_hash: str, state: Optional[int] = None) -> List[DownloadFiles]:
+    def get_files_by_hash(self, download_hash: str, state: int | None = None) -> list[DownloadFiles]:
         """
         按Hash查询下载文件记录
         :param download_hash: 数据key
@@ -93,14 +93,14 @@ class DownloadHistoryOper(DbOper):
         """
         return DownloadFiles.get_by_fullpath(self._db, fullpath=fullpath, all_files=False)
 
-    def get_files_by_fullpath(self, fullpath: str) -> List[DownloadFiles]:
+    def get_files_by_fullpath(self, fullpath: str) -> list[DownloadFiles]:
         """
         按fullpath查询下载文件记录
         :param fullpath: 数据key
         """
         return DownloadFiles.get_by_fullpath(self._db, fullpath=fullpath, all_files=True)
 
-    def get_files_by_savepath(self, fullpath: str) -> List[DownloadFiles]:
+    def get_files_by_savepath(self, fullpath: str) -> list[DownloadFiles]:
         """
         按savepath查询下载文件记录
         :param fullpath: 数据key
@@ -124,7 +124,7 @@ class DownloadHistoryOper(DbOper):
             return fileinfo.download_hash
         return ""
 
-    def list_by_page(self, page: Optional[int] = 1, count: Optional[int] = 30) -> List[DownloadHistory]:
+    def list_by_page(self, page: int | None = 1, count: int | None = 30) -> list[DownloadHistory]:
         """
         分页查询下载历史
         """
@@ -142,45 +142,40 @@ class DownloadHistoryOper(DbOper):
         """
         DownloadHistory.truncate(self._db)
 
-    def get_last_by(self, mtype=None, title: Optional[str] = None, year: Optional[str] = None,
-                    season: Optional[str] = None, episode: Optional[str] = None, tmdbid=None) -> List[DownloadHistory]:
+    def get_last_by(
+        self,
+        mtype=None,
+        title: str | None = None,
+        year: str | None = None,
+        season: str | None = None,
+        episode: str | None = None,
+        tmdbid=None,
+    ) -> list[DownloadHistory]:
         """
         按类型、标题、年份、季集查询下载记录
         tmdbid + mtype 或 title + year
         """
-        return DownloadHistory.get_last_by(db=self._db,
-                                           mtype=mtype,
-                                           title=title,
-                                           year=year,
-                                           season=season,
-                                           episode=episode,
-                                           tmdbid=tmdbid)
+        return DownloadHistory.get_last_by(
+            db=self._db, mtype=mtype, title=title, year=year, season=season, episode=episode, tmdbid=tmdbid
+        )
 
-    def list_by_user_date(self, date: str, username: Optional[str] = None) -> List[DownloadHistory]:
+    def list_by_user_date(self, date: str, username: str | None = None) -> list[DownloadHistory]:
         """
         查询某用户某时间之前的下载历史
         """
-        return DownloadHistory.list_by_user_date(db=self._db,
-                                                 date=date,
-                                                 username=username)
+        return DownloadHistory.list_by_user_date(db=self._db, date=date, username=username)
 
-    def list_by_date(self, date: str, type: str, tmdbid: str, seasons: Optional[str] = None) -> List[DownloadHistory]:
+    def list_by_date(self, date: str, type: str, tmdbid: str, seasons: str | None = None) -> list[DownloadHistory]:
         """
         查询某时间之后的下载历史
         """
-        return DownloadHistory.list_by_date(db=self._db,
-                                            date=date,
-                                            type=type,
-                                            tmdbid=tmdbid,
-                                            seasons=seasons)
+        return DownloadHistory.list_by_date(db=self._db, date=date, type=type, tmdbid=tmdbid, seasons=seasons)
 
-    def list_by_type(self, mtype: str, days: Optional[int] = 7) -> List[DownloadHistory]:
+    def list_by_type(self, mtype: str, days: int | None = 7) -> list[DownloadHistory]:
         """
         获取指定类型的下载历史
         """
-        return DownloadHistory.list_by_type(db=self._db,
-                                            mtype=mtype,
-                                            days=days)
+        return DownloadHistory.list_by_type(db=self._db, mtype=mtype, days=days)
 
     def delete_history(self, historyid):
         """

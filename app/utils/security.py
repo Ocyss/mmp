@@ -3,11 +3,12 @@ import hmac
 import ipaddress
 import socket
 import threading
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
 from anyio import Path as AsyncPath
@@ -21,25 +22,22 @@ from app.utils.coalesce import (
     EventCoalescer,
 )
 
-
 # DNS 解析结果缓存。
 # 正向缓存 TTL 选择 120s，短于常见 CDN / fake-ip 的 DNS TTL，避免长期持有失效 IP；
 # 负向缓存 TTL 选择 15s，避免临时解析失败把目标长时间拉黑。
 _DNS_CACHE_MAXSIZE = 1024
 _DNS_CACHE_TTL_POSITIVE = 120
 _DNS_CACHE_TTL_NEGATIVE = 15
-_dns_positive_cache: "TTLCache[str, List[ipaddress._BaseAddress]]" = TTLCache(
+_dns_positive_cache: TTLCache[str, list[ipaddress._BaseAddress]] = TTLCache(
     maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_POSITIVE
 )
-_dns_negative_cache: "TTLCache[str, bool]" = TTLCache(
-    maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_NEGATIVE
-)
+_dns_negative_cache: TTLCache[str, bool] = TTLCache(maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_NEGATIVE)
 # 同步路径下保护 TTLCache 读写：`cachetools.TTLCache` 本身非线程安全。
 # 锁只覆盖缓存读写，不包 `getaddrinfo`，避免把 DNS 查询本身串行化。
 _dns_cache_lock = threading.Lock()
 # 同 hostname 的并发异步解析去重：同一 hostname 首次未命中时建立锁，
 # 后续并发请求 await 同一把锁，避免对同一目标重复发起 `getaddrinfo`。
-_dns_inflight_locks: Dict[str, asyncio.Lock] = {}
+_dns_inflight_locks: dict[str, asyncio.Lock] = {}
 _dns_inflight_meta_lock = threading.Lock()
 
 
@@ -80,23 +78,23 @@ class UrlSafetyDiagnosis:
     # 放行/拦截的具体原因
     reason: UrlSafetyReason
     # 通过 allowlist 后从 URL 解析出的 hostname，未通过时为 None
-    host: Optional[str] = None
+    host: str | None = None
     # DNS 解析结果（含命中或未命中私网放行的 IP），格式化为字符串
-    ips: List[str] = field(default_factory=list)
+    ips: list[str] = field(default_factory=list)
     # 命中允许放行的非公网网段，仅 `ALLOWED` 且走私网放行分支时非空
-    matched_private_ranges: List[str] = field(default_factory=list)
+    matched_private_ranges: list[str] = field(default_factory=list)
 
 
 def _resolve_addrinfo_to_ips(
     address_infos: Iterable,
-) -> Optional[List[ipaddress._BaseAddress]]:
+) -> list[ipaddress._BaseAddress] | None:
     """
     将 `socket.getaddrinfo` 返回的结果归一化为 IP 列表。
 
     任一条目无法解析为 IP 即视为异常情况，整体返回 None 让上层按"不安全目标"
     处理，避免出现"部分 IP 漏校验"的情况。
     """
-    addresses: List[ipaddress._BaseAddress] = []
+    addresses: list[ipaddress._BaseAddress] = []
     for address_info in address_infos:
         try:
             addresses.append(ipaddress.ip_address(address_info[4][0]))
@@ -110,8 +108,7 @@ class SecurityUtils:
     _SUBTITLE_DOWNLOAD_PURPOSE_PREFIX = "subtitle-download"
 
     @staticmethod
-    def is_safe_path(base_path: Path, user_path: Path,
-                     allowed_suffixes: Optional[Union[Set[str], List[str]]] = None) -> bool:
+    def is_safe_path(base_path: Path, user_path: Path, allowed_suffixes: set[str] | list[str] | None = None) -> bool:
         """
         验证用户提供的路径是否在基准目录内，并检查文件类型是否合法，防止目录遍历攻击
 
@@ -141,8 +138,9 @@ class SecurityUtils:
             return False
 
     @staticmethod
-    async def async_is_safe_path(base_path: AsyncPath, user_path: AsyncPath,
-                                 allowed_suffixes: Optional[Union[Set[str], List[str]]] = None) -> bool:
+    async def async_is_safe_path(
+        base_path: AsyncPath, user_path: AsyncPath, allowed_suffixes: set[str] | list[str] | None = None
+    ) -> bool:
         """
         异步验证用户提供的路径是否在基准目录内，并检查文件类型是否合法，防止目录遍历攻击
 
@@ -172,7 +170,7 @@ class SecurityUtils:
             return False
 
     @staticmethod
-    def _literal_ip(hostname: str) -> Optional[ipaddress._BaseAddress]:
+    def _literal_ip(hostname: str) -> ipaddress._BaseAddress | None:
         """
         若 hostname 是字面量 IP（含 IPv6 的 `[::1]` 形式）则返回 IP 对象，否则 None。
         """
@@ -187,7 +185,7 @@ class SecurityUtils:
             return None
 
     @staticmethod
-    def _cache_lookup(hostname: str) -> tuple[bool, Optional[List[ipaddress._BaseAddress]]]:
+    def _cache_lookup(hostname: str) -> tuple[bool, list[ipaddress._BaseAddress] | None]:
         """
         在 TTL 缓存中查找 hostname，返回 (是否命中, 命中值)。
 
@@ -202,9 +200,7 @@ class SecurityUtils:
         return False, None
 
     @staticmethod
-    def _cache_store(
-        hostname: str, addresses: Optional[List[ipaddress._BaseAddress]]
-    ) -> None:
+    def _cache_store(hostname: str, addresses: list[ipaddress._BaseAddress] | None) -> None:
         """
         将解析结果写入对应的正向/负向缓存。
         """
@@ -215,7 +211,7 @@ class SecurityUtils:
                 _dns_positive_cache[hostname] = addresses
 
     @staticmethod
-    def _hostname_addresses(hostname: str) -> Optional[List[ipaddress._BaseAddress]]:
+    def _hostname_addresses(hostname: str) -> list[ipaddress._BaseAddress] | None:
         """
         同步解析主机名并返回全部 IP 地址，结果走 TTL 缓存。
 
@@ -274,7 +270,7 @@ class SecurityUtils:
     @staticmethod
     async def _hostname_addresses_async(
         hostname: str,
-    ) -> Optional[List[ipaddress._BaseAddress]]:
+    ) -> list[ipaddress._BaseAddress] | None:
         """
         异步解析主机名并返回全部 IP 地址，与同步版本共用同一份 TTL 缓存。
 
@@ -301,9 +297,7 @@ class SecurityUtils:
 
                 loop = asyncio.get_running_loop()
                 try:
-                    address_infos = await loop.getaddrinfo(
-                        hostname, None, type=socket.SOCK_STREAM
-                    )
+                    address_infos = await loop.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
                 except socket.gaierror:
                     SecurityUtils._cache_store(hostname, None)
                     return None
@@ -317,7 +311,7 @@ class SecurityUtils:
 
     @staticmethod
     def _addresses_all_global(
-        addresses: Optional[List[ipaddress._BaseAddress]],
+        addresses: list[ipaddress._BaseAddress] | None,
     ) -> bool:
         """
         判断解析结果是否全部为公网地址（空列表/None 视为非公网）。
@@ -335,21 +329,17 @@ class SecurityUtils:
         私有、回环、链路本地、保留地址等非公网目标，避免通过 DNS 或字面量 IP
         绕过域名白名单访问内网服务。
         """
-        return SecurityUtils._addresses_all_global(
-            SecurityUtils._hostname_addresses(hostname)
-        )
+        return SecurityUtils._addresses_all_global(SecurityUtils._hostname_addresses(hostname))
 
     @staticmethod
     async def _is_global_hostname_async(hostname: str) -> bool:
         """
         判断主机名解析结果是否全部为公网地址（异步版本）。语义与 `_is_global_hostname` 一致。
         """
-        return SecurityUtils._addresses_all_global(
-            await SecurityUtils._hostname_addresses_async(hostname)
-        )
+        return SecurityUtils._addresses_all_global(await SecurityUtils._hostname_addresses_async(hostname))
 
     @staticmethod
-    def _parse_ip_networks(ranges: Optional[Iterable[str]]) -> List[ipaddress._BaseNetwork]:
+    def _parse_ip_networks(ranges: Iterable[str] | None) -> list[ipaddress._BaseNetwork]:
         """
         解析用户配置的 IP/CIDR 网段。
 
@@ -368,9 +358,9 @@ class SecurityUtils:
 
     @staticmethod
     def _match_private_addresses(
-        addresses: Optional[List[ipaddress._BaseAddress]],
-        networks: List[ipaddress._BaseNetwork],
-    ) -> Optional[tuple[List[ipaddress._BaseAddress], List[ipaddress._BaseNetwork]]]:
+        addresses: list[ipaddress._BaseAddress] | None,
+        networks: list[ipaddress._BaseNetwork],
+    ) -> tuple[list[ipaddress._BaseAddress], list[ipaddress._BaseNetwork]] | None:
         """
         在已解析出的地址列表中匹配显式允许的非公网网段。
 
@@ -382,11 +372,9 @@ class SecurityUtils:
         if all(address.is_global for address in addresses):
             return None
 
-        matched_networks: List[ipaddress._BaseNetwork] = []
+        matched_networks: list[ipaddress._BaseNetwork] = []
         for address in addresses:
-            matched_for_address = [
-                network for network in networks if address in network
-            ]
+            matched_for_address = [network for network in networks if address in network]
             if not matched_for_address:
                 return None
             matched_networks.extend(matched_for_address)
@@ -395,8 +383,8 @@ class SecurityUtils:
     @staticmethod
     def _is_allowed_private_hostname(
         hostname: str,
-        allowed_private_ranges: Optional[Iterable[str]],
-    ) -> Optional[tuple[List[ipaddress._BaseAddress], List[ipaddress._BaseNetwork]]]:
+        allowed_private_ranges: Iterable[str] | None,
+    ) -> tuple[list[ipaddress._BaseAddress], list[ipaddress._BaseNetwork]] | None:
         """
         返回主机名命中的显式允许非公网地址和网段（同步版本）。
 
@@ -407,24 +395,20 @@ class SecurityUtils:
         networks = SecurityUtils._parse_ip_networks(allowed_private_ranges)
         if not networks:
             return None
-        return SecurityUtils._match_private_addresses(
-            SecurityUtils._hostname_addresses(hostname), networks
-        )
+        return SecurityUtils._match_private_addresses(SecurityUtils._hostname_addresses(hostname), networks)
 
     @staticmethod
     async def _is_allowed_private_hostname_async(
         hostname: str,
-        allowed_private_ranges: Optional[Iterable[str]],
-    ) -> Optional[tuple[List[ipaddress._BaseAddress], List[ipaddress._BaseNetwork]]]:
+        allowed_private_ranges: Iterable[str] | None,
+    ) -> tuple[list[ipaddress._BaseAddress], list[ipaddress._BaseNetwork]] | None:
         """
         `_is_allowed_private_hostname` 的异步版本，语义保持一致。
         """
         networks = SecurityUtils._parse_ip_networks(allowed_private_ranges)
         if not networks:
             return None
-        return SecurityUtils._match_private_addresses(
-            await SecurityUtils._hostname_addresses_async(hostname), networks
-        )
+        return SecurityUtils._match_private_addresses(await SecurityUtils._hostname_addresses_async(hostname), networks)
 
     @staticmethod
     def _url_signature_payload(url: str, purpose: str) -> bytes:
@@ -433,7 +417,7 @@ class SecurityUtils:
 
         签名覆盖用途与完整 URL，确保同一个签名不能挪用到其它代理用途或其它 URL。
         """
-        return f"{purpose}\n{url}".encode("utf-8")
+        return f"{purpose}\n{url}".encode()
 
     @staticmethod
     def _sign_url_payload(url: str, purpose: str) -> str:
@@ -505,7 +489,7 @@ class SecurityUtils:
     def verify_signed_url(
         url: str,
         purpose: str = _SIGNED_URL_PURPOSE,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         验证 URL fragment 中的资源签名，成功时返回去签名后的真实 URL。
 
@@ -532,9 +516,9 @@ class SecurityUtils:
     @staticmethod
     def _check_url_allowlist(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
+        allowed_domains: set[str] | list[str],
         strict: bool,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         执行"协议 + netloc + 域名白名单"前置校验，命中返回 hostname，未命中返回 None。
 
@@ -583,7 +567,7 @@ class SecurityUtils:
     @staticmethod
     def _log_private_range_allowed(
         url: str,
-        match: tuple[List[ipaddress._BaseAddress], List[ipaddress._BaseNetwork]],
+        match: tuple[list[ipaddress._BaseAddress], list[ipaddress._BaseNetwork]],
     ) -> None:
         """
         记录"图片代理允许访问配置的非公网网段"放行日志，便于运维排查。
@@ -598,10 +582,10 @@ class SecurityUtils:
     @staticmethod
     def is_safe_url(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
+        allowed_domains: set[str] | list[str],
         strict: bool = False,
         block_private: bool = False,
-        allowed_private_ranges: Optional[Iterable[str]] = None,
+        allowed_private_ranges: Iterable[str] | None = None,
     ) -> bool:
         """
         验证 URL 是否在允许的域名列表中，包括带有端口的域名（同步版本）。
@@ -628,10 +612,10 @@ class SecurityUtils:
     @staticmethod
     async def is_safe_url_async(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
+        allowed_domains: set[str] | list[str],
         strict: bool = False,
         block_private: bool = False,
-        allowed_private_ranges: Optional[Iterable[str]] = None,
+        allowed_private_ranges: Iterable[str] | None = None,
     ) -> bool:
         """
         判定 URL 是否在允许的域名列表中，包括带有端口的域名。
@@ -652,11 +636,11 @@ class SecurityUtils:
     @staticmethod
     def evaluate_url_safety(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
+        allowed_domains: set[str] | list[str],
         strict: bool = False,
         block_private: bool = False,
-        allowed_private_ranges: Optional[Iterable[str]] = None,
-    ) -> "UrlSafetyDiagnosis":
+        allowed_private_ranges: Iterable[str] | None = None,
+    ) -> UrlSafetyDiagnosis:
         """
         在 `is_safe_url` 的判定路径上输出结构化诊断结果（同步版本）。
 
@@ -679,9 +663,7 @@ class SecurityUtils:
                     host=hostname,
                 )
             addresses = SecurityUtils._hostname_addresses(hostname)
-            return SecurityUtils._diagnose_resolved_addresses(
-                url, hostname, addresses, allowed_private_ranges
-            )
+            return SecurityUtils._diagnose_resolved_addresses(url, hostname, addresses, allowed_private_ranges)
         except Exception as e:  # noqa: BLE001 - 默认拒绝，避免漏过 SSRF 校验
             logger.debug(f"Error occurred while validating URL: {e}")
             return UrlSafetyDiagnosis(
@@ -692,11 +674,11 @@ class SecurityUtils:
     @staticmethod
     async def evaluate_url_safety_async(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
+        allowed_domains: set[str] | list[str],
         strict: bool = False,
         block_private: bool = False,
-        allowed_private_ranges: Optional[Iterable[str]] = None,
-    ) -> "UrlSafetyDiagnosis":
+        allowed_private_ranges: Iterable[str] | None = None,
+    ) -> UrlSafetyDiagnosis:
         """
         输出与 `evaluate_url_safety` 完全一致的结构化诊断结果。
 
@@ -717,9 +699,7 @@ class SecurityUtils:
                     host=hostname,
                 )
             addresses = await SecurityUtils._hostname_addresses_async(hostname)
-            return SecurityUtils._diagnose_resolved_addresses(
-                url, hostname, addresses, allowed_private_ranges
-            )
+            return SecurityUtils._diagnose_resolved_addresses(url, hostname, addresses, allowed_private_ranges)
         except Exception as e:  # noqa: BLE001 - 默认拒绝，避免漏过 SSRF 校验
             logger.debug(f"Error occurred while validating URL: {e}")
             return UrlSafetyDiagnosis(
@@ -730,8 +710,8 @@ class SecurityUtils:
     @staticmethod
     async def is_safe_image_url_async(
         url: str,
-        allowed_domains: Union[Set[str], List[str]],
-        allowed_private_ranges: Optional[Iterable[str]] = None,
+        allowed_domains: set[str] | list[str],
+        allowed_private_ranges: Iterable[str] | None = None,
     ) -> bool:
         """
         判定 URL 是否可作为图片代理请求目标。
@@ -768,9 +748,9 @@ class SecurityUtils:
     def _diagnose_resolved_addresses(
         url: str,
         hostname: str,
-        addresses: Optional[List[ipaddress._BaseAddress]],
-        allowed_private_ranges: Optional[Iterable[str]],
-    ) -> "UrlSafetyDiagnosis":
+        addresses: list[ipaddress._BaseAddress] | None,
+        allowed_private_ranges: Iterable[str] | None,
+    ) -> UrlSafetyDiagnosis:
         """
         对已完成 DNS 解析的地址列表执行非公网放行判断，并归一化诊断结果。
 
@@ -878,17 +858,17 @@ def _url_carries_signature(url: str) -> bool:
     fragment_start = url.find("#")
     if fragment_start < 0:
         return False
-    return "mp_sig=" in url[fragment_start + 1:]
+    return "mp_sig=" in url[fragment_start + 1 :]
 
 
 def _format_image_proxy_block_warning(
     *,
     url: str,
     reason: str,
-    host: Optional[str],
-    ips: List[str],
-    allowed_private_ranges: List[str],
-    hint: Optional[str],
+    host: str | None,
+    ips: list[str],
+    allowed_private_ranges: list[str],
+    hint: str | None,
 ) -> str:
     """
     渲染图片代理首条阻断 warning 文案。
@@ -941,9 +921,9 @@ _image_proxy_block_log_coalescer = EventCoalescer(
 async def _emit_image_proxy_block_warning(
     *,
     url: str,
-    diagnosis: "UrlSafetyDiagnosis",
+    diagnosis: UrlSafetyDiagnosis,
     signature_carried: bool,
-    allowed_private_ranges: Optional[Iterable[str]],
+    allowed_private_ranges: Iterable[str] | None,
 ) -> None:
     """
     把诊断结果转写为结构化阻断 warning，并交由 coalescer 决定是否实际输出。
@@ -961,8 +941,7 @@ async def _emit_image_proxy_block_warning(
     allowed_ranges = [str(r) for r in (allowed_private_ranges or [])]
     hint = (
         _IMAGE_PROXY_FAKEIP_HINT
-        if diagnosis.reason is UrlSafetyReason.NON_GLOBAL_DNS_RESULT
-        and not allowed_ranges
+        if diagnosis.reason is UrlSafetyReason.NON_GLOBAL_DNS_RESULT and not allowed_ranges
         else None
     )
     key = (diagnosis.host or "", reason_label)

@@ -3,12 +3,12 @@ from time import monotonic, sleep
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.config import global_vars
-from app.core.event import eventmanager, Event
+from app.core.event import Event, eventmanager
 from app.db.models import Workflow
 from app.db.workflow_oper import WorkflowOper
 from app.helper.module import ModuleHelper
 from app.log import logger
-from app.schemas import ActionContext, Action, ActionResult
+from app.schemas import Action, ActionContext, ActionResult
 from app.schemas.types import EventType
 from app.utils.singleton import Singleton
 
@@ -21,8 +21,8 @@ class WorkFlowManager(metaclass=Singleton):
     def __init__(self):
         # 所有动作定义
         self._lock = threading.Lock()
-        self._actions: Dict[str, Any] = {}
-        self._event_workflows: Dict[str, List[int]] = {}
+        self._actions: dict[str, Any] = {}
+        self._event_workflows: dict[str, list[int]] = {}
         self.init()
 
     def init(self):
@@ -36,7 +36,7 @@ class WorkFlowManager(metaclass=Singleton):
             """
             if not isinstance(obj, type):
                 return False
-            if not hasattr(obj, 'execute') or not hasattr(obj, "name"):
+            if not hasattr(obj, "execute") or not hasattr(obj, "name"):
                 return False
             if obj.__name__ == "BaseAction":
                 return False
@@ -44,10 +44,7 @@ class WorkFlowManager(metaclass=Singleton):
 
         # 加载所有动作
         self._actions = {}
-        actions = ModuleHelper.load(
-            "app.workflow.actions",
-            filter_func=lambda _, obj: filter_func(obj)
-        )
+        actions = ModuleHelper.load("app.workflow.actions", filter_func=lambda _, obj: filter_func(obj))
         for action in actions:
             logger.debug(f"加载动作: {action.__name__}")
             try:
@@ -67,9 +64,15 @@ class WorkFlowManager(metaclass=Singleton):
         self._actions = {}
         self._event_workflows = {}
 
-    def execute(self, workflow_id: int, action: Action, context: ActionContext = None,
-                inputs: Optional[dict] = None, runtime: Optional[dict] = None,
-                cancel_token: Optional[Any] = None) -> ActionResult:
+    def execute(
+        self,
+        workflow_id: int,
+        action: Action,
+        context: ActionContext = None,
+        inputs: dict | None = None,
+        runtime: dict | None = None,
+        cancel_token: Any | None = None,
+    ) -> ActionResult:
         """
         执行工作流动作
         """
@@ -100,7 +103,7 @@ class WorkFlowManager(metaclass=Singleton):
                 context=context,
                 inputs=inputs or {},
                 runtime=runtime_data,
-                cancel_token=cancel_token
+                cancel_token=cancel_token,
             )
             action_result.attempts = attempt
             context = action_result.context or context
@@ -115,13 +118,18 @@ class WorkFlowManager(metaclass=Singleton):
         logger.error(f"{action.name} 执行失败！")
         return action_result
 
-    def excute(self, workflow_id: int, action: Action,
-               context: ActionContext = None) -> Tuple[bool, str, ActionContext]:
+    def excute(
+        self, workflow_id: int, action: Action, context: ActionContext = None
+    ) -> tuple[bool, str, ActionContext]:
         """
         执行工作流动作，兼容历史拼写错误的方法名。
         """
         action_result = self.execute(workflow_id=workflow_id, action=action, context=context)
-        return bool(action_result.success), action_result.message or "", action_result.context or context or ActionContext()
+        return (
+            bool(action_result.success),
+            action_result.message or "",
+            action_result.context or context or ActionContext(),
+        )
 
     @staticmethod
     def _normalize_action_result(result: Any, action_obj: Any, fallback_context: ActionContext) -> ActionResult:
@@ -133,14 +141,17 @@ class WorkFlowManager(metaclass=Singleton):
             if result.message is None:
                 result.message = action_obj.message
             return result
-        return ActionResult(
-            success=action_obj.success,
-            message=action_obj.message,
-            context=result or fallback_context
-        )
+        return ActionResult(success=action_obj.success, message=action_obj.message, context=result or fallback_context)
 
-    def _execute_action_once(self, workflow_id: int, action: Action, context: ActionContext,
-                             inputs: dict, runtime: dict, cancel_token: Optional[Any]) -> ActionResult:
+    def _execute_action_once(
+        self,
+        workflow_id: int,
+        action: Action,
+        context: ActionContext,
+        inputs: dict,
+        runtime: dict,
+        cancel_token: Any | None,
+    ) -> ActionResult:
         action_obj = self._actions[action.type](action.id)
         logger.info(f"执行动作: {action.id} - {action.name}")
         try:
@@ -151,16 +162,23 @@ class WorkFlowManager(metaclass=Singleton):
                 context=context,
                 inputs=inputs,
                 runtime=runtime,
-                cancel_token=cancel_token
+                cancel_token=cancel_token,
             )
         except Exception as err:
             logger.error(f"{action.name} 执行失败: {err}")
             return ActionResult(success=False, message=f"{err}", context=context)
         return action_result
 
-    def _run_action_with_loop(self, workflow_id: int, action: Action, action_obj: Any,
-                              context: ActionContext, inputs: dict, runtime: dict,
-                              cancel_token: Optional[Any]) -> ActionResult:
+    def _run_action_with_loop(
+        self,
+        workflow_id: int,
+        action: Action,
+        action_obj: Any,
+        context: ActionContext,
+        inputs: dict,
+        runtime: dict,
+        cancel_token: Any | None,
+    ) -> ActionResult:
         timeout = self._get_action_timeout(action)
         started_at = monotonic()
         action_result = self._call_action(
@@ -169,7 +187,7 @@ class WorkFlowManager(metaclass=Singleton):
             action_obj=action_obj,
             context=context,
             inputs=inputs,
-            runtime=runtime
+            runtime=runtime,
         )
         loop = self._get_action_data_value(action, "loop")
         loop_interval = self._get_action_data_value(action, "loop_interval")
@@ -177,7 +195,9 @@ class WorkFlowManager(metaclass=Singleton):
             if self._is_cancelled(workflow_id, cancel_token):
                 return ActionResult(success=False, message="工作流已取消", context=action_result.context or context)
             if timeout and monotonic() - started_at >= timeout:
-                return ActionResult(success=False, message=f"动作执行超时（{timeout}秒）", context=action_result.context or context)
+                return ActionResult(
+                    success=False, message=f"动作执行超时（{timeout}秒）", context=action_result.context or context
+                )
             logger.info(f"{action.name} 等待 {loop_interval} 秒后继续执行 ...")
             self._sleep_with_cancel(workflow_id, loop_interval, cancel_token)
             if self._is_cancelled(workflow_id, cancel_token):
@@ -189,12 +209,13 @@ class WorkFlowManager(metaclass=Singleton):
                 action_obj=action_obj,
                 context=action_result.context or context,
                 inputs=inputs,
-                runtime=runtime
+                runtime=runtime,
             )
         return action_result
 
-    def _call_action(self, workflow_id: int, action: Action, action_obj: Any,
-                     context: ActionContext, inputs: dict, runtime: dict) -> ActionResult:
+    def _call_action(
+        self, workflow_id: int, action: Action, action_obj: Any, context: ActionContext, inputs: dict, runtime: dict
+    ) -> ActionResult:
         if hasattr(action_obj, "execute_with_inputs"):
             result = action_obj.execute_with_inputs(workflow_id, action.data, inputs, runtime, context)
         else:
@@ -206,7 +227,7 @@ class WorkFlowManager(metaclass=Singleton):
         data = action.data or {}
         return data.get(key) if isinstance(data, dict) else None
 
-    def _get_action_timeout(self, action: Action) -> Optional[int]:
+    def _get_action_timeout(self, action: Action) -> int | None:
         timeout = action.timeout or self._get_action_data_value(action, "timeout")
         return int(timeout) if timeout else None
 
@@ -221,19 +242,19 @@ class WorkFlowManager(metaclass=Singleton):
         }
 
     @staticmethod
-    def _is_cancelled(workflow_id: int, cancel_token: Optional[Any]) -> bool:
+    def _is_cancelled(workflow_id: int, cancel_token: Any | None) -> bool:
         if cancel_token and cancel_token.is_cancelled():
             return True
         return global_vars.is_workflow_stopped(workflow_id)
 
-    def _sleep_with_cancel(self, workflow_id: int, seconds: float, cancel_token: Optional[Any]) -> None:
+    def _sleep_with_cancel(self, workflow_id: int, seconds: float, cancel_token: Any | None) -> None:
         deadline = monotonic() + seconds
         while monotonic() < deadline:
             if self._is_cancelled(workflow_id, cancel_token):
                 return
             sleep(min(0.1, deadline - monotonic()))
 
-    def list_actions(self) -> List[dict]:
+    def list_actions(self) -> list[dict]:
         """
         获取所有动作
         """
@@ -243,11 +264,9 @@ class WorkFlowManager(metaclass=Singleton):
                 "name": action.name,
                 "description": action.description,
                 "contract": action.get_contract(),
-                "data": {
-                    "label": action.name,
-                    **action.data
-                }
-            } for key, action in self._actions.items()
+                "data": {"label": action.name, **action.data},
+            }
+            for key, action in self._actions.items()
         ]
 
     def get_action_contract(self, action_type: str) -> dict:
@@ -266,11 +285,11 @@ class WorkFlowManager(metaclass=Singleton):
         # 工作流可能切换触发事件，先按工作流ID从所有事件映射中移除。
         self.remove_workflow_event(workflow_id=workflow.id)
         # 如果工作流是事件触发类型且未被禁用
-        if workflow.trigger_type == "event" and workflow.state != 'P':
+        if workflow.trigger_type == "event" and workflow.state != "P":
             # 注册事件触发器
             self.register_workflow_event(workflow.id, workflow.event_type)
 
-    def load_workflow_events(self, workflow_id: Optional[int] = None):
+    def load_workflow_events(self, workflow_id: int | None = None):
         """
         加载工作流触发事件
         """
@@ -308,7 +327,7 @@ class WorkFlowManager(metaclass=Singleton):
                     self._event_workflows[event_type.value].append(workflow_id)
                 logger.info(f"已注册工作流 {workflow_id} 事件触发器: {event_type.value}")
 
-    def remove_workflow_event(self, workflow_id: Optional[int] = None, event_type_str: Optional[str] = None):
+    def remove_workflow_event(self, workflow_id: int | None = None, event_type_str: str | None = None):
         """
         移除工作流事件触发器
         """
@@ -354,7 +373,7 @@ class WorkFlowManager(metaclass=Singleton):
         try:
             # 检查工作流是否存在且启用
             workflow = WorkflowOper().get(workflow_id)
-            if not workflow or workflow.state == 'P':
+            if not workflow or workflow.state == "P":
                 return
 
             # 检查事件条件
@@ -363,16 +382,19 @@ class WorkFlowManager(metaclass=Singleton):
                 return
 
             # 检查工作流是否正在运行
-            if workflow.state == 'R':
+            if workflow.state == "R":
                 logger.warning(f"工作流 {workflow.name} 正在运行中，跳过重复触发")
                 return
 
             logger.info(f"事件 {event.event_type.value} 触发工作流: {workflow.name}")
 
             # 发送工作流执行事件以启动工作流
-            eventmanager.send_event(EventType.WorkflowExecute, {
-                "workflow_id": workflow_id,
-            })
+            eventmanager.send_event(
+                EventType.WorkflowExecute,
+                {
+                    "workflow_id": workflow_id,
+                },
+            )
 
         except Exception as e:
             logger.error(f"触发工作流 {workflow_id} 失败: {e}")
@@ -430,6 +452,7 @@ class WorkFlowManager(metaclass=Singleton):
                     return False
             elif operator == "regex":
                 import re
+
                 if not re.search(expected_value, str(actual_value)):
                     return False
         return True

@@ -20,7 +20,7 @@ class UpdateSiteCookieInput(BaseModel):
     )
     username: str = Field(..., description="Site login username")
     password: str = Field(..., description="Site login password")
-    two_step_code: Optional[str] = Field(
+    two_step_code: str | None = Field(
         None,
         description="Two-step verification code or secret key (optional, required for sites with 2FA enabled)",
     )
@@ -34,10 +34,10 @@ class UpdateSiteCookieTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Update site Cookie and User-Agent by logging in with username and password. This tool can automatically obtain and update the site's authentication credentials. Supports two-step verification for sites that require it. Accepts site ID only."
-    args_schema: Type[BaseModel] = UpdateSiteCookieInput
+    args_schema: type[BaseModel] = UpdateSiteCookieInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据更新参数生成友好的提示消息"""
         site_identifier = kwargs.get("site_identifier")
         username = kwargs.get("username", "")
@@ -54,8 +54,8 @@ class UpdateSiteCookieTool(MoviePilotTool):
         site_identifier: int,
         username: str,
         password: str,
-        two_step_code: Optional[str] = None,
-    ) -> tuple[Optional[str], bool, str]:
+        two_step_code: str | None = None,
+    ) -> tuple[str | None, bool, str]:
         """
         在同步线程里执行站点登录和 Cookie 更新，避免网络登录阻塞协程。
         """
@@ -76,12 +76,10 @@ class UpdateSiteCookieTool(MoviePilotTool):
         site_identifier: int,
         username: str,
         password: str,
-        two_step_code: Optional[str] = None,
+        two_step_code: str | None = None,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: site_identifier={site_identifier}, username={username}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: site_identifier={site_identifier}, username={username}")
 
         try:
             site_name, status, message = await self.run_blocking(

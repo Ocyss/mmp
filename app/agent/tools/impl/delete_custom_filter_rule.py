@@ -6,13 +6,13 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     collect_custom_rule_group_refs,
     get_custom_rules,
     get_rule_groups,
     save_system_config,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -34,10 +34,10 @@ class DeleteCustomFilterRuleTool(MoviePilotTool):
         "Delete a custom filter rule from CustomFilterRules. "
         "If the rule is still referenced by rule groups, the deletion is blocked to avoid breaking rule_string expressions."
     )
-    args_schema: Type[BaseModel] = DeleteCustomFilterRuleInput
+    args_schema: type[BaseModel] = DeleteCustomFilterRuleInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         return f"删除自定义过滤规则 {kwargs.get('rule_id', '')}"
 
     async def run(self, rule_id: str, **kwargs) -> str:
@@ -55,25 +55,19 @@ class DeleteCustomFilterRuleTool(MoviePilotTool):
                     ensure_ascii=False,
                 )
 
-            refs = collect_custom_rule_group_refs(get_rule_groups(), [rule_id]).get(
-                rule_id, []
-            )
+            refs = collect_custom_rule_group_refs(get_rule_groups(), [rule_id]).get(rule_id, [])
             if refs:
                 return json.dumps(
                     {
                         "success": False,
-                        "message": (
-                            f"自定义过滤规则 '{rule_id}' 仍被规则组引用，无法删除。"
-                        ),
+                        "message": (f"自定义过滤规则 '{rule_id}' 仍被规则组引用，无法删除。"),
                         "referenced_by_rule_groups": refs,
                     },
                     ensure_ascii=False,
                     indent=2,
                 )
 
-            remaining_rules = [
-                rule for rule in custom_rules if rule.id != rule_id
-            ]
+            remaining_rules = [rule for rule in custom_rules if rule.id != rule_id]
             await save_system_config(
                 SystemConfigKey.CustomFilterRules,
                 [rule.model_dump(exclude_none=True) for rule in remaining_rules],

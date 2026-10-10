@@ -2,6 +2,7 @@
 doh函数的实现。
 author: https://github.com/C5H12O5/syno-videoinfo-plugin
 """
+
 import base64
 import concurrent
 import concurrent.futures
@@ -19,13 +20,13 @@ from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import Singleton
 
 # DoH 关闭时需要释放线程池；保持惰性创建可避免未启用 DoH 时占用进程级资源
-_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+_executor: concurrent.futures.ThreadPoolExecutor | None = None
 _executor_lock = Lock()
 _doh_enabled = False
 
 # 定义默认的DoH配置
 _doh_timeout = 5
-_doh_cache: Dict[str, str] = {}
+_doh_cache: dict[str, str] = {}
 _doh_lock = Lock()
 # 保存原始的 socket.getaddrinfo 方法
 _orig_getaddrinfo = socket.getaddrinfo
@@ -64,10 +65,7 @@ def enable_doh(enable: bool) -> None:
                 return _orig_getaddrinfo(host, *args, **kwargs)
             executor = _get_executor_locked()
             # 一次解析的任务必须在同一临界区提交完，避免关闭过程中部分任务落入新线程池
-            futures = [
-                executor.submit(_doh_query, resolver, host)
-                for resolver in settings.DOH_RESOLVERS.split(",")
-            ]
+            futures = [executor.submit(_doh_query, resolver, host) for resolver in settings.DOH_RESOLVERS.split(",")]
         for future in concurrent.futures.as_completed(futures):
             ip = future.result()
             if ip is not None:
@@ -87,6 +85,7 @@ class DohHelper(ConfigReloadMixin, metaclass=Singleton):
     """
     DoH帮助类，用于处理DNS over HTTPS解析。
     """
+
     CONFIG_WATCH = {"DOH_ENABLE", "DOH_DOMAINS", "DOH_RESOLVERS"}
 
     def __init__(self) -> None:
@@ -102,7 +101,7 @@ class DohHelper(ConfigReloadMixin, metaclass=Singleton):
         enable_doh(True)
 
     def get_reload_name(self) -> str:
-        return 'DoH'
+        return "DoH"
 
     def shutdown(self) -> None:
         """恢复系统 DNS 并释放 DoH 查询线程池"""
@@ -118,7 +117,7 @@ class DohHelper(ConfigReloadMixin, metaclass=Singleton):
             executor.shutdown(wait=True)
 
 
-def _doh_query(resolver: str, host: str) -> Optional[str]:
+def _doh_query(resolver: str, host: str) -> str | None:
     """
     使用给定的DoH解析器查询给定主机的IP地址。
     """
@@ -136,12 +135,7 @@ def _doh_query(resolver: str, host: str) -> Optional[str]:
     )
     question = b"".join(
         [
-            b"".join(
-                [
-                    struct.pack("B", len(item)) + item.encode("utf-8")
-                    for item in host.split(".")
-                ]
-            )
+            b"".join([struct.pack("B", len(item)) + item.encode("utf-8") for item in host.split(".")])
             + b"\x00",  # QNAME: 域名序列
             b"\x00\x01",  # QTYPE: A
             b"\x00\x01",  # QCLASS: IN
@@ -175,7 +169,7 @@ def _doh_query(resolver: str, host: str) -> Optional[str]:
         return None
 
 
-def doh_query_json(resolver: str, host: str) -> Optional[str]:
+def doh_query_json(resolver: str, host: str) -> str | None:
     """
     使用给定的DoH解析器查询给定主机的IP地址。
     """

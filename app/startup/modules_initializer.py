@@ -1,8 +1,8 @@
 import inspect
 import sys
-from typing import Callable
+from collections.abc import Callable
 
-from app.helper.redis import RedisHelper, AsyncRedisHelper
+from app.helper.redis import AsyncRedisHelper, RedisHelper
 
 # SitesHelper涉及资源包拉取，提前引入并容错提示
 try:
@@ -13,23 +13,23 @@ except ImportError as e:
     print(error_message, file=sys.stderr)
     sys.exit(1)
 
-from app.utils.system import SystemUtils
-from app.log import logger
+from app.command import CommandChain
 from app.core.config import settings
-from app.core.module import ModuleManager
 from app.core.event import EventManager
-from app.helper.thread import ThreadHelper
-from app.helper.display import DisplayHelper
-from app.helper.doh import DohHelper
-from app.helper.resource import ResourceHelper
-from app.helper.message import MessageHelper, stop_message
-from app.helper.server import MoviePilotServerHelper
+from app.core.module import ModuleManager
 from app.db import close_database
 from app.db.systemconfig_oper import SystemConfigOper
-from app.command import CommandChain
+from app.helper.display import DisplayHelper
+from app.helper.doh import DohHelper
+from app.helper.message import MessageHelper, stop_message
+from app.helper.resource import ResourceHelper
+from app.helper.server import MoviePilotServerHelper
+from app.helper.thread import ThreadHelper
+from app.log import logger
 from app.schemas import Notification, NotificationType
 from app.schemas.types import SystemConfigKey
 from app.startup.agent_initializer import init_agent, stop_agent
+from app.utils.system import SystemUtils
 
 
 def start_frontend():
@@ -37,34 +37,32 @@ def start_frontend():
     启动前端服务
     """
     # 仅Windows可执行文件支持内嵌nginx
-    if not SystemUtils.is_frozen() \
-            or not SystemUtils.is_windows():
+    if not SystemUtils.is_frozen() or not SystemUtils.is_windows():
         return
     # 临时Nginx目录
-    nginx_path = settings.ROOT_PATH / 'nginx'
+    nginx_path = settings.ROOT_PATH / "nginx"
     if not nginx_path.exists():
         return
     # 配置目录下的Nginx目录
-    run_nginx_dir = settings.CONFIG_PATH.with_name('nginx')
+    run_nginx_dir = settings.CONFIG_PATH.with_name("nginx")
     if not run_nginx_dir.exists():
         # 移动到配置目录
         SystemUtils.move(nginx_path, run_nginx_dir)
     # 启动Nginx
     import subprocess
-    subprocess.Popen("start nginx.exe",
-                     cwd=run_nginx_dir,
-                     shell=True)
+
+    subprocess.Popen("start nginx.exe", cwd=run_nginx_dir, shell=True)
 
 
 def stop_frontend():
     """
     停止前端服务
     """
-    if not SystemUtils.is_frozen() \
-            or not SystemUtils.is_windows():
+    if not SystemUtils.is_frozen() or not SystemUtils.is_windows():
         return
     import subprocess
-    subprocess.Popen(f"taskkill /f /im nginx.exe", shell=True)
+
+    subprocess.Popen("taskkill /f /im nginx.exe", shell=True)
 
 
 def clear_temp():
@@ -122,7 +120,7 @@ def check_auth():
                 mtype=NotificationType.Manual,
                 title="MoviePilot用户认证",
                 text=err_msg,
-                link=settings.MP_DOMAIN('#/site')
+                link=settings.MP_DOMAIN("#/site"),
             )
         )
 
@@ -131,6 +129,7 @@ async def stop_modules():
     """
     服务关闭
     """
+
     async def run_step(name: str, callback: Callable[[], object]) -> None:
         """单个模块资源关闭失败时继续执行后续阶段"""
         try:

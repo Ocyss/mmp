@@ -6,8 +6,8 @@ Revises: 8ab72c49d1e3
 Create Date: 2026-07-07
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "b7d4a9c2e6f1"
 down_revision = "8ab72c49d1e3"

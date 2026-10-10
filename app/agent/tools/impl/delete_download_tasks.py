@@ -13,14 +13,12 @@ from app.log import logger
 class DeleteDownloadTasksInput(BaseModel):
     """删除下载任务工具的输入参数模型"""
 
-    hash: str = Field(
-        ..., description="Task hash (can be obtained from query_download_tasks tool)"
-    )
-    downloader: Optional[str] = Field(
+    hash: str = Field(..., description="Task hash (can be obtained from query_download_tasks tool)")
+    downloader: str | None = Field(
         None,
         description="Name of specific downloader (optional, if not provided will search all downloaders)",
     )
-    delete_files: Optional[bool] = Field(
+    delete_files: bool | None = Field(
         False,
         description="Whether to delete downloaded files along with the task (default: False, only removes the task from downloader)",
     )
@@ -36,10 +34,10 @@ class DeleteDownloadTasksTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Delete a download task from the downloader by task hash only. Optionally specify the downloader name and whether to delete downloaded files."
-    args_schema: Type[BaseModel] = DeleteDownloadTasksInput
+    args_schema: type[BaseModel] = DeleteDownloadTasksInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据删除参数生成友好的提示消息"""
         hash_value = kwargs.get("hash", "")
         downloader = kwargs.get("downloader")
@@ -54,25 +52,19 @@ class DeleteDownloadTasksTool(MoviePilotTool):
         return message
 
     @staticmethod
-    def _delete_download_sync(
-        hash_value: str, downloader: Optional[str] = None, delete_files: bool = False
-    ) -> bool:
+    def _delete_download_sync(hash_value: str, downloader: str | None = None, delete_files: bool = False) -> bool:
         """同步删除下载任务，避免下载器客户端阻塞事件循环。"""
-        return DownloadChain().remove_torrents(
-            hashs=[hash_value], downloader=downloader, delete_file=delete_files
-        )
+        return DownloadChain().remove_torrents(hashs=[hash_value], downloader=downloader, delete_file=delete_files)
 
     async def run(
         self,
         hash: str,
-        downloader: Optional[str] = None,
-        delete_files: Optional[bool] = False,
+        downloader: str | None = None,
+        delete_files: bool | None = False,
         **kwargs,
     ) -> str:
         """执行删除下载任务。"""
-        logger.info(
-            f"执行工具: {self.name}, 参数: hash={hash}, downloader={downloader}, delete_files={delete_files}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: hash={hash}, downloader={downloader}, delete_files={delete_files}")
 
         try:
             # 仅支持通过hash删除任务

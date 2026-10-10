@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import click
 from pydantic import BaseModel, ConfigDict
@@ -26,7 +26,7 @@ class LogConfigModel(BaseModel):
     model_config = ConfigDict(extra="ignore")  # 忽略未定义的配置项
 
     # 配置文件目录
-    CONFIG_DIR: Optional[str] = None
+    CONFIG_DIR: str | None = None
     # 是否为调试模式
     DEBUG: bool = False
     # 日志级别（DEBUG、INFO、WARNING、ERROR等）
@@ -72,11 +72,7 @@ class LogSettings(BaseSettings, LogConfigModel):
         """
         return self.LOG_MAX_FILE_SIZE * 1024 * 1024
 
-    model_config = ConfigDict(
-        case_sensitive=True,
-        env_file=SystemUtils.get_env_path(),
-        env_file_encoding="utf-8"
-    )
+    model_config = ConfigDict(case_sensitive=True, env_file=SystemUtils.get_env_path(), env_file_encoding="utf-8")
 
 
 # 实例化日志设置
@@ -122,6 +118,7 @@ class NonBlockingFileHandler:
     """
     非阻塞文件处理器 - 使用RotatingFileHandler实现日志滚动
     """
+
     _instance = None
     _lock = threading.Lock()
     _stop_sentinel = object()
@@ -134,7 +131,7 @@ class NonBlockingFileHandler:
         return cls._instance
 
     def __init__(self):
-        if hasattr(self, '_initialized'):
+        if hasattr(self, "_initialized"):
             return
 
         self._initialized = True
@@ -142,8 +139,7 @@ class NonBlockingFileHandler:
         self._handlers_lock = threading.Lock()
         self._rotating_handlers = {}
         self._write_queue = queue.Queue(maxsize=log_settings.ASYNC_FILE_QUEUE_SIZE)
-        self._executor = ThreadPoolExecutor(max_workers=log_settings.ASYNC_FILE_WORKERS,
-                                            thread_name_prefix="LogWriter")
+        self._executor = ThreadPoolExecutor(max_workers=log_settings.ASYNC_FILE_WORKERS, thread_name_prefix="LogWriter")
         self._running = True
 
         # 启动后台写入线程
@@ -164,7 +160,7 @@ class NonBlockingFileHandler:
                     filename=str(file_path),
                     maxBytes=log_settings.LOG_MAX_FILE_SIZE_BYTES,
                     backupCount=log_settings.LOG_BACKUP_COUNT,
-                    encoding='utf-8'
+                    encoding="utf-8",
                 )
 
                 # 设置格式化器
@@ -226,16 +222,18 @@ class NonBlockingFileHandler:
             # 获取RotatingFileHandler实例
             handler = NonBlockingFileHandler()._get_rotating_handler(entry.file_path)
 
-            handler.handle(logging.LogRecord(
-                name='',
-                level=getattr(logging, entry.level.upper(), logging.INFO),
-                pathname='',
-                lineno=0,
-                msg=entry.message,
-                args=(),
-                exc_info=None,
-                created=entry.timestamp.timestamp()
-            ))
+            handler.handle(
+                logging.LogRecord(
+                    name="",
+                    level=getattr(logging, entry.level.upper(), logging.INFO),
+                    pathname="",
+                    lineno=0,
+                    msg=entry.message,
+                    args=(),
+                    exc_info=None,
+                    created=entry.timestamp.timestamp(),
+                )
+            )
         except Exception as e:
             # 如果文件写入失败，至少输出到控制台
             print(f"日志写入失败 {entry.file_path}: {e}")
@@ -291,16 +289,18 @@ class NonBlockingFileHandler:
 
                 # 批量写入
                 for entry in entries:
-                    handler.handle(logging.LogRecord(
-                        name='',
-                        level=getattr(logging, entry.level.upper(), logging.INFO),
-                        pathname='',
-                        lineno=0,
-                        msg=entry.message,
-                        args=(),
-                        exc_info=None,
-                        created=entry.timestamp.timestamp()
-                    ))
+                    handler.handle(
+                        logging.LogRecord(
+                            name="",
+                            level=getattr(logging, entry.level.upper(), logging.INFO),
+                            pathname="",
+                            lineno=0,
+                            msg=entry.message,
+                            args=(),
+                            exc_info=None,
+                            created=entry.timestamp.timestamp(),
+                        )
+                    )
             except Exception as e:
                 print(f"批量写入失败 {file_path}: {e}")
                 # 回退到逐个写入
@@ -315,10 +315,10 @@ class NonBlockingFileHandler:
             if not self._running:
                 return
             self._running = False
-            if hasattr(self, '_write_thread') and self._write_thread.is_alive():
+            if hasattr(self, "_write_thread") and self._write_thread.is_alive():
                 # 状态锁保证停止标记之后不会再有生产者入队
                 self._write_queue.put(self._stop_sentinel)
-        if hasattr(self, '_write_thread') and self._write_thread.is_alive():
+        if hasattr(self, "_write_thread") and self._write_thread.is_alive():
             self._write_thread.join()
         if self._executor:
             self._executor.shutdown(wait=True)
@@ -333,8 +333,9 @@ class LoggerManager:
     """
     日志管理
     """
+
     # 管理所有的 Logger
-    _loggers: Dict[str, Any] = {}
+    _loggers: dict[str, Any] = {}
     # 默认日志文件名称
     _default_log_file = "moviepilot.log"
     # 线程锁
@@ -373,7 +374,7 @@ class LoggerManager:
 
         try:
             frame = sys._getframe(3)  # noqa
-        except (AttributeError, ValueError):
+        except AttributeError, ValueError:
             # 如果无法获取帧，返回默认值
             return "log.py", None
 
@@ -498,7 +499,7 @@ class LoggerManager:
         if args:
             try:
                 formatted_msg = formatted_msg % args
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 # 如果格式化失败，直接拼接
                 formatted_msg = f"{formatted_msg} {' '.join(str(arg) for arg in args)}"
 

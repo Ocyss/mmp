@@ -7,13 +7,15 @@
 2. :func:`snapshot_modules` / :func:`restore_modules` —— 快照与还原 ``sys.modules``，
    供测试在 setUp/tearDown 做整体自隔离，消除测试间通过 ``sys.modules`` 传播的污染。
 """
+
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Optional
 
 
 @contextmanager
-def stub_modules(stubs: Dict[str, Any]) -> Iterator[None]:
+def stub_modules(stubs: dict[str, Any]) -> Iterator[None]:
     """在上下文内用假模块临时替换 ``sys.modules`` 中的指定项，退出时还原。
 
     典型用法：在测试模块顶层包裹依赖打桩的 import，使打桩只在 import 期生效、
@@ -27,7 +29,7 @@ def stub_modules(stubs: Dict[str, Any]) -> Iterator[None]:
             from app.chain.media import MediaChain
         # 此处 app.helper.sites 已还原为真实模块，MediaChain 已绑定可用
     """
-    saved: Dict[str, Any] = {}
+    saved: dict[str, Any] = {}
     for name, module in stubs.items():
         saved[name] = sys.modules.get(name)
         sys.modules[name] = module
@@ -41,7 +43,7 @@ def stub_modules(stubs: Dict[str, Any]) -> Iterator[None]:
                 sys.modules[name] = original
 
 
-def snapshot_modules(prefix: Optional[str] = None) -> Dict[str, Any]:
+def snapshot_modules(prefix: str | None = None) -> dict[str, Any]:
     """对当前 ``sys.modules`` 取浅快照，用于稍后还原。
 
     :param prefix: 仅快照名称匹配该前缀的模块（如 ``"app."``）；为 ``None`` 时快照全部。
@@ -55,7 +57,7 @@ def snapshot_modules(prefix: Optional[str] = None) -> Dict[str, Any]:
     return {k: v for k, v in sys.modules.items() if k == parent or k.startswith(parent + ".")}
 
 
-def restore_modules(snapshot: Dict[str, Any], prefix: Optional[str] = None) -> None:
+def restore_modules(snapshot: dict[str, Any], prefix: str | None = None) -> None:
     """把 ``sys.modules`` 还原到 :func:`snapshot_modules` 的状态。
 
     被替换 / 删除的恢复为快照值；快照之后新增的（同前缀范围内）移除，避免假桩残留。

@@ -6,7 +6,6 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._system_setting_utils import (
     SettingSpec,
     is_secret_setting_key,
@@ -15,6 +14,7 @@ from app.agent.tools.impl._system_setting_utils import (
     resolve_setting_spec,
     should_redact_setting,
 )
+from app.agent.tools.tags import ToolTag
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
@@ -23,7 +23,7 @@ from app.log import logger
 class QuerySystemSettingsInput(BaseModel):
     """查询系统设置工具的输入参数模型。"""
 
-    setting_key: Optional[str] = Field(
+    setting_key: str | None = Field(
         None,
         description=(
             "Exact setting key to query. Supports Settings field names like 'APP_DOMAIN' or 'TMDB_API_KEY', "
@@ -32,7 +32,7 @@ class QuerySystemSettingsInput(BaseModel):
             "and 'custom_identifiers'."
         ),
     )
-    group: Optional[str] = Field(
+    group: str | None = Field(
         "all",
         description=(
             "Optional group filter when setting_key is not provided. Supports 'all', 'settings', 'systemconfig', "
@@ -41,20 +41,20 @@ class QuerySystemSettingsInput(BaseModel):
             "'subscribe_defaults', 'plugins', and 'custom_identifiers'. Chinese aliases are also accepted."
         ),
     )
-    keyword: Optional[str] = Field(
+    keyword: str | None = Field(
         None,
         description=(
             "Optional keyword used to fuzzy match setting keys, group names, or labels when listing settings."
         ),
     )
-    include_values: Optional[bool] = Field(
+    include_values: bool | None = Field(
         None,
         description=(
             "Whether to include full setting values. Default behavior: when a single setting is matched it returns the full value; "
             "when multiple settings are matched it returns summaries only unless this is explicitly set to true."
         ),
     )
-    show_secrets: Optional[bool] = Field(
+    show_secrets: bool | None = Field(
         False,
         description=(
             "Whether to return raw secret values such as API keys, tokens, cookies, and passwords. "
@@ -77,9 +77,9 @@ class QuerySystemSettingsTool(MoviePilotTool):
         "subscribe-site ranges, site auth params, AI agent config, and any other system setting before making changes."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QuerySystemSettingsInput
+    args_schema: type[BaseModel] = QuerySystemSettingsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息。"""
 
         setting_key = kwargs.get("setting_key")
@@ -129,17 +129,14 @@ class QuerySystemSettingsTool(MoviePilotTool):
 
     async def run(
         self,
-        setting_key: Optional[str] = None,
-        group: Optional[str] = "all",
-        keyword: Optional[str] = None,
-        include_values: Optional[bool] = None,
-        show_secrets: Optional[bool] = False,
+        setting_key: str | None = None,
+        group: str | None = "all",
+        keyword: str | None = None,
+        include_values: bool | None = None,
+        show_secrets: bool | None = False,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, setting_key={setting_key}, "
-            f"group={group}, keyword={keyword}"
-        )
+        logger.info(f"执行工具: {self.name}, setting_key={setting_key}, group={group}, keyword={keyword}")
 
         try:
             if setting_key:
@@ -164,16 +161,12 @@ class QuerySystemSettingsTool(MoviePilotTool):
                         ensure_ascii=False,
                     )
 
-            should_include_values = (
-                include_values if include_values is not None else len(specs) == 1
-            )
+            should_include_values = include_values if include_values is not None else len(specs) == 1
             allow_secret_values = bool(show_secrets) and await self.is_admin_user()
             settings_payload = []
             for spec in specs:
                 value = self._load_setting_value(spec)
-                should_redact = (
-                    should_redact_setting(spec, value) and not allow_secret_values
-                )
+                should_redact = should_redact_setting(spec, value) and not allow_secret_values
                 response_value = (
                     redact_secret_value(
                         value,

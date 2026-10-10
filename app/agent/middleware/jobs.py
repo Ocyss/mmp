@@ -70,9 +70,7 @@ def _parse_job_metadata(
 ) -> JobMetadata | None:
     """从 JOB.md 内容中解析 YAML 前言并验证元数据。"""
     if len(content) > MAX_JOB_FILE_SIZE:
-        logger.warning(
-            "Skipping %s: content too large (%d bytes)", job_path, len(content)
-        )
+        logger.warning("Skipping %s: content too large (%d bytes)", job_path, len(content))
         return None
 
     # 匹配 --- 分隔的 YAML 前言
@@ -175,9 +173,7 @@ def filter_active_jobs(jobs_metadata: list[JobMetadata]) -> list[JobMetadata]:
     `recurring` 任务执行完成后按约定应回写为 `pending`，因此无需再额外放宽
     到 `completed`，避免已结束任务被重复注入后台心跳。
     """
-    return [
-        job for job in jobs_metadata if job.get("status") in ACTIVE_JOB_STATUSES
-    ]
+    return [job for job in jobs_metadata if job.get("status") in ACTIVE_JOB_STATUSES]
 
 
 async def load_jobs_metadata(source_paths: list[str]) -> list[JobMetadata]:
@@ -246,15 +242,8 @@ class JobsMiddleware(AgentMiddleware[JobsState, ContextT, ResponseT]):  # noqa
                 "cancelled": "❌",
             }.get(job["status"], "❓")
 
-            schedule_label = (
-                "recurring (重复)"
-                if job["schedule"] == "recurring"
-                else "once (一次性)"
-            )
-            desc_line = (
-                f"- {status_emoji} **{job['id']}**: {job['name']}"
-                f" [{schedule_label}] - {job['description']}"
-            )
+            schedule_label = "recurring (重复)" if job["schedule"] == "recurring" else "once (一次性)"
+            desc_line = f"- {status_emoji} **{job['id']}**: {job['name']} [{schedule_label}] - {job['description']}"
             if job.get("last_run"):
                 desc_line += f" (上次执行: {job['last_run']})"
             lines.append(desc_line)
@@ -277,28 +266,20 @@ class JobsMiddleware(AgentMiddleware[JobsState, ContextT, ResponseT]):  # noqa
             jobs_list=jobs_list,
         )
 
-        new_system_message = append_to_system_message(
-            request.system_message, jobs_section
-        )
+        new_system_message = append_to_system_message(request.system_message, jobs_section)
 
         return request.override(system_message=new_system_message)
 
     async def abefore_agent(  # noqa
         self, state: JobsState, runtime: Runtime, config: RunnableConfig
     ) -> JobsStateUpdate | None:
-        """在 Agent 执行前异步加载任务元数据。
-
-        """
-        return JobsStateUpdate(
-            jobs_metadata=await load_jobs_metadata(self.sources)
-        )
+        """在 Agent 执行前异步加载任务元数据。"""
+        return JobsStateUpdate(jobs_metadata=await load_jobs_metadata(self.sources))
 
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """在模型调用时注入任务文档。"""
         modified_request = self.modify_request(request)

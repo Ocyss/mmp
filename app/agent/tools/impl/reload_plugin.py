@@ -6,11 +6,11 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import (
     get_plugin_snapshot,
     reload_plugin_runtime,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
@@ -35,9 +35,9 @@ class ReloadPluginTool(MoviePilotTool):
         "This also refreshes the plugin's registered commands, scheduled services, and API routes."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = ReloadPluginInput
+    args_schema: type[BaseModel] = ReloadPluginInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         plugin_id = kwargs.get("plugin_id", "")
         return f"重载插件: {plugin_id}"
@@ -75,9 +75,7 @@ class ReloadPluginTool(MoviePilotTool):
         logger.info(f"执行工具: {self.name}, 参数: plugin_id={plugin_id}")
 
         try:
-            return await self.run_blocking(
-                "plugin", self._reload_plugin_sync, plugin_id
-            )
+            return await self.run_blocking("plugin", self._reload_plugin_sync, plugin_id)
         except Exception as e:
             logger.error(f"重载插件失败: {e}", exc_info=True)
             return json.dumps(

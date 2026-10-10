@@ -44,11 +44,11 @@ class AskUserChoiceInput(BaseModel):
         ...,
         description="Question or prompt shown to the user together with the buttons",
     )
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         description="Optional short title displayed above the question",
     )
-    options: List[UserChoiceOptionInput] = Field(
+    options: list[UserChoiceOptionInput] = Field(
         ...,
         description="Button options to show to the user",
     )
@@ -82,9 +82,9 @@ class AskUserChoiceTool(MoviePilotTool):
         "then stop the current turn. After the user clicks a button, the selected value will come "
         "back as the user's next message. Do not also send the same question as plain text."
     )
-    args_schema: Type[BaseModel] = AskUserChoiceInput
+    args_schema: type[BaseModel] = AskUserChoiceInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成工具执行提示文案。"""
         message = kwargs.get("message", "") or ""
         if len(message) > 40:
@@ -112,8 +112,8 @@ class AskUserChoiceTool(MoviePilotTool):
     async def run(
         self,
         message: str,
-        options: List[UserChoiceOptionInput],
-        title: Optional[str] = None,
+        options: list[UserChoiceOptionInput],
+        title: str | None = None,
         **kwargs,
     ) -> str:
         """
@@ -126,14 +126,10 @@ class AskUserChoiceTool(MoviePilotTool):
         """
         if self._blocked_by_feedback_quality_gate():
             logger.warning(
-                "ask_user_choice blocked after feedback issue rejected_quality: "
-                "session_id=%s",
+                "ask_user_choice blocked after feedback issue rejected_quality: session_id=%s",
                 self._session_id,
             )
-            return (
-                "反馈 Issue 已被质量门槛拒绝，不能继续发送按钮引导用户改写或重新提交。"
-                "请直接结束本次反馈流程。"
-            )
+            return "反馈 Issue 已被质量门槛拒绝，不能继续发送按钮引导用户改写或重新提交。请直接结束本次反馈流程。"
 
         if not self._channel or not self._source:
             return "当前不在可回传消息的会话中，无法发起按钮选择"
@@ -144,8 +140,7 @@ class AskUserChoiceTool(MoviePilotTool):
             return f"不支持的消息渠道: {self._channel}"
 
         if not (
-            ChannelCapabilityManager.supports_buttons(channel)
-            and ChannelCapabilityManager.supports_callbacks(channel)
+            ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel)
         ):
             return f"当前渠道 {channel.value} 不支持按钮选择"
 
@@ -180,9 +175,7 @@ class AskUserChoiceTool(MoviePilotTool):
             current_row.append(
                 {
                     "text": self._truncate_button_text(option.label, max_text_length),
-                    "callback_data": (
-                        f"agent_interaction:choice:{request.request_id}:{index}"
-                    ),
+                    "callback_data": (f"agent_interaction:choice:{request.request_id}:{index}"),
                 }
             )
             if len(current_row) >= max_per_row:

@@ -9,6 +9,7 @@
 子模块各自按需 import（如 ``network_guard`` 依赖 pytest），故此处只 re-export 无第三方依赖的
 :func:`stub_modules`，保持 ``import app.testing`` 不引入 pytest 等测试期依赖。
 """
+
 from app.testing.stub import stub_modules
 
 __all__ = ["stub_modules"]

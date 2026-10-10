@@ -1,31 +1,33 @@
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterable, List, Match, Optional, Tuple, Union
+from re import Match
+from typing import Dict, List, Optional, Tuple, Union
 
 import anitopy
 
 from app.core.config import settings
-from app.core.metainfo import MetaInfoPath
 from app.core.meta.metabase import MetaBase
+from app.core.metainfo import MetaInfoPath
 from app.log import logger
 from app.schemas import EpisodeFormatRule, FileItem
 
 
 @dataclass(frozen=True)
 class _TemplateParseResult:
-    named: Dict[str, str]
-    spans: Dict[str, Tuple[int, int]]
+    named: dict[str, str]
+    spans: dict[str, tuple[int, int]]
 
 
 @lru_cache(maxsize=256)
 def _compile_template_pattern(
     template: str,
-    ep_group_name: Optional[str] = None,
+    ep_group_name: str | None = None,
 ):
-    parts: List[str] = ["^"]
+    parts: list[str] = ["^"]
     cursor = 0
     while cursor < len(template):
         if template.startswith("{{", cursor):
@@ -40,7 +42,7 @@ def _compile_template_pattern(
             end = template.find("}", cursor + 1)
             if end < 0:
                 raise ValueError(f"模板存在未闭合占位符：{template}")
-            group_name = template[cursor + 1:end]
+            group_name = template[cursor + 1 : end]
             if not re.fullmatch(r"[A-Za-z_]\w*", group_name):
                 raise ValueError(f"模板占位符名称无效：{template}")
             quantifier = ".+?" if group_name == ep_group_name else ".*?"
@@ -62,8 +64,8 @@ def _compile_template_pattern(
 def _match_template(
     template: str,
     text: str,
-    ep_group_name: Optional[str] = None,
-) -> Optional[_TemplateParseResult]:
+    ep_group_name: str | None = None,
+) -> _TemplateParseResult | None:
     pattern = _compile_template_pattern(template, ep_group_name)
     result = pattern.match(text)
     if not result:
@@ -71,19 +73,22 @@ def _match_template(
     group_names = result.groupdict()
     return _TemplateParseResult(
         named=group_names,
-        spans={
-            group_name: result.span(group_name)
-            for group_name in group_names
-        },
+        spans={group_name: result.span(group_name) for group_name in group_names},
     )
 
 
-class FormatParser(object):
+class FormatParser:
     _key = ""
     _split_chars = r"\.|\s+|\(|\)|\[|]|-|\+|【|】|/|～|;|&|\||#|_|「|」|~"
 
-    def __init__(self, eformat: str, details: Optional[str] = None, part: Optional[str] = None,
-                 offset: Optional[str] = None, key: Optional[str] = "ep"):
+    def __init__(
+        self,
+        eformat: str,
+        details: str | None = None,
+        part: str | None = None,
+        offset: str | None = None,
+        key: str | None = "ep",
+    ):
         """
         :params eformat: 格式化字符串
         :params details: 格式化详情
@@ -105,11 +110,7 @@ class FormatParser(object):
                 self.__offset = f"EP+{offset}"
         self._key = key
         self._part = None
-        self._compiled_pattern = (
-            _compile_template_pattern(self._format, self._key)
-            if self._format
-            else None
-        )
+        self._compiled_pattern = _compile_template_pattern(self._format, self._key) if self._format else None
         if part:
             self._part = part
         if details:
@@ -156,7 +157,7 @@ class FormatParser(object):
             return True
         return False
 
-    def split_episode(self, file_name: str, file_meta: MetaBase) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+    def split_episode(self, file_name: str, file_meta: MetaBase) -> tuple[int | None, int | None, str | None]:
         """
         拆分集数，返回开始集数，结束集数，Part信息
         """
@@ -183,7 +184,9 @@ class FormatParser(object):
                 return int(eval(start_ep)), int(eval(end_ep)), self.part
         if not self._format:
             # 未填入`集数定位` 且没有`指定集数` 仅处理`集数偏移`
-            start_ep = eval(self.__offset.replace("EP", str(file_meta.begin_episode))) if file_meta.begin_episode else None
+            start_ep = (
+                eval(self.__offset.replace("EP", str(file_meta.begin_episode))) if file_meta.begin_episode else None
+            )
             end_ep = eval(self.__offset.replace("EP", str(file_meta.end_episode))) if file_meta.end_episode else None
             return int(start_ep) if start_ep else None, int(end_ep) if end_ep else None, self.part
         else:
@@ -193,7 +196,7 @@ class FormatParser(object):
             end_ep = self.__offset.replace("EP", str(e)) if e else None
             return int(eval(start_ep)) if start_ep else None, int(eval(end_ep)) if end_ep else None, self.part
 
-    def __handle_single(self, file: str) -> Tuple[Optional[int], Optional[int]]:
+    def __handle_single(self, file: str) -> tuple[int | None, int | None]:
         """
         处理单集，返回单集的开始和结束集数
         """
@@ -208,22 +211,27 @@ class FormatParser(object):
             re.IGNORECASE,
         ).match(episodes):
             return None, None
-        episode_splits = list(filter(lambda x: re.compile(r'[a-zA-Z]*\d{1,4}', re.IGNORECASE).match(x),
-                                     re.split(r'%s' % self._split_chars, episodes)))
+        episode_splits = list(
+            filter(
+                lambda x: re.compile(r"[a-zA-Z]*\d{1,4}", re.IGNORECASE).match(x),
+                re.split(r"%s" % self._split_chars, episodes),
+            )
+        )
         if len(episode_splits) == 1:
-            return int(re.compile(r'[a-zA-Z]*', re.IGNORECASE).sub("", episode_splits[0])), None
+            return int(re.compile(r"[a-zA-Z]*", re.IGNORECASE).sub("", episode_splits[0])), None
         else:
-            return int(re.compile(r'[a-zA-Z]*', re.IGNORECASE).sub("", episode_splits[0])), int(
-                re.compile(r'[a-zA-Z]*', re.IGNORECASE).sub("", episode_splits[1]))
+            return int(re.compile(r"[a-zA-Z]*", re.IGNORECASE).sub("", episode_splits[0])), int(
+                re.compile(r"[a-zA-Z]*", re.IGNORECASE).sub("", episode_splits[1])
+            )
 
 
 @dataclass(frozen=True)
 class _AutoRecommendSample:
     file_name: str
-    ep_span: Tuple[int, int]
+    ep_span: tuple[int, int]
     expected_episode: str
     source_kind: str = "media"
-    native_episode: Optional[str] = None
+    native_episode: str | None = None
     native_verified: bool = False
     used_native_fallback: bool = False
 
@@ -237,13 +245,9 @@ class EpisodeFormatRuleHelper:
     _MIN_AUTO_VALID_MEDIA_COVERAGE = 0.6
     _EMPTY_META = MetaBase(title="")
 
-    _EP_RANGE_RE = re.compile(
-        r"(?<![A-Za-z0-9])[Ee][Pp]?(\d{1,4}(?:-[Ee]?[Pp]?\d{1,4})+)(?!\d)"
-    )
+    _EP_RANGE_RE = re.compile(r"(?<![A-Za-z0-9])[Ee][Pp]?(\d{1,4}(?:-[Ee]?[Pp]?\d{1,4})+)(?!\d)")
     _EP_PREFIX_RE = re.compile(r"(?<![A-Za-z0-9])[Ee][Pp]?(\d{1,4})(?!\d)")
-    _SEASON_EP_RANGE_RE = re.compile(
-        r"[Ss]\d{1,4}[Ee][Pp]?(\d{1,4}(?:-[Ee]?[Pp]?\d{1,4})+)(?!\d)"
-    )
+    _SEASON_EP_RANGE_RE = re.compile(r"[Ss]\d{1,4}[Ee][Pp]?(\d{1,4}(?:-[Ee]?[Pp]?\d{1,4})+)(?!\d)")
     _SEASON_EP_RE = re.compile(r"[Ss]\d{1,4}[Ee][Pp]?(\d{1,4})(?!\d)")
     _HASH_EP_RE = re.compile(r"(?<!\d)#(\d{1,4})(?!\d)")
     _BRACKET_EP_RE = re.compile(r"[\[【](\d{1,4})[\]】]")
@@ -275,9 +279,9 @@ class EpisodeFormatRuleHelper:
 
     def recommend(
         self,
-        rules: List[EpisodeFormatRule],
-        sample_files: List[FileItem],
-    ) -> Tuple[bool, str, Optional[dict]]:
+        rules: list[EpisodeFormatRule],
+        sample_files: list[FileItem],
+    ) -> tuple[bool, str, dict | None]:
         """
         推荐集数定位模板
         """
@@ -309,25 +313,27 @@ class EpisodeFormatRuleHelper:
                 logger.warn(f"集数定位规则 {rule.name} 附加文件兼容性校验失败")
                 continue
 
-            logger.info(
-                f"集数定位规则命中：{rule.name}，样本文件：{sample_file.name}"
+            logger.info(f"集数定位规则命中：{rule.name}，样本文件：{sample_file.name}")
+            return (
+                True,
+                "",
+                {
+                    "rule_name": rule.name,
+                    "rule_index": index,
+                    "pattern": rule.pattern,
+                    "episode_format": episode_format,
+                    "sample_file": sample_file.name,
+                    "min_file_size_mb": rule.min_file_size_mb,
+                    "message": "已根据预定义规则生成集数定位模板",
+                },
             )
-            return True, "", {
-                "rule_name": rule.name,
-                "rule_index": index,
-                "pattern": rule.pattern,
-                "episode_format": episode_format,
-                "sample_file": sample_file.name,
-                "min_file_size_mb": rule.min_file_size_mb,
-                "message": "已根据预定义规则生成集数定位模板",
-            }
 
         return self._auto_recommend(sample_files)
 
     def _auto_recommend(
         self,
-        sample_files: List[FileItem],
-    ) -> Tuple[bool, str, Optional[dict]]:
+        sample_files: list[FileItem],
+    ) -> tuple[bool, str, dict | None]:
         """
         自动生成集数定位模板：anitopy 反向定位 + 多文件对比
         """
@@ -337,9 +343,7 @@ class EpisodeFormatRuleHelper:
         candidates = self._filter_by_extension_and_size(sample_files)
         size_filter_relaxed = False
         if not candidates:
-            candidates = self._filter_by_extension_and_size(
-                sample_files, ignore_size=True
-            )
+            candidates = self._filter_by_extension_and_size(sample_files, ignore_size=True)
             size_filter_relaxed = bool(candidates)
         if not candidates:
             return False, "无匹配自定义定位规则，智能生成失败", None
@@ -368,9 +372,7 @@ class EpisodeFormatRuleHelper:
             normalized_episode, native_episode, used_native_fallback, native_verified = (
                 self._extract_episode_with_native_fallback(item)
             )
-            if normalized_episode and native_episode and not (
-                used_native_fallback or native_verified
-            ):
+            if normalized_episode and native_episode and not (used_native_fallback or native_verified):
                 native_conflict_count += 1
                 logger.warn(
                     "自动推荐样本与原生集数识别冲突，跳过："
@@ -406,10 +408,7 @@ class EpisodeFormatRuleHelper:
 
         candidate_media_count = 0
         for item in candidates:
-            if (
-                    self._get_file_kind(item) == "media"
-                    and not self._is_special_sample(item.name or "")
-            ):
+            if self._get_file_kind(item) == "media" and not self._is_special_sample(item.name or ""):
                 candidate_media_count += 1
 
         valid_media_count = 0
@@ -418,9 +417,8 @@ class EpisodeFormatRuleHelper:
                 valid_media_count += 1
 
         if (
-                candidate_media_count > 1
-                and valid_media_count / candidate_media_count
-                < self._MIN_AUTO_VALID_MEDIA_COVERAGE
+            candidate_media_count > 1
+            and valid_media_count / candidate_media_count < self._MIN_AUTO_VALID_MEDIA_COVERAGE
         ):
             logger.warn(
                 "有效正片样本覆盖率不足，放弃智能生成："
@@ -442,25 +440,16 @@ class EpisodeFormatRuleHelper:
         majority_names = [sample.file_name for sample in majority_samples]
         majority_spans = [sample.ep_span for sample in majority_samples]
 
-        episode_format = self._build_ep_only_template(
-            majority_names, majority_spans, use_majority=False
-        )
+        episode_format = self._build_ep_only_template(majority_names, majority_spans, use_majority=False)
         logger.debug(
             "自动推荐基础模板："
             f"sample={majority_names[0] if majority_names else None}, "
             f"span={majority_spans[0] if majority_spans else None}, template={episode_format}"
         )
         if not self._validate_auto_template(episode_format, majority_samples):
-            diff_result = self._build_template_with_diff(
-                majority_names, majority_spans, use_majority=False
-            )
-            logger.debug(
-                "自动推荐差异模板尝试："
-                f"base={episode_format}, diff={diff_result}"
-            )
-            if diff_result and self._validate_auto_template(
-                diff_result, majority_samples
-            ):
+            diff_result = self._build_template_with_diff(majority_names, majority_spans, use_majority=False)
+            logger.debug(f"自动推荐差异模板尝试：base={episode_format}, diff={diff_result}")
+            if diff_result and self._validate_auto_template(diff_result, majority_samples):
                 episode_format = diff_result
             else:
                 logger.warn("多文件对比未通过模板校验，自动生成失败")
@@ -477,27 +466,31 @@ class EpisodeFormatRuleHelper:
         )
         logger.info(f"智能分析生成集数定位模板：{sample_file} -> {episode_format}")
 
-        return True, "", {
-            "rule_name": "智能分析",
-            "episode_format": episode_format,
-            "sample_file": sample_file,
-            "pattern": None,
-            "sample_count": len(valid_samples),
-            "majority_count": len(majority_samples),
-            "confidence": "low" if low_confidence else "high",
-            "size_filter_relaxed": size_filter_relaxed,
-            "native_verified_count": native_verified_count,
-            "native_fallback_count": native_fallback_count,
-            "native_conflict_count": native_conflict_count,
-            "reason": reasons[0] if reasons else None,
-            "reasons": reasons,
-            "message": self._build_auto_message(
-                sample_count=len(valid_samples),
-                majority_count=len(majority_samples),
-                size_filter_relaxed=size_filter_relaxed,
-                native_fallback_count=native_fallback_count,
-            ),
-        }
+        return (
+            True,
+            "",
+            {
+                "rule_name": "智能分析",
+                "episode_format": episode_format,
+                "sample_file": sample_file,
+                "pattern": None,
+                "sample_count": len(valid_samples),
+                "majority_count": len(majority_samples),
+                "confidence": "low" if low_confidence else "high",
+                "size_filter_relaxed": size_filter_relaxed,
+                "native_verified_count": native_verified_count,
+                "native_fallback_count": native_fallback_count,
+                "native_conflict_count": native_conflict_count,
+                "reason": reasons[0] if reasons else None,
+                "reasons": reasons,
+                "message": self._build_auto_message(
+                    sample_count=len(valid_samples),
+                    majority_count=len(majority_samples),
+                    size_filter_relaxed=size_filter_relaxed,
+                    native_fallback_count=native_fallback_count,
+                ),
+            },
+        )
 
     @staticmethod
     def _build_auto_message(
@@ -523,8 +516,8 @@ class EpisodeFormatRuleHelper:
         size_filter_relaxed: bool,
         native_fallback_count: int,
         native_verified_count: int,
-    ) -> List[str]:
-        reasons: List[str] = []
+    ) -> list[str]:
+        reasons: list[str] = []
         if majority_count <= 1:
             reasons.append("single_sample_only")
         if size_filter_relaxed:
@@ -541,13 +534,13 @@ class EpisodeFormatRuleHelper:
 
     @staticmethod
     def _filter_by_extension_and_size(
-        files: List[FileItem],
+        files: list[FileItem],
         ignore_size: bool = False,
-    ) -> List[FileItem]:
+    ) -> list[FileItem]:
         """
         第一轮筛选：主视频扩展名白名单 + 体积门槛，字幕/外挂音频始终允许参与
         """
-        candidates: List[FileItem] = []
+        candidates: list[FileItem] = []
         for item in files:
             file_kind = EpisodeFormatRuleHelper._get_file_kind(item)
             if file_kind == "other":
@@ -586,9 +579,9 @@ class EpisodeFormatRuleHelper:
 
     def _build_detected_samples(
         self,
-        candidates: List[FileItem],
-    ) -> List[_AutoRecommendSample]:
-        valid_samples: List[_AutoRecommendSample] = []
+        candidates: list[FileItem],
+    ) -> list[_AutoRecommendSample]:
+        valid_samples: list[_AutoRecommendSample] = []
         for item in sorted(
             candidates,
             key=lambda entry: (
@@ -604,9 +597,7 @@ class EpisodeFormatRuleHelper:
             normalized_episode, native_episode, used_native_fallback, native_verified = (
                 self._extract_episode_with_native_fallback(item)
             )
-            if normalized_episode and native_episode and not (
-                used_native_fallback or native_verified
-            ):
+            if normalized_episode and native_episode and not (used_native_fallback or native_verified):
                 continue
             expected_start, _ = self._parse_episode_value(normalized_episode)
             if expected_start is None:
@@ -621,16 +612,13 @@ class EpisodeFormatRuleHelper:
 
             ep_span = self._locate_episode(file_name, normalized_episode)
             if ep_span is None:
-                logger.debug(
-                    "自动推荐样本跳过：未定位到集数 token - "
-                    f"{file_name} - episode={normalized_episode}"
-                )
+                logger.debug(f"自动推荐样本跳过：未定位到集数 token - {file_name} - episode={normalized_episode}")
                 continue
 
             logger.debug(
                 "自动推荐样本入选："
                 f"{file_name} - episode={normalized_episode}, span={ep_span}, "
-                f"matched={file_name[ep_span[0]:ep_span[1]]}, "
+                f"matched={file_name[ep_span[0] : ep_span[1]]}, "
                 f"kind={self._get_file_kind(item)}"
             )
             valid_samples.append(
@@ -651,7 +639,7 @@ class EpisodeFormatRuleHelper:
         cls,
         file_name: str,
         episode_value: str,
-    ) -> Optional[Tuple[int, int]]:
+    ) -> tuple[int, int] | None:
         """
         三级策略反向定位 episode_number 在文件名中的位置
         """
@@ -689,17 +677,13 @@ class EpisodeFormatRuleHelper:
             parts = [str(part) for part in episode_value]
         else:
             parts = str(episode_value).split("-")
-        normalized_parts = [
-            re.sub(r"^[Ee][Pp]?", "", part.strip())
-            for part in parts
-            if str(part).strip()
-        ]
+        normalized_parts = [re.sub(r"^[Ee][Pp]?", "", part.strip()) for part in parts if str(part).strip()]
         return "-".join(normalized_parts)
 
     @staticmethod
     def _parse_episode_value(
-        expected_episode: Optional[str],
-    ) -> Tuple[Optional[int], Optional[int]]:
+        expected_episode: str | None,
+    ) -> tuple[int | None, int | None]:
         if not expected_episode:
             return None, None
         parts = []
@@ -718,24 +702,22 @@ class EpisodeFormatRuleHelper:
     @classmethod
     def _episode_value_equals(
         cls,
-        actual_episode: Optional[str],
-        expected_episode: Optional[str],
+        actual_episode: str | None,
+        expected_episode: str | None,
     ) -> bool:
         if not actual_episode or not expected_episode:
             return False
-        return cls._parse_episode_value(actual_episode) == cls._parse_episode_value(
-            expected_episode
-        )
+        return cls._parse_episode_value(actual_episode) == cls._parse_episode_value(expected_episode)
 
     @classmethod
     def _build_episode_candidates(
         cls,
-        episode_value: Optional[str],
-    ) -> List[str]:
+        episode_value: str | None,
+    ) -> list[str]:
         start_episode, end_episode = cls._parse_episode_value(episode_value)
         if start_episode is None:
             return []
-        candidates: List[str] = []
+        candidates: list[str] = []
         if end_episode is None:
             for width in range(1, 5):
                 candidates.append(str(start_episode).zfill(width))
@@ -750,7 +732,7 @@ class EpisodeFormatRuleHelper:
         return list(dict.fromkeys(candidates))
 
     @classmethod
-    def _extract_native_episode(cls, item: FileItem) -> Optional[str]:
+    def _extract_native_episode(cls, item: FileItem) -> str | None:
         source_path = item.path or item.name
         if not source_path:
             return None
@@ -769,8 +751,8 @@ class EpisodeFormatRuleHelper:
     def _should_degrade_native_conflict(
         cls,
         file_name: str,
-        normalized_episode: Optional[str],
-        native_episode: Optional[str],
+        normalized_episode: str | None,
+        native_episode: str | None,
     ) -> bool:
         """
         判断原生集数冲突是否应降级处理。
@@ -792,8 +774,8 @@ class EpisodeFormatRuleHelper:
     def _should_prefer_fallback_episode(
         cls,
         file_name: str,
-        anitopy_episode: Optional[Union[str, List[str]]],
-        fallback_episode: Optional[Union[str, List[str]]],
+        anitopy_episode: str | list[str] | None,
+        fallback_episode: str | list[str] | None,
     ) -> bool:
         """
         当 anitopy 命中了标题前部数字，而 fallback 命中了更靠后的显式集数 token 时，
@@ -821,7 +803,7 @@ class EpisodeFormatRuleHelper:
     def _extract_episode_with_native_fallback(
         self,
         item: FileItem,
-    ) -> Tuple[Optional[str], Optional[str], bool, bool]:
+    ) -> tuple[str | None, str | None, bool, bool]:
         file_name = item.name or ""
         native_episode = self._extract_native_episode(item)
         episode_number = None
@@ -841,11 +823,7 @@ class EpisodeFormatRuleHelper:
             fallback_episode,
         ):
             episode_number = fallback_episode
-        normalized_episode = (
-            self._normalize_episode_value(episode_number)
-            if episode_number
-            else None
-        )
+        normalized_episode = self._normalize_episode_value(episode_number) if episode_number else None
         logger.debug(
             "自动推荐集数提取："
             f"{file_name} - anitopy={anitopy_episode}, "
@@ -875,7 +853,7 @@ class EpisodeFormatRuleHelper:
         return normalized_episode, native_episode, used_native_fallback, native_verified
 
     @classmethod
-    def _extract_episode_fallback(cls, file_name: str) -> Optional[str]:
+    def _extract_episode_fallback(cls, file_name: str) -> str | None:
         """
         anitopy 无法识别时的兜底集数提取。
 
@@ -907,11 +885,11 @@ class EpisodeFormatRuleHelper:
     @staticmethod
     def _select_base_samples(
         samples: Iterable[_AutoRecommendSample],
-    ) -> Tuple[List[_AutoRecommendSample], bool]:
+    ) -> tuple[list[_AutoRecommendSample], bool]:
         """
         before_ep 多数投票选取基准文件，排除 OAD 等异类
         """
-        before_groups: Dict[str, List[_AutoRecommendSample]] = defaultdict(list)
+        before_groups: dict[str, list[_AutoRecommendSample]] = defaultdict(list)
         for sample in samples:
             before_groups[sample.file_name[: sample.ep_span[0]]].append(sample)
 
@@ -928,16 +906,13 @@ class EpisodeFormatRuleHelper:
                 item.ep_span[1],
             ),
         )
-        clear_majority = (
-            len(sorted_groups) == 1
-            or len(majority_group) > len(sorted_groups[1][1])
-        )
+        clear_majority = len(sorted_groups) == 1 or len(majority_group) > len(sorted_groups[1][1])
         return majority_group, clear_majority
 
     def _build_ep_only_template(
         self,
-        file_names: List[str],
-        ep_spans: List[Tuple[int, int]],
+        file_names: list[str],
+        ep_spans: list[tuple[int, int]],
         use_majority: bool = True,
     ) -> str:
         """
@@ -959,21 +934,17 @@ class EpisodeFormatRuleHelper:
     def _build_ep_template_from_file(
         self,
         file_name: str,
-        ep_span: Tuple[int, int],
+        ep_span: tuple[int, int],
     ) -> str:
         start, end = ep_span
-        return (
-            self._escape_literal(file_name[:start])
-            + "{ep}"
-            + self._escape_literal(file_name[end:])
-        )
+        return self._escape_literal(file_name[:start]) + "{ep}" + self._escape_literal(file_name[end:])
 
     def _build_template_with_diff(
         self,
-        file_names: List[str],
-        ep_spans: List[Tuple[int, int]],
+        file_names: list[str],
+        ep_spans: list[tuple[int, int]],
         use_majority: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         多文件对比生成含 {a}/{b}/{c} 占位符的模板
         """
@@ -995,7 +966,7 @@ class EpisodeFormatRuleHelper:
         if len(before_ep_set) != 1:
             return None
 
-        after_ep_list = [name[span[1]:] for name, span in zip(file_names, ep_spans)]
+        after_ep_list = [name[span[1] :] for name, span in zip(file_names, ep_spans)]
         if len(set(after_ep_list)) == 1:
             return None
 
@@ -1023,15 +994,15 @@ class EpisodeFormatRuleHelper:
     @staticmethod
     def _find_unmatched(
         template: str,
-        file_names: List[str],
-    ) -> List[str]:
+        file_names: list[str],
+    ) -> list[str]:
         parser = EpisodeFormatRuleHelper._create_format_parser(
             template,
             context="多文件对比预校验",
         )
         if not parser:
             return list(file_names)
-        failed: List[str] = []
+        failed: list[str] = []
         for name in file_names:
             if not EpisodeFormatRuleHelper._safe_match_template(
                 parser,
@@ -1044,9 +1015,9 @@ class EpisodeFormatRuleHelper:
     def _insert_variable_placeholder(
         self,
         template: str,
-        failed_files: List[str],
-        after_ep_list: List[str],
-        all_file_names: List[str],
+        failed_files: list[str],
+        after_ep_list: list[str],
+        all_file_names: list[str],
         placeholder: str,
     ) -> str:
         ep_marker = "{ep}"
@@ -1054,15 +1025,11 @@ class EpisodeFormatRuleHelper:
         if ep_pos < 0:
             return template
 
-        current_after_ep_template = template[ep_pos + len(ep_marker):]
+        current_after_ep_template = template[ep_pos + len(ep_marker) :]
         base_after_ep = after_ep_list[0]
-        existing_spans = self._collect_placeholder_spans(
-            current_after_ep_template, base_after_ep
-        )
+        existing_spans = self._collect_placeholder_spans(current_after_ep_template, base_after_ep)
         failed_after_ep_list = [
-            after_ep
-            for name, after_ep in zip(all_file_names, after_ep_list)
-            if name in failed_files
+            after_ep for name, after_ep in zip(all_file_names, after_ep_list) if name in failed_files
         ]
         next_span = self._find_next_variable_span(
             base_after_ep,
@@ -1072,20 +1039,22 @@ class EpisodeFormatRuleHelper:
         if next_span is None:
             return template
 
-        updated_spans = existing_spans + [
-            (next_span[0], next_span[1], placeholder)
-        ]
+        updated_spans = existing_spans + [(next_span[0], next_span[1], placeholder)]
         before_ep = template[:ep_pos]
-        return before_ep + ep_marker + self._render_after_ep_template(
-            base_after_ep,
-            updated_spans,
+        return (
+            before_ep
+            + ep_marker
+            + self._render_after_ep_template(
+                base_after_ep,
+                updated_spans,
+            )
         )
 
     @staticmethod
     def _collect_placeholder_spans(
         after_ep_template: str,
         base_after_ep: str,
-    ) -> List[Tuple[int, int, str]]:
+    ) -> list[tuple[int, int, str]]:
         if not after_ep_template or "{" not in after_ep_template:
             return []
         result = EpisodeFormatRuleHelper._safe_parse_template(
@@ -1095,7 +1064,7 @@ class EpisodeFormatRuleHelper:
         )
         if not result:
             return []
-        spans: List[Tuple[int, int, str]] = []
+        spans: list[tuple[int, int, str]] = []
         for name, span in result.spans.items():
             spans.append((span[0], span[1], name))
         spans.sort(key=lambda item: item[0])
@@ -1104,11 +1073,11 @@ class EpisodeFormatRuleHelper:
     def _find_next_variable_span(
         self,
         base_after_ep: str,
-        failed_after_ep_list: List[str],
-        existing_spans: List[Tuple[int, int, str]],
-    ) -> Optional[Tuple[int, int]]:
+        failed_after_ep_list: list[str],
+        existing_spans: list[tuple[int, int, str]],
+    ) -> tuple[int, int] | None:
         cursor = 0
-        literal_gaps: List[Tuple[int, int]] = []
+        literal_gaps: list[tuple[int, int]] = []
         for start, end, _ in existing_spans:
             if cursor < start:
                 literal_gaps.append((cursor, start))
@@ -1123,7 +1092,7 @@ class EpisodeFormatRuleHelper:
                 base_after_ep,
                 existing_spans + [(gap_start, gap_end, "probe")],
             )
-            probe_values: List[str] = []
+            probe_values: list[str] = []
             base_gap = base_after_ep[gap_start:gap_end]
             for failed_after_ep in failed_after_ep_list:
                 result = self._safe_parse_template(
@@ -1149,8 +1118,8 @@ class EpisodeFormatRuleHelper:
     def _calculate_variable_span(
         self,
         base_text: str,
-        compare_texts: List[str],
-    ) -> Optional[Tuple[int, int]]:
+        compare_texts: list[str],
+    ) -> tuple[int, int] | None:
         candidates = [base_text] + compare_texts
         prefix_len = self._common_prefix_length(candidates)
         suffix_len = self._common_suffix_length(candidates, prefix_len)
@@ -1158,11 +1127,7 @@ class EpisodeFormatRuleHelper:
         if prefix_len >= end_pos:
             base_part = base_text[prefix_len:end_pos]
             compare_parts = [
-                text[
-                    prefix_len:
-                    len(text) - suffix_len if suffix_len else len(text)
-                ]
-                for text in compare_texts
+                text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts
             ]
             if not base_part and any(compare_parts):
                 return prefix_len, prefix_len
@@ -1170,11 +1135,7 @@ class EpisodeFormatRuleHelper:
 
         base_part = base_text[prefix_len:end_pos]
         compare_parts = [
-            text[
-                prefix_len:
-                len(text) - suffix_len if suffix_len else len(text)
-            ]
-            for text in compare_texts
+            text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts
         ]
         if any(not part for part in [base_part] + compare_parts):
             if not base_part and any(compare_parts):
@@ -1185,7 +1146,7 @@ class EpisodeFormatRuleHelper:
         return prefix_len, end_pos
 
     @staticmethod
-    def _common_prefix_length(texts: List[str]) -> int:
+    def _common_prefix_length(texts: list[str]) -> int:
         if not texts:
             return 0
         min_len = min(len(text) for text in texts)
@@ -1199,7 +1160,7 @@ class EpisodeFormatRuleHelper:
 
     @staticmethod
     def _common_suffix_length(
-        texts: List[str],
+        texts: list[str],
         prefix_len: int = 0,
     ) -> int:
         if not texts:
@@ -1216,16 +1177,14 @@ class EpisodeFormatRuleHelper:
     def _render_after_ep_template(
         self,
         base_after_ep: str,
-        spans: List[Tuple[int, int, str]],
+        spans: list[tuple[int, int, str]],
     ) -> str:
-        template_parts: List[str] = []
+        template_parts: list[str] = []
         cursor = 0
         for start, end, name in sorted(spans, key=lambda item: item[0]):
             if start < cursor or end < start:
                 continue
-            template_parts.append(
-                self._escape_literal(base_after_ep[cursor:start])
-            )
+            template_parts.append(self._escape_literal(base_after_ep[cursor:start]))
             template_parts.append(f"{{{name}}}")
             cursor = end
         template_parts.append(self._escape_literal(base_after_ep[cursor:]))
@@ -1234,7 +1193,7 @@ class EpisodeFormatRuleHelper:
     def _validate_auto_template(
         self,
         episode_format: str,
-        samples: List[_AutoRecommendSample],
+        samples: list[_AutoRecommendSample],
     ) -> bool:
         """
         用 FormatParser 校验自动生成的模板
@@ -1253,10 +1212,7 @@ class EpisodeFormatRuleHelper:
                 sample.file_name,
                 context="自动模板校验",
             ):
-                logger.debug(
-                    "自动模板校验失败：模板未命中文件 - "
-                    f"template={episode_format}, file={sample.file_name}"
-                )
+                logger.debug(f"自动模板校验失败：模板未命中文件 - template={episode_format}, file={sample.file_name}")
                 return False
             start_episode, end_episode, _ = self._safe_split_episode(
                 parser,
@@ -1290,20 +1246,18 @@ class EpisodeFormatRuleHelper:
     @staticmethod
     def _match_rule(
         rule: EpisodeFormatRule,
-        sample_files: List[FileItem],
-    ) -> List[Tuple[FileItem, Match[str]]]:
+        sample_files: list[FileItem],
+    ) -> list[tuple[FileItem, Match[str]]]:
         """
         获取规则命中的样本文件
         """
         try:
-            compiled_pattern = re.compile(
-                EpisodeFormatRuleHelper._normalize_pattern(rule.pattern)
-            )
+            compiled_pattern = re.compile(EpisodeFormatRuleHelper._normalize_pattern(rule.pattern))
         except Exception as err:
             logger.warn(f"集数定位规则 {rule.name} 编译失败：{err}")
             return []
 
-        matched_samples: List[Tuple[FileItem, Match[str]]] = []
+        matched_samples: list[tuple[FileItem, Match[str]]] = []
         for item in sample_files:
             if (
                 rule.min_file_size_mb
@@ -1321,7 +1275,7 @@ class EpisodeFormatRuleHelper:
         self,
         file_name: str,
         match_result: Match[str],
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         根据命中的样本生成模板
         """
@@ -1336,14 +1290,11 @@ class EpisodeFormatRuleHelper:
                 continue
             group_items.append((start, end, group_name))
 
-        if not group_items or not any(
-            group_name == "ep"
-            for _, _, group_name in group_items
-        ):
+        if not group_items or not any(group_name == "ep" for _, _, group_name in group_items):
             return None
 
         group_items.sort(key=lambda item: (item[0], -(item[1] - item[0])))
-        template_parts: List[str] = []
+        template_parts: list[str] = []
         cursor = 0
         for start, end, group_name in group_items:
             if start < cursor:
@@ -1357,7 +1308,7 @@ class EpisodeFormatRuleHelper:
     def _validate_template(
         self,
         episode_format: str,
-        matched_samples: List[Tuple[FileItem, Match[str]]],
+        matched_samples: list[tuple[FileItem, Match[str]]],
     ) -> bool:
         """
         校验生成的模板是否可被现有格式解析器稳定消费
@@ -1394,7 +1345,7 @@ class EpisodeFormatRuleHelper:
     def _create_format_parser(
         episode_format: str,
         context: str,
-    ) -> Optional[FormatParser]:
+    ) -> FormatParser | None:
         try:
             return FormatParser(eformat=episode_format)
         except Exception as err:
@@ -1419,7 +1370,7 @@ class EpisodeFormatRuleHelper:
         parser: FormatParser,
         file_name: str,
         context: str,
-    ) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+    ) -> tuple[int | None, int | None, str | None]:
         try:
             return parser.split_episode(
                 file_name=file_name,
@@ -1434,7 +1385,7 @@ class EpisodeFormatRuleHelper:
         template: str,
         file_name: str,
         context: str,
-    ) -> Optional[_TemplateParseResult]:
+    ) -> _TemplateParseResult | None:
         try:
             return _match_template(template, file_name)
         except Exception as err:
@@ -1444,9 +1395,9 @@ class EpisodeFormatRuleHelper:
     @classmethod
     def _episode_matches(
         cls,
-        actual_start: Optional[int],
-        actual_end: Optional[int],
-        expected_episode: Optional[str],
+        actual_start: int | None,
+        actual_end: int | None,
+        expected_episode: str | None,
     ) -> bool:
         """
         校验模板提取出的集数是否与期望值一致
@@ -1475,7 +1426,7 @@ class EpisodeFormatRuleHelper:
         """
         将样本文本转为 parse 模板中的字面量
         """
-        escaped_parts: List[str] = []
+        escaped_parts: list[str] = []
         for char in text:
             if char in "{}":
                 escaped_parts.append(char * 2)

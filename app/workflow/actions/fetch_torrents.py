@@ -1,28 +1,29 @@
 import random
 import time
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.chain.media import MediaChain
 from app.chain.search import SearchChain
 from app.core.config import global_vars
 from app.log import logger
-from app.schemas import ActionParams, ActionContext, MediaType
+from app.schemas import ActionContext, ActionParams, MediaType
+from app.workflow.actions import BaseAction
 
 
 class FetchTorrentsParams(ActionParams):
     """
     获取站点资源参数
     """
-    search_type: Optional[str] = Field(default="keyword", description="搜索类型")
-    name: Optional[str] = Field(default=None, description="资源名称")
-    year: Optional[str] = Field(default=None, description="年份")
-    type: Optional[str] = Field(default=None, description="资源类型 (电影/电视剧)")
-    season: Optional[int] = Field(default=None, description="季度")
-    sites: Optional[List[int]] = Field(default=[], description="站点列表")
-    match_media: Optional[bool] = Field(default=False, description="匹配媒体信息")
+
+    search_type: str | None = Field(default="keyword", description="搜索类型")
+    name: str | None = Field(default=None, description="资源名称")
+    year: str | None = Field(default=None, description="年份")
+    type: str | None = Field(default=None, description="资源类型 (电影/电视剧)")
+    season: int | None = Field(default=None, description="季度")
+    sites: list[int] | None = Field(default=[], description="站点列表")
+    match_media: bool | None = Field(default=False, description="匹配媒体信息")
 
 
 class FetchTorrentsAction(BaseAction):
@@ -91,14 +92,16 @@ class FetchTorrentsAction(BaseAction):
             for media in context.medias:
                 if global_vars.is_workflow_stopped(workflow_id):
                     break
-                torrents = searchchain.search_by_id(tmdbid=media.tmdb_id,
-                                                    doubanid=media.douban_id,
-                                                    bangumiid=media.bangumi_id,
-                                                    anilistid=media.anilist_id,
-                                                    source=media.source,
-                                                    mediaid=media.media_id,
-                                                    mtype=MediaType(media.type),
-                                                    sites=params.sites)
+                torrents = searchchain.search_by_id(
+                    tmdbid=media.tmdb_id,
+                    doubanid=media.douban_id,
+                    bangumiid=media.bangumi_id,
+                    anilistid=media.anilist_id,
+                    source=media.source,
+                    mediaid=media.media_id,
+                    mtype=MediaType(media.type),
+                    sites=params.sites,
+                )
                 for torrent in torrents:
                     self._torrents.append(torrent)
 

@@ -1,22 +1,22 @@
 import copy
 import json
 import re
-from typing import Dict, Optional, Union, List, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.modules.telegram.telegram import Telegram
 from app.schemas import (
-    MessageChannel,
-    CommingMessage,
-    Notification,
     CommandRegisterEventData,
-    NotificationConf,
+    CommingMessage,
+    MessageChannel,
     MessageResponse,
+    Notification,
+    NotificationConf,
 )
-from app.schemas.types import ModuleType, ChainEventType
+from app.schemas.types import ChainEventType, ModuleType
 from app.utils.structures import DictUtils
 
 
@@ -29,9 +29,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         """
         初始化模块
         """
-        super().init_service(
-            service_name=Telegram.__name__.lower(), service_type=Telegram
-        )
+        super().init_service(service_name=Telegram.__name__.lower(), service_type=Telegram)
         self._channel = MessageChannel.Telegram
 
     @staticmethod
@@ -70,7 +68,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             except Exception as err:
                 logger.error(f"停止Telegram模块实例失败：{err}")
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -82,28 +80,24 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                 return False, f"Telegram {name} 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """
         获取模块初始化配置项。
         """
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 Telegram 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip()
-            for admin in str((config or {}).get("TELEGRAM_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("TELEGRAM_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 Telegram 命令或命令型按钮回调是否应因非管理员身份被拒绝。
@@ -111,16 +105,10 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
-    def message_parser(
-        self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -199,7 +187,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
 
     def _handle_callback_query(
         self, message: dict, client_config: NotificationConf, client: Telegram
-    ) -> Optional[CommingMessage]:
+    ) -> CommingMessage | None:
         """
         处理按钮回调查询
         """
@@ -211,7 +199,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
 
         if callback_data and user_id:
             if str(callback_data).strip().startswith("/") and self._should_reject_admin_command(
-                    client_config.config, user_id, user_name
+                client_config.config, user_id, user_name
             ):
                 if client:
                     client.answer_callback_query(
@@ -239,16 +227,14 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                 is_callback=True,
                 callback_data=callback_data,
                 message_id=callback_query.get("message", {}).get("message_id"),
-                chat_id=str(
-                    callback_query.get("message", {}).get("chat", {}).get("id", "")
-                ),
+                chat_id=str(callback_query.get("message", {}).get("chat", {}).get("id", "")),
                 callback_query=callback_query,
             )
         return None
 
     def _handle_text_message(
         self, msg: dict, client_config: NotificationConf, client: Telegram
-    ) -> Optional[CommingMessage]:
+    ) -> CommingMessage | None:
         """
         处理普通文本消息
         """
@@ -272,9 +258,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
 
         if user_id:
             if not text and not images and not audio_refs and not files:
-                logger.debug(
-                    f"收到来自 {client_config.name} 的Telegram消息无文本、图片、语音和文件"
-                )
+                logger.debug(f"收到来自 {client_config.name} 的Telegram消息无文本、图片、语音和文件")
                 return None
 
             logger.info(
@@ -284,26 +268,18 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                 f"files={len(files) if files else 0}"
             )
 
-            cleaned_text = (
-                self._clean_bot_mention(text, client.bot_username if client else None)
-                if text
-                else None
-            )
+            cleaned_text = self._clean_bot_mention(text, client.bot_username if client else None) if text else None
 
             user_list = client_config.config.get("TELEGRAM_USERS")
 
             if cleaned_text and cleaned_text.startswith("/"):
                 if self._should_reject_admin_command(client_config.config, user_id, user_name):
-                    client.send_msg(
-                        title="只有管理员才有权限执行此命令", userid=user_id
-                    )
+                    client.send_msg(title="只有管理员才有权限执行此命令", userid=user_id)
                     return None
             else:
                 if user_list and str(user_id) not in user_list.split(","):
                     logger.info(f"用户{user_id}不在用户白名单中，无法使用此机器人")
-                    client.send_msg(
-                        title="你不在用户白名单中，无法使用此机器人", userid=user_id
-                    )
+                    client.send_msg(title="你不在用户白名单中，无法使用此机器人", userid=user_id)
                     return None
 
             return CommingMessage(
@@ -322,7 +298,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         return None
 
     @staticmethod
-    def _extract_images(msg: dict) -> Optional[List[CommingMessage.MessageImage]]:
+    def _extract_images(msg: dict) -> list[CommingMessage.MessageImage] | None:
         """
         从Telegram消息中提取图片file_id
         """
@@ -357,7 +333,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         return images if images else None
 
     @staticmethod
-    def _extract_audio_refs(msg: dict) -> Optional[List[str]]:
+    def _extract_audio_refs(msg: dict) -> list[str] | None:
         """
         从Telegram消息中提取语音/音频 file_id。
         """
@@ -377,7 +353,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         return audio_refs if audio_refs else None
 
     @staticmethod
-    def _extract_files(msg: dict) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _extract_files(msg: dict) -> list[CommingMessage.MessageAttachment] | None:
         """
         从 Telegram 消息中提取非图片文件附件。
         """
@@ -400,7 +376,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         ]
 
     @staticmethod
-    def _embed_entity_links(text: str, entities: Optional[List[dict]]) -> str:
+    def _embed_entity_links(text: str, entities: list[dict] | None) -> str:
         """
         将 text_link 实体中的 URL 嵌入到文本中
 
@@ -420,15 +396,15 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             offset = entity.get("offset", 0)
             length = entity.get("length", 0)
             url = entity["url"]
-            char_offset = len(text_utf16[:offset * 2].decode("utf-16-le"))
-            char_length = len(text_utf16[offset * 2: (offset + length) * 2].decode("utf-16-le"))
-            display_text = text[char_offset: char_offset + char_length]
-            text = text[:char_offset] + f"{display_text}({url})" + text[char_offset + char_length:]
+            char_offset = len(text_utf16[: offset * 2].decode("utf-16-le"))
+            char_length = len(text_utf16[offset * 2 : (offset + length) * 2].decode("utf-16-le"))
+            display_text = text[char_offset : char_offset + char_length]
+            text = text[:char_offset] + f"{display_text}({url})" + text[char_offset + char_length :]
             text_utf16 = text.encode("utf-16-le")
         return text
 
     @staticmethod
-    def _append_reply_markup_links(text: Optional[str], reply_markup: Optional[dict]) -> Optional[str]:
+    def _append_reply_markup_links(text: str | None, reply_markup: dict | None) -> str | None:
         """
         将 reply_markup 中的 URL 按钮信息追加到文本末尾
 
@@ -456,7 +432,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         return buttons_text
 
     @staticmethod
-    def _clean_bot_mention(text: str, bot_username: Optional[str]) -> str:
+    def _clean_bot_mention(text: str, bot_username: str | None) -> str:
         """
         清理消息中的@bot部分，确保文本处理一致性
         :param text: 原始消息文本
@@ -472,7 +448,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
 
         # Remove mention at the beginning with optional following space
         if cleaned.startswith(mention_pattern):
-            cleaned = cleaned[len(mention_pattern):].lstrip()
+            cleaned = cleaned[len(mention_pattern) :].lstrip()
 
         # Remove mention at any other position
         cleaned = cleaned.replace(mention_pattern, "").strip()
@@ -496,7 +472,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             if not userid and targets is not None:
                 userid = targets.get("telegram_userid")
                 if not userid:
-                    logger.warn(f"用户没有指定 Telegram用户ID，消息无法发送")
+                    logger.warn("用户没有指定 Telegram用户ID，消息无法发送")
                     return
             client: Telegram = self.get_instance(conf.name)
             if client:
@@ -522,9 +498,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                     # Telegram 的 reply_markup 不能同时承载 InlineKeyboard 和 ForceReply。
                     # 普通通知只清空可编辑消息 ID，仍保留原会话作为新消息目标。
                     has_interaction_context = bool(message.buttons or message.force_reply)
-                    original_message_id = (
-                        message.original_message_id if has_interaction_context else None
-                    )
+                    original_message_id = message.original_message_id if has_interaction_context else None
                     client.send_msg(
                         title=message.title,
                         text=message.text,
@@ -539,9 +513,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                         parse_mode=message.parse_mode,
                     )
 
-    def post_medias_message(
-        self, message: Notification, medias: List[MediaInfo]
-    ) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message: 消息体
@@ -564,9 +536,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                     parse_mode=message.parse_mode,
                 )
 
-    def post_torrents_message(
-        self, message: Notification, torrents: List[Context]
-    ) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message: 消息体
@@ -594,8 +564,8 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         channel: MessageChannel,
         source: str,
         message_id: int,
-        chat_id: Optional[int] = None,
-    ) -> Optional[bool]:
+        chat_id: int | None = None,
+    ) -> bool | None:
         """
         删除消息
         :param channel: 消息渠道
@@ -621,14 +591,14 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         self,
         channel: MessageChannel,
         source: str,
-        message_id: Union[str, int],
-        chat_id: Union[str, int],
+        message_id: str | int,
+        chat_id: str | int,
         text: str,
-        title: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        metadata: Optional[dict] = None,
-        parse_mode: Optional[str] = None,
-    ) -> Optional[bool]:
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        metadata: dict | None = None,
+        parse_mode: str | None = None,
+    ) -> bool | None:
         """
         编辑消息
         :param channel: 消息渠道
@@ -662,14 +632,14 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         return False
 
     def mark_message_processing_started(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Optional[Union[str, int]] = None,
-            message_id: Optional[Union[str, int]] = None,
-            chat_id: Optional[Union[str, int]] = None,
-            text: Optional[str] = None,
-    ) -> Optional[dict]:
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        text: str | None = None,
+    ) -> dict | None:
         """
         标记 Telegram 消息正在处理。
         Telegram typing 需要周期性续发，因此在模块接口中启动保活任务。
@@ -695,14 +665,14 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
         }
 
     def mark_message_processing_finished(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Optional[Union[str, int]] = None,
-            message_id: Optional[Union[str, int]] = None,
-            chat_id: Optional[Union[str, int]] = None,
-            status: Optional[dict] = None,
-    ) -> Optional[bool]:
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        status: dict | None = None,
+    ) -> bool | None:
         """
         结束 Telegram typing 状态。
         """
@@ -719,7 +689,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             return False
         return client.stop_typing(chat_id=chat_id, userid=userid)
 
-    def send_direct_message(self, message: Notification) -> Optional[MessageResponse]:
+    def send_direct_message(self, message: Notification) -> MessageResponse | None:
         """
         直接发送消息并返回消息ID等信息
         :param message: 消息体
@@ -772,7 +742,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                     )
         return None
 
-    def register_commands(self, commands: Dict[str, dict]):
+    def register_commands(self, commands: dict[str, dict]):
         """
         注册命令，实现这个函数接收系统可用的命令菜单
         :param commands: 命令字典
@@ -809,9 +779,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                     client.delete_commands()
 
             # scoped_commands 必须是 commands 的子集
-            filtered_scoped_commands = DictUtils.filter_keys_to_subset(
-                scoped_commands, commands
-            )
+            filtered_scoped_commands = DictUtils.filter_keys_to_subset(scoped_commands, commands)
             # 如果 filtered_scoped_commands 为空，则跳过注册
             if not filtered_scoped_commands:
                 logger.debug("Filtered commands are empty, skipping registration.")
@@ -819,12 +787,10 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                 continue
             # 对比调整后的命令与当前命令
             if filtered_scoped_commands != commands:
-                logger.debug(
-                    f"Command set has changed, Updating new commands: {filtered_scoped_commands}"
-                )
+                logger.debug(f"Command set has changed, Updating new commands: {filtered_scoped_commands}")
             client.register_commands(filtered_scoped_commands)
 
-    def download_telegram_file_to_base64(self, file_id: str, source: str) -> Optional[str]:
+    def download_telegram_file_to_base64(self, file_id: str, source: str) -> str | None:
         """
         下载Telegram文件并转为base64
         :param file_id: Telegram文件ID
@@ -844,7 +810,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             return base64.b64encode(file_content).decode()
         return None
 
-    def download_telegram_file_bytes(self, file_id: str, source: str) -> Optional[bytes]:
+    def download_telegram_file_bytes(self, file_id: str, source: str) -> bytes | None:
         """
         下载Telegram文件并返回原始字节。
         """

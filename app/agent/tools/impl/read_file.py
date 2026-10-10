@@ -15,8 +15,7 @@ from app.log import logger
 # 最大读取大小 50KB
 MAX_READ_SIZE = 50 * 1024
 READ_FILE_TRUNCATION_MESSAGE = (
-    "文件内容超过50KB，本次结果已截断。"
-    "请使用 start_line 和 end_line 参数指定行号范围分段读取。"
+    "文件内容超过50KB，本次结果已截断。请使用 start_line 和 end_line 参数指定行号范围分段读取。"
 )
 
 
@@ -24,8 +23,14 @@ class ReadFileInput(BaseModel):
     """文件读取工具的输入参数模型。"""
 
     file_path: str = Field(..., description="The absolute path of the file to read")
-    start_line: Optional[int] = Field(None, description="The starting line number (1-based, inclusive). If not provided, reading starts from the beginning of the file.")
-    end_line: Optional[int] = Field(None, description="The ending line number (1-based, inclusive). If not provided, reading goes until the end of the file.")
+    start_line: int | None = Field(
+        None,
+        description="The starting line number (1-based, inclusive). If not provided, reading starts from the beginning of the file.",
+    )
+    end_line: int | None = Field(
+        None,
+        description="The ending line number (1-based, inclusive). If not provided, reading goes until the end of the file.",
+    )
     include_metadata: bool = Field(
         False,
         description=(
@@ -48,9 +53,9 @@ class ReadFileTool(MoviePilotTool):
         "read is limited to 50KB; when content is truncated, continue with "
         "smaller start_line and end_line ranges."
     )
-    args_schema: Type[BaseModel] = ReadFileInput
+    args_schema: type[BaseModel] = ReadFileInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据参数生成友好的提示消息"""
         file_path = kwargs.get("file_path", "")
         file_name = Path(file_path).name if file_path else "未知文件"
@@ -59,8 +64,8 @@ class ReadFileTool(MoviePilotTool):
     async def run(
         self,
         file_path: str,
-        start_line: Optional[int] = None,
-        end_line: Optional[int] = None,
+        start_line: int | None = None,
+        end_line: int | None = None,
         include_metadata: bool = False,
         **kwargs,
     ) -> str:
@@ -68,9 +73,7 @@ class ReadFileTool(MoviePilotTool):
         logger.info(f"执行工具: {self.name}, 参数: file_path={file_path}, start_line={start_line}, end_line={end_line}")
 
         try:
-            resolved_path, access_error = await self._check_local_file_access(
-                file_path, operation="读取"
-            )
+            resolved_path, access_error = await self._check_local_file_access(file_path, operation="读取")
             if access_error:
                 return access_error
 

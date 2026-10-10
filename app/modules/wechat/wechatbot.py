@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import pickle
@@ -5,15 +6,14 @@ import re
 import threading
 import time
 import uuid
-import base64
-from typing import Optional, List, Dict, Tuple, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import websocket
 from Crypto.Cipher import AES
 
 from app.core.cache import FileCache
 from app.core.config import settings
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.schemas import CommingMessage
@@ -34,14 +34,16 @@ class WeChatBot:
     _heartbeat_interval = 30
     _ack_timeout = 10
 
-    def __init__(self,
-                 WECHAT_BOT_ID: Optional[str] = None,
-                 WECHAT_BOT_SECRET: Optional[str] = None,
-                 WECHAT_BOT_CHAT_ID: Optional[str] = None,
-                 WECHAT_BOT_WS_URL: Optional[str] = None,
-                 WECHAT_ADMINS: Optional[str] = None,
-                 name: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        WECHAT_BOT_ID: str | None = None,
+        WECHAT_BOT_SECRET: str | None = None,
+        WECHAT_BOT_CHAT_ID: str | None = None,
+        WECHAT_BOT_WS_URL: str | None = None,
+        WECHAT_ADMINS: str | None = None,
+        name: str | None = None,
+        **kwargs,
+    ):
         self._config_name = name or "wechat"
         self._bot_id = WECHAT_BOT_ID
         self._bot_secret = WECHAT_BOT_SECRET
@@ -51,17 +53,17 @@ class WeChatBot:
         safe_name = hashlib.md5(self._config_name.encode()).hexdigest()[:12]
         self._cache_key = f"__wechatbot_known_targets_{safe_name}__"
         self._filecache = FileCache()
-        self._known_targets: Set[str] = set()
+        self._known_targets: set[str] = set()
 
         self._ready = False
-        self._ws_app: Optional[websocket.WebSocketApp] = None
-        self._ws_thread: Optional[threading.Thread] = None
-        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._ws_app: websocket.WebSocketApp | None = None
+        self._ws_thread: threading.Thread | None = None
+        self._heartbeat_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._authenticated = threading.Event()
         self._send_lock = threading.Lock()
         self._acks_lock = threading.Lock()
-        self._pending_acks: Dict[str, dict] = {}
+        self._pending_acks: dict[str, dict] = {}
 
         if not self._bot_id or not self._bot_secret:
             logger.error("企业微信智能机器人配置不完整！")
@@ -76,7 +78,7 @@ class WeChatBot:
         return f"{prefix}_{uuid.uuid4().hex}"
 
     @staticmethod
-    def _split_content(content: str, max_bytes: int = 4000) -> List[str]:
+    def _split_content(content: str, max_bytes: int = 4000) -> list[str]:
         """
         将 markdown 内容拆分为较小分块，避免消息过长发送失败
         """
@@ -154,7 +156,7 @@ class WeChatBot:
         except Exception as err:
             logger.debug(f"保存企业微信智能机器人已互动用户失败：{err}")
 
-    def _remember_target(self, userid: Optional[str]) -> None:
+    def _remember_target(self, userid: str | None) -> None:
         target = str(userid).strip() if userid else None
         if not target:
             return
@@ -199,10 +201,12 @@ class WeChatBot:
         while not self._stop_event.is_set():
             if self._authenticated.is_set():
                 try:
-                    self._send_raw({
-                        "cmd": "ping",
-                        "headers": {"req_id": self._build_req_id("ping")},
-                    })
+                    self._send_raw(
+                        {
+                            "cmd": "ping",
+                            "headers": {"req_id": self._build_req_id("ping")},
+                        }
+                    )
                 except Exception as err:
                     logger.debug(f"发送企业微信智能机器人心跳失败：{err}")
             for _ in range(self._heartbeat_interval * 10):
@@ -212,14 +216,16 @@ class WeChatBot:
 
     def _on_open(self, ws) -> None:
         logger.info(f"企业微信智能机器人连接成功，开始订阅：{self._config_name}")
-        self._send_raw({
-            "cmd": "aibot_subscribe",
-            "headers": {"req_id": self._build_req_id("aibot_subscribe")},
-            "body": {
-                "bot_id": self._bot_id,
-                "secret": self._bot_secret,
-            },
-        })
+        self._send_raw(
+            {
+                "cmd": "aibot_subscribe",
+                "headers": {"req_id": self._build_req_id("aibot_subscribe")},
+                "body": {
+                    "bot_id": self._bot_id,
+                    "secret": self._bot_secret,
+                },
+            }
+        )
 
     def _on_message(self, ws, message: str) -> None:
         try:
@@ -239,9 +245,7 @@ class WeChatBot:
                     self._authenticated.set()
                     logger.info(f"企业微信智能机器人订阅成功：{self._config_name}")
                 else:
-                    logger.error(
-                        f"企业微信智能机器人订阅失败：{payload.get('errmsg')} ({payload.get('errcode')})"
-                    )
+                    logger.error(f"企业微信智能机器人订阅失败：{payload.get('errmsg')} ({payload.get('errcode')})")
                     self._authenticated.clear()
             return
 
@@ -292,9 +296,7 @@ class WeChatBot:
                 return False
             ack = pending["payload"] or {}
             if ack.get("errcode") != 0:
-                logger.error(
-                    f"企业微信智能机器人消息发送失败：{ack.get('errmsg')} ({ack.get('errcode')})"
-                )
+                logger.error(f"企业微信智能机器人消息发送失败：{ack.get('errmsg')} ({ack.get('errcode')})")
                 return False
             return True
         finally:
@@ -307,7 +309,7 @@ class WeChatBot:
             logger.info(f"企业微信智能机器人旧连接被踢下线：{self._config_name}")
 
     @staticmethod
-    def _extract_text_from_body(body: dict) -> Optional[str]:
+    def _extract_text_from_body(body: dict) -> str | None:
         msgtype = body.get("msgtype")
         text_parts = []
 
@@ -336,14 +338,10 @@ class WeChatBot:
         return text or None
 
     @staticmethod
-    def _build_image_ref(image_payload: dict) -> Optional[str]:
+    def _build_image_ref(image_payload: dict) -> str | None:
         if not image_payload or not isinstance(image_payload, dict):
             return None
-        download_url = (
-            image_payload.get("download_url")
-            or image_payload.get("url")
-            or image_payload.get("cdnurl")
-        )
+        download_url = image_payload.get("download_url") or image_payload.get("url") or image_payload.get("cdnurl")
         if not download_url:
             return None
         payload = {
@@ -351,19 +349,18 @@ class WeChatBot:
             "aeskey": image_payload.get("aeskey")
             or image_payload.get("encoding_aes_key")
             or image_payload.get("encrypt_key"),
-            "mime_type": image_payload.get("mime_type")
-            or image_payload.get("content_type"),
+            "mime_type": image_payload.get("mime_type") or image_payload.get("content_type"),
         }
-        encoded = base64.urlsafe_b64encode(
-            json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        ).decode("ascii").rstrip("=")
+        encoded = (
+            base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+            .decode("ascii")
+            .rstrip("=")
+        )
         return f"wxbot://image/{encoded}"
 
     @classmethod
-    def _extract_images_from_body(
-        cls, body: dict
-    ) -> Optional[List["CommingMessage.MessageImage"]]:
-        images: List["CommingMessage.MessageImage"] = []
+    def _extract_images_from_body(cls, body: dict) -> list[CommingMessage.MessageImage] | None:
+        images: list[CommingMessage.MessageImage] = []
         msgtype = body.get("msgtype")
 
         if msgtype == "image":
@@ -373,8 +370,7 @@ class WeChatBot:
                 images.append(
                     CommingMessage.MessageImage(
                         ref=image_ref,
-                        mime_type=image_payload.get("mime_type")
-                        or image_payload.get("content_type"),
+                        mime_type=image_payload.get("mime_type") or image_payload.get("content_type"),
                     )
                 )
         elif msgtype == "mixed":
@@ -387,8 +383,7 @@ class WeChatBot:
                     images.append(
                         CommingMessage.MessageImage(
                             ref=image_ref,
-                            mime_type=image_payload.get("mime_type")
-                            or image_payload.get("content_type"),
+                            mime_type=image_payload.get("mime_type") or image_payload.get("content_type"),
                         )
                     )
 
@@ -400,8 +395,7 @@ class WeChatBot:
                 images.append(
                     CommingMessage.MessageImage(
                         ref=image_ref,
-                        mime_type=image_payload.get("mime_type")
-                        or image_payload.get("content_type"),
+                        mime_type=image_payload.get("mime_type") or image_payload.get("content_type"),
                     )
                 )
 
@@ -423,17 +417,13 @@ class WeChatBot:
             return "image/webp"
         return default
 
-    def download_image_to_data_url(self, image_ref: str) -> Optional[str]:
+    def download_image_to_data_url(self, image_ref: str) -> str | None:
         if not image_ref or not image_ref.startswith("wxbot://image/"):
             return None
         encoded = image_ref.replace("wxbot://image/", "", 1)
         try:
             padding = "=" * (-len(encoded) % 4)
-            payload = json.loads(
-                base64.urlsafe_b64decode((encoded + padding).encode("ascii")).decode(
-                    "utf-8"
-                )
-            )
+            payload = json.loads(base64.urlsafe_b64decode((encoded + padding).encode("ascii")).decode("utf-8"))
         except Exception as err:
             logger.error(f"解析企业微信智能机器人图片引用失败：{err}")
             return None
@@ -505,7 +495,7 @@ class WeChatBot:
                 # 回调
                 RequestUtils(timeout=15).post_res(
                     f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={self._config_name}",
-                    json=payload
+                    json=payload,
                 )
             except Exception as err:
                 logger.error(f"企业微信智能机器人转发消息失败：{err}")
@@ -513,7 +503,7 @@ class WeChatBot:
         threading.Thread(target=_run, daemon=True).start()
 
     @staticmethod
-    def _normalize_target(userid: Optional[str], default_chat_id: Optional[str]) -> Tuple[Optional[str], int]:
+    def _normalize_target(userid: str | None, default_chat_id: str | None) -> tuple[str | None, int]:
         target = str(userid).strip() if userid else (default_chat_id.strip() if default_chat_id else None)
         if not target:
             return None, 1
@@ -526,10 +516,9 @@ class WeChatBot:
         return target, 1
 
     @staticmethod
-    def _build_markdown(title: Optional[str] = None,
-                        text: Optional[str] = None,
-                        image: Optional[str] = None,
-                        link: Optional[str] = None) -> str:
+    def _build_markdown(
+        title: str | None = None, text: str | None = None, image: str | None = None, link: str | None = None
+    ) -> str:
         parts = []
         if title:
             parts.append(f"**{title}**")
@@ -541,13 +530,13 @@ class WeChatBot:
             parts.append(f"[点击查看]({link})")
         return "\n\n".join(part for part in parts if part).strip()
 
-    def _resolve_targets(self, userid: Optional[str] = None) -> List[Tuple[str, int]]:
+    def _resolve_targets(self, userid: str | None = None) -> list[tuple[str, int]]:
         target, chat_type = self._normalize_target(userid=userid, default_chat_id=self._default_chat_id)
         if target:
             return [(target, chat_type)]
         return [(known_userid, 1) for known_userid in sorted(self._known_targets)]
 
-    def _send_markdown(self, content: str, userid: Optional[str] = None) -> Optional[bool]:
+    def _send_markdown(self, content: str, userid: str | None = None) -> bool | None:
         if not content:
             return False
 
@@ -568,10 +557,8 @@ class WeChatBot:
                         "chatid": target,
                         "chat_type": chat_type,
                         "msgtype": "markdown",
-                        "markdown": {
-                            "content": chunk
-                        }
-                    }
+                        "markdown": {"content": chunk},
+                    },
                 }
                 if not self._send_with_ack(payload):
                     target_success = False
@@ -580,12 +567,18 @@ class WeChatBot:
             send_success = send_success or target_success
         return send_success
 
-    def send_msg(self, title: str, text: Optional[str] = None, image: Optional[str] = None,
-                 userid: Optional[str] = None, link: Optional[str] = None) -> Optional[bool]:
+    def send_msg(
+        self,
+        title: str,
+        text: str | None = None,
+        image: str | None = None,
+        userid: str | None = None,
+        link: str | None = None,
+    ) -> bool | None:
         content = self._build_markdown(title=title, text=text, image=image, link=link)
         return self._send_markdown(content=content, userid=userid)
 
-    def send_medias_msg(self, medias: List[MediaInfo], userid: Optional[str] = None) -> Optional[bool]:
+    def send_medias_msg(self, medias: list[MediaInfo], userid: str | None = None) -> bool | None:
         if not medias:
             return False
 
@@ -599,9 +592,9 @@ class WeChatBot:
             lines.append(line)
         return self._send_markdown(content="\n\n".join(lines), userid=userid)
 
-    def send_torrents_msg(self, torrents: List[Context],
-                          userid: Optional[str] = None, title: Optional[str] = None,
-                          link: Optional[str] = None) -> Optional[bool]:
+    def send_torrents_msg(
+        self, torrents: list[Context], userid: str | None = None, title: str | None = None, link: str | None = None
+    ) -> bool | None:
         if not torrents:
             return False
 
@@ -629,7 +622,7 @@ class WeChatBot:
 
         return self._send_markdown(content="\n\n".join(lines), userid=userid)
 
-    def create_menus(self, commands: Dict[str, dict]):
+    def create_menus(self, commands: dict[str, dict]):
         """
         智能机器人模式不支持传统自建应用菜单
         """

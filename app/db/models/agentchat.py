@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, JSON, Index, select
+from sqlalchemy import JSON, Column, Index, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -50,9 +50,7 @@ class AgentChat(Base):
 
     @classmethod
     @db_query
-    def get_by_session(
-        cls, db: Session, session_id: str, user_id: Optional[str] = None
-    ) -> Optional["AgentChat"]:
+    def get_by_session(cls, db: Session, session_id: str, user_id: str | None = None) -> AgentChat | None:
         """
         根据会话 ID 获取 Agent 会话。
         """
@@ -64,8 +62,8 @@ class AgentChat(Base):
     @classmethod
     @async_db_query
     async def async_get_by_session(
-        cls, db: AsyncSession, session_id: str, user_id: Optional[str] = None
-    ) -> Optional["AgentChat"]:
+        cls, db: AsyncSession, session_id: str, user_id: str | None = None
+    ) -> AgentChat | None:
         """
         异步根据会话 ID 获取 Agent 会话。
         """
@@ -80,11 +78,11 @@ class AgentChat(Base):
     def list_by_page(
         cls,
         db: Session,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-    ) -> list["AgentChat"]:
+        page: int | None = 1,
+        count: int | None = 30,
+        user_id: str | None = None,
+        username: str | None = None,
+    ) -> list[AgentChat]:
         """
         分页获取 Agent 会话历史。
         """
@@ -95,23 +93,18 @@ class AgentChat(Base):
             query = query.filter(cls.user_id == user_id)
         elif username is not None:
             query = query.filter(cls.username == username)
-        return (
-            query.order_by(cls.updated_at.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
-            .all()
-        )
+        return query.order_by(cls.updated_at.desc(), cls.id.desc()).offset((page - 1) * count).limit(count).all()
 
     @classmethod
     @async_db_query
     async def async_list_by_page(
         cls,
         db: AsyncSession,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-    ) -> list["AgentChat"]:
+        page: int | None = 1,
+        count: int | None = 30,
+        user_id: str | None = None,
+        username: str | None = None,
+    ) -> list[AgentChat]:
         """
         异步分页获取 Agent 会话历史。
         """
@@ -123,8 +116,6 @@ class AgentChat(Base):
         elif username is not None:
             statement = statement.where(cls.username == username)
         result = await db.execute(
-            statement.order_by(cls.updated_at.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
+            statement.order_by(cls.updated_at.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
         )
         return result.scalars().all()

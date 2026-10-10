@@ -1,16 +1,17 @@
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, JSON, Index, select
+from sqlalchemy import JSON, Column, Float, Index, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, Base, get_id_column, async_db_query
+from app.db import Base, async_db_query, db_query, get_id_column
 
 
 class SubscribeHistory(Base):
     """
     订阅历史表
     """
+
     id = get_id_column()
     # 标题
     name = Column(String, nullable=False, index=True)
@@ -81,40 +82,34 @@ class SubscribeHistory(Base):
     episode_group = Column(String)
 
     __table_args__ = (
-        Index('ix_subscribehistory_type_date', 'type', 'date'),
-        Index('ix_subscribehistory_media_identity', 'media_source', 'media_id'),
+        Index("ix_subscribehistory_type_date", "type", "date"),
+        Index("ix_subscribehistory_media_identity", "media_source", "media_id"),
     )
 
     @classmethod
     @db_query
-    def list_by_type(cls, db: Session, mtype: str, page: Optional[int] = 1, count: Optional[int] = 30):
-        return db.query(cls).filter(
-            cls.type == mtype
-        ).order_by(
-            cls.date.desc()
-        ).offset((page - 1) * count).limit(count).all()
+    def list_by_type(cls, db: Session, mtype: str, page: int | None = 1, count: int | None = 30):
+        return (
+            db.query(cls)
+            .filter(cls.type == mtype)
+            .order_by(cls.date.desc())
+            .offset((page - 1) * count)
+            .limit(count)
+            .all()
+        )
 
     @classmethod
     @async_db_query
-    async def async_list_by_type(cls, db: AsyncSession, mtype: str, page: Optional[int] = 1, count: Optional[int] = 30):
+    async def async_list_by_type(cls, db: AsyncSession, mtype: str, page: int | None = 1, count: int | None = 30):
         result = await db.execute(
-            select(cls).filter(
-                cls.type == mtype
-            ).order_by(
-                cls.date.desc()
-            ).offset((page - 1) * count).limit(count)
+            select(cls).filter(cls.type == mtype).order_by(cls.date.desc()).offset((page - 1) * count).limit(count)
         )
         return result.scalars().all()
 
     @classmethod
     @async_db_query
     async def async_list_by_type_and_username(
-            cls,
-            db: AsyncSession,
-            mtype: str,
-            username: str,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30
+        cls, db: AsyncSession, mtype: str, username: str, page: int | None = 1, count: int | None = 30
     ):
         """
         按订阅 owner 查询指定类型的历史分页。
@@ -122,24 +117,23 @@ class SubscribeHistory(Base):
         if not username:
             return []
         result = await db.execute(
-            select(cls).filter(
-                cls.type == mtype,
-                cls.username == username
-            ).order_by(
-                cls.date.desc()
-            ).offset((page - 1) * count).limit(count)
+            select(cls)
+            .filter(cls.type == mtype, cls.username == username)
+            .order_by(cls.date.desc())
+            .offset((page - 1) * count)
+            .limit(count)
         )
         return result.scalars().all()
 
     @classmethod
     def _identity_condition(
-            cls,
-            media_source: Optional[str] = None,
-            media_id: Optional[str] = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
+        cls,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
     ):
         """按统一媒体身份优先级构造订阅历史查询条件。"""
         if media_source and media_id:
@@ -157,16 +151,19 @@ class SubscribeHistory(Base):
     @classmethod
     @db_query
     def exists(
-            cls, db: Session, tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None, bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None, media_source: Optional[str] = None,
-            media_id: Optional[str] = None, season: Optional[int] = None,
-            episode_group: Optional[str] = None,
+        cls,
+        db: Session,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        season: int | None = None,
+        episode_group: str | None = None,
     ):
         """按媒体身份、季号及可选剧集组查询订阅历史。"""
-        condition = cls._identity_condition(
-            media_source, media_id, tmdbid, doubanid, bangumiid, anilistid
-        )
+        condition = cls._identity_condition(media_source, media_id, tmdbid, doubanid, bangumiid, anilistid)
         if condition is None:
             return None
         query = db.query(cls).filter(condition)
@@ -178,16 +175,19 @@ class SubscribeHistory(Base):
     @classmethod
     @async_db_query
     async def async_exists(
-            cls, db: AsyncSession, tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None, bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None, media_source: Optional[str] = None,
-            media_id: Optional[str] = None, season: Optional[int] = None,
-            episode_group: Optional[str] = None,
+        cls,
+        db: AsyncSession,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        season: int | None = None,
+        episode_group: str | None = None,
     ):
         """异步按媒体身份、季号及可选剧集组查询订阅历史。"""
-        condition = cls._identity_condition(
-            media_source, media_id, tmdbid, doubanid, bangumiid, anilistid
-        )
+        condition = cls._identity_condition(media_source, media_id, tmdbid, doubanid, bangumiid, anilistid)
         if condition is None:
             return None
         query = select(cls).filter(condition)

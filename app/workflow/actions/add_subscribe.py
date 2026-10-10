@@ -1,16 +1,17 @@
-from app.workflow.actions import BaseAction
 from app.chain.subscribe import SubscribeChain
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.context import MediaInfo
 from app.db.subscribe_oper import SubscribeOper
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class AddSubscribeParams(ActionParams):
     """
     添加订阅参数
     """
+
     pass
 
 
@@ -69,17 +70,19 @@ class AddSubscribeAction(BaseAction):
                 continue
             # 添加订阅
             _started = True
-            sid, message = subscribechain.add(mtype=mediainfo.type,
-                                              title=mediainfo.title,
-                                              year=mediainfo.year,
-                                              tmdbid=mediainfo.tmdb_id,
-                                              season=mediainfo.season,
-                                              doubanid=mediainfo.douban_id,
-                                              bangumiid=mediainfo.bangumi_id,
-                                              anilistid=mediainfo.anilist_id,
-                                              media_source=mediainfo.source,
-                                              media_id=mediainfo.to_dict().get("media_id"),
-                                              username=settings.SUPERUSER)
+            sid, message = subscribechain.add(
+                mtype=mediainfo.type,
+                title=mediainfo.title,
+                year=mediainfo.year,
+                tmdbid=mediainfo.tmdb_id,
+                season=mediainfo.season,
+                doubanid=mediainfo.douban_id,
+                bangumiid=mediainfo.bangumi_id,
+                anilistid=mediainfo.anilist_id,
+                media_source=mediainfo.source,
+                media_id=mediainfo.to_dict().get("media_id"),
+                username=settings.SUPERUSER,
+            )
             if sid:
                 self._added_subscribes.append(sid)
                 # 保存缓存

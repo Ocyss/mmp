@@ -9,6 +9,7 @@
 本模块只依赖标准库，``import`` 期不连库、不触发 ``app.db``：调用方可安全地「先 import 本模块、
 再隔离 CONFIG_DIR」，不破坏「隔离必须早于首个 ``import app.db``」这一硬约束。
 """
+
 from __future__ import annotations
 
 import atexit
@@ -20,7 +21,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # 本进程隔离出的临时 CONFIG_DIR，兼作幂等标记
-_isolated_config_dir: Optional[str] = None
+_isolated_config_dir: str | None = None
 
 
 class _SitesHelperStub:
@@ -40,11 +41,11 @@ class _SitesHelperStub:
         """异步返回空站点索引列表。"""
         return []
 
-    def get_indexer(self, *_args: Any, **_kwargs: Any) -> Optional[dict]:
+    def get_indexer(self, *_args: Any, **_kwargs: Any) -> dict | None:
         """返回空站点索引详情。"""
         return None
 
-    async def async_get_indexer(self, *_args: Any, **_kwargs: Any) -> Optional[dict]:
+    async def async_get_indexer(self, *_args: Any, **_kwargs: Any) -> dict | None:
         """异步返回空站点索引详情。"""
         return None
 
@@ -123,8 +124,9 @@ def ensure_sites_stub() -> None:
         return
     try:
         import app.helper.sites  # noqa: F401  本地已拉取时用真实模块
-    except (ModuleNotFoundError, ImportError):
+    except ModuleNotFoundError, ImportError:
         from types import ModuleType
+
         stub = ModuleType("app.helper.sites")
         stub.SitesHelper = _SitesHelperStub
         sys.modules["app.helper.sites"] = stub
@@ -150,6 +152,7 @@ def ensure_optional_stub(name: str, **attrs) -> None:
     except ImportError:
         pass
     from types import ModuleType
+
     module = ModuleType(name)
     for key, value in attrs.items():
         setattr(module, key, value)
@@ -167,6 +170,7 @@ def prepare_backend() -> None:
     isolate_config_dir()
     ensure_sites_stub()
     from app.db.init import init_db
+
     init_db()
 
 

@@ -15,10 +15,13 @@ from app.utils.jieba import cut as jieba_cut
 
 class QueryTransferHistoryInput(BaseModel):
     """查询整理历史记录工具的输入参数模型"""
-    title: Optional[str] = Field(None, description="Search by title (optional, supports partial match)")
-    status: Optional[str] = Field("all",
-                                  description="Filter by status: 'success' for successful transfers, 'failed' for failed transfers, 'all' for all records (default: 'all')")
-    page: Optional[int] = Field(1, description="Page number for pagination (default: 1, each page contains 30 records)")
+
+    title: str | None = Field(None, description="Search by title (optional, supports partial match)")
+    status: str | None = Field(
+        "all",
+        description="Filter by status: 'success' for successful transfers, 'failed' for failed transfers, 'all' for all records (default: 'all')",
+    )
+    page: int | None = Field(1, description="Page number for pagination (default: 1, each page contains 30 records)")
 
 
 class QueryTransferHistoryTool(MoviePilotTool):
@@ -28,9 +31,9 @@ class QueryTransferHistoryTool(MoviePilotTool):
         ToolTag.Transfer,
     ]
     description: str = "Query file transfer history records. Shows transfer status, source and destination paths, media information, and transfer details. Supports filtering by title and status."
-    args_schema: Type[BaseModel] = QueryTransferHistoryInput
+    args_schema: type[BaseModel] = QueryTransferHistoryInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         title = kwargs.get("title")
         status = kwargs.get("status", "all")
@@ -48,9 +51,7 @@ class QueryTransferHistoryTool(MoviePilotTool):
 
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(self, title: Optional[str] = None,
-                  status: Optional[str] = "all",
-                  page: Optional[int] = 1, **kwargs) -> str:
+    async def run(self, title: str | None = None, status: str | None = "all", page: int | None = 1, **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: title={title}, status={status}, page={page}")
 
         try:
@@ -78,14 +79,10 @@ class QueryTransferHistoryTool(MoviePilotTool):
                 result = await transferhis.async_list_by_title(
                     title=title_search, page=page, count=count, status=status_bool
                 )
-                total = await transferhis.async_count_by_title(
-                    title=title_search, status=status_bool
-                )
+                total = await transferhis.async_count_by_title(title=title_search, status=status_bool)
             else:
                 # 查询所有记录
-                result = await transferhis.async_list_by_page(
-                    page=page, count=count, status=status_bool
-                )
+                result = await transferhis.async_list_by_page(page=page, count=count, status=status_bool)
                 total = await transferhis.async_count(status=status_bool)
 
             if not result:
@@ -108,7 +105,7 @@ class QueryTransferHistoryTool(MoviePilotTool):
                     "status": "成功" if record.status else "失败",
                     "date": record.date,
                     "downloader": record.downloader,
-                    "download_hash": record.download_hash
+                    "download_hash": record.download_hash,
                 }
                 # 如果失败，添加错误信息
                 if not record.status and record.errmsg:

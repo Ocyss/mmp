@@ -1,12 +1,12 @@
 import json
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
-from typing import Optional, Union, List, Tuple, Any, Dict
 
 from app.core.context import Context, MediaInfo
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.modules.vocechat.vocechat import VoceChat
-from app.schemas import MessageChannel, CommingMessage, Notification
+from app.schemas import CommingMessage, MessageChannel, Notification
 from app.schemas.types import ModuleType
 
 
@@ -42,8 +42,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         """
         初始化模块
         """
-        super().init_service(service_name=VoceChat.__name__.lower(),
-                             service_type=VoceChat)
+        super().init_service(service_name=VoceChat.__name__.lower(), service_type=VoceChat)
         self._channel = MessageChannel.VoceChat
 
     @staticmethod
@@ -76,7 +75,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         """VoceChat 客户端无需额外停止操作"""
         pass
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -88,26 +87,22 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
                 return False, f"VoceChat {name} 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """VoceChat 不提供额外的模块初始化设置"""
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 VoceChat 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip()
-            for admin in str((config or {}).get("VOCECHAT_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("VOCECHAT_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 VoceChat 斜杠命令是否应因非管理员身份被拒绝。
@@ -115,25 +110,18 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
     @staticmethod
-    def _send_admin_denied(
-            client: Optional[VoceChat], userid: Optional[Union[str, int]]
-    ) -> None:
+    def _send_admin_denied(client: VoceChat | None, userid: str | int | None) -> None:
         """
         向 VoceChat 非管理员用户发送命令拒绝提示。
         """
         if client and userid:
             client.send_msg(title="只有管理员才有权限执行此命令", userid=str(userid))
 
-    def message_parser(self, source: str, body: Any, form: Any,
-                       args: Any) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -195,8 +183,10 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
 
             # 处理消息内容
             if (text or images or audio_refs or files) and userid:
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, msg_body.get("from_uid"), userid
+                if (
+                    text
+                    and text.startswith("/")
+                    and self._should_reject_admin_command(client_config.config, msg_body.get("from_uid"), userid)
                 ):
                     self._send_admin_denied(client, userid)
                     return None
@@ -205,27 +195,29 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
                     f"userid={userid}, text={text}, images={len(images) if images else 0}, "
                     f"audios={len(audio_refs) if audio_refs else 0}, files={len(files) if files else 0}"
                 )
-                return CommingMessage(channel=MessageChannel.VoceChat, source=client_config.name,
-                                      userid=userid, username=userid, text=text or "",
-                                      images=images, audio_refs=audio_refs, files=files)
+                return CommingMessage(
+                    channel=MessageChannel.VoceChat,
+                    source=client_config.name,
+                    userid=userid,
+                    username=userid,
+                    text=text or "",
+                    images=images,
+                    audio_refs=audio_refs,
+                    files=files,
+                )
         except Exception as err:
             logger.error(f"VoceChat消息处理发生错误：{str(err)}")
         return None
 
     @classmethod
-    def _extract_images(
-        cls, detail: dict
-    ) -> Optional[List[CommingMessage.MessageImage]]:
+    def _extract_images(cls, detail: dict) -> list[CommingMessage.MessageImage] | None:
         """从 VoceChat 文件消息中提取图片引用"""
         content_type = detail.get("content_type") or ""
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
         mime_type = (
-            properties.get("content_type")
-            or properties.get("mime_type")
-            or properties.get("contentType")
-            or ""
+            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
         ).lower()
         file_path = (
             properties.get("path")
@@ -233,11 +225,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             or properties.get("storage_path")
             or detail.get("content")
         )
-        direct_url = (
-            properties.get("url")
-            or properties.get("download_url")
-            or properties.get("file_url")
-        )
+        direct_url = properties.get("url") or properties.get("download_url") or properties.get("file_url")
         file_name = (
             properties.get("name")
             or properties.get("filename")
@@ -268,17 +256,14 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         return None
 
     @classmethod
-    def _extract_audio_refs(cls, detail: dict) -> Optional[List[str]]:
+    def _extract_audio_refs(cls, detail: dict) -> list[str] | None:
         """从 VoceChat 文件消息中提取音频引用"""
         content_type = detail.get("content_type") or ""
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
         mime_type = (
-            properties.get("content_type")
-            or properties.get("mime_type")
-            or properties.get("contentType")
-            or ""
+            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
         ).lower()
         file_path = (
             properties.get("path")
@@ -300,19 +285,14 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         return None
 
     @classmethod
-    def _extract_files(
-        cls, detail: dict
-    ) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _extract_files(cls, detail: dict) -> list[CommingMessage.MessageAttachment] | None:
         """从 VoceChat 文件消息中提取普通附件"""
         content_type = detail.get("content_type") or ""
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
         mime_type = (
-            properties.get("content_type")
-            or properties.get("mime_type")
-            or properties.get("contentType")
-            or ""
+            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
         ).lower()
         file_path = (
             properties.get("path")
@@ -326,12 +306,8 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
         )
         lowered_name = str(file_name).lower()
-        is_image = mime_type.startswith("image/") or lowered_name.endswith(
-            cls._IMAGE_SUFFIXES
-        )
-        is_audio = mime_type.startswith("audio/") or lowered_name.endswith(
-            cls._AUDIO_SUFFIXES
-        )
+        is_image = mime_type.startswith("image/") or lowered_name.endswith(cls._IMAGE_SUFFIXES)
+        is_audio = mime_type.startswith("audio/") or lowered_name.endswith(cls._AUDIO_SUFFIXES)
         if is_image or is_audio or not isinstance(file_path, str) or not file_path:
             return None
         return [
@@ -357,13 +333,14 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             targets = message.targets
             userid = message.userid
             if not message.userid and targets:
-                userid = targets.get('vocechat_userid')
+                userid = targets.get("vocechat_userid")
             client: VoceChat = self.get_instance(conf.name)
             if client:
-                client.send_msg(title=message.title, text=message.text,
-                                image=message.image, userid=userid, link=message.link)
+                client.send_msg(
+                    title=message.title, text=message.text, image=message.image, userid=userid, link=message.link
+                )
 
-    def post_medias_message(self, message: Notification, medias: List[MediaInfo]) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message: 消息内容
@@ -376,10 +353,9 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             client: VoceChat = self.get_instance(conf.name)
             if client:
                 client.send_msg(title=message.title, userid=message.userid)
-                client.send_medias_msg(title=message.title, medias=medias,
-                                       userid=message.userid, link=message.link)
+                client.send_medias_msg(title=message.title, medias=medias, userid=message.userid, link=message.link)
 
-    def post_torrents_message(self, message: Notification, torrents: List[Context]) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message: 消息内容
@@ -392,20 +368,19 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             targets = message.targets
             userid = message.userid
             if not userid and targets is not None:
-                userid = targets.get('vocechat_userid')
+                userid = targets.get("vocechat_userid")
                 if not userid:
-                    logger.warn(f"用户没有指定 VoceChat用户ID，消息无法发送")
+                    logger.warn("用户没有指定 VoceChat用户ID，消息无法发送")
                     return
             client: VoceChat = self.get_instance(conf.name)
             if client:
-                client.send_torrents_msg(title=message.title, torrents=torrents,
-                                         userid=userid, link=message.link)
+                client.send_torrents_msg(title=message.title, torrents=torrents, userid=userid, link=message.link)
 
-    def register_commands(self, commands: Dict[str, dict]):
+    def register_commands(self, commands: dict[str, dict]):
         """VoceChat 不支持注册命令菜单"""
         pass
 
-    def download_vocechat_image_to_data_url(self, image_ref: str, source: str) -> Optional[str]:
+    def download_vocechat_image_to_data_url(self, image_ref: str, source: str) -> str | None:
         """
         下载 VoceChat 图片并转换为 data URL
         """
@@ -420,7 +395,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         file_path = unquote(image_ref.replace("vocechat://file/", "", 1))
         return client.download_file_to_data_url(file_path)
 
-    def download_vocechat_file_bytes(self, file_ref: str, source: str) -> Optional[bytes]:
+    def download_vocechat_file_bytes(self, file_ref: str, source: str) -> bytes | None:
         """
         下载 VoceChat 文件并返回原始字节
         """

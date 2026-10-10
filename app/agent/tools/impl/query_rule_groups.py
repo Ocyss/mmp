@@ -1,25 +1,25 @@
 """查询过滤规则组工具。"""
 
 import json
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
+    RULE_STRING_SYNTAX,
     collect_rule_group_usages,
     get_rule_groups,
     serialize_rule_group,
-    RULE_STRING_SYNTAX,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
 class QueryRuleGroupsInput(BaseModel):
     """查询规则组工具的输入参数模型"""
 
-    group_names: Optional[List[str]] = Field(
+    group_names: list[str] | None = Field(
         None,
         description="Optional list of rule group names to query. If omitted, return all rule groups.",
     )
@@ -42,9 +42,9 @@ class QueryRuleGroupsTool(MoviePilotTool):
         "Levels are evaluated from left to right, and the first matched level wins. "
         "The result includes parsed levels and syntax guidance so the agent can learn existing patterns before writing a new rule group."
     )
-    args_schema: Type[BaseModel] = QueryRuleGroupsInput
+    args_schema: type[BaseModel] = QueryRuleGroupsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         group_names = kwargs.get("group_names") or []
         if group_names:
             return f"查询规则组: {', '.join(group_names)}"
@@ -52,7 +52,7 @@ class QueryRuleGroupsTool(MoviePilotTool):
 
     async def run(
         self,
-        group_names: Optional[List[str]] = None,
+        group_names: list[str] | None = None,
         include_usage: bool = True,
         **kwargs,
     ) -> str:
@@ -62,25 +62,14 @@ class QueryRuleGroupsTool(MoviePilotTool):
             rule_groups = get_rule_groups()
             if group_names:
                 target_names = set(group_names)
-                rule_groups = [
-                    group for group in rule_groups if group.name in target_names
-                ]
+                rule_groups = [group for group in rule_groups if group.name in target_names]
 
             usage_map = {}
             if include_usage:
-                usage_map = await collect_rule_group_usages(
-                    [group.name for group in rule_groups if group.name]
-                )
+                usage_map = await collect_rule_group_usages([group.name for group in rule_groups if group.name])
 
-            serialized = [
-                serialize_rule_group(group, usage_map.get(group.name))
-                for group in rule_groups
-            ]
-            message = (
-                f"找到 {len(serialized)} 个规则组"
-                if serialized
-                else "未找到任何规则组"
-            )
+            serialized = [serialize_rule_group(group, usage_map.get(group.name)) for group in rule_groups]
+            message = f"找到 {len(serialized)} 个规则组" if serialized else "未找到任何规则组"
 
             return json.dumps(
                 {

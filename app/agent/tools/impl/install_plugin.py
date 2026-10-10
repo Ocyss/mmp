@@ -6,13 +6,13 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import (
     get_plugin_snapshot,
     install_plugin_runtime,
     load_market_plugins,
     summarize_plugin,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
@@ -45,9 +45,9 @@ class InstallPluginTool(MoviePilotTool):
         "Use query_market_plugins first when you need filtering or discovery."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = InstallPluginInput
+    args_schema: type[BaseModel] = InstallPluginInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         plugin_id = kwargs.get("plugin_id")
         return f"安装插件: {plugin_id or '未知插件'}"
 
@@ -58,9 +58,7 @@ class InstallPluginTool(MoviePilotTool):
         force_refresh_market: bool = False,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, force={force}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, force={force}")
 
         try:
             plugins = await load_market_plugins(force_refresh=force_refresh_market)

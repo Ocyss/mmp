@@ -1,7 +1,8 @@
 import base64
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Optional, Union
 from urllib.parse import urlsplit, urlunsplit
 
 from requests import Session
@@ -20,8 +21,8 @@ class ApiResult:
     code: int = -1
     msg: str = ""
     data: Any = None
-    debug: Optional[str] = None
-    raw: Optional[dict] = None
+    debug: str | None = None
+    raw: dict | None = None
 
     @property
     def success(self) -> bool:
@@ -78,12 +79,12 @@ class Api:
         self._host = self._normalize_base_url(host)
         self._session = Session()
 
-        self._token: Optional[str] = None
-        self._static_token: Optional[str] = None
+        self._token: str | None = None
+        self._static_token: str | None = None
         self._is_ugk: bool = False
-        self._public_key: Optional[str] = None
-        self._crypto: Optional[UgreenCrypto] = None
-        self._username: Optional[str] = None
+        self._public_key: str | None = None
+        self._crypto: UgreenCrypto | None = None
+        self._username: str | None = None
 
         self._client_id = f"{uuid.uuid4()}-WEB"
         self._client_version = client_version
@@ -99,12 +100,12 @@ class Api:
         return self._host
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         """获取当前登录会话 token"""
         return self._token
 
     @property
-    def static_token(self) -> Optional[str]:
+    def static_token(self) -> str | None:
         """获取可用于静态资源访问的 token"""
         return self._static_token
 
@@ -114,7 +115,7 @@ class Api:
         return self._is_ugk
 
     @property
-    def public_key(self) -> Optional[str]:
+    def public_key(self) -> str | None:
         """获取当前会话加密公钥"""
         return self._public_key
 
@@ -133,7 +134,7 @@ class Api:
         return urlunsplit((parsed.scheme, parsed.netloc, "", "", "")).rstrip("/")
 
     @staticmethod
-    def _decode_public_key(raw: Optional[str]) -> Optional[str]:
+    def _decode_public_key(raw: str | None) -> str | None:
         if not raw:
             return None
         value = str(raw).strip()
@@ -147,7 +148,7 @@ class Api:
             return None
 
     @staticmethod
-    def _extract_rsa_token(resp_json: dict, headers: Mapping[str, str]) -> Optional[str]:
+    def _extract_rsa_token(resp_json: dict, headers: Mapping[str, str]) -> str | None:
         token = headers.get("x-rsa-token") or headers.get("X-Rsa-Token")
         if token:
             return token
@@ -176,10 +177,10 @@ class Api:
         self,
         url: str,
         method: str = "GET",
-        headers: Optional[dict] = None,
-        params: Optional[dict] = None,
-        json_data: Optional[dict] = None,
-    ) -> Optional[dict]:
+        headers: dict | None = None,
+        params: dict | None = None,
+        json_data: dict | None = None,
+    ) -> dict | None:
         """
         发送 HTTP 请求并尝试解析为 JSON。
         """
@@ -224,7 +225,7 @@ class Api:
             raw=dict(payload),
         )
 
-    def login(self, username: str, password: str, keepalive: bool = True) -> Optional[str]:
+    def login(self, username: str, password: str, keepalive: bool = True) -> str | None:
         """
         登录绿联账号并初始化加密上下文。
 
@@ -291,11 +292,7 @@ class Api:
         ).strip()
         public_key = (
             self._decode_public_key(
-                str(
-                    login_result.data.get("public_key")
-                    or login_result.data.get("publicKey")
-                    or ""
-                )
+                str(login_result.data.get("public_key") or login_result.data.get("publicKey") or "")
             )
             or login_public_key
         )
@@ -304,11 +301,7 @@ class Api:
             return None
 
         self._token = token
-        static_token = str(
-            login_result.data.get("static_token")
-            or login_result.data.get("staticToken")
-            or ""
-        ).strip()
+        static_token = str(login_result.data.get("static_token") or login_result.data.get("staticToken") or "").strip()
         self._static_token = static_token or self._token
         self._is_ugk = bool(login_result.data.get("is_ugk"))
         self._public_key = public_key
@@ -323,7 +316,7 @@ class Api:
         self._username = username
         return self._token
 
-    def export_session_state(self) -> Optional[dict]:
+    def export_session_state(self) -> dict | None:
         """
         导出当前登录会话，供持久化存储使用。
         """
@@ -381,11 +374,7 @@ class Api:
         if isinstance(cookies, Mapping):
             try:
                 self._session.cookies.update(
-                    {
-                        str(k): str(v)
-                        for k, v in cookies.items()
-                        if k is not None and v is not None
-                    }
+                    {str(k): str(v) for k, v in cookies.items() if k is not None and v is not None}
                 )
             except Exception:
                 pass
@@ -436,8 +425,8 @@ class Api:
         self,
         path: str,
         method: str = "GET",
-        params: Optional[dict] = None,
-        data: Optional[dict] = None,
+        params: dict | None = None,
+        data: dict | None = None,
     ) -> ApiResult:
         """
         统一请求入口。
@@ -480,7 +469,7 @@ class Api:
         decrypted = self._crypto.decrypt_response(payload, req.aes_key)
         return self._build_result(decrypted)
 
-    def current_user(self) -> Optional[dict]:
+    def current_user(self) -> dict | None:
         """
         获取当前登录用户信息。
         """
@@ -489,7 +478,7 @@ class Api:
             return None
         return dict(result.data)
 
-    def media_list(self) -> Optional[list[dict]]:
+    def media_list(self) -> list[dict] | None:
         """
         获取首页媒体库列表（`media_lib_info_list`）。
         """
@@ -509,7 +498,7 @@ class Api:
         users = result.data.get("user_info_arr")
         return users if isinstance(users, list) else []
 
-    def recently_played(self, page: int = 1, page_size: int = 12) -> Optional[dict]:
+    def recently_played(self, page: int = 1, page_size: int = 12) -> dict | None:
         """
         获取继续观看列表。
         """
@@ -524,7 +513,7 @@ class Api:
         )
         return result.data if result.success and isinstance(result.data, Mapping) else None
 
-    def recently_updated(self, page: int = 1, page_size: int = 20) -> Optional[dict]:
+    def recently_updated(self, page: int = 1, page_size: int = 20) -> dict | None:
         """
         获取最近更新列表。
         """
@@ -539,7 +528,7 @@ class Api:
         )
         return result.data if result.success and isinstance(result.data, Mapping) else None
 
-    def recently_played_info(self, item_id: Union[str, int]) -> Optional[dict]:
+    def recently_played_info(self, item_id: str | int) -> dict | None:
         """
         获取单个视频的播放状态与基础详情信息。
         """
@@ -554,7 +543,7 @@ class Api:
             return dict(result.data)
         return None
 
-    def search(self, keyword: str, offset: int = 0, limit: int = 200) -> Optional[dict]:
+    def search(self, keyword: str, offset: int = 0, limit: int = 200) -> dict | None:
         """
         搜索媒体（电影/剧集）。
         """
@@ -570,7 +559,7 @@ class Api:
         )
         return result.data if result.success and isinstance(result.data, Mapping) else None
 
-    def video_all(self, classification: int, page: int = 1, page_size: int = 20) -> Optional[dict]:
+    def video_all(self, classification: int, page: int = 1, page_size: int = 20) -> dict | None:
         """
         获取 `v1/video/all` 分类列表。
 
@@ -599,12 +588,12 @@ class Api:
 
     def poster_wall_get_folder(
         self,
-        path: Optional[str] = None,
+        path: str | None = None,
         page: int = 1,
         page_size: int = 100,
         sort_type: int = 1,
         order_type: int = 1,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         获取海报墙文件夹与条目（可按目录路径递归展开）。
         """
@@ -621,11 +610,11 @@ class Api:
 
     def get_movie(
         self,
-        item_id: Union[str, int],
-        media_lib_set_id: Union[str, int],
-        path: Optional[str] = None,
-        folder_path: Optional[str] = None,
-    ) -> Optional[dict]:
+        item_id: str | int,
+        media_lib_set_id: str | int,
+        path: str | None = None,
+        folder_path: str | None = None,
+    ) -> dict | None:
         """
         获取电影详情。
         """
@@ -641,7 +630,7 @@ class Api:
         result = self.request("v1/video/details/getMovie", params=params)
         return result.data if result.success and isinstance(result.data, Mapping) else None
 
-    def get_tv(self, item_id: Union[str, int], folder_path: str = "ALL") -> Optional[dict]:
+    def get_tv(self, item_id: str | int, folder_path: str = "ALL") -> dict | None:
         """
         获取剧集详情（含季/集信息）。
         """
@@ -654,7 +643,7 @@ class Api:
         )
         return result.data if result.success and isinstance(result.data, Mapping) else None
 
-    def scan(self, media_lib_set_id: Union[str, int], scan_type: int = 2, op_type: int = 2) -> bool:
+    def scan(self, media_lib_set_id: str | int, scan_type: int = 2, op_type: int = 2) -> bool:
         """
         触发媒体库扫描。
 
@@ -685,30 +674,28 @@ class Api:
         arr = result.data.get("media_lib_scan_status_arr")
         return arr if isinstance(arr, list) else []
 
-    def preferences_all(self) -> Optional[Any]:
+    def preferences_all(self) -> Any | None:
         """
         获取影视偏好设置（`v1/video/preferences/all`）。
         """
         result = self.request("v1/video/preferences/all")
         return result.data if result.success else None
 
-    def history_get(self, num: int = 10) -> Optional[Any]:
+    def history_get(self, num: int = 10) -> Any | None:
         """
         获取历史记录（`v1/video/history/get`）。
         """
         result = self.request("v1/video/history/get", params={"num": num})
         return result.data if result.success else None
 
-    def data_source_get_config(self) -> Optional[Any]:
+    def data_source_get_config(self) -> Any | None:
         """
         获取数据源配置（`v1/video/data_source/get_config`）。
         """
         result = self.request("v1/video/data_source/get_config")
         return result.data if result.success else None
 
-    def homepage_slider(
-        self, language: Optional[str] = None, app_name: str = "web"
-    ) -> Optional[Any]:
+    def homepage_slider(self, language: str | None = None, app_name: str = "web") -> Any | None:
         """
         获取首页轮播数据（`v1/video/homepage/slider`）。
         """
@@ -721,16 +708,14 @@ class Api:
         )
         return result.data if result.success else None
 
-    def media_lib_guide_init(self) -> Optional[Any]:
+    def media_lib_guide_init(self) -> Any | None:
         """
         获取媒体库引导初始化信息（`v1/video/media_lib/guide_init`）。
         """
         result = self.request("v1/video/media_lib/guide_init")
         return result.data if result.success else None
 
-    def media_lib_filter_options(
-        self, media_type: int = 0, language: Optional[str] = None
-    ) -> Optional[Any]:
+    def media_lib_filter_options(self, media_type: int = 0, language: str | None = None) -> Any | None:
         """
         获取媒体库筛选项（`v1/video/media_lib/filter/options`）。
         """
@@ -743,7 +728,7 @@ class Api:
         )
         return result.data if result.success else None
 
-    def guide(self, guide_position: int = 1, client_type: int = 1) -> Optional[Any]:
+    def guide(self, guide_position: int = 1, client_type: int = 1) -> Any | None:
         """
         获取引导位数据（`v1/video/guide`）。
         """
@@ -756,7 +741,7 @@ class Api:
         )
         return result.data if result.success else None
 
-    def homepage_v2(self, language: Optional[str] = None) -> Optional[Any]:
+    def homepage_v2(self, language: str | None = None) -> Any | None:
         """
         获取新版首页聚合数据（`v2/video/homepage`）。
         """
@@ -766,16 +751,14 @@ class Api:
         )
         return result.data if result.success else None
 
-    def media_lib_init_user_permission(self) -> Optional[Any]:
+    def media_lib_init_user_permission(self) -> Any | None:
         """
         初始化用户媒体库权限（`v1/video/media_lib/init_user_permission`）。
         """
         result = self.request("v1/video/media_lib/init_user_permission")
         return result.data if result.success else None
 
-    def media_lib_get_all(
-        self, req_type: int = 2, language: Optional[str] = None
-    ) -> Optional[Any]:
+    def media_lib_get_all(self, req_type: int = 2, language: str | None = None) -> Any | None:
         """
         获取全部媒体库集合（`v1/video/media_lib/get_all`）。
         """

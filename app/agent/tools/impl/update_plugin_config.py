@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import get_plugin_snapshot
+from app.agent.tools.tags import ToolTag
 from app.core.plugin import PluginManager
 from app.log import logger
 
@@ -19,18 +19,18 @@ class UpdatePluginConfigInput(BaseModel):
         ...,
         description="The plugin ID to update. Use query_plugin_config first to inspect the current config.",
     )
-    updates: Optional[Dict[str, Any]] = Field(
+    updates: dict[str, Any] | None = Field(
         None,
         description=(
             "Config items to save. By default this tool merges these keys into the existing config "
             "instead of replacing the whole config."
         ),
     )
-    remove_keys: Optional[List[str]] = Field(
+    remove_keys: list[str] | None = Field(
         None,
         description="Optional config keys to remove from the saved plugin config.",
     )
-    replace: Optional[bool] = Field(
+    replace: bool | None = Field(
         False,
         description=(
             "Whether to replace the entire saved config with 'updates'. "
@@ -52,9 +52,9 @@ class UpdatePluginConfigTool(MoviePilotTool):
         "Call reload_plugin afterwards to apply the latest saved config to the running plugin."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = UpdatePluginConfigInput
+    args_schema: type[BaseModel] = UpdatePluginConfigInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         plugin_id = kwargs.get("plugin_id", "")
         replace = kwargs.get("replace", False)
@@ -64,8 +64,8 @@ class UpdatePluginConfigTool(MoviePilotTool):
     @staticmethod
     async def _update_plugin_config(
         plugin_id: str,
-        updates: Optional[Dict[str, Any]] = None,
-        remove_keys: Optional[List[str]] = None,
+        updates: dict[str, Any] | None = None,
+        remove_keys: list[str] | None = None,
         replace: bool = False,
     ) -> str:
         """
@@ -101,8 +101,7 @@ class UpdatePluginConfigTool(MoviePilotTool):
         changed_keys = sorted(
             key
             for key in set(current_config.keys()) | set(next_config.keys())
-            if current_config.get(key) != next_config.get(key)
-            or (key in current_config) != (key in next_config)
+            if current_config.get(key) != next_config.get(key) or (key in current_config) != (key in next_config)
         )
 
         if not await plugin_manager.async_save_plugin_config(plugin_id, next_config):
@@ -134,19 +133,15 @@ class UpdatePluginConfigTool(MoviePilotTool):
     async def run(
         self,
         plugin_id: str,
-        updates: Optional[Dict[str, Any]] = None,
-        remove_keys: Optional[List[str]] = None,
+        updates: dict[str, Any] | None = None,
+        remove_keys: list[str] | None = None,
         replace: bool = False,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, replace={replace}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, replace={replace}")
 
         try:
-            return await self._update_plugin_config(
-                plugin_id, updates, remove_keys, replace
-            )
+            return await self._update_plugin_config(plugin_id, updates, remove_keys, replace)
         except Exception as e:
             logger.error(f"修改插件配置失败: {e}", exc_info=True)
             return json.dumps(

@@ -11,8 +11,7 @@ from app.log import logger
 from app.schemas.types import SystemConfigKey
 from app.utils.singleton import Singleton
 
-
-_COMBINED_WORD_RE = re.compile(r'^\s*(.*?)\s*=>\s*(.*?)\s*&&\s*(.*?)\s*<>\s*(.*?)\s*>>\s*(.*?)\s*$')
+_COMBINED_WORD_RE = re.compile(r"^\s*(.*?)\s*=>\s*(.*?)\s*&&\s*(.*?)\s*<>\s*(.*?)\s*>>\s*(.*?)\s*$")
 _LEADING_ZERO_RE = re.compile(r"^0+")
 _EP_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_])EP(?![A-Za-z0-9_])")
 _IMPLICIT_EP_EXPRESSION_RE = re.compile(r"(?:\d|\))\s*EP|EP\s*(?:\d|\()")
@@ -90,7 +89,7 @@ class WordsMatcher(metaclass=Singleton):
         """
         self.systemconfig = SystemConfigOper()
 
-    def prepare(self, title: str, custom_words: List[str] = None) -> Tuple[str, List[str]]:
+    def prepare(self, title: str, custom_words: list[str] = None) -> tuple[str, list[str]]:
         """
         预处理标题，支持三种格式
         1：屏蔽词
@@ -99,7 +98,7 @@ class WordsMatcher(metaclass=Singleton):
         """
         appley_words = []
         # 读取自定义识别词
-        words: List[str] = custom_words or self.systemconfig.get(SystemConfigKey.CustomIdentifiers) or []
+        words: list[str] = custom_words or self.systemconfig.get(SystemConfigKey.CustomIdentifiers) or []
         for word in words:
             if not word or word.startswith("#"):
                 continue
@@ -131,7 +130,7 @@ class WordsMatcher(metaclass=Singleton):
         return title, appley_words
 
     @staticmethod
-    def __parse_word(word: str) -> Optional[Tuple[str, Tuple[str, ...]]]:
+    def __parse_word(word: str) -> tuple[str, tuple[str, ...]] | None:
         """
         解析识别词格式。复杂识别词保留原来的字段含义，只把多次正则提取合并为一次。
         """
@@ -153,30 +152,32 @@ class WordsMatcher(metaclass=Singleton):
         return "block", (word,)
 
     @staticmethod
-    def __replace_regex(title: str, replaced: str, replace: str) -> Tuple[str, str, bool]:
+    def __replace_regex(title: str, replaced: str, replace: str) -> tuple[str, str, bool]:
         """
         正则替换
         """
         try:
-            replaced_re = _compile_custom_word_regex(r'%s' % replaced)
-            title, count = replaced_re.subn(r'%s' % replace, title)
+            replaced_re = _compile_custom_word_regex(r"%s" % replaced)
+            title, count = replaced_re.subn(r"%s" % replace, title)
             return title, "", count > 0
         except Exception as err:
-            logger.warn(f"自定义识别词正则替换失败：{str(err)} - 标题：{title}，被替换词：{replaced}，替换词：{replace}")
+            logger.warn(
+                f"自定义识别词正则替换失败：{str(err)} - 标题：{title}，被替换词：{replaced}，替换词：{replace}"
+            )
             return title, str(err), False
 
     @staticmethod
-    def __episode_offset(title: str, front: str, back: str, offset: str) -> Tuple[str, str, bool]:
+    def __episode_offset(title: str, front: str, back: str, offset: str) -> tuple[str, str, bool]:
         """
         集数偏移
         """
         try:
-            if back and not _compile_custom_word_regex(r'%s' % back).search(title):
+            if back and not _compile_custom_word_regex(r"%s" % back).search(title):
                 return title, "", False
-            if front and not _compile_custom_word_regex(r'%s' % front).search(title):
+            if front and not _compile_custom_word_regex(r"%s" % front).search(title):
                 return title, "", False
             offset_word_info_re = _compile_custom_word_regex(
-                r'(?<=%s.*?)[0-9一二三四五六七八九十]+(?=.*?%s)' % (front, back)
+                r"(?<=%s.*?)[0-9一二三四五六七八九十]+(?=.*?%s)" % (front, back)
             )
             episode_nums_str = offset_word_info_re.findall(title)
             if not episode_nums_str:
@@ -192,9 +193,7 @@ class WordsMatcher(metaclass=Singleton):
                 # 向后偏移
                 elif episode_num_int < episode_num_offset_int:
                     offset_order_flag = False
-                episode_num_offset_str = _format_episode_offset(
-                    episode_num_str, episode_num_offset_int
-                )
+                episode_num_offset_str = _format_episode_offset(episode_num_str, episode_num_offset_int)
                 episode_nums_offset_str.append(episode_num_offset_str)
             episode_nums_dict = dict(zip(episode_nums_str, episode_nums_offset_str))
             # 集数向前偏移，集数按升序处理
@@ -204,11 +203,11 @@ class WordsMatcher(metaclass=Singleton):
             else:
                 episode_nums_list = sorted(episode_nums_dict.items(), key=lambda x: x[1], reverse=True)
             for episode_num in episode_nums_list:
-                episode_offset_re = _compile_custom_word_regex(
-                    r'(?<=%s.*?)%s(?=.*?%s)' % (front, episode_num[0], back)
-                )
-                title = episode_offset_re.sub(r'%s' % episode_num[1], title)
+                episode_offset_re = _compile_custom_word_regex(r"(?<=%s.*?)%s(?=.*?%s)" % (front, episode_num[0], back))
+                title = episode_offset_re.sub(r"%s" % episode_num[1], title)
             return title, "", True
         except Exception as err:
-            logger.warn(f"自定义识别词集数偏移失败：{str(err)} - 标题：{title}，前定位词：{front}，后定位词：{back}，偏移量：{offset}")
+            logger.warn(
+                f"自定义识别词集数偏移失败：{str(err)} - 标题：{title}，前定位词：{front}，后定位词：{back}，偏移量：{offset}"
+            )
             return title, str(err), False

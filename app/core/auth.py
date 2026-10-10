@@ -29,7 +29,7 @@ class AuthTicketStore(metaclass=Singleton):
         self._tickets: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
 
-    def create(self, user_id: int, provider_id: str, metadata: Optional[dict[str, Any]] = None) -> str:
+    def create(self, user_id: int, provider_id: str, metadata: dict[str, Any] | None = None) -> str:
         """
         创建短时一次性登录票据。
 
@@ -50,7 +50,7 @@ class AuthTicketStore(metaclass=Singleton):
             }
         return ticket
 
-    def consume(self, ticket: str) -> Optional[dict[str, Any]]:
+    def consume(self, ticket: str) -> dict[str, Any] | None:
         """
         消费并删除一次性登录票据。
 
@@ -69,7 +69,7 @@ class AuthTicketStore(metaclass=Singleton):
             return None
         return data
 
-    def _cleanup(self, now: Optional[float] = None) -> None:
+    def _cleanup(self, now: float | None = None) -> None:
         """
         清理过期或过量的票据缓存。
 
@@ -93,7 +93,7 @@ class AuthTicketStore(metaclass=Singleton):
             self._tickets.pop(key, None)
 
 
-def create_plugin_auth_ticket(user_id: int, provider_id: str, metadata: Optional[dict[str, Any]] = None) -> str:
+def create_plugin_auth_ticket(user_id: int, provider_id: str, metadata: dict[str, Any] | None = None) -> str:
     """
     为插件认证成功的用户创建一次性登录票据。
 
@@ -105,7 +105,7 @@ def create_plugin_auth_ticket(user_id: int, provider_id: str, metadata: Optional
     return AuthTicketStore().create(user_id=user_id, provider_id=provider_id, metadata=metadata)
 
 
-def consume_plugin_auth_ticket(ticket: str) -> Optional[dict[str, Any]]:
+def consume_plugin_auth_ticket(ticket: str) -> dict[str, Any] | None:
     """
     消费插件认证登录票据。
 
@@ -123,10 +123,7 @@ def build_token_response(user: User) -> schemas.Token:
     :return: 标准 Token 响应
     """
     level = SitesHelper().auth_level
-    show_wizard = (
-        not SystemConfigOper().get(SystemConfigKey.SetupWizardState)
-        and not settings.ADVANCED_MODE
-    )
+    show_wizard = not SystemConfigOper().get(SystemConfigKey.SetupWizardState) and not settings.ADVANCED_MODE
     return schemas.Token(
         access_token=security.create_access_token(
             userid=user.id,

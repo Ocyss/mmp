@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import re
 from abc import ABCMeta, abstractmethod
@@ -50,16 +49,19 @@ class SiteParserBase(metaclass=ABCMeta):
     # 请求模式 cookie/apikey
     request_mode = "cookie"
 
-    def __init__(self, site_name: str,
-                 url: str,
-                 site_cookie: str,
-                 apikey: str,
-                 token: str,
-                 session: Session = None,
-                 ua: Optional[str] = None,
-                 emulate: bool = False,
-                 proxy: bool = None,
-                 api_url: Optional[str] = None):
+    def __init__(
+        self,
+        site_name: str,
+        url: str,
+        site_cookie: str,
+        apikey: str,
+        token: str,
+        session: Session = None,
+        ua: str | None = None,
+        emulate: bool = False,
+        proxy: bool = None,
+        api_url: str | None = None,
+    ):
         """
         初始化站点用户数据解析器
 
@@ -222,7 +224,7 @@ class SiteParserBase(metaclass=ABCMeta):
                     self._get_page_content(
                         url=urljoin(self._base_url, self._user_detail_page),
                         params=self._user_detail_params,
-                        headers=self._user_detail_headers
+                        headers=self._user_detail_headers,
                     )
                 )
             # 解析用户未读消息
@@ -234,7 +236,7 @@ class SiteParserBase(metaclass=ABCMeta):
                     self._get_page_content(
                         url=urljoin(self._base_url, self._user_traffic_page),
                         params=self._user_traffic_params,
-                        headers=self._user_traffic_headers
+                        headers=self._user_traffic_headers,
                     )
                 )
             # 解析用户做种信息
@@ -259,17 +261,18 @@ class SiteParserBase(metaclass=ABCMeta):
                     self._get_page_content(
                         url=urljoin(self._base_url, link),
                         params=self._mail_unread_params,
-                        headers=self._mail_unread_headers
+                        headers=self._mail_unread_headers,
                     ),
-                    msg_links)
+                    msg_links,
+                )
                 while next_page:
                     next_page = self._parse_message_unread_links(
                         self._get_page_content(
                             url=urljoin(self._base_url, next_page),
                             params=self._mail_unread_params,
-                            headers=self._mail_unread_headers
+                            headers=self._mail_unread_headers,
                         ),
-                        msg_links
+                        msg_links,
                     )
                 unread_msg_links.extend(msg_links)
         # 重新更新未读消息数（99999表示有消息但数量未知）
@@ -282,7 +285,7 @@ class SiteParserBase(metaclass=ABCMeta):
                 self._get_page_content(
                     urljoin(self._base_url, msg_link),
                     params=self._mail_content_params,
-                    headers=self._mail_content_headers
+                    headers=self._mail_content_headers,
                 )
             )
             logger.debug(f"{self._site_name} 标题 {head} 时间 {date} 内容 {content}")
@@ -298,7 +301,7 @@ class SiteParserBase(metaclass=ABCMeta):
                 self._get_page_content(
                     url=urljoin(self._base_url, self._torrent_seeding_page),
                     params=self._torrent_seeding_params,
-                    headers=self._torrent_seeding_headers
+                    headers=self._torrent_seeding_headers,
                 )
             )
 
@@ -308,9 +311,10 @@ class SiteParserBase(metaclass=ABCMeta):
                     self._get_page_content(
                         url=urljoin(urljoin(self._base_url, self._torrent_seeding_page), next_page),
                         params=self._torrent_seeding_params,
-                        headers=self._torrent_seeding_headers
+                        headers=self._torrent_seeding_headers,
                     ),
-                    multi_page=True)
+                    multi_page=True,
+                )
 
     @staticmethod
     def _prepare_html_text(html_text):
@@ -320,7 +324,7 @@ class SiteParserBase(metaclass=ABCMeta):
         return re.sub(r"#\d+", "", re.sub(r"\d+px", "", html_text))
 
     @abstractmethod
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         获取未阅读消息链接
         :param html_text:
@@ -333,7 +337,7 @@ class SiteParserBase(metaclass=ABCMeta):
         url: str,
         params: dict = None,
         headers: dict = None,
-        method: Optional[str] = None,
+        method: str | None = None,
     ):
         """
         获取页面内容
@@ -346,20 +350,19 @@ class SiteParserBase(metaclass=ABCMeta):
         req_headers = None
         proxies = settings.PROXY if self._proxy else None
         if self._ua or headers or self._addition_headers:
-
             if self.request_mode == "apikey":
                 req_headers = {}
             else:
-                req_headers = {
-                    "User-Agent": f"{self._ua}"
-                }
+                req_headers = {"User-Agent": f"{self._ua}"}
 
             if headers:
                 req_headers.update(headers)
             else:
-                req_headers.update({
-                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                })
+                req_headers.update(
+                    {
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    }
+                )
 
             if self._addition_headers:
                 req_headers.update(self._addition_headers)
@@ -375,23 +378,17 @@ class SiteParserBase(metaclass=ABCMeta):
 
         if method == "post" or params:
             if (req_headers or {}).get("Content-Type") == "application/json":
-                res = RequestUtils(cookies=cookie,
-                                   session=session,
-                                   timeout=60,
-                                   proxies=proxies,
-                                   headers=req_headers).post_res(url=url, json=params or {})
+                res = RequestUtils(
+                    cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
+                ).post_res(url=url, json=params or {})
             else:
-                res = RequestUtils(cookies=cookie,
-                                   session=session,
-                                   timeout=60,
-                                   proxies=proxies,
-                                   headers=req_headers).post_res(url=url, data=params or {})
+                res = RequestUtils(
+                    cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
+                ).post_res(url=url, data=params or {})
         else:
-            res = RequestUtils(cookies=cookie,
-                               session=session,
-                               timeout=60,
-                               proxies=proxies,
-                               headers=req_headers).get_res(url=url)
+            res = RequestUtils(
+                cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
+            ).get_res(url=url)
         if res is not None and res.status_code in (200, 500, 403):
             if req_headers and "application/json" in str(req_headers.get("Accept")):
                 try:
@@ -402,12 +399,11 @@ class SiteParserBase(metaclass=ABCMeta):
             else:
                 # 如果cloudflare 有防护，尝试使用浏览器仿真
                 if under_challenge(res.text):
-                    logger.warn(
-                        f"{self._site_name} 检测到Cloudflare，请更新Cookie和UA")
+                    logger.warn(f"{self._site_name} 检测到Cloudflare，请更新Cookie和UA")
                     return ""
-                return RequestUtils.get_decoded_html_content(res,
-                                                             settings.ENCODING_DETECTION_PERFORMANCE_MODE,
-                                                             settings.ENCODING_DETECTION_MIN_CONFIDENCE)
+                return RequestUtils.get_decoded_html_content(
+                    res, settings.ENCODING_DETECTION_PERFORMANCE_MODE, settings.ENCODING_DETECTION_MIN_CONFIDENCE
+                )
 
         return ""
 
@@ -452,7 +448,7 @@ class SiteParserBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool = False) -> str | None:
         """
         解析用户的做种相关信息
         :param html_text:
@@ -500,12 +496,8 @@ class SiteParserBase(metaclass=ABCMeta):
         """
         转化为字典
         """
-        attributes = [
-            attr for attr in dir(self)
-            if not callable(getattr(self, attr)) and not attr.startswith("_")
-        ]
+        attributes = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("_")]
         return {
-            attr: getattr(self, attr).value
-            if isinstance(getattr(self, attr), SiteSchema)
-            else getattr(self, attr) for attr in attributes
+            attr: getattr(self, attr).value if isinstance(getattr(self, attr), SiteSchema) else getattr(self, attr)
+            for attr in attributes
         }

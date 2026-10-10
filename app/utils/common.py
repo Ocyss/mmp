@@ -1,14 +1,14 @@
 import asyncio
 import inspect
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from app.schemas import ImmediateException
 
 
-def retry(ExceptionToCheck: Any,
-          tries: int = 3, delay: int = 3, backoff: int = 2, logger: Any = None):
+def retry(ExceptionToCheck: Any, tries: int = 3, delay: int = 3, backoff: int = 2, logger: Any = None):
     """
     :param ExceptionToCheck: 需要捕获的异常
     :param tries: 重试次数

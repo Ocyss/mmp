@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import asyncio
 import logging
 import time
@@ -9,15 +7,16 @@ from datetime import datetime
 import requests
 import requests.exceptions
 
-from app.core.cache import cached, fresh, async_fresh
+from app.core.cache import async_fresh, cached, fresh
 from app.core.config import settings
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
+
 from .exceptions import TMDbException
 
 logger = logging.getLogger(__name__)
 
 
-class TMDb(object):
+class TMDb:
     _RESPONSE_SNAPSHOT_MARKER = "__mp_tmdb_response_snapshot__"
 
     def __init__(self, session=None, language=None):
@@ -285,8 +284,7 @@ class TMDb(object):
         """
         if not isinstance(json_data, dict):
             raise TMDbException(
-                "TheMovieDb 返回数据格式异常："
-                f"期望JSON对象包含字段 {key!r}，实际为{type(json_data).__name__}"
+                f"TheMovieDb 返回数据格式异常：期望JSON对象包含字段 {key!r}，实际为{type(json_data).__name__}"
             )
         return json_data.get(key)
 
@@ -307,9 +305,7 @@ class TMDb(object):
         )
 
     def _handle_headers(self, headers):
-        normalized_headers = {
-            str(key).lower(): value for key, value in dict(headers or {}).items()
-        }
+        normalized_headers = {str(key).lower(): value for key, value in dict(headers or {}).items()}
 
         if "x-ratelimit-remaining" in normalized_headers:
             self._remaining = int(normalized_headers["x-ratelimit-remaining"])
@@ -359,14 +355,12 @@ class TMDb(object):
         if "success" in json_data and json_data["success"] is False:
             raise TMDbException(json_data["status_message"])
 
-    def _request_obj(self, action, params="", call_cached=True,
-                     method="GET", data=None, json=None, key=None):
+    def _request_obj(self, action, params="", call_cached=True, method="GET", data=None, json=None, key=None):
         self._validate_api_key()
         url = self._build_url(action, params)
 
         with fresh(not call_cached or method == "POST"):
-            req = self.request(method, url, data, json,
-                                      _ts=datetime.strftime(datetime.now(), '%Y%m%d'))
+            req = self.request(method, url, data, json, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
 
         if req is None:
             return None
@@ -388,14 +382,14 @@ class TMDb(object):
             return self._get_json_key(json_data, key)
         return json_data
 
-    async def _async_request_obj(self, action, params="", call_cached=True,
-                                 method="GET", data=None, json=None, key=None):
+    async def _async_request_obj(
+        self, action, params="", call_cached=True, method="GET", data=None, json=None, key=None
+    ):
         self._validate_api_key()
         url = self._build_url(action, params)
 
         async with async_fresh(not call_cached or method == "POST"):
-            req = await self.async_request(method, url, data, json,
-                                           _ts=datetime.strftime(datetime.now(), '%Y%m%d'))
+            req = await self.async_request(method, url, data, json, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
 
         if req is None:
             return None

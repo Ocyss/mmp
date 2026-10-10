@@ -15,7 +15,7 @@ from app.schemas.types import MediaType, media_type_to_agent
 class GetRecommendationsInput(BaseModel):
     """获取推荐工具的输入参数模型"""
 
-    source: Optional[str] = Field(
+    source: str | None = Field(
         "tmdb_trending",
         description="Recommendation source: "
         "'tmdb_trending' for TMDB trending content, "
@@ -33,12 +33,8 @@ class GetRecommendationsInput(BaseModel):
         "'douban_tv_animation' for Douban popular animation, "
         "'bangumi_calendar' for Bangumi anime calendar",
     )
-    media_type: Optional[str] = Field(
-        "all", description="Allowed values: movie, tv, all"
-    )
-    page: Optional[int] = Field(
-        1, description="Page number for pagination (default: 1, 20 items per page)"
-    )
+    media_type: str | None = Field("all", description="Allowed values: movie, tv, all")
+    page: int | None = Field(1, description="Page number for pagination (default: 1, 20 items per page)")
 
 
 class GetRecommendationsTool(MoviePilotTool):
@@ -49,9 +45,9 @@ class GetRecommendationsTool(MoviePilotTool):
         ToolTag.Recommendation,
     ]
     description: str = "Get trending and popular media recommendations from various sources. Returns curated lists of popular movies, TV shows, and anime based on different criteria like trending, ratings, or calendar schedules. Supports pagination with 20 items per page."
-    args_schema: Type[BaseModel] = GetRecommendationsInput
+    args_schema: type[BaseModel] = GetRecommendationsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据推荐参数生成友好的提示消息"""
         source = kwargs.get("source", "tmdb_trending")
         media_type = kwargs.get("media_type", "all")
@@ -84,16 +80,14 @@ class GetRecommendationsTool(MoviePilotTool):
 
     async def run(
         self,
-        source: Optional[str] = "tmdb_trending",
-        media_type: Optional[str] = "all",
-        page: Optional[int] = 1,
+        source: str | None = "tmdb_trending",
+        media_type: str | None = "all",
+        page: int | None = 1,
         **kwargs,
     ) -> str:
         page = max(1, page or 1)
         page_size = 20
-        logger.info(
-            f"执行工具: {self.name}, 参数: source={source}, media_type={media_type}, page={page}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: source={source}, media_type={media_type}, page={page}")
         try:
             if media_type != "all":
                 media_type_enum = MediaType.from_agent(media_type)
@@ -111,64 +105,32 @@ class GetRecommendationsTool(MoviePilotTool):
                 results = await recommend_chain.async_tmdb_tvs(page=page)
             elif source == "douban_hot":
                 if media_type == "movie":
-                    results = await recommend_chain.async_douban_movie_hot(
-                        page=page, count=page_size
-                    )
+                    results = await recommend_chain.async_douban_movie_hot(page=page, count=page_size)
                 elif media_type == "tv":
-                    results = await recommend_chain.async_douban_tv_hot(
-                        page=page, count=page_size
-                    )
+                    results = await recommend_chain.async_douban_tv_hot(page=page, count=page_size)
                 else:  # all
-                    results.extend(
-                        await recommend_chain.async_douban_movie_hot(
-                            page=page, count=page_size
-                        )
-                    )
-                    results.extend(
-                        await recommend_chain.async_douban_tv_hot(
-                            page=page, count=page_size
-                        )
-                    )
+                    results.extend(await recommend_chain.async_douban_movie_hot(page=page, count=page_size))
+                    results.extend(await recommend_chain.async_douban_tv_hot(page=page, count=page_size))
             elif source == "douban_movie_hot":
-                results = await recommend_chain.async_douban_movie_hot(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_movie_hot(page=page, count=page_size)
             elif source == "douban_tv_hot":
-                results = await recommend_chain.async_douban_tv_hot(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_tv_hot(page=page, count=page_size)
             elif source == "douban_movie_showing":
-                results = await recommend_chain.async_douban_movie_showing(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_movie_showing(page=page, count=page_size)
             elif source == "douban_movies":
-                results = await recommend_chain.async_douban_movies(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_movies(page=page, count=page_size)
             elif source == "douban_tvs":
-                results = await recommend_chain.async_douban_tvs(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_tvs(page=page, count=page_size)
             elif source == "douban_movie_top250":
-                results = await recommend_chain.async_douban_movie_top250(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_movie_top250(page=page, count=page_size)
             elif source == "douban_tv_weekly_chinese":
-                results = await recommend_chain.async_douban_tv_weekly_chinese(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_tv_weekly_chinese(page=page, count=page_size)
             elif source == "douban_tv_weekly_global":
-                results = await recommend_chain.async_douban_tv_weekly_global(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_tv_weekly_global(page=page, count=page_size)
             elif source == "douban_tv_animation":
-                results = await recommend_chain.async_douban_tv_animation(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_douban_tv_animation(page=page, count=page_size)
             elif source == "bangumi_calendar":
-                results = await recommend_chain.async_bangumi_calendar(
-                    page=page, count=page_size
-                )
+                results = await recommend_chain.async_bangumi_calendar(page=page, count=page_size)
             else:
                 # 不支持的推荐来源
                 supported_sources = [
@@ -219,15 +181,11 @@ class GetRecommendationsTool(MoviePilotTool):
                         "detail_link": r.get("detail_link"),
                     }
                     simplified_results.append(simplified)
-                result_json = json.dumps(
-                    simplified_results, ensure_ascii=False, indent=2
-                )
+                result_json = json.dumps(simplified_results, ensure_ascii=False, indent=2)
                 has_more = total_count > page_size
                 payload_msg = f"第 {page} 页，当前页 {len(simplified_results)} 条结果。"
                 if has_more:
-                    payload_msg += (
-                        f" 可能有更多数据，可使用 page={page + 1} 获取下一页。"
-                    )
+                    payload_msg += f" 可能有更多数据，可使用 page={page + 1} 获取下一页。"
                 return f"{payload_msg}\n\n{result_json}"
             return "未找到推荐内容。"
         except Exception as e:

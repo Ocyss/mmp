@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ from app.command import Command
 from app.core.event import eventmanager
 from app.core.plugin import PluginManager
 from app.core.security import verify_token
-from app.db import get_db, get_async_db
+from app.db import get_async_db, get_db
 from app.db.models import User
 from app.db.models.site import Site
 from app.db.models.siteicon import SiteIcon
@@ -30,17 +30,17 @@ from app.db.user_oper import (
 from app.helper.sites import SitesHelper  # noqa
 from app.log import logger
 from app.scheduler import Scheduler
-from app.schemas.types import SystemConfigKey, EventType
+from app.schemas.types import EventType, SystemConfigKey
 from app.utils.string import StringUtils
 
 router = APIRouter()
 
 
-@router.get("/", summary="所有站点", response_model=List[schemas.Site])
+@router.get("/", summary="所有站点", response_model=list[schemas.Site])
 async def read_sites(
     db: AsyncSession = Depends(get_async_db),
     _: User = Depends(get_current_active_manage_user_async),
-) -> List[dict]:
+) -> list[dict]:
     """
     获取站点列表
     """
@@ -60,15 +60,11 @@ async def add_site(
     if not site_in.url:
         return schemas.Response(success=False, message="站点地址不能为空")
     if SitesHelper().auth_level < 2:
-        return schemas.Response(
-            success=False, message="用户未通过认证，无法使用站点功能！"
-        )
+        return schemas.Response(success=False, message="用户未通过认证，无法使用站点功能！")
     domain = StringUtils.get_url_domain(site_in.url)
     site_info = await SitesHelper().async_get_indexer(domain)
     if not site_info:
-        return schemas.Response(
-            success=False, message="该站点不支持，请检查站点域名是否正确"
-        )
+        return schemas.Response(success=False, message="该站点不支持，请检查站点域名是否正确")
     if await Site.async_get_by_domain(db, domain):
         return schemas.Response(success=False, message=f"{domain} 站点己存在")
     # 保存站点信息
@@ -130,9 +126,7 @@ async def cookie_cloud_sync(
 
 
 @router.get("/reset", summary="重置站点", response_model=schemas.Response)
-def reset(
-    db: AsyncSession = Depends(get_db), _: User = Depends(get_current_active_superuser)
-) -> Any:
+def reset(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_active_superuser)) -> Any:
     """
     清空所有站点数据并重新同步CookieCloud站点信息
     """
@@ -146,11 +140,9 @@ def reset(
     return schemas.Response(success=True, message="站点已重置！")
 
 
-@router.post(
-    "/priorities", summary="批量更新站点优先级", response_model=schemas.Response
-)
+@router.post("/priorities", summary="批量更新站点优先级", response_model=schemas.Response)
 async def update_sites_priority(
-    priorities: List[dict],
+    priorities: list[dict],
     db: AsyncSession = Depends(get_async_db),
     _: User = Depends(get_current_active_manage_user_async),
 ) -> Any:
@@ -168,7 +160,7 @@ def _update_site_cookie(
     site_id: int,
     username: str,
     password: str,
-    code: Optional[str],
+    code: str | None,
     db: Session,
 ) -> schemas.Response:
     """
@@ -198,9 +190,7 @@ def _update_site_cookie(
     return schemas.Response(success=state, message=message)
 
 
-@router.post(
-    "/cookie/{site_id}", summary="更新站点Cookie&UA", response_model=schemas.Response
-)
+@router.post("/cookie/{site_id}", summary="更新站点Cookie&UA", response_model=schemas.Response)
 def update_cookie_by_body(
     site_id: int,
     site_cookie_update: schemas.SiteCookieUpdate,
@@ -219,14 +209,12 @@ def update_cookie_by_body(
     )
 
 
-@router.get(
-    "/cookie/{site_id}", summary="更新站点Cookie&UA", response_model=schemas.Response
-)
+@router.get("/cookie/{site_id}", summary="更新站点Cookie&UA", response_model=schemas.Response)
 def update_cookie(
     site_id: int,
     username: str,
     password: str,
-    code: Optional[str] = None,
+    code: str | None = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
@@ -242,9 +230,7 @@ def update_cookie(
     )
 
 
-@router.post(
-    "/userdata/{site_id}", summary="更新站点用户数据", response_model=schemas.Response
-)
+@router.post("/userdata/{site_id}", summary="更新站点用户数据", response_model=schemas.Response)
 def refresh_userdata(
     site_id: int,
     db: Session = Depends(get_db),
@@ -261,9 +247,7 @@ def refresh_userdata(
         )
     indexer = SitesHelper().get_indexer(site.domain)
     if not indexer:
-        return schemas.Response(
-            success=False, message="站点不支持索引或未通过用户认证！"
-        )
+        return schemas.Response(success=False, message="站点不支持索引或未通过用户认证！")
     user_data = SiteChain().refresh_userdata(site=indexer) or {}
     return schemas.Response(success=True, data=user_data)
 
@@ -271,7 +255,7 @@ def refresh_userdata(
 @router.get(
     "/userdata/latest",
     summary="查询所有站点最新用户数据",
-    response_model=List[schemas.SiteUserData],
+    response_model=list[schemas.SiteUserData],
 )
 async def read_userdata_latest(
     db: AsyncSession = Depends(get_async_db),
@@ -286,12 +270,10 @@ async def read_userdata_latest(
     return [user_data.to_dict() for user_data in user_datas]
 
 
-@router.get(
-    "/userdata/{site_id}", summary="查询某站点用户数据", response_model=schemas.Response
-)
+@router.get("/userdata/{site_id}", summary="查询某站点用户数据", response_model=schemas.Response)
 async def read_userdata(
     site_id: int,
-    workdate: Optional[str] = None,
+    workdate: str | None = None,
     db: AsyncSession = Depends(get_async_db),
     _: User = Depends(get_current_active_manage_user_async),
 ) -> Any:
@@ -304,9 +286,7 @@ async def read_userdata(
             status_code=404,
             detail=f"站点 {site_id} 不存在",
         )
-    user_datas = await SiteUserData.async_get_by_domain(
-        db, domain=site.domain, workdate=workdate
-    )
+    user_datas = await SiteUserData.async_get_by_domain(db, domain=site.domain, workdate=workdate)
     if not user_datas:
         return schemas.Response(success=False, data=[])
     return schemas.Response(success=True, data=[data.to_dict() for data in user_datas])
@@ -349,14 +329,10 @@ async def site_icon(
     icon = await SiteIcon.async_get_by_domain(db, site.domain)
     if not icon:
         return schemas.Response(success=False, message="站点图标不存在！")
-    return schemas.Response(
-        success=True, data={"icon": icon.base64 if icon.base64 else icon.url}
-    )
+    return schemas.Response(success=True, data={"icon": icon.base64 if icon.base64 else icon.url})
 
 
-@router.get(
-    "/category/{site_id}", summary="站点分类", response_model=List[schemas.SiteCategory]
-)
+@router.get("/category/{site_id}", summary="站点分类", response_model=list[schemas.SiteCategory])
 async def site_category(
     site_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -377,7 +353,7 @@ async def site_category(
             status_code=404,
             detail=f"站点 {site.domain} 不支持",
         )
-    category: Dict[str, List[dict]] = indexer.get("category") or []
+    category: dict[str, list[dict]] = indexer.get("category") or []
     if not category:
         return []
     result = []
@@ -388,14 +364,12 @@ async def site_category(
     return result
 
 
-@router.get(
-    "/resource/{site_id}", summary="站点资源", response_model=List[schemas.TorrentInfo]
-)
+@router.get("/resource/{site_id}", summary="站点资源", response_model=list[schemas.TorrentInfo])
 async def site_resource(
     site_id: int,
-    keyword: Optional[str] = None,
-    cat: Optional[str] = None,
-    page: Optional[int] = 0,
+    keyword: str | None = None,
+    cat: str | None = None,
+    page: int | None = 0,
     db: AsyncSession = Depends(get_async_db),
     _: User = Depends(get_current_active_manage_user_async),
 ) -> Any:
@@ -408,9 +382,7 @@ async def site_resource(
             status_code=404,
             detail=f"站点 {site_id} 不存在",
         )
-    torrents = await TorrentsChain().async_browse(
-        domain=site.domain, keyword=keyword, cat=cat, page=page
-    )
+    torrents = await TorrentsChain().async_browse(domain=site.domain, keyword=keyword, cat=cat, page=page)
     if not torrents:
         return []
     return [torrent.to_dict() for torrent in torrents]
@@ -455,9 +427,7 @@ async def read_statistic_by_domain(
     return schemas.SiteStatistic(domain=domain)
 
 
-@router.get(
-    "/statistic", summary="所有站点统计信息", response_model=List[schemas.SiteStatistic]
-)
+@router.get("/statistic", summary="所有站点统计信息", response_model=list[schemas.SiteStatistic])
 async def read_statistics(
     db: AsyncSession = Depends(get_async_db),
     _: schemas.TokenPayload = Depends(verify_token),
@@ -468,11 +438,11 @@ async def read_statistics(
     return await SiteStatistic.async_list(db)
 
 
-@router.get("/rss", summary="所有订阅站点", response_model=List[schemas.Site])
+@router.get("/rss", summary="所有订阅站点", response_model=list[schemas.Site])
 async def read_rss_sites(
     db: AsyncSession = Depends(get_async_db),
     _: schemas.TokenPayload = Depends(verify_token),
-) -> List[dict]:
+) -> list[dict]:
     """
     获取站点列表
     """
@@ -498,9 +468,7 @@ async def read_auth_sites(_: schemas.TokenPayload = Depends(verify_token)) -> di
 
 
 @router.post("/auth", summary="用户站点认证", response_model=schemas.Response)
-def auth_site(
-    auth_info: schemas.SiteAuth, _: User = Depends(get_current_active_superuser)
-) -> Any:
+def auth_site(auth_info: schemas.SiteAuth, _: User = Depends(get_current_active_superuser)) -> Any:
     """
     用户站点认证
     """
@@ -516,9 +484,7 @@ def auth_site(
     return schemas.Response(success=status, message=msg)
 
 
-@router.get(
-    "/mapping", summary="获取站点域名到名称的映射", response_model=schemas.Response
-)
+@router.get("/mapping", summary="获取站点域名到名称的映射", response_model=schemas.Response)
 async def site_mapping(_: User = Depends(get_current_active_superuser_async)):
     """
     获取站点域名到名称的映射关系

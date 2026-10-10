@@ -14,17 +14,24 @@ from app.log import logger
 from app.schemas.file import FileItem
 from app.utils.string import StringUtils
 
-
 DEFAULT_DIRECTORY_PAGE_SIZE = 50
 MAX_DIRECTORY_PAGE_SIZE = 200
 
 
 class ListDirectoryInput(BaseModel):
     """查询文件系统目录内容工具的输入参数模型"""
-    path: str = Field(..., description="Directory path to list contents (e.g., '/home/user/downloads' or 'C:/Downloads')")
-    storage: Optional[str] = Field("local", description="Storage type (default: 'local' for local file system, can be 'smb', 'alist', etc.)")
-    sort_by: Optional[str] = Field("name", description="Sort order: 'name' for alphabetical sorting, 'time' for modification time sorting (default: 'name')")
-    limit: Optional[int] = Field(
+
+    path: str = Field(
+        ..., description="Directory path to list contents (e.g., '/home/user/downloads' or 'C:/Downloads')"
+    )
+    storage: str | None = Field(
+        "local", description="Storage type (default: 'local' for local file system, can be 'smb', 'alist', etc.)"
+    )
+    sort_by: str | None = Field(
+        "name",
+        description="Sort order: 'name' for alphabetical sorting, 'time' for modification time sorting (default: 'name')",
+    )
+    limit: int | None = Field(
         DEFAULT_DIRECTORY_PAGE_SIZE,
         ge=1,
         le=MAX_DIRECTORY_PAGE_SIZE,
@@ -33,7 +40,7 @@ class ListDirectoryInput(BaseModel):
             f"maximum: {MAX_DIRECTORY_PAGE_SIZE})"
         ),
     )
-    offset: Optional[int] = Field(
+    offset: int | None = Field(
         0,
         ge=0,
         description="Number of sorted directory items to skip before this page",
@@ -56,26 +63,26 @@ class ListDirectoryTool(MoviePilotTool):
         f"count and next offset; limit is capped at {MAX_DIRECTORY_PAGE_SIZE}. "
         "Use 'query_directory_settings' to query directory configuration settings."
     )
-    args_schema: Type[BaseModel] = ListDirectoryInput
+    args_schema: type[BaseModel] = ListDirectoryInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据目录参数生成友好的提示消息"""
         path = kwargs.get("path", "")
         storage = kwargs.get("storage", "local")
-        
+
         message = f"查询目录: {path}"
         if storage != "local":
             message += f" [存储: {storage}]"
-        
+
         return message
 
     @staticmethod
     def _list_directory_sync(
         path: str,
-        storage: Optional[str] = "local",
-        sort_by: Optional[str] = "name",
-        limit: Optional[int] = DEFAULT_DIRECTORY_PAGE_SIZE,
-        offset: Optional[int] = 0,
+        storage: str | None = "local",
+        sort_by: str | None = "name",
+        limit: int | None = DEFAULT_DIRECTORY_PAGE_SIZE,
+        offset: int | None = 0,
     ) -> str:
         """
         目录遍历可能触发本地磁盘或远程存储请求，统一放到线程池中执行并分页返回。
@@ -110,19 +117,15 @@ class ListDirectoryTool(MoviePilotTool):
             min(int(limit or DEFAULT_DIRECTORY_PAGE_SIZE), MAX_DIRECTORY_PAGE_SIZE),
         )
         normalized_offset = max(0, int(offset or 0))
-        limited_list = file_list[
-            normalized_offset : normalized_offset + normalized_limit
-        ]
+        limited_list = file_list[normalized_offset : normalized_offset + normalized_limit]
         simplified_items = []
         for item in limited_list:
             size_str = StringUtils.str_filesize(item.size) if item.size else None
             modify_time_str = None
             if item.modify_time:
                 try:
-                    modify_time_str = datetime.fromtimestamp(item.modify_time).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                except (ValueError, OSError):
+                    modify_time_str = datetime.fromtimestamp(item.modify_time).strftime("%Y-%m-%d %H:%M:%S")
+                except ValueError, OSError:
                     modify_time_str = str(item.modify_time)
 
             simplified = {
@@ -146,19 +149,21 @@ class ListDirectoryTool(MoviePilotTool):
                 "limit": normalized_limit,
                 "offset": normalized_offset,
                 "has_more": has_more,
-                "next_offset": (
-                    normalized_offset + returned_count if has_more else None
-                ),
+                "next_offset": (normalized_offset + returned_count if has_more else None),
             },
             ensure_ascii=False,
             indent=2,
         )
 
-    async def run(self, path: str, storage: Optional[str] = "local",
-                  sort_by: Optional[str] = "name",
-                  limit: Optional[int] = DEFAULT_DIRECTORY_PAGE_SIZE,
-                  offset: Optional[int] = 0,
-                  **kwargs) -> str:
+    async def run(
+        self,
+        path: str,
+        storage: str | None = "local",
+        sort_by: str | None = "name",
+        limit: int | None = DEFAULT_DIRECTORY_PAGE_SIZE,
+        offset: int | None = 0,
+        **kwargs,
+    ) -> str:
         """
         分页查询指定目录的文件和子目录。
 

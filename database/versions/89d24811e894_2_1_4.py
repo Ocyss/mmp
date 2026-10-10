@@ -10,8 +10,8 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = '89d24811e894'
-down_revision = '4b544f5d3b07'
+revision = "89d24811e894"
+down_revision = "4b544f5d3b07"
 branch_labels = None
 depends_on = None
 
@@ -55,7 +55,7 @@ def upgrade() -> None:
             '{% if username %}，来自用户：{{ username }}{% endif %}'
             '{% if actors %}\\n演员：{{ actors }}{% endif %}'
             '{% if overview %}\\n简介：{{ overview }}{% endif %}'
-}"""
+}""",
     }
     _systemconfig = SystemConfigOper()
     if not _systemconfig.get(SystemConfigKey.NotificationTemplates):

@@ -1,23 +1,21 @@
 """MoviePilot 自定义工具筛选中间件。"""
 
-from dataclasses import dataclass, replace
 import json
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, replace
 from typing import Annotated, Any, NotRequired
 
+from langchain.agents.middleware.tool_selection import (
+    DEFAULT_SYSTEM_PROMPT,
+    LLMToolSelectorMiddleware,
+)
 from langchain.agents.middleware.types import (
     AgentState,
     ContextT,
     ModelRequest,
     ModelResponse,
-    ResponseT,
-)
-from langchain.agents.middleware.types import (
     PrivateStateAttr,  # noqa
-)
-from langchain.agents.middleware.tool_selection import (
-    DEFAULT_SYSTEM_PROMPT,
-    LLMToolSelectorMiddleware,
+    ResponseT,
 )
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -98,12 +96,12 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
     state_schema = ToolSelectionState
 
     def __init__(
-            self,
-            model: BaseChatModel | str | None = None,
-            system_prompt: str = DEFAULT_SYSTEM_PROMPT,
-            selection_tools: list[Any] | None = None,
-            max_tools: int | None = None,
-            always_include: list[str] | None = None,
+        self,
+        model: BaseChatModel | str | None = None,
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        selection_tools: list[Any] | None = None,
+        max_tools: int | None = None,
+        always_include: list[str] | None = None,
     ) -> None:
         super().__init__(
             model=model,
@@ -115,8 +113,8 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
 
     @classmethod
     def _render_recent_conversation_context(
-            cls,
-            messages: list[Any],
+        cls,
+        messages: list[Any],
     ) -> tuple[str, int]:
         """渲染最近对话上下文，供工具筛选模型理解多轮追问。"""
         rendered_messages = []
@@ -136,17 +134,14 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         recent_messages = rendered_messages[-RECENT_SELECTION_CONTEXT_MESSAGE_LIMIT:]
         context = "\n\n".join(recent_messages)
         if len(context) > RECENT_SELECTION_CONTEXT_MAX_CHARS:
-            context = (
-                f"{RECENT_SELECTION_CONTEXT_TRUNCATION_PREFIX}"
-                f"{context[-RECENT_SELECTION_CONTEXT_MAX_CHARS:]}"
-            )
+            context = f"{RECENT_SELECTION_CONTEXT_TRUNCATION_PREFIX}{context[-RECENT_SELECTION_CONTEXT_MAX_CHARS:]}"
         return context, len(recent_messages)
 
     @classmethod
     def _build_contextual_user_message(
-            cls,
-            messages: list[Any],
-            last_user_message: HumanMessage,
+        cls,
+        messages: list[Any],
+        last_user_message: HumanMessage,
     ) -> HumanMessage:
         """根据最近对话构造工具筛选专用用户消息。"""
         context, message_count = cls._render_recent_conversation_context(messages)
@@ -164,8 +159,8 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         )
 
     def _prepare_selection_request(
-            self,
-            request: ModelRequest[ContextT],
+        self,
+        request: ModelRequest[ContextT],
     ) -> Any | None:
         """准备带最近对话上下文的工具筛选请求。"""
         selection_request = super()._prepare_selection_request(request)
@@ -213,9 +208,9 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
 
     @classmethod
     def _build_tool_groups(
-            cls,
-            available_tools: list[BaseTool],
-            valid_tool_names: list[str],
+        cls,
+        available_tools: list[BaseTool],
+        valid_tool_names: list[str],
     ) -> list[tuple[str, list[str]]]:
         """根据工具标签构造能力组，保留当前工具列表中的稳定顺序。"""
         valid_tool_set = set(valid_tool_names)
@@ -229,18 +224,14 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
                 if tool_name not in group_tool_names:
                     group_tool_names.append(tool_name)
 
-        return [
-            (tag, tool_names)
-            for tag, tool_names in tool_groups.items()
-            if len(tool_names) > 1
-        ]
+        return [(tag, tool_names) for tag, tool_names in tool_groups.items() if len(tool_names) > 1]
 
     @classmethod
     def _get_matched_tool_groups(
-            cls,
-            selected_names: list[str],
-            available_tools: list[BaseTool],
-            valid_tool_names: list[str],
+        cls,
+        selected_names: list[str],
+        available_tools: list[BaseTool],
+        valid_tool_names: list[str],
     ) -> list[tuple[str, list[str]]]:
         """返回已选工具命中的标签能力组。"""
         groups_by_tag = {
@@ -250,11 +241,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
                 valid_tool_names=valid_tool_names,
             )
         }
-        tools_by_name = {
-            tool.name: tool
-            for tool in available_tools
-            if getattr(tool, "name", None)
-        }
+        tools_by_name = {tool.name: tool for tool in available_tools if getattr(tool, "name", None)}
         matched_groups: list[tuple[str, list[str]]] = []
         seen_tags = set()
         for tool_name in selected_names:
@@ -269,10 +256,10 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         return matched_groups
 
     def _complete_low_count_selection(
-            self,
-            selected_tool_names: list[str],
-            valid_tool_names: list[str],
-            available_tools: list[BaseTool],
+        self,
+        selected_tool_names: list[str],
+        valid_tool_names: list[str],
+        available_tools: list[BaseTool],
     ) -> list[str]:
         """
         当模型只选出极少工具时，按工具标签补齐同组工具。
@@ -281,11 +268,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         不会把所有工具组都展开。
         """
         limit = self._get_tool_selection_limit(valid_tool_names)
-        selected_names = [
-            tool_name
-            for tool_name in selected_tool_names
-            if tool_name in valid_tool_names
-        ]
+        selected_names = [tool_name for tool_name in selected_tool_names if tool_name in valid_tool_names]
         selected_set = set(selected_names)
         valid_tool_set = set(valid_tool_names)
         completed_names = list(selected_names)
@@ -298,9 +281,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
             return completed_names[:limit]
 
         matched_group_tool_names = {
-            tool_name
-            for _, group_tool_names in matched_groups
-            for tool_name in group_tool_names
+            tool_name for _, group_tool_names in matched_groups for tool_name in group_tool_names
         }
         target_count = min(
             max(MIN_SELECTED_TOOL_COUNT, len(matched_group_tool_names)),
@@ -321,30 +302,24 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         return completed_names[:limit]
 
     def _process_selection_response(
-            self,
-            response: dict[str, Any],
-            available_tools: list[BaseTool],
-            valid_tool_names: list[str],
-            request: ModelRequest[ContextT],
+        self,
+        response: dict[str, Any],
+        available_tools: list[BaseTool],
+        valid_tool_names: list[str],
+        request: ModelRequest[ContextT],
     ) -> ModelRequest[ContextT]:
         """
         处理工具筛选响应，并在正常空结果时禁用可筛选工具。
         """
         if response.get("tools") == []:
             always_included_tools: list[BaseTool] = [
-                tool
-                for tool in request.tools
-                if not isinstance(tool, dict) and tool.name in self.always_include
+                tool for tool in request.tools if not isinstance(tool, dict) and tool.name in self.always_include
             ]
             provider_tools = [tool for tool in request.tools if isinstance(tool, dict)]
             return request.override(tools=[*always_included_tools, *provider_tools])
 
         response["tools"] = self._complete_low_count_selection(
-            selected_tool_names=[
-                tool_name
-                for tool_name in response.get("tools", [])
-                if isinstance(tool_name, str)
-            ],
+            selected_tool_names=[tool_name for tool_name in response.get("tools", []) if isinstance(tool_name, str)],
             valid_tool_names=valid_tool_names,
             available_tools=available_tools,
         )
@@ -380,7 +355,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         if start == -1 or end == -1 or end <= start:
             raise ValueError(f"工具筛选返回的内容不是合法 JSON: {stripped_text}")
 
-        payload = json.loads(stripped_text[start: end + 1])
+        payload = json.loads(stripped_text[start : end + 1])
         if not isinstance(payload, dict):
             raise ValueError("工具筛选 JSON 顶层必须是对象")
         return payload
@@ -398,21 +373,14 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
     @classmethod
     def _render_tool_groups(cls, available_tools: list[BaseTool]) -> str:
         """把当前可用工具按标签渲染成能力组提示。"""
-        valid_tool_names = [
-            tool.name
-            for tool in available_tools
-            if getattr(tool, "name", None)
-        ]
+        valid_tool_names = [tool.name for tool in available_tools if getattr(tool, "name", None)]
         groups = cls._build_tool_groups(
             available_tools=available_tools,
             valid_tool_names=valid_tool_names,
         )
         if not groups:
             return ""
-        rendered_groups = "\n".join(
-            f"- {tag}: {', '.join(tool_names)}"
-            for tag, tool_names in groups
-        )
+        rendered_groups = "\n".join(f"- {tag}: {', '.join(tool_names)}" for tag, tool_names in groups)
         return f"Capability groups from tool tags:\n{rendered_groups}\n\n"
 
     def _build_json_selection_prompt(self, selection_request: Any) -> str:
@@ -424,7 +392,9 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         """
         limit_instruction = ""
         if self.max_tools:
-            limit_instruction = f"- Select up to {self.max_tools} tools. Return an empty array if no tools are relevant."
+            limit_instruction = (
+                f"- Select up to {self.max_tools} tools. Return an empty array if no tools are relevant."
+            )
 
         return (
             f"{selection_request.system_message}\n\n"
@@ -455,15 +425,11 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         if not isinstance(tools, list):
             raise ValueError(f"工具筛选 JSON 缺少 `tools` 数组: {payload}")
 
-        normalized_tools = [
-            tool_name for tool_name in tools if isinstance(tool_name, str)
-        ]
+        normalized_tools = [tool_name for tool_name in tools if isinstance(tool_name, str)]
         logger.debug(f"工具筛选标准化结果: {normalized_tools}")
         return {"tools": normalized_tools}
 
-    async def _aselect_tools_with_json_prompt(
-            self, selection_request: Any
-    ) -> dict[str, list[str]]:
+    async def _aselect_tools_with_json_prompt(self, selection_request: Any) -> dict[str, list[str]]:
         """
         使用 JSON 提示执行异步工具筛选。
 
@@ -473,9 +439,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         logger.debug("工具筛选走 JSON 提示分支")
         response = await selection_request.model.ainvoke(
             [
-                SystemMessage(
-                    content=self._build_json_selection_prompt(selection_request)
-                ),
+                SystemMessage(content=self._build_json_selection_prompt(selection_request)),
                 selection_request.last_user_message,
             ]
         )
@@ -500,9 +464,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
             logger.info(f"工具筛选结果: {selected_text}")
             return
         if attempt.status == "failed_fallback":
-            logger.warning(
-                f"工具筛选失败，将恢复使用所有工具（共 {tool_count} 个）: {attempt.detail}"
-            )
+            logger.warning(f"工具筛选失败，将恢复使用所有工具（共 {tool_count} 个）: {attempt.detail}")
             return
         if attempt.status == "skipped":
             logger.info(f"工具筛选跳过: {attempt.detail}。")
@@ -513,8 +475,8 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
 
     @staticmethod
     def _apply_selected_tools(
-            request: ModelRequest[ContextT],
-            selected_tool_names: list[str],
+        request: ModelRequest[ContextT],
+        selected_tool_names: list[str],
     ) -> ModelRequest[ContextT]:
         """
         将已筛选出的工具集应用到当前模型请求。
@@ -522,20 +484,14 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         这里只复用首次筛选出的客户端工具名；provider-specific 的 dict 工具仍然
         原样保留，避免破坏 LangChain/provider 自身的工具绑定约定。
         """
-        current_tools_by_name = {
-            tool.name: tool for tool in request.tools if not isinstance(tool, dict)
-        }
+        current_tools_by_name = {tool.name: tool for tool in request.tools if not isinstance(tool, dict)}
         selected_tools = [
-            current_tools_by_name[tool_name]
-            for tool_name in selected_tool_names
-            if tool_name in current_tools_by_name
+            current_tools_by_name[tool_name] for tool_name in selected_tool_names if tool_name in current_tools_by_name
         ]
         provider_tools = [tool for tool in request.tools if isinstance(tool, dict)]
         return request.override(tools=[*selected_tools, *provider_tools])
 
-    async def _aselect_request_once(
-            self, request: ModelRequest[ContextT]
-    ) -> ModelRequest[ContextT]:
+    async def _aselect_request_once(self, request: ModelRequest[ContextT]) -> ModelRequest[ContextT]:
         """
         执行一次真实工具筛选，并返回筛选后的请求对象。
 
@@ -544,9 +500,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         """
         return (await self._aselect_request_once_with_status(request)).request
 
-    async def _aselect_request_once_with_status(
-            self, request: ModelRequest[ContextT]
-    ) -> _ToolSelectionAttempt:
+    async def _aselect_request_once_with_status(self, request: ModelRequest[ContextT]) -> _ToolSelectionAttempt:
         """
         执行一次真实工具筛选，并携带最终状态供调用方统一记录日志。
         """
@@ -581,10 +535,10 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
             )
 
     async def abefore_agent(  # noqa
-            self,
-            state: ToolSelectionState,
-            runtime: Runtime,  # noqa
-            config: RunnableConfig,
+        self,
+        state: ToolSelectionState,
+        runtime: Runtime,  # noqa
+        config: RunnableConfig,
     ) -> ToolSelectionStateUpdate | None:  # ty: ignore[invalid-method-override]
         """
         在本轮 Agent 执行开始前完成一次真实工具筛选。
@@ -623,11 +577,9 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         return ToolSelectionStateUpdate(selected_tool_names=selected_tool_names)
 
     async def awrap_model_call(
-            self,
-            request: ModelRequest[ContextT],
-            handler: Callable[
-                [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-            ],
+        self,
+        request: ModelRequest[ContextT],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """
         从 state 中读取首次筛选结果，并应用到每次模型回合。
@@ -636,11 +588,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
 
         # 正常路径下，`abefore_agent()` 已经提前写入状态；这里只保留一层兜底，
         # 兼容直接单测或未来某些绕过 before_agent 的调用场景。
-        if (
-                selected_tool_names is None
-                and self.selection_tools
-                and self.model is not None
-        ):
+        if selected_tool_names is None and self.selection_tools and self.model is not None:
             attempt = await self._aselect_request_once_with_status(request)
             self._log_selection_attempt(attempt)
             request = attempt.request

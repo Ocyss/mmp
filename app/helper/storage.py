@@ -11,16 +11,16 @@ class StorageHelper:
     """
 
     @staticmethod
-    def get_storagies() -> List[schemas.StorageConf]:
+    def get_storagies() -> list[schemas.StorageConf]:
         """
         获取所有存储设置
         """
-        storage_confs: List[dict] = SystemConfigOper().get(SystemConfigKey.Storages)
+        storage_confs: list[dict] = SystemConfigOper().get(SystemConfigKey.Storages)
         if not storage_confs:
             return []
         return [schemas.StorageConf(**s) for s in storage_confs]
 
-    def get_storage(self, storage: str) -> Optional[schemas.StorageConf]:
+    def get_storage(self, storage: str) -> schemas.StorageConf | None:
         """
         获取指定存储配置
         """
@@ -36,12 +36,7 @@ class StorageHelper:
         """
         storagies = self.get_storagies()
         if not storagies:
-            storagies = [
-                schemas.StorageConf(
-                    type=storage,
-                    config=conf
-                )
-            ]
+            storagies = [schemas.StorageConf(type=storage, config=conf)]
         else:
             for s in storagies:
                 if s.type == storage:
@@ -55,19 +50,9 @@ class StorageHelper:
         """
         storagies = self.get_storagies()
         if not storagies:
-            storagies = [
-                schemas.StorageConf(
-                    type=storage,
-                    name=name,
-                    config=conf
-                )
-            ]
+            storagies = [schemas.StorageConf(type=storage, name=name, config=conf)]
         else:
-            storagies.append(schemas.StorageConf(
-                type=storage,
-                name=name,
-                config=conf
-            ))
+            storagies.append(schemas.StorageConf(type=storage, name=name, config=conf))
         SystemConfigOper().set(SystemConfigKey.Storages, [s.model_dump() for s in storagies])
 
     def reset_storage(self, storage: str):

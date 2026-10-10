@@ -12,9 +12,9 @@ class SubscribeHistoryOper(DbOper):
     async def async_list_by_type(
         self,
         mtype: str,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-    ) -> List[SubscribeHistory]:
+        page: int | None = 1,
+        count: int | None = 30,
+    ) -> list[SubscribeHistory]:
         """
         异步按媒体类型分页查询订阅历史。
         """

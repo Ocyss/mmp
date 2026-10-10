@@ -1,12 +1,20 @@
 import traceback
-from typing import Generator, Optional, Tuple, Any, Union, List
+from collections.abc import Generator
+from typing import Any, List, Optional, Tuple, Union
 
 from app.core.config import settings
 from app.core.event import eventmanager
 from app.helper.module import ModuleHelper
 from app.log import logger
-from app.schemas.types import EventType, ModuleType, DownloaderType, MediaServerType, MessageChannel, StorageSchema, \
-    OtherModulesType
+from app.schemas.types import (
+    DownloaderType,
+    EventType,
+    MediaServerType,
+    MessageChannel,
+    ModuleType,
+    OtherModulesType,
+    StorageSchema,
+)
 from app.utils.object import ObjectUtils
 from app.utils.singleton import Singleton
 
@@ -32,8 +40,7 @@ class ModuleManager(metaclass=Singleton):
         """
         # 扫描模块目录
         modules = ModuleHelper.load(
-            "app.modules",
-            filter_func=lambda _, obj: hasattr(obj, 'init_module') and hasattr(obj, 'init_setting')
+            "app.modules", filter_func=lambda _, obj: hasattr(obj, "init_module") and hasattr(obj, "init_setting")
         )
         self._running_modules = {}
         self._modules = {}
@@ -73,15 +80,14 @@ class ModuleManager(metaclass=Singleton):
         self.load_modules()
         eventmanager.send_event(etype=EventType.ModuleReload, data={})
 
-    def test(self, modleid: str) -> Tuple[bool, str]:
+    def test(self, modleid: str) -> tuple[bool, str]:
         """
         测试模块
         """
         if modleid not in self._running_modules:
             return False, ""
         module = self._running_modules[modleid]
-        if hasattr(module, "test") \
-                and ObjectUtils.check_method(getattr(module, "test")):
+        if hasattr(module, "test") and ObjectUtils.check_method(module.test):
             result = module.test()
             if not result:
                 return False, ""
@@ -89,7 +95,7 @@ class ModuleManager(metaclass=Singleton):
         return True, "模块不支持测试"
 
     @staticmethod
-    def check_setting(setting: Optional[tuple]) -> bool:
+    def check_setting(setting: tuple | None) -> bool:
         """
         检查开关是否己打开，开关使用,分隔多个值，符合其中即代表开启
         """
@@ -122,8 +128,7 @@ class ModuleManager(metaclass=Singleton):
         if not self._running_modules:
             return
         for _, module in self._running_modules.items():
-            if hasattr(module, method) \
-                    and ObjectUtils.check_method(getattr(module, method)):
+            if hasattr(module, method) and ObjectUtils.check_method(getattr(module, method)):
                 yield module
 
     def get_running_type_modules(self, module_type: ModuleType) -> Generator:
@@ -133,8 +138,7 @@ class ModuleManager(metaclass=Singleton):
         if not self._running_modules:
             return
         for _, module in self._running_modules.items():
-            if hasattr(module, 'get_type') \
-                    and module.get_type() == module_type:
+            if hasattr(module, "get_type") and module.get_type() == module_type:
                 yield module
 
     def get_running_subtype_module(self, module_subtype: SubType) -> Generator:
@@ -144,8 +148,7 @@ class ModuleManager(metaclass=Singleton):
         if not self._running_modules:
             return
         for _, module in self._running_modules.items():
-            if hasattr(module, 'get_subtype') \
-                    and module.get_subtype() == module_subtype:
+            if hasattr(module, "get_subtype") and module.get_subtype() == module_subtype:
                 yield module
 
     def get_module(self, module_id: str) -> Any:
@@ -164,7 +167,7 @@ class ModuleManager(metaclass=Singleton):
         """
         return self._modules
 
-    def get_module_ids(self) -> List[str]:
+    def get_module_ids(self) -> list[str]:
         """
         获取模块id列表
         """

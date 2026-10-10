@@ -4,10 +4,10 @@ import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.modules.slack.slack import Slack
 from app.schemas import (
     CommandRegisterEventData,
@@ -77,7 +77,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             except Exception as err:
                 logger.error(f"停止Slack模块实例失败：{err}")
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -89,25 +89,21 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 return False, f"Slack {name} 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 Slack 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip()
-            for admin in str((config or {}).get("SLACK_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("SLACK_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 Slack 命令或命令型按钮回调是否应因非管理员身份被拒绝。
@@ -115,24 +111,18 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
     @staticmethod
-    def _send_admin_denied(client: Optional[Slack], userid: Optional[Union[str, int]]) -> None:
+    def _send_admin_denied(client: Slack | None, userid: str | int | None) -> None:
         """
         向 Slack 非管理员用户发送命令拒绝提示。
         """
         if client and userid:
             client.send_msg(title="只有管理员才有权限执行此命令", userid=str(userid))
 
-    def message_parser(
-        self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -278,8 +268,10 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 userid = msg_json.get("user")
                 text = msg_json.get("text")
                 username = msg_json.get("user")
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid, username
+                if (
+                    text
+                    and text.startswith("/")
+                    and self._should_reject_admin_command(client_config.config, userid, username)
                 ):
                     self._send_admin_denied(client, userid)
                     return None
@@ -295,7 +287,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 text = f"CALLBACK:{callback_data}"
                 username = msg_json.get("user", {}).get("name")
                 if str(callback_data).strip().startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid, username
+                    client_config.config, userid, username
                 ):
                     self._send_admin_denied(client, userid)
                     return None
@@ -304,9 +296,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 message_info = msg_json.get("message", {})
                 # Slack消息的时间戳作为消息ID
                 message_ts = message_info.get("ts")
-                channel_id = msg_json.get("channel", {}).get("id") or msg_json.get(
-                    "container", {}
-                ).get("channel_id")
+                channel_id = msg_json.get("channel", {}).get("id") or msg_json.get("container", {}).get("channel_id")
 
                 logger.info(
                     f"收到来自 {client_config.name} 的Slack按钮回调："
@@ -334,9 +324,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                     flags=re.IGNORECASE,
                 ).strip()
                 username = ""
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid
-                ):
+                if text and text.startswith("/") and self._should_reject_admin_command(client_config.config, userid):
                     self._send_admin_denied(client, userid)
                     return None
                 message_id = msg_json.get("event", {}).get("ts")
@@ -348,8 +336,10 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 userid = msg_json.get("user", {}).get("id")
                 text = msg_json.get("callback_id")
                 username = msg_json.get("user", {}).get("username")
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid, username
+                if (
+                    text
+                    and text.startswith("/")
+                    and self._should_reject_admin_command(client_config.config, userid, username)
                 ):
                     self._send_admin_denied(client, userid)
                     return None
@@ -385,7 +375,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
     @staticmethod
     def _extract_images(
         msg_json: dict,
-    ) -> Optional[List[CommingMessage.MessageImage]]:
+    ) -> list[CommingMessage.MessageImage] | None:
         """
         从Slack消息中提取图片URL
         """
@@ -415,7 +405,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         return images if images else None
 
     @classmethod
-    def _extract_audio_refs(cls, msg_json: dict) -> Optional[List[str]]:
+    def _extract_audio_refs(cls, msg_json: dict) -> list[str] | None:
         """
         从Slack消息中提取音频文件引用
         """
@@ -427,20 +417,14 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             file_type = str(file.get("type", "")).lower()
             file_ext = f".{str(file.get('filetype', '')).lower().lstrip('.')}"
             mime_type = str(file.get("mimetype", "")).lower()
-            if (
-                file_type == "audio"
-                or mime_type.startswith("audio/")
-                or file_ext in cls._AUDIO_SUFFIXES
-            ):
+            if file_type == "audio" or mime_type.startswith("audio/") or file_ext in cls._AUDIO_SUFFIXES:
                 url = file.get("url_private_download") or file.get("url_private")
                 if url:
                     audio_refs.append(f"slack://file/{quote(url, safe='')}")
         return audio_refs if audio_refs else None
 
     @classmethod
-    def _extract_files(
-        cls, msg_json: dict
-    ) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _extract_files(cls, msg_json: dict) -> list[CommingMessage.MessageAttachment] | None:
         """
         从 Slack 消息中提取非图片/非音频文件。
         """
@@ -458,11 +442,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 or file_ext in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
                 or mime_type.startswith("image/")
             )
-            is_audio = (
-                file_type == "audio"
-                or mime_type.startswith("audio/")
-                or file_ext in cls._AUDIO_SUFFIXES
-            )
+            is_audio = file_type == "audio" or mime_type.startswith("audio/") or file_ext in cls._AUDIO_SUFFIXES
             if is_image or is_audio:
                 continue
 
@@ -479,7 +459,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             )
         return attachments or None
 
-    def download_slack_file_to_data_url(self, file_url: str, source: str) -> Optional[str]:
+    def download_slack_file_to_data_url(self, file_url: str, source: str) -> str | None:
         """
         下载Slack文件并转为data URL
         :param file_url: Slack私有文件URL
@@ -500,7 +480,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             return f"data:{mime_type};base64,{base64.b64encode(content).decode()}"
         return None
 
-    def download_slack_file_bytes(self, file_ref: str, source: str) -> Optional[bytes]:
+    def download_slack_file_bytes(self, file_ref: str, source: str) -> bytes | None:
         """
         下载Slack音频文件并返回原始字节
         """
@@ -533,7 +513,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             if not userid and targets is not None:
                 userid = targets.get("slack_userid")
                 if not userid:
-                    logger.warn(f"用户没有指定 Slack用户ID，消息无法发送")
+                    logger.warn("用户没有指定 Slack用户ID，消息无法发送")
                     return
             client: Slack = self.get_instance(conf.name)
             if client:
@@ -557,9 +537,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                         original_chat_id=message.original_chat_id,
                     )
 
-    def post_medias_message(
-        self, message: Notification, medias: List[MediaInfo]
-    ) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message: 消息体
@@ -580,9 +558,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                     original_chat_id=message.original_chat_id,
                 )
 
-    def post_torrents_message(
-        self, message: Notification, torrents: List[Context]
-    ) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message: 消息体
@@ -608,8 +584,8 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         channel: MessageChannel,
         source: str,
         message_id: str,
-        chat_id: Optional[str] = None,
-    ) -> Optional[bool]:
+        chat_id: str | None = None,
+    ) -> bool | None:
         """
         删除消息
         :param channel: 消息渠道
@@ -635,13 +611,13 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         self,
         channel: MessageChannel,
         source: str,
-        message_id: Union[str, int],
-        chat_id: Union[str, int],
+        message_id: str | int,
+        chat_id: str | int,
         text: str,
-        title: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        metadata: Optional[dict] = None,
-    ) -> Optional[bool]:
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        metadata: dict | None = None,
+    ) -> bool | None:
         """
         编辑消息
         :param channel: 消息渠道
@@ -671,7 +647,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                     return True
         return False
 
-    def register_commands(self, commands: Dict[str, dict]) -> None:
+    def register_commands(self, commands: dict[str, dict]) -> None:
         """
         注册命令，实现这个函数接收系统可用的命令菜单。
 
@@ -714,20 +690,18 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 client.delete_commands()
                 continue
             if filtered_scoped_commands != commands:
-                logger.debug(
-                    f"Command set has changed, Updating new commands: {filtered_scoped_commands}"
-                )
+                logger.debug(f"Command set has changed, Updating new commands: {filtered_scoped_commands}")
             client.register_commands(filtered_scoped_commands)
 
     def mark_message_processing_started(
         self,
         channel: MessageChannel,
         source: str,
-        userid: Optional[Union[str, int]] = None,
-        message_id: Optional[Union[str, int]] = None,
-        chat_id: Optional[Union[str, int]] = None,
-        text: Optional[str] = None,
-    ) -> Optional[dict]:
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        text: str | None = None,
+    ) -> dict | None:
         """
         使用 Slack reaction 标记“正在处理”。
         """
@@ -742,9 +716,9 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         if not client:
             return None
         if not client.add_reaction(
-                channel=str(chat_id),
-                timestamp=str(message_id),
-                emoji=self.PROCESSING_REACTION,
+            channel=str(chat_id),
+            timestamp=str(message_id),
+            emoji=self.PROCESSING_REACTION,
         ):
             return None
         return {
@@ -763,11 +737,11 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
         self,
         channel: MessageChannel,
         source: str,
-        userid: Optional[Union[str, int]] = None,
-        message_id: Optional[Union[str, int]] = None,
-        chat_id: Optional[Union[str, int]] = None,
-        status: Optional[dict] = None,
-    ) -> Optional[bool]:
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        status: dict | None = None,
+    ) -> bool | None:
         """
         移除 Slack “正在处理” reaction。
         """
@@ -791,7 +765,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             emoji=str(emoji),
         )
 
-    def send_direct_message(self, message: Notification) -> Optional[MessageResponse]:
+    def send_direct_message(self, message: Notification) -> MessageResponse | None:
         """
         直接发送消息并返回消息ID等信息
         :param message: 消息体
@@ -837,10 +811,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                         files = (response_data.data or {}).get("files") or []
                         if files:
                             message_id = files[0].get("id")
-                            shares = (
-                                files[0].get("shares", {})
-                                .get("private", {})
-                            )
+                            shares = files[0].get("shares", {}).get("private", {})
                             if shares:
                                 channel_id = next(iter(shares.keys()), None)
                     return MessageResponse(

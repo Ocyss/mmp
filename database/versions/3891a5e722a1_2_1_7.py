@@ -5,16 +5,17 @@ Revises: 3df653756eec
 Create Date: 2025-06-28 08:40:14.516836
 
 """
-from alembic import op
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import sqlite
 
 from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = '3891a5e722a1'
-down_revision = '3df653756eec'
+revision = "3891a5e722a1"
+down_revision = "3df653756eec"
 branch_labels = None
 depends_on = None
 

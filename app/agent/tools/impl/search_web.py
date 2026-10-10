@@ -30,9 +30,7 @@ SEARCH_ENGINE_BACKENDS = (
     "mojeek",
 )
 SUPPORTED_SEARCH_ENGINES = SEARCH_ENGINE_BACKENDS
-DDGS_AUTO_BACKEND = ",".join(
-    backend for backend in SEARCH_ENGINE_BACKENDS if backend != DEFAULT_SEARCH_ENGINE
-)
+DDGS_AUTO_BACKEND = ",".join(backend for backend in SEARCH_ENGINE_BACKENDS if backend != DEFAULT_SEARCH_ENGINE)
 SITE_SEARCH_PATTERN = re.compile(r"\bsite:", re.IGNORECASE)
 
 
@@ -48,14 +46,12 @@ class _SearchSiteFilter:
 class SearchWebInput(BaseModel):
     """搜索网络内容工具的输入参数模型"""
 
-    query: str = Field(
-        ..., description="The search query string to search for on the web"
-    )
-    max_results: Optional[int] = Field(
+    query: str = Field(..., description="The search query string to search for on the web")
+    max_results: int | None = Field(
         MAX_SEARCH_RESULTS,
         description="Maximum number of search results to return (default: 20, max: 20)",
     )
-    search_engine: Optional[str] = Field(
+    search_engine: str | None = Field(
         DEFAULT_SEARCH_ENGINE,
         description=(
             "Search backend to use. Supported values: auto, duckduckgo, google, "
@@ -63,7 +59,7 @@ class SearchWebInput(BaseModel):
             "Use auto unless the user asks for a specific search engine."
         ),
     )
-    site_url: Optional[str] = Field(
+    site_url: str | None = Field(
         None,
         description=(
             "Optional website/domain/URL to limit the search to, for example "
@@ -89,9 +85,9 @@ class SearchWebTool(MoviePilotTool):
         "or URL. Uses the configured system proxy by default. Returns search "
         "results with titles, snippets, and URLs."
     )
-    args_schema: Type[BaseModel] = SearchWebInput
+    args_schema: type[BaseModel] = SearchWebInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         query = kwargs.get("query", "")
         max_results = kwargs.get("max_results", MAX_SEARCH_RESULTS)
@@ -107,9 +103,9 @@ class SearchWebTool(MoviePilotTool):
     async def run(
         self,
         query: str,
-        max_results: Optional[int] = MAX_SEARCH_RESULTS,
-        search_engine: Optional[str] = DEFAULT_SEARCH_ENGINE,
-        site_url: Optional[str] = None,
+        max_results: int | None = MAX_SEARCH_RESULTS,
+        search_engine: str | None = DEFAULT_SEARCH_ENGINE,
+        site_url: str | None = None,
         **kwargs,
     ) -> str:
         """
@@ -145,7 +141,7 @@ class SearchWebTool(MoviePilotTool):
                 max(1, max_results or MAX_SEARCH_RESULTS),
                 MAX_SEARCH_RESULTS,
             )
-            results: List[Dict] = []
+            results: list[dict] = []
 
             for engine in self._get_search_plan(search_engine):
                 results = await self._search_with_backend(
@@ -170,7 +166,7 @@ class SearchWebTool(MoviePilotTool):
             return error_message
 
     @staticmethod
-    def _normalize_search_engine(search_engine: Optional[str]) -> str:
+    def _normalize_search_engine(search_engine: str | None) -> str:
         """规范化搜索源参数"""
         engine = (search_engine or DEFAULT_SEARCH_ENGINE).strip().lower()
         aliases = {
@@ -183,7 +179,7 @@ class SearchWebTool(MoviePilotTool):
         return aliases.get(engine, engine)
 
     @staticmethod
-    def _get_search_plan(search_engine: str) -> List[str]:
+    def _get_search_plan(search_engine: str) -> list[str]:
         """根据搜索源配置生成兜底搜索顺序"""
         if search_engine != DEFAULT_SEARCH_ENGINE:
             return [search_engine]
@@ -194,8 +190,8 @@ class SearchWebTool(MoviePilotTool):
         engine: str,
         query: str,
         max_results: int,
-        site_filter: Optional[_SearchSiteFilter],
-    ) -> List[Dict]:
+        site_filter: _SearchSiteFilter | None,
+    ) -> list[dict]:
         """
         使用指定后端执行搜索。
 
@@ -221,7 +217,7 @@ class SearchWebTool(MoviePilotTool):
         return search_engine
 
     @staticmethod
-    def _normalize_site_filter(site_url: Optional[str]) -> Optional[_SearchSiteFilter]:
+    def _normalize_site_filter(site_url: str | None) -> _SearchSiteFilter | None:
         """
         将用户传入的网址转换为搜索引擎 site 过滤条件。
 
@@ -251,7 +247,7 @@ class SearchWebTool(MoviePilotTool):
     @staticmethod
     def _build_search_query(
         query: str,
-        site_filter: Optional[_SearchSiteFilter],
+        site_filter: _SearchSiteFilter | None,
     ) -> str:
         """
         生成实际发送给搜索后端的搜索关键词。
@@ -269,9 +265,9 @@ class SearchWebTool(MoviePilotTool):
 
     @staticmethod
     def _filter_results_by_site(
-        results: List[Dict],
-        site_filter: Optional[_SearchSiteFilter],
-    ) -> List[Dict]:
+        results: list[dict],
+        site_filter: _SearchSiteFilter | None,
+    ) -> list[dict]:
         """
         根据指定站点过滤搜索结果。
 
@@ -281,11 +277,7 @@ class SearchWebTool(MoviePilotTool):
         """
         if not site_filter:
             return results
-        return [
-            result
-            for result in results
-            if SearchWebTool._result_matches_site(result.get("url", ""), site_filter)
-        ]
+        return [result for result in results if SearchWebTool._result_matches_site(result.get("url", ""), site_filter)]
 
     @staticmethod
     def _result_matches_site(url: str, site_filter: _SearchSiteFilter) -> bool:
@@ -314,9 +306,7 @@ class SearchWebTool(MoviePilotTool):
             return True
 
         result_path = re.sub(r"/+", "/", parsed.path or "").rstrip("/")
-        return result_path == site_filter.path or result_path.startswith(
-            f"{site_filter.path}/"
-        )
+        return result_path == site_filter.path or result_path.startswith(f"{site_filter.path}/")
 
     @staticmethod
     def _normalize_host(host: str) -> str:
@@ -355,7 +345,7 @@ class SearchWebTool(MoviePilotTool):
         )
 
     @staticmethod
-    def _extract_result_url(result: Dict) -> str:
+    def _extract_result_url(result: dict) -> str:
         """
         从不同搜索引擎结果结构中提取 URL。
 
@@ -365,22 +355,17 @@ class SearchWebTool(MoviePilotTool):
         return result.get("href") or result.get("url") or ""
 
     @staticmethod
-    def _extract_result_snippet(result: Dict) -> str:
+    def _extract_result_snippet(result: dict) -> str:
         """
         从不同搜索引擎结果结构中提取摘要。
 
         :param result: 搜索引擎返回的单条结果
         :return: 摘要字符串
         """
-        return (
-            result.get("body")
-            or result.get("snippet")
-            or result.get("content")
-            or ""
-        )
+        return result.get("body") or result.get("snippet") or result.get("content") or ""
 
     @staticmethod
-    def _get_proxy_url(proxy_setting) -> Optional[str]:
+    def _get_proxy_url(proxy_setting) -> str | None:
         """从代理设置中提取代理URL"""
         if not proxy_setting:
             return None
@@ -393,8 +378,8 @@ class SearchWebTool(MoviePilotTool):
         query: str,
         max_results: int,
         search_engine: str = DEFAULT_SEARCH_ENGINE,
-        site_filter: Optional[_SearchSiteFilter] = None,
-    ) -> List[Dict]:
+        site_filter: _SearchSiteFilter | None = None,
+    ) -> list[dict]:
         """
         使用 DDGS 搜索引擎后端进行搜索。
 
@@ -424,9 +409,7 @@ class SearchWebTool(MoviePilotTool):
                         if ddgs_results:
                             for result in ddgs_results:
                                 source = (
-                                    DEFAULT_SEARCH_ENGINE
-                                    if search_engine == DEFAULT_SEARCH_ENGINE
-                                    else search_engine
+                                    DEFAULT_SEARCH_ENGINE if search_engine == DEFAULT_SEARCH_ENGINE else search_engine
                                 )
                                 results.append(
                                     {
@@ -448,7 +431,7 @@ class SearchWebTool(MoviePilotTool):
             return []
 
     @staticmethod
-    def _format_and_truncate_results(results: List[Dict], max_results: int) -> Dict:
+    def _format_and_truncate_results(results: list[dict], max_results: int) -> dict:
         """格式化并裁剪搜索结果"""
         formatted = {"total_results": len(results), "results": []}
 

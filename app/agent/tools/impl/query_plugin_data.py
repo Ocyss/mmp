@@ -6,12 +6,12 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import (
     PLUGIN_DATA_KEY_PREVIEW_LIMIT,
     build_preview_payload,
     get_plugin_snapshot,
 )
+from app.agent.tools.tags import ToolTag
 from app.db.plugindata_oper import PluginDataOper
 from app.log import logger
 
@@ -23,11 +23,11 @@ class QueryPluginDataInput(BaseModel):
         ...,
         description="The plugin ID to query. Use query_installed_plugins first to discover valid plugin IDs.",
     )
-    key: Optional[str] = Field(
+    key: str | None = Field(
         None,
         description="Optional plugin data key. If omitted, returns all plugin data entries for the plugin.",
     )
-    max_chars: Optional[int] = Field(
+    max_chars: int | None = Field(
         None,
         description="Maximum number of preview characters to return when plugin data is too large. Default 12000, capped at 50000.",
     )
@@ -46,9 +46,9 @@ class QueryPluginDataTool(MoviePilotTool):
         "When the result is too large, the tool automatically truncates it and returns a preview instead."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryPluginDataInput
+    args_schema: type[BaseModel] = QueryPluginDataInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         plugin_id = kwargs.get("plugin_id", "")
         key = kwargs.get("key")
@@ -57,9 +57,7 @@ class QueryPluginDataTool(MoviePilotTool):
         return f"查询插件全部数据: {plugin_id}"
 
     @staticmethod
-    async def _query_plugin_data(
-            plugin_id: str, key: Optional[str] = None, max_chars: Optional[int] = None
-    ) -> str:
+    async def _query_plugin_data(plugin_id: str, key: str | None = None, max_chars: int | None = None) -> str:
         """
         插件数据改走异步 ORM 查询，避免再套一层线程池。
         """
@@ -89,9 +87,7 @@ class QueryPluginDataTool(MoviePilotTool):
                     indent=2,
                 )
 
-            truncated, total_chars, returned_chars, preview = build_preview_payload(
-                value, max_chars
-            )
+            truncated, total_chars, returned_chars, preview = build_preview_payload(value, max_chars)
             result = {
                 "success": True,
                 **plugin_info,
@@ -126,9 +122,7 @@ class QueryPluginDataTool(MoviePilotTool):
             result["truncated"] = False
             return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
-        truncated, total_chars, returned_chars, preview = build_preview_payload(
-            data_map, max_chars
-        )
+        truncated, total_chars, returned_chars, preview = build_preview_payload(data_map, max_chars)
         result["truncated"] = truncated
         result["total_chars"] = total_chars
         result["returned_chars"] = returned_chars
@@ -142,13 +136,11 @@ class QueryPluginDataTool(MoviePilotTool):
     async def run(
         self,
         plugin_id: str,
-        key: Optional[str] = None,
-        max_chars: Optional[int] = None,
+        key: str | None = None,
+        max_chars: int | None = None,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, key={key}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: plugin_id={plugin_id}, key={key}")
 
         try:
             return await self._query_plugin_data(plugin_id, key, max_chars)

@@ -9,8 +9,8 @@ Create Date: 2025-02-14 19:02:24.989349
 from app.chain.torrents import TorrentsChain
 
 # revision identifiers, used by Alembic.
-revision = '279a949d81b6'
-down_revision = 'ca5461f314f2'
+revision = "279a949d81b6"
+down_revision = "ca5461f314f2"
 branch_labels = None
 depends_on = None
 

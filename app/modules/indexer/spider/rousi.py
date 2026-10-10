@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas import MediaType
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.string import StringUtils
 
 
@@ -19,6 +19,7 @@ class RousiSpider:
     - 搜索接口：/api/v1/torrents
     - 详情接口：/api/v1/torrents/:id
     """
+
     _indexerid = None
     _domain = None
     _url = None
@@ -33,14 +34,14 @@ class RousiSpider:
 
     # 分类定义
     # API 不支持多分类搜索，每次只使用一个分类
-    _movie_category = 'movie'
-    _tv_category = 'tv'
+    _movie_category = "movie"
+    _tv_category = "tv"
 
     # API KEY
     _apikey = None
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量。
         """
@@ -49,20 +50,20 @@ class RousiSpider:
     def __init__(self, indexer: dict):
         self.systemconfig = SystemConfigOper()
         if indexer:
-            self._indexerid = indexer.get('id')
-            self._url = indexer.get('domain')
+            self._indexerid = indexer.get("id")
+            self._url = indexer.get("domain")
             self._domain = StringUtils.get_url_domain(self._url)
             self._searchurl = self._searchurl % self._domain
             self._downloadurl = self._downloadurl % (self._domain, "%s")
-            self._name = indexer.get('name')
-            if indexer.get('proxy'):
+            self._name = indexer.get("name")
+            if indexer.get("proxy"):
                 self._proxy = settings.PROXY
-            self._cookie = indexer.get('cookie')
-            self._ua = indexer.get('ua')
-            self._apikey = indexer.get('apikey')
-            self._timeout = indexer.get('timeout') or 15
+            self._cookie = indexer.get("cookie")
+            self._ua = indexer.get("ua")
+            self._apikey = indexer.get("apikey")
+            self._timeout = indexer.get("timeout") or 15
 
-    def __get_params(self, keyword: str, mtype: MediaType = None, cat: Optional[str] = None, page: Optional[int] = 0) -> dict:
+    def __get_params(self, keyword: str, mtype: MediaType = None, cat: str | None = None, page: int | None = 0) -> dict:
         """
         构建 API 请求参数
 
@@ -72,10 +73,7 @@ class RousiSpider:
         :param page: 页码（从 0 开始，API 需要从 1 开始）
         :return: 请求参数字典
         """
-        params = {
-            "page": int(page) + 1,
-            "page_size": self._size
-        }
+        params = {"page": int(page) + 1, "page_size": self._size}
         if keyword:
             params["keyword"] = keyword
 
@@ -96,7 +94,7 @@ class RousiSpider:
 
         return params
 
-    def __get_category_names_by_ids(self, cat: str) -> Optional[list]:
+    def __get_category_names_by_ids(self, cat: str) -> list | None:
         """
         根据用户选择的分类 ID 获取 API 的 category names
 
@@ -107,21 +105,15 @@ class RousiSpider:
             return None
 
         # ID 到 category name 的映射
-        id_to_name = {
-            '1': 'movie',
-            '2': 'tv',
-            '3': 'documentary',
-            '4': 'animation',
-            '6': 'variety'
-        }
+        id_to_name = {"1": "movie", "2": "tv", "3": "documentary", "4": "animation", "6": "variety"}
 
         # 分割多个分类 ID 并映射为 category names
-        cat_ids = [c.strip() for c in cat.split(',') if c.strip()]
+        cat_ids = [c.strip() for c in cat.split(",") if c.strip()]
         category_names = [id_to_name.get(cat_id) for cat_id in cat_ids if cat_id in id_to_name]
 
         return category_names if category_names else None
 
-    def __process_response(self, res) -> Tuple[bool, List[dict]]:
+    def __process_response(self, res) -> tuple[bool, list[dict]]:
         """
         处理 API 响应
 
@@ -131,8 +123,8 @@ class RousiSpider:
         if res and res.status_code == 200:
             try:
                 data = res.json()
-                if data.get('code') == 0:
-                    results = data.get('data', {}).get('torrents', [])
+                if data.get("code") == 0:
+                    results = data.get("data", {}).get("torrents", [])
                     return False, self.__parse_result(results)
                 else:
                     logger.warn(f"{self._name} 搜索失败，错误信息：{data.get('message')}")
@@ -147,7 +139,7 @@ class RousiSpider:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
 
-    def __parse_result(self, results: List[dict]) -> List[dict]:
+    def __parse_result(self, results: list[dict]) -> list[dict]:
         """
         解析搜索结果
 
@@ -162,13 +154,13 @@ class RousiSpider:
 
         for result in results:
             # 解析分类信息
-            raw_cat = result.get('category')
+            raw_cat = result.get("category")
             cat_val = None
 
             category = MediaType.UNKNOWN.value
 
             if isinstance(raw_cat, dict):
-                cat_val = raw_cat.get('slug') or raw_cat.get('name')
+                cat_val = raw_cat.get("slug") or raw_cat.get("name")
             elif isinstance(raw_cat, str):
                 cat_val = raw_cat
 
@@ -187,34 +179,36 @@ class RousiSpider:
             uploadvolumefactor = 1.0
             freedate = None
 
-            promotion = result.get('promotion')
-            if promotion and promotion.get('is_active'):
-                downloadvolumefactor = float(promotion.get('down_multiplier', 1.0))
-                uploadvolumefactor = float(promotion.get('up_multiplier', 1.0))
+            promotion = result.get("promotion")
+            if promotion and promotion.get("is_active"):
+                downloadvolumefactor = float(promotion.get("down_multiplier", 1.0))
+                uploadvolumefactor = float(promotion.get("up_multiplier", 1.0))
                 # 促销到期时间，格式化为 YYYY-MM-DD HH:MM:SS
-                if promotion.get('until'):
-                    freedate = StringUtils.unify_datetime_str(promotion.get('until'))
+                if promotion.get("until"):
+                    freedate = StringUtils.unify_datetime_str(promotion.get("until"))
 
             torrent = {
-                'title': result.get('title'),
-                'description': result.get('subtitle'),
-                'enclosure': self.__get_download_url(result.get('id')),
-                'pubdate': StringUtils.unify_datetime_str(result.get('created_at')),
-                'size': int(result.get('size') or 0),
-                'seeders': int(result.get('seeders') or 0),
-                'peers': int(result.get('leechers') or 0),
-                'grabs': int(result.get('downloads') or 0),
-                'downloadvolumefactor': downloadvolumefactor,
-                'uploadvolumefactor': uploadvolumefactor,
-                'freedate': freedate,
-                'page_url': f"https://{self._domain}/torrent/{result.get('uuid')}",
-                'labels': [],
-                'category': category
+                "title": result.get("title"),
+                "description": result.get("subtitle"),
+                "enclosure": self.__get_download_url(result.get("id")),
+                "pubdate": StringUtils.unify_datetime_str(result.get("created_at")),
+                "size": int(result.get("size") or 0),
+                "seeders": int(result.get("seeders") or 0),
+                "peers": int(result.get("leechers") or 0),
+                "grabs": int(result.get("downloads") or 0),
+                "downloadvolumefactor": downloadvolumefactor,
+                "uploadvolumefactor": uploadvolumefactor,
+                "freedate": freedate,
+                "page_url": f"https://{self._domain}/torrent/{result.get('uuid')}",
+                "labels": [],
+                "category": category,
             }
             torrents.append(torrent)
         return torrents
 
-    def search(self, keyword: str, mtype: MediaType = None, cat: Optional[str] = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    def search(
+        self, keyword: str, mtype: MediaType = None, cat: str | None = None, page: int | None = 0
+    ) -> tuple[bool, list[dict]]:
         """
         同步搜索种子
 
@@ -229,20 +223,17 @@ class RousiSpider:
             return True, []
 
         params = self.__get_params(keyword, mtype, cat, page)
-        headers = {
-            "Authorization": f"Bearer {self._apikey}",
-            "Accept": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {self._apikey}", "Accept": "application/json"}
 
-        res = RequestUtils(
-            headers=headers,
-            proxies=self._proxy,
-            timeout=self._timeout
-        ).get_res(url=self._searchurl, params=params)
+        res = RequestUtils(headers=headers, proxies=self._proxy, timeout=self._timeout).get_res(
+            url=self._searchurl, params=params
+        )
 
         return self.__process_response(res)
 
-    async def async_search(self, keyword: str, mtype: MediaType = None, cat: Optional[str] = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    async def async_search(
+        self, keyword: str, mtype: MediaType = None, cat: str | None = None, page: int | None = 0
+    ) -> tuple[bool, list[dict]]:
         """
         异步搜索种子
 
@@ -257,16 +248,11 @@ class RousiSpider:
             return True, []
 
         params = self.__get_params(keyword, mtype, cat, page)
-        headers = {
-            "Authorization": f"Bearer {self._apikey}",
-            "Accept": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {self._apikey}", "Accept": "application/json"}
 
-        res = await AsyncRequestUtils(
-            headers=headers,
-            proxies=self._proxy,
-            timeout=self._timeout
-        ).get_res(url=self._searchurl, params=params)
+        res = await AsyncRequestUtils(headers=headers, proxies=self._proxy, timeout=self._timeout).get_res(
+            url=self._searchurl, params=params
+        )
 
         return self.__process_response(res)
 
@@ -285,12 +271,9 @@ class RousiSpider:
         # 1. 使用指定的 method 和 header 请求 URL
         # 2. 从 JSON 响应中提取 result 指定的字段值作为真实下载地址
         params = {
-            'method': 'get',
-            'header': {
-                'Authorization': f'Bearer {self._apikey}',
-                'Accept': 'application/json'
-            },
-            'result': 'data.download_url'
+            "method": "get",
+            "header": {"Authorization": f"Bearer {self._apikey}", "Accept": "application/json"},
+            "result": "data.download_url",
         }
-        base64_str = base64.b64encode(json.dumps(params).encode('utf-8')).decode('utf-8')
+        base64_str = base64.b64encode(json.dumps(params).encode("utf-8")).decode("utf-8")
         return f"[{base64_str}]{url}"

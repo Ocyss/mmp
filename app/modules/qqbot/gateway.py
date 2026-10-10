@@ -7,7 +7,8 @@ import json
 import re
 import threading
 import time
-from typing import Callable, List, Optional
+from collections.abc import Callable
+from typing import List, Optional
 
 import websocket
 
@@ -25,7 +26,7 @@ def run_gateway(
     get_gateway_url_fn: Callable[[str], str],
     on_message_fn: Callable[[dict], None],
     stop_event: threading.Event,
-    ws_holder: List,
+    ws_holder: list,
 ) -> None:
     """
     在后台线程中运行 Gateway WebSocket 连接
@@ -38,9 +39,9 @@ def run_gateway(
     :param stop_event: 停止事件，set 时退出循环
     :param ws_holder: 调用方持有的单元素列表，存放当前 WebSocketApp，供 stop() 时 close 以打断 run_forever
     """
-    last_seq: Optional[int] = None
-    heartbeat_interval_ms: Optional[int] = None
-    heartbeat_timer: Optional[threading.Timer] = None
+    last_seq: int | None = None
+    heartbeat_interval_ms: int | None = None
+    heartbeat_timer: threading.Timer | None = None
 
     def send_heartbeat():
         nonlocal heartbeat_timer
@@ -109,36 +110,40 @@ def run_gateway(
                 author = d.get("author", {})
                 user_openid = author.get("user_openid", "")
                 content = d.get("content", "").strip()
-                match = re.search(r'(agent_interaction:choice:[\w\-]+:\d+|agent_choice:[\w\-]+:\d+)', content)
+                match = re.search(r"(agent_interaction:choice:[\w\-]+:\d+|agent_choice:[\w\-]+:\d+)", content)
                 if match:
                     content = f"CALLBACK:{match.group(1)}"
                 msg_id = d.get("id", "")
                 if content:
-                    on_message_fn({
-                        "type": "C2C_MESSAGE_CREATE",
-                        "content": content,
-                        "author": {"user_openid": user_openid},
-                        "id": msg_id,
-                        "timestamp": d.get("timestamp", ""),
-                    })
+                    on_message_fn(
+                        {
+                            "type": "C2C_MESSAGE_CREATE",
+                            "content": content,
+                            "author": {"user_openid": user_openid},
+                            "id": msg_id,
+                            "timestamp": d.get("timestamp", ""),
+                        }
+                    )
             elif t == "GROUP_AT_MESSAGE_CREATE":
                 author = d.get("author", {})
                 member_openid = author.get("member_openid", "")
                 group_openid = d.get("group_openid", "")
                 content = d.get("content", "").strip()
-                match = re.search(r'(agent_interaction:choice:[\w\-]+:\d+|agent_choice:[\w\-]+:\d+)', content)
+                match = re.search(r"(agent_interaction:choice:[\w\-]+:\d+|agent_choice:[\w\-]+:\d+)", content)
                 if match:
                     content = f"CALLBACK:{match.group(1)}"
                 msg_id = d.get("id", "")
                 if content:
-                    on_message_fn({
-                        "type": "GROUP_AT_MESSAGE_CREATE",
-                        "content": content,
-                        "author": {"member_openid": member_openid},
-                        "id": msg_id,
-                        "group_openid": group_openid,
-                        "timestamp": d.get("timestamp", ""),
-                    })
+                    on_message_fn(
+                        {
+                            "type": "GROUP_AT_MESSAGE_CREATE",
+                            "content": content,
+                            "author": {"member_openid": member_openid},
+                            "id": msg_id,
+                            "group_openid": group_openid,
+                            "timestamp": d.get("timestamp", ""),
+                        }
+                    )
             # 其他事件忽略
 
         elif op == 7:  # Reconnect

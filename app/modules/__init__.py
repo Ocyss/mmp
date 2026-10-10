@@ -1,13 +1,21 @@
 import threading
-from abc import abstractmethod, ABCMeta
-from typing import Generic, Tuple, Union, TypeVar, Type, Dict, Optional, Callable
+from abc import ABCMeta, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
+from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, Union
 
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
-from app.schemas import Notification, NotificationConf, MediaServerConf, DownloaderConf
-from app.schemas.types import ModuleType, DownloaderType, MediaServerType, MessageChannel, StorageSchema, \
-    OtherModulesType, SystemConfigKey
+from app.schemas import DownloaderConf, MediaServerConf, Notification, NotificationConf
+from app.schemas.types import (
+    DownloaderType,
+    MediaServerType,
+    MessageChannel,
+    ModuleType,
+    OtherModulesType,
+    StorageSchema,
+    SystemConfigKey,
+)
 from app.utils.mixins import ConfigReloadMixin
 
 
@@ -28,9 +36,7 @@ class _ModuleBase(ConfigReloadMixin, metaclass=ABCMeta):
             try:
                 self.stop()
             except Exception as err:
-                logger.error(
-                    f"停止 {self.get_reload_name()} 旧资源失败，继续按最新配置初始化：{err}"
-                )
+                logger.error(f"停止 {self.get_reload_name()} 旧资源失败，继续按最新配置初始化：{err}")
             self.init_module()
 
     def get_reload_name(self):
@@ -44,7 +50,7 @@ class _ModuleBase(ConfigReloadMixin, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """
         模块开关设置，返回开关名和开关值，开关值为True时代表有值即打开，不实现该方法或返回None代表不使用开关
         部分模块支持同时开启多个，此时设置项以,分隔，开关值使用in判断
@@ -66,7 +72,7 @@ class _ModuleBase(ConfigReloadMixin, metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def get_subtype() -> Union[DownloaderType, MediaServerType, MessageChannel, StorageSchema, OtherModulesType]:
+    def get_subtype() -> DownloaderType | MediaServerType | MessageChannel | StorageSchema | OtherModulesType:
         """
         获取模块子类型（下载器、媒体服务器、消息通道、存储类型、其他杂项模块类型）
         """
@@ -88,7 +94,7 @@ class _ModuleBase(ConfigReloadMixin, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         模块测试, 返回测试结果和错误信息
         """
@@ -109,12 +115,11 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
         """
         初始化 ServiceBase 类的实例
         """
-        self._configs: Optional[Dict[str, TConf]] = None
-        self._instances: Optional[Dict[str, TService]] = None
-        self._service_name: Optional[str] = None
+        self._configs: dict[str, TConf] | None = None
+        self._instances: dict[str, TService] | None = None
+        self._service_name: str | None = None
 
-    def init_service(self, service_name: str,
-                     service_type: Optional[Union[Type[TService], Callable[..., TService]]] = None):
+    def init_service(self, service_name: str, service_type: type[TService] | Callable[..., TService] | None = None):
         """
         初始化服务，获取配置并实例化对应服务
 
@@ -140,7 +145,7 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
                 # 如果传入的是工厂函数，直接调用工厂函数
                 self._instances[conf.name] = service_type(conf)
 
-    def get_instances(self) -> Dict[str, TService]:
+    def get_instances(self) -> dict[str, TService]:
         """
         获取服务实例列表
 
@@ -148,7 +153,7 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
         """
         return self._instances or {}
 
-    def get_instance(self, name: Optional[str] = None) -> Optional[TService]:
+    def get_instance(self, name: str | None = None) -> TService | None:
         """
         获取指定名称的服务实例
 
@@ -163,7 +168,7 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
         return self._instances.get(name) if name else None
 
     @abstractmethod
-    def get_configs(self) -> Dict[str, TConf]:
+    def get_configs(self) -> dict[str, TConf]:
         """
         获取已启用的服务配置字典
 
@@ -171,7 +176,7 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
         """
         pass
 
-    def get_config(self, name: Optional[str] = None) -> Optional[TConf]:
+    def get_config(self, name: str | None = None) -> TConf | None:
         """
         获取指定名称的服务配置
 
@@ -185,7 +190,7 @@ class ServiceBase(Generic[TService, TConf], metaclass=ABCMeta):
         name = self.get_default_config_name()
         return self._configs.get(name) if name else None
 
-    def get_default_config_name(self) -> Optional[str]:
+    def get_default_config_name(self) -> str | None:
         """
         获取默认服务配置的名称
 
@@ -200,6 +205,7 @@ class _MessageBase(ServiceBase[TService, NotificationConf]):
     """
     消息基类
     """
+
     CONFIG_WATCH = {SystemConfigKey.Notifications.value}
 
     def __init__(self):
@@ -207,9 +213,9 @@ class _MessageBase(ServiceBase[TService, NotificationConf]):
         初始化消息基类，并设置消息通道
         """
         super().__init__()
-        self._channel: Optional[MessageChannel] = None
+        self._channel: MessageChannel | None = None
 
-    def get_configs(self) -> Dict[str, NotificationConf]:
+    def get_configs(self) -> dict[str, NotificationConf]:
         """
         获取已启用的消息通知渠道的配置字典
 
@@ -248,6 +254,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
     """
     下载器基类
     """
+
     CONFIG_WATCH = {SystemConfigKey.Downloaders.value}
 
     def __init__(self):
@@ -255,10 +262,9 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         初始化下载器基类
         """
         super().__init__()
-        self._default_config_name: Optional[str] = None
+        self._default_config_name: str | None = None
 
-    def init_service(self, service_name: str,
-                     service_type: Optional[Union[Type[TService], Callable[..., TService]]] = None):
+    def init_service(self, service_name: str, service_type: type[TService] | Callable[..., TService] | None = None):
         """
         初始化服务，获取配置并实例化对应服务
 
@@ -270,7 +276,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         # 初始化服务
         super().init_service(service_name, service_type)
 
-    def get_default_config_name(self) -> Optional[str]:
+    def get_default_config_name(self) -> str | None:
         """
         获取默认服务配置的名称
 
@@ -290,7 +296,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         self._default_config_name = first_conf.name if first_conf else None
         return self._default_config_name
 
-    def get_configs(self) -> Dict[str, DownloaderConf]:
+    def get_configs(self) -> dict[str, DownloaderConf]:
         """
         获取已启用的下载器的配置字典
 
@@ -308,7 +314,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         self._default_config_name = None
 
     @staticmethod
-    def __replace_path_prefix(path: Union[Path, str], source: str, target: str) -> Optional[str]:
+    def __replace_path_prefix(path: Path | str, source: str, target: str) -> str | None:
         """
         按完整路径段替换路径前缀，避免 /media 误匹配 /media2 这类相邻目录。
         """
@@ -323,7 +329,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
 
         source_prefix = f"{source_path.rstrip('/')}/"
         if path_text.startswith(source_prefix):
-            suffix = path_text[len(source_prefix):]
+            suffix = path_text[len(source_prefix) :]
             return (Path(target_path) / suffix).as_posix()
         return None
 
@@ -335,10 +341,10 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         for s in StorageSchema:
             prefix = f"{s.value}:"
             if path.startswith(prefix):
-                return path[len(prefix):]
+                return path[len(prefix) :]
         return path
 
-    def normalize_path(self, path: Path, downloader: Optional[str]) -> str:
+    def normalize_path(self, path: Path, downloader: str | None) -> str:
         """
         根据下载器配置和路径映射，规范化下载路径
 
@@ -349,14 +355,14 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         normalized_path = path.as_posix()
         conf = self.get_config(downloader)
         if conf and conf.path_mapping:
-            for (storage_path, download_path) in conf.path_mapping:
+            for storage_path, download_path in conf.path_mapping:
                 mapped_path = self.__replace_path_prefix(normalized_path, storage_path, download_path)
                 if mapped_path:
                     normalized_path = mapped_path
                     break
         return self.__strip_storage_prefix(normalized_path)
 
-    def normalize_return_path(self, path: Path, downloader: Optional[str]) -> str:
+    def normalize_return_path(self, path: Path, downloader: str | None) -> str:
         """
         将下载器返回的路径反向映射为 MoviePilot 可访问的存储路径。
 
@@ -367,7 +373,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         normalized_path = path.as_posix()
         conf = self.get_config(downloader)
         if conf and conf.path_mapping:
-            for (storage_path, download_path) in conf.path_mapping:
+            for storage_path, download_path in conf.path_mapping:
                 mapped_path = self.__replace_path_prefix(normalized_path, download_path, storage_path)
                 if mapped_path:
                     normalized_path = mapped_path
@@ -379,9 +385,10 @@ class _MediaServerBase(ServiceBase[TService, MediaServerConf]):
     """
     媒体服务器基类
     """
+
     CONFIG_WATCH = {SystemConfigKey.MediaServers.value}
 
-    def get_configs(self) -> Dict[str, MediaServerConf]:
+    def get_configs(self) -> dict[str, MediaServerConf]:
         """
         获取已启用的媒体服务器的配置字典
 

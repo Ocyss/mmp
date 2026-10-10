@@ -5,15 +5,15 @@ Revises: 262735d025da
 Create Date: 2024-09-30 10:03:58.546036
 
 """
+
 import contextlib
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '0fb94bf69b38'
-down_revision = '262735d025da'
+revision = "0fb94bf69b38"
+down_revision = "262735d025da"
 branch_labels = None
 depends_on = None
 
@@ -23,10 +23,10 @@ def upgrade() -> None:
     # 站点数据统计增加站点名称
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    columns = inspector.get_columns('siteuserdata')
+    columns = inspector.get_columns("siteuserdata")
     # 检查 'name' 字段是否已存在
-    if not any(c['name'] == 'name' for c in columns):
-        op.add_column('siteuserdata', sa.Column('name', sa.String(), nullable=True))
+    if not any(c["name"] == "name" for c in columns):
+        op.add_column("siteuserdata", sa.Column("name", sa.String(), nullable=True))
     # ### end Alembic commands ###
 
 

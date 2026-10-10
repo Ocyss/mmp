@@ -13,6 +13,7 @@ from app.log import logger
 
 class SearchPersonInput(BaseModel):
     """搜索人物工具的输入参数模型"""
+
     name: str = Field(..., description="The name of the person to search for (e.g., 'Tom Hanks', '周杰伦')")
 
 
@@ -23,9 +24,9 @@ class SearchPersonTool(MoviePilotTool):
         ToolTag.Media,
     ]
     description: str = "Search for person information including actors, directors, etc. Supports searching by name. Returns detailed person information from TMDB, Douban, or Bangumi database."
-    args_schema: Type[BaseModel] = SearchPersonInput
+    args_schema: type[BaseModel] = SearchPersonInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         name = kwargs.get("name", "")
         return f"搜索人物: {name}"
@@ -53,7 +54,9 @@ class SearchPersonTool(MoviePilotTool):
                         "original_name": person.original_name,
                         "known_for_department": person.known_for_department,
                         "popularity": person.popularity,
-                        "biography": person.biography[:200] + "..." if person.biography and len(person.biography) > 200 else person.biography,
+                        "biography": person.biography[:200] + "..."
+                        if person.biography and len(person.biography) > 200
+                        else person.biography,
                         "birthday": person.birthday,
                         "deathday": person.deathday,
                         "place_of_birth": person.place_of_birth,
@@ -71,9 +74,9 @@ class SearchPersonTool(MoviePilotTool):
                     if person.source == "bangumi":
                         simplified["career"] = person.career
                         simplified["relation"] = person.relation
-                    
+
                     simplified_results.append(simplified)
-                
+
                 result_json = json.dumps(simplified_results, ensure_ascii=False, indent=2)
                 # 如果结果被裁剪，添加提示信息
                 if total_count > len(limited_persons):

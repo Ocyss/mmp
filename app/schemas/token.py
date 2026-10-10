@@ -15,23 +15,23 @@ class Token(BaseModel):
     # 用户名
     user_name: str
     # 头像
-    avatar: Optional[str] = None
+    avatar: str | None = None
     # 权限级别
     level: int = 1
     # 详细权限
-    permissions: Optional[dict] = Field(default_factory=dict)
+    permissions: dict | None = Field(default_factory=dict)
     # 是否显示配置向导
-    wizard: Optional[bool] = None
+    wizard: bool | None = None
 
 
 class TokenPayload(BaseModel):
     # 用户ID
-    sub: Optional[int] = None
+    sub: int | None = None
     # 用户名
-    username: Optional[str] = None
+    username: str | None = None
     # 超级用户
-    super_user: Optional[bool] = None
+    super_user: bool | None = None
     # 权限级别
-    level: Optional[int] = None
+    level: int | None = None
     # 令牌用途 authentication\resource
-    purpose: Optional[str] = None
+    purpose: str | None = None

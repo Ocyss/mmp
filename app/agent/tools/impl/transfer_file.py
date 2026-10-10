@@ -18,38 +18,34 @@ class TransferFileInput(BaseModel):
         ...,
         description="Path to the file or directory to transfer (e.g., '/path/to/file.mkv' or '/path/to/directory')",
     )
-    storage: Optional[str] = Field(
+    storage: str | None = Field(
         "local",
         description="Storage type of the source file (default: 'local', can be 'smb', 'alist', etc.)",
     )
-    target_path: Optional[str] = Field(
+    target_path: str | None = Field(
         None,
         description="Target path for the transferred file/directory (optional, uses default library path if not specified)",
     )
-    target_storage: Optional[str] = Field(
+    target_storage: str | None = Field(
         None,
         description="Target storage type (optional, uses default storage if not specified)",
     )
-    media_type: Optional[str] = Field(None, description="Allowed values: movie, tv")
-    tmdbid: Optional[int] = Field(
+    media_type: str | None = Field(None, description="Allowed values: movie, tv")
+    tmdbid: int | None = Field(
         None,
         description="TMDB ID for precise media identification (optional but recommended for accuracy)",
     )
-    doubanid: Optional[str] = Field(
-        None, description="Douban ID for media identification (optional)"
-    )
-    bangumiid: Optional[int] = Field(None, description="Bangumi media ID")
-    anilistid: Optional[int] = Field(None, description="AniList media ID")
-    media_source: Optional[str] = Field(None, description="Media metadata source")
-    media_id: Optional[str] = Field(None, description="Native ID for media_source")
-    season: Optional[int] = Field(
-        None, description="Season number for TV shows (optional)"
-    )
-    transfer_type: Optional[str] = Field(
+    doubanid: str | None = Field(None, description="Douban ID for media identification (optional)")
+    bangumiid: int | None = Field(None, description="Bangumi media ID")
+    anilistid: int | None = Field(None, description="AniList media ID")
+    media_source: str | None = Field(None, description="Media metadata source")
+    media_id: str | None = Field(None, description="Native ID for media_source")
+    season: int | None = Field(None, description="Season number for TV shows (optional)")
+    transfer_type: str | None = Field(
         None,
         description="Transfer mode: 'move' to move files, 'copy' to copy files, 'link' for hard link, 'softlink' for symbolic link (optional, uses default mode if not specified)",
     )
-    background: Optional[bool] = Field(
+    background: bool | None = Field(
         False,
         description="Whether to run transfer in background (default: False, runs synchronously)",
     )
@@ -65,11 +61,11 @@ class TransferFileTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Transfer/organize a file or directory to the media library. Automatically recognizes media information and organizes files according to configured rules. Supports custom target paths, media identification, and transfer modes."
-    args_schema: Type[BaseModel] = TransferFileInput
+    args_schema: type[BaseModel] = TransferFileInput
     require_admin: bool = True
 
     @staticmethod
-    def _get_fileitem_type(file_path: str, storage: Optional[str] = "local") -> str:
+    def _get_fileitem_type(file_path: str, storage: str | None = "local") -> str:
         """
         判断待整理路径的文件类型。
 
@@ -81,7 +77,7 @@ class TransferFileTool(MoviePilotTool):
             return "dir"
         return "dir" if file_path.endswith("/") else "file"
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据整理参数生成友好的提示消息"""
         file_path = kwargs.get("file_path", "")
         media_type = kwargs.get("media_type")
@@ -107,19 +103,19 @@ class TransferFileTool(MoviePilotTool):
     @staticmethod
     def _transfer_file_sync(
         file_path: str,
-        storage: Optional[str] = "local",
-        target_path: Optional[str] = None,
-        target_storage: Optional[str] = None,
-        media_type: Optional[str] = None,
-        tmdbid: Optional[int] = None,
-        doubanid: Optional[str] = None,
-        bangumiid: Optional[int] = None,
-        anilistid: Optional[int] = None,
-        media_source: Optional[str] = None,
-        media_id: Optional[str] = None,
-        season: Optional[int] = None,
-        transfer_type: Optional[str] = None,
-        background: Optional[bool] = False,
+        storage: str | None = "local",
+        target_path: str | None = None,
+        target_storage: str | None = None,
+        media_type: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        season: int | None = None,
+        transfer_type: str | None = None,
+        background: bool | None = False,
     ) -> str:
         """
         文件整理链路包含大量同步磁盘与外部服务调用，需要在线程池中运行。
@@ -128,9 +124,7 @@ class TransferFileTool(MoviePilotTool):
             return "错误：必须提供文件或目录路径"
 
         if storage == "local":
-            if not file_path.startswith("/") and not (
-                len(file_path) > 1 and file_path[1] == ":"
-            ):
+            if not file_path.startswith("/") and not (len(file_path) > 1 and file_path[1] == ":"):
                 file_path = str(Path(file_path).resolve())
         elif not file_path.startswith("/"):
             file_path = "/" + file_path
@@ -184,19 +178,19 @@ class TransferFileTool(MoviePilotTool):
     async def run(
         self,
         file_path: str,
-        storage: Optional[str] = "local",
-        target_path: Optional[str] = None,
-        target_storage: Optional[str] = None,
-        media_type: Optional[str] = None,
-        tmdbid: Optional[int] = None,
-        doubanid: Optional[str] = None,
-        bangumiid: Optional[int] = None,
-        anilistid: Optional[int] = None,
-        media_source: Optional[str] = None,
-        media_id: Optional[str] = None,
-        season: Optional[int] = None,
-        transfer_type: Optional[str] = None,
-        background: Optional[bool] = False,
+        storage: str | None = "local",
+        target_path: str | None = None,
+        target_storage: str | None = None,
+        media_type: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        season: int | None = None,
+        transfer_type: str | None = None,
+        background: bool | None = False,
         **kwargs,
     ) -> str:
         logger.info(

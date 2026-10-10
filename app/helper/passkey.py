@@ -1,6 +1,7 @@
 """
 PassKey WebAuthn 辅助工具类
 """
+
 import base64
 import binascii
 import json
@@ -11,25 +12,22 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.parse import urlparse
 
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
     verify_authentication_response,
-    options_to_json
+    verify_registration_response,
 )
-from webauthn.helpers import (
-    parse_registration_credential_json,
-    parse_authentication_credential_json
-)
-from webauthn.helpers.structs import (
-    PublicKeyCredentialDescriptor,
-    AuthenticatorTransport,
-    UserVerificationRequirement,
-    ResidentKeyRequirement,
-    AuthenticatorSelectionCriteria
-)
+from webauthn.helpers import parse_authentication_credential_json, parse_registration_credential_json
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from webauthn.helpers.exceptions import InvalidRegistrationResponse
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from app.core.cache import TTLCache
 from app.core.config import settings
@@ -46,7 +44,7 @@ class PasskeyChallenge:
 
     challenge: str
     purpose: PasskeyChallengePurpose
-    user_id: Optional[int]
+    user_id: int | None
 
 
 class PasskeyChallengeStore:
@@ -65,7 +63,7 @@ class PasskeyChallengeStore:
         *,
         challenge: str,
         purpose: PasskeyChallengePurpose,
-        user_id: Optional[int],
+        user_id: int | None,
     ) -> str:
         """保存 challenge 并返回不携带认证事实的随机事务 token。"""
         transaction_token = secrets.token_urlsafe(32)
@@ -85,7 +83,7 @@ class PasskeyChallengeStore:
         *,
         transaction_token: str,
         purpose: PasskeyChallengePurpose,
-    ) -> Optional[PasskeyChallenge]:
+    ) -> PasskeyChallenge | None:
         """原子领取 challenge；任何完成尝试都会使事务失效。"""
         if not transaction_token:
             return None
@@ -130,20 +128,20 @@ class PassKeyHelper:
         if settings.APP_DOMAIN:
             app_domain = settings.APP_DOMAIN.strip()
             # 确保存在协议前缀，以便 urlparse 正确解析主机和端口
-            if not app_domain.startswith(('http://', 'https://')):
-                app_domain = f'https://{app_domain}'
+            if not app_domain.startswith(("http://", "https://")):
+                app_domain = f"https://{app_domain}"
             parsed = urlparse(app_domain)
             host = parsed.hostname
             if host:
                 return host
             # 从 APP_DOMAIN 中提取域名
-            host = settings.APP_DOMAIN.replace('https://', '').replace('http://', '')
+            host = settings.APP_DOMAIN.replace("https://", "").replace("http://", "")
             # 移除端口号
-            if ':' in host:
-                host = host.split(':')[0]
+            if ":" in host:
+                host = host.split(":")[0]
             return host
         # 只有在未配置 APP_DOMAIN 时，才默认为 localhost
-        return 'localhost'
+        return "localhost"
 
     @staticmethod
     def get_rp_name() -> str:
@@ -158,9 +156,9 @@ class PassKeyHelper:
         获取源地址
         """
         if settings.APP_DOMAIN:
-            return settings.APP_DOMAIN.rstrip('/')
+            return settings.APP_DOMAIN.rstrip("/")
         # 如果未配置APP_DOMAIN，使用默认的localhost地址
-        return f'http://localhost:{settings.NGINX_PORT}'
+        return f"http://localhost:{settings.NGINX_PORT}"
 
     @staticmethod
     def standardize_credential_id(credential_id: str) -> str:
@@ -169,8 +167,8 @@ class PassKeyHelper:
         """
         try:
             # Base64解码并重新编码以标准化格式
-            decoded = base64.urlsafe_b64decode(credential_id + '==')
-            return base64.urlsafe_b64encode(decoded).decode('utf-8').rstrip('=')
+            decoded = base64.urlsafe_b64decode(credential_id + "==")
+            return base64.urlsafe_b64encode(decoded).decode("utf-8").rstrip("=")
         except (binascii.Error, TypeError, ValueError) as e:
             logger.error(f"标准化凭证ID失败: {e}")
             return credential_id
@@ -183,7 +181,7 @@ class PassKeyHelper:
         :param data: 要编码的字节数据
         :return: Base64 URL Safe 编码的字符串
         """
-        return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
+        return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
 
     @staticmethod
     def _base64_decode_urlsafe(data: str) -> bytes:
@@ -193,10 +191,10 @@ class PassKeyHelper:
         :param data: Base64 URL Safe 编码的字符串
         :return: 解码后的字节数据
         """
-        return base64.urlsafe_b64decode(data + '==')
+        return base64.urlsafe_b64decode(data + "==")
 
     @staticmethod
-    def _parse_credential_list(credentials: List[Dict[str, Any]]) -> List[PublicKeyCredentialDescriptor]:
+    def _parse_credential_list(credentials: list[dict[str, Any]]) -> list[PublicKeyCredentialDescriptor]:
         """
         解析凭证列表为 PublicKeyCredentialDescriptor 列表
 
@@ -208,10 +206,10 @@ class PassKeyHelper:
             try:
                 result.append(
                     PublicKeyCredentialDescriptor(
-                        id=PassKeyHelper._base64_decode_urlsafe(cred['credential_id']),
-                        transports=[
-                            AuthenticatorTransport(t) for t in cred.get('transports', '').split(',') if t
-                        ] if cred.get('transports') else None
+                        id=PassKeyHelper._base64_decode_urlsafe(cred["credential_id"]),
+                        transports=[AuthenticatorTransport(t) for t in cred.get("transports", "").split(",") if t]
+                        if cred.get("transports")
+                        else None,
                     )
                 )
             except Exception as e:
@@ -220,7 +218,7 @@ class PassKeyHelper:
         return result
 
     @staticmethod
-    def _get_user_verification_requirement(user_verification: Optional[str] = None) -> UserVerificationRequirement:
+    def _get_user_verification_requirement(user_verification: str | None = None) -> UserVerificationRequirement:
         """
         获取用户验证要求
 
@@ -229,14 +227,16 @@ class PassKeyHelper:
         """
         if user_verification:
             return UserVerificationRequirement(user_verification)
-        return UserVerificationRequirement.REQUIRED if settings.PASSKEY_REQUIRE_UV \
+        return (
+            UserVerificationRequirement.REQUIRED
+            if settings.PASSKEY_REQUIRE_UV
             else UserVerificationRequirement.PREFERRED
+        )
 
     @staticmethod
     def _get_verification_params(
-        expected_origin: Optional[str] = None,
-        expected_rp_id: Optional[str] = None
-    ) -> Tuple[str, str]:
+        expected_origin: str | None = None, expected_rp_id: str | None = None
+    ) -> tuple[str, str]:
         """
         获取验证参数（origin 和 rp_id）
 
@@ -252,12 +252,12 @@ class PassKeyHelper:
     def generate_registration_options(
         user_id: int,
         username: str,
-        display_name: Optional[str] = None,
-        existing_credentials: Optional[List[Dict[str, Any]]] = None
-    ) -> Tuple[str, str]:
+        display_name: str | None = None,
+        existing_credentials: list[dict[str, Any]] | None = None,
+    ) -> tuple[str, str]:
         """
         生成注册选项
-        
+
         :param user_id: 用户ID
         :param username: 用户名
         :param display_name: 显示名称
@@ -266,11 +266,12 @@ class PassKeyHelper:
         """
         try:
             # 用户信息
-            user_id_bytes = str(user_id).encode('utf-8')
+            user_id_bytes = str(user_id).encode("utf-8")
 
             # 排除已有的凭证
-            exclude_credentials = PassKeyHelper._parse_credential_list(existing_credentials) \
-                if existing_credentials else None
+            exclude_credentials = (
+                PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
+            )
 
             # 用户验证要求
             uv_requirement = PassKeyHelper._get_user_verification_requirement()
@@ -291,7 +292,7 @@ class PassKeyHelper:
                 supported_pub_key_algs=[
                     COSEAlgorithmIdentifier.ECDSA_SHA_256,
                     COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
-                ]
+                ],
             )
 
             # 转换为JSON
@@ -308,14 +309,14 @@ class PassKeyHelper:
 
     @staticmethod
     def verify_registration_response(
-        credential: Dict[str, Any],
+        credential: dict[str, Any],
         expected_challenge: str,
-        expected_origin: Optional[str] = None,
-        expected_rp_id: Optional[str] = None
-    ) -> Tuple[str, str, int, Optional[str]]:
+        expected_origin: str | None = None,
+        expected_rp_id: str | None = None,
+    ) -> tuple[str, str, int, str | None]:
         """
         验证注册响应
-        
+
         :param credential: 客户端返回的凭证
         :param expected_challenge: 期望的challenge
         :param expected_origin: 期望的源地址
@@ -337,7 +338,7 @@ class PassKeyHelper:
                 expected_challenge=challenge_bytes,
                 expected_rp_id=rp_id,
                 expected_origin=origin,
-                require_user_verification=settings.PASSKEY_REQUIRE_UV
+                require_user_verification=settings.PASSKEY_REQUIRE_UV,
             )
 
             # 提取信息
@@ -366,29 +367,27 @@ class PassKeyHelper:
 
     @staticmethod
     def generate_authentication_options(
-        existing_credentials: Optional[List[Dict[str, Any]]] = None,
-        user_verification: Optional[str] = None
-    ) -> Tuple[str, str]:
+        existing_credentials: list[dict[str, Any]] | None = None, user_verification: str | None = None
+    ) -> tuple[str, str]:
         """
         生成认证选项
-        
+
         :param existing_credentials: 已存在的凭证列表（用于限制可用凭证）
         :param user_verification: 用户验证要求，如果不指定则从配置中读取
         :return: (options_json, challenge)
         """
         try:
             # 允许的凭证
-            allow_credentials = PassKeyHelper._parse_credential_list(existing_credentials) \
-                if existing_credentials else None
+            allow_credentials = (
+                PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
+            )
 
             # 用户验证要求
             uv_requirement = PassKeyHelper._get_user_verification_requirement(user_verification)
 
             # 生成认证选项
             options = generate_authentication_options(
-                rp_id=PassKeyHelper.get_rp_id(),
-                allow_credentials=allow_credentials,
-                user_verification=uv_requirement
+                rp_id=PassKeyHelper.get_rp_id(), allow_credentials=allow_credentials, user_verification=uv_requirement
             )
 
             # 转换为JSON
@@ -405,16 +404,16 @@ class PassKeyHelper:
 
     @staticmethod
     def verify_authentication_response(
-        credential: Dict[str, Any],
+        credential: dict[str, Any],
         expected_challenge: str,
         credential_public_key: str,
         credential_current_sign_count: int,
-        expected_origin: Optional[str] = None,
-        expected_rp_id: Optional[str] = None
-    ) -> Tuple[bool, int]:
+        expected_origin: str | None = None,
+        expected_rp_id: str | None = None,
+    ) -> tuple[bool, int]:
         """
         验证认证响应
-        
+
         :param credential: 客户端返回的凭证
         :param expected_challenge: 期望的challenge
         :param credential_public_key: 凭证公钥
@@ -441,7 +440,7 @@ class PassKeyHelper:
                 expected_origin=origin,
                 credential_public_key=public_key_bytes,
                 credential_current_sign_count=credential_current_sign_count,
-                require_user_verification=settings.PASSKEY_REQUIRE_UV
+                require_user_verification=settings.PASSKEY_REQUIRE_UV,
             )
 
             return True, verification.new_sign_count

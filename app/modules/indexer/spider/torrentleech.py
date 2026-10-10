@@ -1,9 +1,9 @@
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
 from app.core.config import settings
 from app.log import logger
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.string import StringUtils
 
 
@@ -18,7 +18,7 @@ class TorrentLeech:
     _timeout = 15
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量；关键词搜索 URL 当前没有可靠页码入口。
         """
@@ -26,11 +26,11 @@ class TorrentLeech:
 
     def __init__(self, indexer: dict):
         self._indexer = indexer
-        if indexer.get('proxy'):
+        if indexer.get("proxy"):
             self._proxy = settings.PROXY
-            self._timeout = indexer.get('timeout') or 15
+            self._timeout = indexer.get("timeout") or 15
 
-    def __parse_result(self, results: List[dict]) -> List[dict]:
+    def __parse_result(self, results: list[dict]) -> list[dict]:
         """
         解析搜索结果
         """
@@ -40,24 +40,23 @@ class TorrentLeech:
 
         for result in results:
             torrent = {
-                'title': result.get('name'),
-                'enclosure': self._downloadurl % (self._indexer.get('domain'),
-                                                  result.get('fid'),
-                                                  result.get('filename')),
-                'pubdate': StringUtils.format_timestamp(result.get('addedTimestamp')),
-                'size': result.get('size'),
-                'seeders': result.get('seeders'),
-                'peers': result.get('leechers'),
-                'grabs': result.get('completed'),
-                'downloadvolumefactor': result.get('download_multiplier'),
-                'uploadvolumefactor': 1,
-                'page_url': self._pageurl % (self._indexer.get('domain'), result.get('fid')),
-                'imdbid': result.get('imdbID')
+                "title": result.get("name"),
+                "enclosure": self._downloadurl
+                % (self._indexer.get("domain"), result.get("fid"), result.get("filename")),
+                "pubdate": StringUtils.format_timestamp(result.get("addedTimestamp")),
+                "size": result.get("size"),
+                "seeders": result.get("seeders"),
+                "peers": result.get("leechers"),
+                "grabs": result.get("completed"),
+                "downloadvolumefactor": result.get("download_multiplier"),
+                "uploadvolumefactor": 1,
+                "page_url": self._pageurl % (self._indexer.get("domain"), result.get("fid")),
+                "imdbid": result.get("imdbID"),
             }
             torrents.append(torrent)
         return torrents
 
-    def search(self, keyword: str, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    def search(self, keyword: str, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         搜索种子
         """
@@ -66,21 +65,21 @@ class TorrentLeech:
             return True, []
 
         if keyword:
-            url = self._searchurl % (self._indexer.get('domain'), quote(keyword))
+            url = self._searchurl % (self._indexer.get("domain"), quote(keyword))
         else:
-            url = self._browseurl % (self._indexer.get('domain'), int(page) + 1)
+            url = self._browseurl % (self._indexer.get("domain"), int(page) + 1)
 
         res = RequestUtils(
             headers={
                 "Content-Type": "application/json; charset=utf-8",
                 "User-Agent": f"{self._indexer.get('ua')}",
             },
-            cookies=self._indexer.get('cookie'),
+            cookies=self._indexer.get("cookie"),
             proxies=self._proxy,
-            timeout=self._timeout
+            timeout=self._timeout,
         ).get_res(url)
         if res and res.status_code == 200:
-            results = res.json().get('torrentList') or []
+            results = res.json().get("torrentList") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._indexer.get('name')} 搜索失败，错误码：{res.status_code}")
@@ -89,7 +88,7 @@ class TorrentLeech:
             logger.warn(f"{self._indexer.get('name')} 搜索失败，无法连接 {self._indexer.get('domain')}")
             return True, []
 
-    async def async_search(self, keyword: str, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    async def async_search(self, keyword: str, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         异步搜索种子
         """
@@ -98,21 +97,21 @@ class TorrentLeech:
             return True, []
 
         if keyword:
-            url = self._searchurl % (self._indexer.get('domain'), quote(keyword))
+            url = self._searchurl % (self._indexer.get("domain"), quote(keyword))
         else:
-            url = self._browseurl % (self._indexer.get('domain'), int(page) + 1)
+            url = self._browseurl % (self._indexer.get("domain"), int(page) + 1)
 
         res = await AsyncRequestUtils(
             headers={
                 "Content-Type": "application/json; charset=utf-8",
                 "User-Agent": f"{self._indexer.get('ua')}",
             },
-            cookies=self._indexer.get('cookie'),
+            cookies=self._indexer.get("cookie"),
             proxies=self._proxy,
-            timeout=self._timeout
+            timeout=self._timeout,
         ).get_res(url)
         if res and res.status_code == 200:
-            results = res.json().get('torrentList') or []
+            results = res.json().get("torrentList") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._indexer.get('name')} 搜索失败，错误码：{res.status_code}")

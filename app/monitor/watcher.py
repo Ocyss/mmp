@@ -15,6 +15,7 @@ class DirectoryChangeEvent:
     """
     目录文件变化事件，隔离底层 watchfiles 事件结构。
     """
+
     change_type: Change
     src_path: str
     is_directory: bool
@@ -24,6 +25,7 @@ class LocalDirectoryWatcher:
     """
     基于 watchfiles 的本地目录监控线程。
     """
+
     _HANDLE_CHANGES = {Change.added, Change.modified}
     # 监控循环异常退出后的重启退避秒数，网络存储/FUSE 挂载抖动通常是暂时的
     RESTART_BACKOFF = (5, 15, 30, 60, 120, 300)
@@ -36,8 +38,9 @@ class LocalDirectoryWatcher:
     # 网络/FUSE 挂载轮询降频，减少监控自身对挂载后端的持续 stat 压力
     POLL_DELAY_NETWORK_MS = 5000
 
-    def __init__(self, mon_path: Path, callback: Any, force_polling: Optional[bool] = None,
-                 poll_delay_ms: Optional[int] = None):
+    def __init__(
+        self, mon_path: Path, callback: Any, force_polling: bool | None = None, poll_delay_ms: int | None = None
+    ):
         """
         初始化本地目录监控。
         :param mon_path: 监控目录
@@ -50,7 +53,7 @@ class LocalDirectoryWatcher:
         self._force_polling = force_polling
         self._poll_delay_ms = poll_delay_ms or self.POLL_DELAY_LOCAL_MS
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._watch_filter = DefaultFilter()
         # 最近一次监控循环活动时间（monotonic），用于检测静默失效
         self._last_activity: float = 0.0
@@ -66,7 +69,7 @@ class LocalDirectoryWatcher:
         return self._watch_path
 
     @property
-    def force_polling(self) -> Optional[bool]:
+    def force_polling(self) -> bool | None:
         """
         获取监控模式配置，重建监控线程时沿用。
         :return: 是否强制轮询
@@ -103,9 +106,7 @@ class LocalDirectoryWatcher:
         self._stop_event.clear()
         self._mark_activity()
         self._thread = threading.Thread(
-            target=self._run,
-            name=f"MoviePilot-DirectoryWatcher-{self._watch_path.name}",
-            daemon=True
+            target=self._run, name=f"MoviePilot-DirectoryWatcher-{self._watch_path.name}", daemon=True
         )
         self._thread.start()
 
@@ -115,7 +116,7 @@ class LocalDirectoryWatcher:
         """
         self._stop_event.set()
 
-    def join(self, timeout: Optional[float] = None):
+    def join(self, timeout: float | None = None):
         """
         等待本地目录监控线程退出。
         :param timeout: 最长等待秒数
@@ -176,26 +177,29 @@ class LocalDirectoryWatcher:
                 delay = self.RESTART_BACKOFF[min(attempt, len(self.RESTART_BACKOFF) - 1)]
                 attempt += 1
                 self._restart_count += 1
-                logger.error(f"本地目录监控发生错误，{delay} 秒后自动重启"
-                             f"（累计第 {self._restart_count} 次）: {self._watch_path} - {err}")
+                logger.error(
+                    f"本地目录监控发生错误，{delay} 秒后自动重启"
+                    f"（累计第 {self._restart_count} 次）: {self._watch_path} - {err}"
+                )
                 if self._stop_event.wait(timeout=delay):
                     return
 
-    def _run_watch(self, force_polling: Optional[bool]):
+    def _run_watch(self, force_polling: bool | None):
         """
         执行一次 watchfiles 监控循环。
         :param force_polling: 是否强制轮询
         """
         for changes in watch(
-                str(self._watch_path),
-                watch_filter=self._watch_filter,
-                stop_event=self._stop_event,
-                rust_timeout=1000,
-                yield_on_timeout=True,
-                force_polling=force_polling,
-                poll_delay_ms=self._poll_delay_ms,
-                recursive=True,
-                ignore_permission_denied=True):
+            str(self._watch_path),
+            watch_filter=self._watch_filter,
+            stop_event=self._stop_event,
+            rust_timeout=1000,
+            yield_on_timeout=True,
+            force_polling=force_polling,
+            poll_delay_ms=self._poll_delay_ms,
+            recursive=True,
+            ignore_permission_denied=True,
+        ):
             self._mark_activity()
             if self._stop_event.is_set():
                 break
@@ -224,12 +228,7 @@ class LocalDirectoryWatcher:
                 continue
             text = self._change_text(change_type)
             try:
-                self._callback.event_handler(
-                    event=event,
-                    text=text,
-                    event_path=path_str,
-                    file_size=file_size
-                )
+                self._callback.event_handler(event=event, text=text, event_path=path_str, file_size=file_size)
             except Exception as err:
                 logger.error(f"处理本地目录监控事件失败: {path_str} - {err}")
 
@@ -258,7 +257,7 @@ class LocalDirectoryWatcher:
         return expanded_changes
 
     @staticmethod
-    def _build_event(change_type: Change, event_path: Path) -> Optional[DirectoryChangeEvent]:
+    def _build_event(change_type: Change, event_path: Path) -> DirectoryChangeEvent | None:
         """
         构建目录变化事件，路径已不存在时忽略。
         :param change_type: watchfiles 变化类型
@@ -272,14 +271,10 @@ class LocalDirectoryWatcher:
             return None
         if not event_path.exists():
             return None
-        return DirectoryChangeEvent(
-            change_type=change_type,
-            src_path=event_path.as_posix(),
-            is_directory=is_directory
-        )
+        return DirectoryChangeEvent(change_type=change_type, src_path=event_path.as_posix(), is_directory=is_directory)
 
     @staticmethod
-    def _get_file_size(event_path: Path) -> Optional[int]:
+    def _get_file_size(event_path: Path) -> int | None:
         """
         读取事件文件大小，文件已消失时返回 None。
         :param event_path: 事件文件路径

@@ -11,7 +11,7 @@ class DoubanScraper:
     _force_nfo = False
     _force_img = False
 
-    def get_metadata_nfo(self, mediainfo: MediaInfo, season: Optional[int] = None) -> Optional[str]:
+    def get_metadata_nfo(self, mediainfo: MediaInfo, season: int | None = None) -> str | None:
         """
         获取NFO文件内容文本
         :param mediainfo: 媒体信息
@@ -28,12 +28,12 @@ class DoubanScraper:
                 # 电视剧元数据文件
                 doc = self.__gen_tv_nfo_file(mediainfo=mediainfo)
         if doc:
-            return doc.toprettyxml(indent="  ", encoding="utf-8") # noqa
+            return doc.toprettyxml(indent="  ", encoding="utf-8")  # noqa
 
         return None
 
     @staticmethod
-    def get_metadata_img(mediainfo: MediaInfo, season: Optional[int] = None, episode: Optional[int] = None) -> Optional[dict]:
+    def get_metadata_img(mediainfo: MediaInfo, season: int | None = None, episode: int | None = None) -> dict | None:
         """
         获取图片内容
         :param mediainfo: 媒体信息
@@ -69,8 +69,8 @@ class DoubanScraper:
             DomUtils.add_node(doc, xactor, "name", actor.get("name") or "")
             DomUtils.add_node(doc, xactor, "type", "Actor")
             DomUtils.add_node(doc, xactor, "role", actor.get("character") or actor.get("role") or "")
-            DomUtils.add_node(doc, xactor, "thumb", actor.get('avatar', {}).get('normal'))
-            DomUtils.add_node(doc, xactor, "profile", actor.get('url'))
+            DomUtils.add_node(doc, xactor, "thumb", actor.get("avatar", {}).get("normal"))
+            DomUtils.add_node(doc, xactor, "profile", actor.get("url"))
         # 评分
         DomUtils.add_node(doc, root, "rating", mediainfo.vote_average or "0")
 
@@ -85,9 +85,7 @@ class DoubanScraper:
         doc = minidom.Document()
         root = DomUtils.add_node(doc, doc, "movie")
         # 公共部分
-        doc = self.__gen_common_nfo(mediainfo=mediainfo,
-                                    doc=doc,
-                                    root=root)
+        doc = self.__gen_common_nfo(mediainfo=mediainfo, doc=doc, root=root)
         # 标题
         DomUtils.add_node(doc, root, "title", mediainfo.title or "")
         # 年份
@@ -104,9 +102,7 @@ class DoubanScraper:
         doc = minidom.Document()
         root = DomUtils.add_node(doc, doc, "tvshow")
         # 公共部分
-        doc = self.__gen_common_nfo(mediainfo=mediainfo,
-                                    doc=doc,
-                                    root=root)
+        doc = self.__gen_common_nfo(mediainfo=mediainfo, doc=doc, root=root)
         # 标题
         DomUtils.add_node(doc, root, "title", mediainfo.title or "")
         # 年份
@@ -117,8 +113,7 @@ class DoubanScraper:
         return doc
 
     @staticmethod
-    def __gen_tv_season_nfo_file(mediainfo: MediaInfo,
-                                 season: int) -> minidom.Document:
+    def __gen_tv_season_nfo_file(mediainfo: MediaInfo, season: int) -> minidom.Document:
         """
         生成电视剧季的NFO描述文件
         :param mediainfo: 媒体信息

@@ -5,7 +5,7 @@ class Network(TMDb):
     _urls = {
         "details": "/network/%s",
         "alternative_names": "/network/%s/alternative_names",
-        "images": "/network/%s/images"
+        "images": "/network/%s/images",
     }
 
     def details(self, network_id):
@@ -30,10 +30,7 @@ class Network(TMDb):
         :param network_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["alternative_names"] % network_id,
-            key="results"
-        )
+        return self._request_obj(self._urls["alternative_names"] % network_id, key="results")
 
     async def async_alternative_names(self, network_id):
         """
@@ -41,10 +38,7 @@ class Network(TMDb):
         :param network_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["alternative_names"] % network_id,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["alternative_names"] % network_id, key="results")
 
     def images(self, network_id):
         """
@@ -52,10 +46,7 @@ class Network(TMDb):
         :param network_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["images"] % network_id,
-            key="logos"
-        )
+        return self._request_obj(self._urls["images"] % network_id, key="logos")
 
     async def async_images(self, network_id):
         """
@@ -63,7 +54,4 @@ class Network(TMDb):
         :param network_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["images"] % network_id,
-            key="logos"
-        )
+        return await self._async_request_obj(self._urls["images"] % network_id, key="logos")

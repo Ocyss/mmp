@@ -14,6 +14,8 @@ from app.schemas.types import SystemConfigKey
 
 class QueryDownloadersInput(BaseModel):
     """查询下载器工具的输入参数模型"""
+
+
 class QueryDownloadersTool(MoviePilotTool):
     name: str = "query_downloaders"
     tags: list[str] = [
@@ -25,9 +27,9 @@ class QueryDownloadersTool(MoviePilotTool):
         "a safe view with only the fields needed to choose a downloader, without host, account, "
         "password, token or API key values."
     )
-    args_schema: Type[BaseModel] = QueryDownloadersInput
+    args_schema: type[BaseModel] = QueryDownloadersInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         return "查询下载器配置"
 
@@ -49,11 +51,7 @@ class QueryDownloadersTool(MoviePilotTool):
         for downloader in downloaders_config:
             if not isinstance(downloader, dict):
                 continue
-            safe_downloaders.append({
-                key: downloader.get(key)
-                for key in safe_fields
-                if key in downloader
-            })
+            safe_downloaders.append({key: downloader.get(key) for key in safe_fields if key in downloader})
         return safe_downloaders
 
     async def run(self, **kwargs) -> str:
@@ -62,9 +60,7 @@ class QueryDownloadersTool(MoviePilotTool):
             downloaders_config = self._load_downloaders_config()
             if downloaders_config:
                 if not await self.is_admin_user():
-                    downloaders_config = self._sanitize_downloaders_config(
-                        downloaders_config
-                    )
+                    downloaders_config = self._sanitize_downloaders_config(downloaders_config)
                 return json.dumps(downloaders_config, ensure_ascii=False, indent=2)
             return "未配置下载器。"
         except Exception as e:

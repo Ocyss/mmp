@@ -5,10 +5,11 @@ import inspect
 import pickle
 import threading
 from collections import defaultdict, deque
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from time import sleep
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -18,7 +19,7 @@ from app.core.event import Event, eventmanager
 from app.db.models import Workflow
 from app.db.workflow_oper import WorkflowOper
 from app.log import logger
-from app.schemas import ActionContext, ActionFlow, Action, ActionExecution, ActionResult
+from app.schemas import Action, ActionContext, ActionExecution, ActionFlow, ActionResult
 from app.schemas.types import EventType
 from app.workflow import WorkFlowManager
 
@@ -34,7 +35,7 @@ def _serialize_workflow_key(key: Any) -> Any:
     return str(key)
 
 
-def _serialize_workflow_value(value: Any, stack: Optional[set[int]] = None) -> Any:
+def _serialize_workflow_value(value: Any, stack: set[int] | None = None) -> Any:
     """把工作流上下文和值转换为可持久化的 JSON 结构。"""
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -59,10 +60,7 @@ def _serialize_workflow_value(value: Any, stack: Optional[set[int]] = None) -> A
     if isinstance(value, dict):
         stack.add(object_id)
         try:
-            return {
-                _serialize_workflow_key(key): _serialize_workflow_value(item, stack)
-                for key, item in value.items()
-            }
+            return {_serialize_workflow_key(key): _serialize_workflow_value(item, stack) for key, item in value.items()}
         finally:
             stack.remove(object_id)
 
@@ -115,12 +113,8 @@ class WorkflowExecutor:
         # 工作流数据
         self.workflow = workflow
         self.step_callback = step_callback
-        self.step_callback_extended = (
-            len(inspect.signature(step_callback).parameters) > 2
-            if step_callback
-            else False
-        )
-        self.actions = {action['id']: Action(**action) for action in workflow.actions}
+        self.step_callback_extended = len(inspect.signature(step_callback).parameters) > 2 if step_callback else False
+        self.actions = {action["id"]: Action(**action) for action in workflow.actions}
         self.flows = [ActionFlow(**flow) for flow in workflow.flows]
         self.execution_config = getattr(workflow, "execution_config", None) or {}
         self.restored_execution_state = getattr(workflow, "execution_state", None) or {}
@@ -133,14 +127,10 @@ class WorkflowExecutor:
         self.node_metadata = self.get_restored_node_metadata()
         self.node_attempts = self.get_restored_attempts()
         self.node_states = self.get_restored_node_states()
-        self.completed_actions = {
-            action_id for action_id, state in self.node_states.items()
-            if state == "success"
-        }
-        self.finished_actions = len([
-            state for state in self.node_states.values()
-            if state in ("success", "failed", "skipped")
-        ])
+        self.completed_actions = {action_id for action_id, state in self.node_states.items() if state == "success"}
+        self.finished_actions = len(
+            [state for state in self.node_states.values() if state in ("success", "failed", "skipped")]
+        )
         self.flow_finished = set()
         self.flow_satisfied = set()
         self.flow_failed = set()
@@ -192,7 +182,7 @@ class WorkflowExecutor:
         max_workers = self.execution_config.get("max_workers") if isinstance(self.execution_config, dict) else None
         try:
             return max(int(max_workers or DEFAULT_WORKFLOW_MAX_WORKERS), 1)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return DEFAULT_WORKFLOW_MAX_WORKERS
 
     def get_restored_node_metadata(self) -> dict:
@@ -224,8 +214,7 @@ class WorkflowExecutor:
         获取结构化节点状态，兼容旧版 current_action 字符串。
         """
         legacy_actions = {
-            action_id for action_id in (self.workflow.current_action or "").split(",")
-            if action_id in self.actions
+            action_id for action_id in (self.workflow.current_action or "").split(",") if action_id in self.actions
         }
         states = {}
         for action_id in self.actions:
@@ -256,7 +245,9 @@ class WorkflowExecutor:
                     context = ActionContext.model_validate(self.workflow.context)
             except Exception:
                 context = ActionContext()
-        outputs = self.restored_execution_state.get("outputs") if isinstance(self.restored_execution_state, dict) else {}
+        outputs = (
+            self.restored_execution_state.get("outputs") if isinstance(self.restored_execution_state, dict) else {}
+        )
         if outputs and not getattr(context, "node_outputs", None):
             context.node_outputs = outputs
         return context
@@ -279,20 +270,22 @@ class WorkflowExecutor:
         """
         更新上下文中的运行期状态分区。
         """
-        self.context.runtime_state.update({
-            "progress": self.context.progress,
-            "finished_actions": self.finished_actions,
-            "running_tasks": self.running_tasks,
-            "errors": self.errors,
-            "node_states": self.node_states,
-            "attempts": self.node_attempts,
-        })
+        self.context.runtime_state.update(
+            {
+                "progress": self.context.progress,
+                "finished_actions": self.finished_actions,
+                "running_tasks": self.running_tasks,
+                "errors": self.errors,
+                "node_states": self.node_states,
+                "attempts": self.node_attempts,
+            }
+        )
 
-    def set_node_state(self, action_id: str, state: str, message: Optional[str] = None) -> None:
+    def set_node_state(self, action_id: str, state: str, message: str | None = None) -> None:
         """
         更新节点结构化状态。
         """
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata = self.node_metadata.setdefault(action_id, {})
         metadata["state"] = state
         metadata["attempt"] = self.node_attempts.get(action_id, metadata.get("attempt") or 0)
@@ -310,13 +303,15 @@ class WorkflowExecutor:
         构建可持久化的结构化执行状态。
         """
         self.update_runtime_state()
-        execution_state = _serialize_workflow_value({
-            "version": 1,
-            "nodes": self.node_metadata,
-            "outputs": self.context.node_outputs,
-            "errors": self.errors,
-            "runtime": self.context.runtime_state,
-        })
+        execution_state = _serialize_workflow_value(
+            {
+                "version": 1,
+                "nodes": self.node_metadata,
+                "outputs": self.context.node_outputs,
+                "errors": self.errors,
+                "runtime": self.context.runtime_state,
+            }
+        )
         return execution_state if isinstance(execution_state, dict) else {}
 
     def execute(self) -> None:
@@ -358,17 +353,12 @@ class WorkflowExecutor:
                     continue
 
                 # 提交任务到线程池，每个节点使用上下文快照，避免并行节点互相修改同一个对象。
-                future = self.executor.submit(
-                    self.execute_node,
-                    self.workflow.id,
-                    node_id,
-                    copy.deepcopy(self.context)
-                )
+                future = self.executor.submit(self.execute_node, self.workflow.id, node_id, copy.deepcopy(self.context))
                 future.add_done_callback(self.on_node_complete)
         finally:
             self.executor.shutdown(wait=True, cancel_futures=True)
 
-    def pop_dispatchable_node(self) -> Optional[str]:
+    def pop_dispatchable_node(self) -> str | None:
         """
         从队列中取出当前可调度节点。
         """
@@ -389,8 +379,7 @@ class WorkflowExecutor:
             return node_id
         return None
 
-    def execute_node(self, workflow_id: int, node_id: str,
-                     context: ActionContext) -> Tuple[Action, ActionResult]:
+    def execute_node(self, workflow_id: int, node_id: str, context: ActionContext) -> tuple[Action, ActionResult]:
         """
         执行单个节点操作，返回修改后的上下文和节点ID
         """
@@ -401,7 +390,7 @@ class WorkflowExecutor:
             context=context,
             inputs=self.build_action_inputs(action),
             runtime=self.build_action_runtime(action),
-            cancel_token=self.cancel_token
+            cancel_token=self.cancel_token,
         )
         return action, action_result
 
@@ -426,13 +415,7 @@ class WorkflowExecutor:
                 self.finished_actions += 1
                 self.update_progress()
                 # 更新当前进度
-                self.context.execute_history.append(
-                    ActionExecution(
-                        action=action.name,
-                        result=state,
-                        message=message
-                    )
-                )
+                self.context.execute_history.append(ActionExecution(action=action.name, result=state, message=message))
 
                 # 节点执行失败时默认停止；显式配置 continue/ignore 时继续释放后续 all_done 汇合。
                 if not state:
@@ -506,11 +489,7 @@ class WorkflowExecutor:
         self.update_progress()
         self.set_node_state(node_id, "skipped", message=message)
         self.context.execute_history.append(
-            ActionExecution(
-                action=self.actions[node_id].name,
-                result=True,
-                message=message
-            )
+            ActionExecution(action=self.actions[node_id].name, result=True, message=message)
         )
         self.call_step_callback(self.actions[node_id], completed=False)
         self.release_successors(node_id, source_success=False)
@@ -611,9 +590,7 @@ class WorkflowExecutor:
         inputs = {}
         input_paths = action.inputs or self.get_action_data_value(action, "inputs")
         if not input_paths:
-            input_paths = [
-                field["name"] for field in self.get_action_contract(action).get("inputs") or []
-            ]
+            input_paths = [field["name"] for field in self.get_action_contract(action).get("inputs") or []]
         if isinstance(input_paths, str):
             input_paths = [item.strip() for item in input_paths.splitlines() if item.strip()]
         for input_path in input_paths:
@@ -652,8 +629,9 @@ class WorkflowExecutor:
         context.runtime_state = context.runtime_state or {}
         context.artifacts = context.artifacts or {}
 
-    def normalize_action_outputs(self, action: Action, action_result: ActionResult,
-                                 result_context: ActionContext) -> dict:
+    def normalize_action_outputs(
+        self, action: Action, action_result: ActionResult, result_context: ActionContext
+    ) -> dict:
         """
         根据动作输出声明整理当前节点输出。
         """
@@ -728,7 +706,7 @@ class WorkflowExecutor:
             identity = output_config.get("identity")
             self.merge_output_value(target_key, value, merge_policy, identity)
 
-    def merge_output_value(self, key: str, value: Any, merge_policy: str, identity: Optional[str] = None) -> None:
+    def merge_output_value(self, key: str, value: Any, merge_policy: str, identity: str | None = None) -> None:
         """
         按指定策略合并单个输出值。
         """
@@ -752,7 +730,8 @@ class WorkflowExecutor:
             for item in outputs_config:
                 if isinstance(item, dict) and item.get("name") == output_key:
                     return {
-                        key: value for key, value in item.items()
+                        key: value
+                        for key, value in item.items()
                         if key not in ("name", "label", "kind") and value not in (None, "", [], {})
                     }
         return {}
@@ -774,18 +753,14 @@ class WorkflowExecutor:
         if isinstance(value, list):
             action_type = action.type or ""
             action_name = action.name or ""
-            if key in ARTIFACT_FIELDS and (
-                action_type.startswith("Filter")
-                or action_name.startswith("过滤")
-            ):
+            if key in ARTIFACT_FIELDS and (action_type.startswith("Filter") or action_name.startswith("过滤")):
                 return "replace"
             return "append_unique"
         if isinstance(value, dict):
             return "merge_dict"
         return "first_non_empty"
 
-    def apply_merge_policy(self, current_value: Any, value: Any, merge_policy: str,
-                           identity: Optional[str] = None) -> Any:
+    def apply_merge_policy(self, current_value: Any, value: Any, merge_policy: str, identity: str | None = None) -> Any:
         """
         应用声明式合并策略。
         """
@@ -803,7 +778,7 @@ class WorkflowExecutor:
             return current_value or value
         return current_value or value
 
-    def append_unique_values(self, current_value: Any, value: Any, identity: Optional[str] = None) -> list:
+    def append_unique_values(self, current_value: Any, value: Any, identity: str | None = None) -> list:
         """
         追加列表并按身份字段去重。
         """
@@ -818,7 +793,7 @@ class WorkflowExecutor:
             seen.add(identity_value)
         return current_list
 
-    def get_identity_value(self, item: Any, identity: Optional[str] = None) -> Any:
+    def get_identity_value(self, item: Any, identity: str | None = None) -> Any:
         """
         获取列表元素去重身份。
         """
@@ -875,7 +850,7 @@ class WorkflowExecutor:
         """
         return flow.id or f"{flow.source}->{flow.target}:{id(flow)}"
 
-    def get_action_join_policy(self, action: Action, incoming_flows: List[ActionFlow]) -> str:
+    def get_action_join_policy(self, action: Action, incoming_flows: list[ActionFlow]) -> str:
         """
         获取动作汇合策略，优先使用动作配置，其次兼容流程边配置。
         """
@@ -888,7 +863,7 @@ class WorkflowExecutor:
                 return join_policy
         return "all_success"
 
-    def get_action_branch_policy(self, action: Optional[Action], outgoing_flows: List[ActionFlow]) -> str:
+    def get_action_branch_policy(self, action: Action | None, outgoing_flows: list[ActionFlow]) -> str:
         """
         获取动作出边分支策略。
         """
@@ -908,7 +883,7 @@ class WorkflowExecutor:
         """
         return action.fail_policy or self.get_action_data_value(action, "fail_policy") or "stop"
 
-    def get_action_concurrency_key(self, action: Action) -> Optional[str]:
+    def get_action_concurrency_key(self, action: Action) -> str | None:
         """
         获取动作并发互斥键。
         """
@@ -927,14 +902,14 @@ class WorkflowExecutor:
             return {}
         return get_contract(action.type) or {}
 
-    def get_flow_condition(self, flow: ActionFlow) -> Optional[str]:
+    def get_flow_condition(self, flow: ActionFlow) -> str | None:
         """
         获取流程边条件表达式。
         """
         return flow.condition or self.get_flow_data_value(flow, "condition")
 
     @staticmethod
-    def get_action_data_value(action: Optional[Action], key: str) -> Any:
+    def get_action_data_value(action: Action | None, key: str) -> Any:
         """
         从动作 data 中读取扩展配置。
         """
@@ -951,7 +926,7 @@ class WorkflowExecutor:
         data = flow.data or {}
         return data.get(key) if isinstance(data, dict) else None
 
-    def evaluate_condition(self, condition: Optional[str]) -> bool:
+    def evaluate_condition(self, condition: str | None) -> bool:
         """
         安全计算流程边条件表达式。
         """
@@ -1149,17 +1124,17 @@ class WorkflowChain(ChainBase):
         """
         事件触发工作流执行
         """
-        workflow_id = event.event_data.get('workflow_id')
+        workflow_id = event.event_data.get("workflow_id")
         if not workflow_id:
             return
         self.process(workflow_id, from_begin=False)
 
     @staticmethod
     def process(
-            workflow_id: int,
-            from_begin: Optional[bool] = True,
-            progress_callback: Optional[Callable[..., None]] = None,
-    ) -> Tuple[bool, str]:
+        workflow_id: int,
+        from_begin: bool | None = True,
+        progress_callback: Callable[..., None] | None = None,
+    ) -> tuple[bool, str]:
         """
         处理工作流
         :param workflow_id: 工作流ID
@@ -1176,7 +1151,7 @@ class WorkflowChain(ChainBase):
                 workflow_id,
                 action_id=action.id if completed else "",
                 context=_serialize_workflow_context(context),
-                execution_state=_serialize_workflow_value(execution_state)
+                execution_state=_serialize_workflow_value(execution_state),
             )
             if progress_callback:
                 runtime = execution_state.get("runtime") or {}
@@ -1240,21 +1215,21 @@ class WorkflowChain(ChainBase):
         return True, ""
 
     @staticmethod
-    def get_workflows() -> List[Workflow]:
+    def get_workflows() -> list[Workflow]:
         """
         获取工作流列表
         """
         return WorkflowOper().list_enabled()
 
     @staticmethod
-    def get_timer_workflows() -> List[Workflow]:
+    def get_timer_workflows() -> list[Workflow]:
         """
         获取定时触发的工作流列表
         """
         return WorkflowOper().get_timer_triggered_workflows()
 
     @staticmethod
-    def get_event_workflows() -> List[Workflow]:
+    def get_event_workflows() -> list[Workflow]:
         """
         获取事件触发的工作流列表
         """

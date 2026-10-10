@@ -52,7 +52,7 @@ class YemaSpider:
         self._download_key_url = f"{self._site_url}/openApi/torrent/generateDownloadKey.json"
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量
 
@@ -76,8 +76,8 @@ class YemaSpider:
 
     def _build_params(
         self,
-        keyword: Optional[str],
-        page: Optional[int],
+        keyword: str | None,
+        page: int | None,
     ) -> dict:
         """
         构造公开种子列表查询参数
@@ -97,7 +97,7 @@ class YemaSpider:
             params["keyword"] = keyword
         return params
 
-    def _parse_result(self, results: List[dict]) -> List[dict]:
+    def _parse_result(self, results: list[dict]) -> list[dict]:
         """
         将开放 API 种子数据转换为 MoviePilot 标准字段
 
@@ -116,32 +116,30 @@ class YemaSpider:
             else:
                 category = MediaType.UNKNOWN.value
 
-            labels = [
-                self._labels[label_id]
-                for label_id in result.get("tagList") or []
-                if label_id in self._labels
-            ]
+            labels = [self._labels[label_id] for label_id in result.get("tagList") or [] if label_id in self._labels]
             torrent_id = result.get("id")
-            torrents.append({
-                "title": result.get("showName"),
-                "description": result.get("shortDesc"),
-                "enclosure": self._build_download_url(torrent_id),
-                "pubdate": StringUtils.unify_datetime_str(result.get("listingTime")),
-                "size": result.get("fileSize"),
-                "seeders": result.get("seedNum"),
-                "peers": result.get("leechNum"),
-                "grabs": result.get("completedNum"),
-                "downloadvolumefactor": self._download_factor(result.get("downloadPromotion")),
-                "uploadvolumefactor": self._upload_factor(result.get("uploadPromotion")),
-                "freedate": StringUtils.unify_datetime_str(result.get("downloadPromotionEndTime")),
-                "page_url": f"{self._site_url}/#/torrent/detail/{torrent_id}/",
-                "labels": labels,
-                "hit_and_run": bool(result.get("hrPunishEnable")),
-                "category": category,
-            })
+            torrents.append(
+                {
+                    "title": result.get("showName"),
+                    "description": result.get("shortDesc"),
+                    "enclosure": self._build_download_url(torrent_id),
+                    "pubdate": StringUtils.unify_datetime_str(result.get("listingTime")),
+                    "size": result.get("fileSize"),
+                    "seeders": result.get("seedNum"),
+                    "peers": result.get("leechNum"),
+                    "grabs": result.get("completedNum"),
+                    "downloadvolumefactor": self._download_factor(result.get("downloadPromotion")),
+                    "uploadvolumefactor": self._upload_factor(result.get("uploadPromotion")),
+                    "freedate": StringUtils.unify_datetime_str(result.get("downloadPromotionEndTime")),
+                    "page_url": f"{self._site_url}/#/torrent/detail/{torrent_id}/",
+                    "labels": labels,
+                    "hit_and_run": bool(result.get("hrPunishEnable")),
+                    "category": category,
+                }
+            )
         return torrents
 
-    def _process_search_response(self, response) -> Tuple[bool, List[dict]]:
+    def _process_search_response(self, response) -> tuple[bool, list[dict]]:
         """
         校验开放 API 通用响应并解析搜索结果
 
@@ -173,10 +171,10 @@ class YemaSpider:
 
     def search(
         self,
-        keyword: Optional[str],
+        keyword: str | None,
         mtype: MediaType = None,
-        page: Optional[int] = 0,
-    ) -> Tuple[bool, List[dict]]:
+        page: int | None = 0,
+    ) -> tuple[bool, list[dict]]:
         """
         同步搜索 YemaPT 公开种子
 
@@ -200,10 +198,10 @@ class YemaSpider:
 
     async def async_search(
         self,
-        keyword: Optional[str],
+        keyword: str | None,
         mtype: MediaType = None,
-        page: Optional[int] = 0,
-    ) -> Tuple[bool, List[dict]]:
+        page: int | None = 0,
+    ) -> tuple[bool, list[dict]]:
         """
         异步搜索 YemaPT 公开种子
 
@@ -275,7 +273,5 @@ class YemaSpider:
             "result_path": "api/torrent/download1",
             "result_query_param": "token",
         }
-        encoded_config = base64.b64encode(
-            json.dumps(request_config).encode("utf-8")
-        ).decode("ascii")
+        encoded_config = base64.b64encode(json.dumps(request_config).encode("utf-8")).decode("ascii")
         return f"[{encoded_config}]{self._download_key_url}"

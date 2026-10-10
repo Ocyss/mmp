@@ -1,9 +1,10 @@
 import json
 import re
 import traceback
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union, Dict, Generator, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from requests import Response
 
@@ -14,22 +15,27 @@ from app.schemas.types import MediaType
 from app.utils.http import RequestUtils
 from app.utils.url import UrlUtils
 
-
 DEFAULT_ITEMS_PAGE_SIZE = 100
 
 
 class ZSpace:
-    _host: Optional[str] = None
-    _playhost: Optional[str] = None
-    _apikey: Optional[str] = None
-    _sync_libraries: List[str] = []
-    user: Optional[Union[str, int]] = None
-    _username: Optional[str] = None
-    _password: Optional[str] = None
+    _host: str | None = None
+    _playhost: str | None = None
+    _apikey: str | None = None
+    _sync_libraries: list[str] = []
+    user: str | int | None = None
+    _username: str | None = None
+    _password: str | None = None
 
-    def __init__(self, host: Optional[str] = None, username: Optional[str] = None,
-                 password: Optional[str] = None, play_host: Optional[str] = None,
-                 sync_libraries: list = None, **kwargs):
+    def __init__(
+        self,
+        host: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        play_host: str | None = None,
+        sync_libraries: list = None,
+        **kwargs,
+    ):
         if not host or not username or not password:
             logger.error("极影视服务器配置不完整！")
             return
@@ -59,7 +65,7 @@ class ZSpace:
         return 'MediaBrowser Client="MoviePilot", Device="requests", DeviceId="1", Version="1.0.0"'
 
     @staticmethod
-    def __get_user_authorization(user_id: Union[str, int]) -> str:
+    def __get_user_authorization(user_id: str | int) -> str:
         """
         构造用户态授权头。
 
@@ -69,19 +75,16 @@ class ZSpace:
         """
         return f'Emby UserId="{user_id}", Client="MoviePilot", Device="requests", DeviceId="1", Version="1.0.0"'
 
-    def __request_utils(self,
-                        timeout: Optional[int] = None,
-                        include_token: bool = True,
-                        headers: Optional[dict] = None) -> RequestUtils:
+    def __request_utils(
+        self, timeout: int | None = None, include_token: bool = True, headers: dict | None = None
+    ) -> RequestUtils:
         """
         统一构造极影视请求客户端。
 
         极影视这里使用用户名密码登录获取 AccessToken，后续 API 请求优先通过
         `X-Emby-Token` 请求头传递 token，而不是把登录 token 当成静态 API Key。
         """
-        request_headers = {
-            "X-Emby-Authorization": self.__get_client_authorization()
-        }
+        request_headers = {"X-Emby-Authorization": self.__get_client_authorization()}
         if include_token and self._apikey:
             request_headers["X-Emby-Token"] = self._apikey
         if headers:
@@ -124,7 +127,7 @@ class ZSpace:
         self.serverid = self.get_server_id()
         return True
 
-    def get_library_folders(self) -> List[dict]:
+    def get_library_folders(self) -> list[dict]:
         """
         获取极影视媒体库路径列表。
 
@@ -146,7 +149,7 @@ class ZSpace:
             logger.debug(f"连接Library/SelectableMediaFolders 出错：{e}，回退到 Users/{{uid}}/Views")
         return self.__get_library_views() or []
 
-    def get_virtual_folders(self) -> List[dict]:
+    def get_virtual_folders(self) -> list[dict]:
         """
         获取极影视媒体库所有路径列表（包含共享路径）。
 
@@ -166,22 +169,18 @@ class ZSpace:
                 library_items = res.json().get("Items")
                 libraries = []
                 for library_item in library_items or []:
-                    library_id = library_item.get('ItemId')
-                    library_name = library_item.get('Name')
-                    path_infos = library_item.get('LibraryOptions', {}).get('PathInfos')
+                    library_id = library_item.get("ItemId")
+                    library_name = library_item.get("Name")
+                    path_infos = library_item.get("LibraryOptions", {}).get("PathInfos")
                     library_paths = []
                     for path in path_infos or []:
-                        if path.get('NetworkPath'):
-                            library_paths.append(path.get('NetworkPath'))
+                        if path.get("NetworkPath"):
+                            library_paths.append(path.get("NetworkPath"))
                         else:
-                            library_paths.append(path.get('Path'))
+                            library_paths.append(path.get("Path"))
 
                     if library_name and library_paths:
-                        libraries.append({
-                            'Id': library_id,
-                            'Name': library_name,
-                            'Path': library_paths
-                        })
+                        libraries.append({"Id": library_id, "Name": library_name, "Path": library_paths})
                 return libraries
             logger.debug("Library/VirtualFolders/Query 未获取到返回数据，回退到 Users/{uid}/Views（路径列表为空）")
         except Exception as e:
@@ -191,14 +190,10 @@ class ZSpace:
             view_id = view.get("Id")
             view_name = view.get("Name")
             if view_id and view_name:
-                libraries.append({
-                    'Id': view_id,
-                    'Name': view_name,
-                    'Path': []
-                })
+                libraries.append({"Id": view_id, "Name": view_name, "Path": []})
         return libraries
 
-    def __get_library_views(self, username: Optional[str] = None) -> Optional[List[dict]]:
+    def __get_library_views(self, username: str | None = None) -> list[dict] | None:
         """
         获取极影视媒体库列表
         """
@@ -225,9 +220,9 @@ class ZSpace:
 
     def get_librarys(
         self,
-        username: Optional[str] = None,
-        hidden: Optional[bool] = False,
-    ) -> Optional[List[schemas.MediaServerLibrary]]:
+        username: str | None = None,
+        hidden: bool | None = False,
+    ) -> list[schemas.MediaServerLibrary] | None:
         """
         获取媒体服务器所有媒体库列表
         """
@@ -238,8 +233,12 @@ class ZSpace:
             return None
         libraries = []
         for library in source_libraries:
-            if hidden and self._sync_libraries and "all" not in self._sync_libraries \
-                    and library.get("Id") not in self._sync_libraries:
+            if (
+                hidden
+                and self._sync_libraries
+                and "all" not in self._sync_libraries
+                and library.get("Id") not in self._sync_libraries
+            ):
                 continue
             if library.get("CollectionType") == "movies":
                 library_type = MediaType.MOVIE.value
@@ -257,14 +256,14 @@ class ZSpace:
                     type=library_type,
                     item_count=self.get_items_count(library.get("Id")),
                     image=image,
-                    link=f'{self._playhost or self._host}web/index.html'
-                         f'#!/videos?serverId={self.serverid}&parentId={library.get("Id")}',
-                    server_type="zspace"
+                    link=f"{self._playhost or self._host}web/index.html"
+                    f"#!/videos?serverId={self.serverid}&parentId={library.get('Id')}",
+                    server_type="zspace",
                 )
             )
         return libraries
 
-    def get_user(self, user_name: Optional[str] = None) -> Optional[Union[str, int]]:
+    def get_user(self, user_name: str | None = None) -> str | int | None:
         """
         获取可用用户ID，优先按用户名匹配，失败时回退当前登录用户。
 
@@ -300,7 +299,7 @@ class ZSpace:
             logger.debug(f"连接Users出错：{e}，回退到当前登录用户")
         return self.__get_current_user_id() or self.user
 
-    def authenticate(self, username: str, password: str) -> Optional[str]:
+    def authenticate(self, username: str, password: str) -> str | None:
         """
         用户认证
         :param username: 用户名
@@ -312,7 +311,7 @@ class ZSpace:
             logger.info(f"用户 {username} 极影视认证成功")
         return token
 
-    def get_server_id(self) -> Optional[str]:
+    def get_server_id(self) -> str | None:
         """
         获得服务器信息
         """
@@ -388,7 +387,7 @@ class ZSpace:
                 return schemas.Statistic(
                     movie_count=result.get("MovieCount") or 0,
                     tv_count=result.get("SeriesCount") or 0,
-                    episode_count=result.get("EpisodeCount") or 0
+                    episode_count=result.get("EpisodeCount") or 0,
                 )
             logger.debug("Items/Counts 未获取到返回数据，回退到按媒体库累计 TotalRecordCount")
         except Exception as e:
@@ -432,8 +431,7 @@ class ZSpace:
                 stat.tv_count = (stat.tv_count or 0) + total
         return stat
 
-    def __count_view(self, view_id: str,
-                     collection_type: Optional[str]) -> Tuple[int, Optional[str]]:
+    def __count_view(self, view_id: str, collection_type: str | None) -> tuple[int, str | None]:
         """
         返回单个媒体库视图的 (TotalRecordCount, 桶名)。桶名取 `movies`/`tvshows`，
         无法判定时返回 None。CollectionType 缺失时采样首个 Item 的 `Type` 决定。
@@ -441,8 +439,7 @@ class ZSpace:
         count_url = f"{self._host}emby/Users/{self.user}/Items"
         try:
             res = self.__request_utils().get_res(
-                count_url,
-                params={"ParentId": view_id, "Recursive": "true", "Limit": 0}
+                count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 0}
             )
             if not res:
                 return 0, None
@@ -459,8 +456,7 @@ class ZSpace:
         # CollectionType 缺失时采样一条目按 Type 兜底分类
         try:
             res = self.__request_utils().get_res(
-                count_url,
-                params={"ParentId": view_id, "Recursive": "true", "Limit": 1}
+                count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 1}
             )
             items = (res.json().get("Items") if res else None) or []
             sample_type = items[0].get("Type") if items else None
@@ -473,7 +469,7 @@ class ZSpace:
             return total, "tvshows"
         return total, None
 
-    def __get_series_id_by_name(self, name: str, year: str) -> Optional[str]:
+    def __get_series_id_by_name(self, name: str, year: str) -> str | None:
         """
         根据名称查询极影视中剧集的 SeriesId
         :param name: 标题
@@ -490,7 +486,7 @@ class ZSpace:
             "Recursive": "true",
             "SearchTerm": name,
             "Limit": 10,
-            "IncludeSearchTypes": "false"
+            "IncludeSearchTypes": "false",
         }
         try:
             res = self.__request_utils().get_res(url, params=params)
@@ -498,18 +494,18 @@ class ZSpace:
                 res_items = res.json().get("Items")
                 if res_items:
                     for res_item in res_items:
-                        if res_item.get('Name') == name and (
-                                not year or str(res_item.get('ProductionYear')) == str(year)):
-                            return res_item.get('Id')
+                        if res_item.get("Name") == name and (
+                            not year or str(res_item.get("ProductionYear")) == str(year)
+                        ):
+                            return res_item.get("Id")
         except Exception as e:
             logger.error(f"连接Items出错：{e}")
             return None
         return ""
 
-    def get_movies(self,
-                   title: str,
-                   year: Optional[str] = None,
-                   tmdb_id: Optional[int] = None) -> Optional[List[schemas.MediaServerItem]]:
+    def get_movies(
+        self, title: str, year: str | None = None, tmdb_id: int | None = None
+    ) -> list[schemas.MediaServerItem] | None:
         """
         根据标题和年份，检查电影是否在极影视中存在，存在则返回列表
         :param title: 标题
@@ -527,7 +523,7 @@ class ZSpace:
             "Recursive": "true",
             "SearchTerm": title,
             "Limit": 10,
-            "IncludeSearchTypes": "false"
+            "IncludeSearchTypes": "false",
         }
         try:
             res = self.__request_utils().get_res(url, params=params)
@@ -540,9 +536,11 @@ class ZSpace:
                             continue
                         mediaserver_item = self.__format_item_info(item)
                         if mediaserver_item:
-                            if (not tmdb_id or mediaserver_item.tmdbid == tmdb_id) and \
-                                    mediaserver_item.title == title and \
-                                    (not year or str(mediaserver_item.year) == str(year)):
+                            if (
+                                (not tmdb_id or mediaserver_item.tmdbid == tmdb_id)
+                                and mediaserver_item.title == title
+                                and (not year or str(mediaserver_item.year) == str(year))
+                            ):
                                 ret_movies.append(mediaserver_item)
                     return ret_movies
         except Exception as e:
@@ -550,13 +548,14 @@ class ZSpace:
             return None
         return []
 
-    def get_tv_episodes(self,
-                        item_id: Optional[str] = None,
-                        title: Optional[str] = None,
-                        year: Optional[str] = None,
-                        tmdb_id: Optional[int] = None,
-                        season: Optional[int] = None
-                        ) -> Tuple[Optional[str], Optional[Dict[int, List[int]]]]:
+    def get_tv_episodes(
+        self,
+        item_id: str | None = None,
+        title: str | None = None,
+        year: str | None = None,
+        tmdb_id: int | None = None,
+        season: int | None = None,
+    ) -> tuple[str | None, dict[int, list[int]] | None]:
         """
         根据标题和年份和季，返回极影视中的剧集列表
         :param item_id: 极影视中的ID
@@ -593,10 +592,7 @@ class ZSpace:
             season = None
         try:
             url = f"{self._host}emby/Shows/{item_id}/Episodes"
-            params = {
-                "Season": season,
-                "IsMissing": "false"
-            }
+            params = {"Season": season, "IsMissing": "false"}
             res_json = self.__request_utils().get_res(url, params=params)
             if res_json:
                 tv_item = res_json.json()
@@ -620,7 +616,7 @@ class ZSpace:
             return None, None
         return None, {}
 
-    def get_remote_image_by_id(self, item_id: str, image_type: str) -> Optional[str]:
+    def get_remote_image_by_id(self, item_id: str, image_type: str) -> str | None:
         """
         根据ItemId从极影视查询TMDB的图片地址
         :param item_id: 在极影视中的ID
@@ -644,7 +640,7 @@ class ZSpace:
             logger.error(f"连接Items/Id/RemoteImages出错：{e}")
         return None
 
-    def generate_external_image_link(self, item_id: str, image_type: str) -> Optional[str]:
+    def generate_external_image_link(self, item_id: str, image_type: str) -> str | None:
         """
         根据ItemId和imageType查询本地对应图片
         :param item_id: 在极影视中的ID
@@ -680,9 +676,7 @@ class ZSpace:
         if not self._host or not self._apikey:
             return False
         url = f"{self._host}emby/Items/{item_id}/Refresh"
-        params = {
-            "Recursive": "true"
-        }
+        params = {"Recursive": "true"}
         try:
             res = self.__request_utils().post_res(url, params=params)
             if res:
@@ -711,7 +705,7 @@ class ZSpace:
             logger.debug(f"连接Library/Refresh出错：{e}（极影视当前 Emby 兼容层未实现该端点）")
         return False
 
-    def refresh_library_by_items(self, items: List[schemas.RefreshMediaItem]) -> Optional[bool]:
+    def refresh_library_by_items(self, items: list[schemas.RefreshMediaItem]) -> bool | None:
         """
         按类型、名称、年份来刷新媒体库
         :param items: 已识别的需要刷新媒体库的媒体信息列表
@@ -732,7 +726,7 @@ class ZSpace:
         logger.info("极影视媒体库刷新完成")
         return True
 
-    def __get_library_id_by_item(self, item: schemas.RefreshMediaItem) -> Optional[str]:
+    def __get_library_id_by_item(self, item: schemas.RefreshMediaItem) -> str | None:
         """
         根据媒体信息查询在哪个媒体库，返回要刷新的位置的ID
         :param item: {title, year, type, category, target_path}
@@ -757,13 +751,12 @@ class ZSpace:
                     logger.debug(f"匹配子目录出错：{err} - {traceback.format_exc()}")
         for folder in self.folders:
             for subfolder in folder.get("SubFolders") or []:
-                if subfolder.get("Path") and re.search(r"[/\\]%s" % item.category,
-                                                       subfolder.get("Path")):
+                if subfolder.get("Path") and re.search(r"[/\\]%s" % item.category, subfolder.get("Path")):
                     return folder.get("Id")
         return "/"
 
     @staticmethod
-    def __format_item_info(item) -> Optional[schemas.MediaServerItem]:
+    def __format_item_info(item) -> schemas.MediaServerItem | None:
         """
         格式化item
         """
@@ -772,8 +765,10 @@ class ZSpace:
             if not user_data:
                 user_state = None
             else:
-                resume = item.get("UserData", {}).get("PlaybackPositionTicks") and item.get("UserData", {}).get(
-                    "PlaybackPositionTicks") > 0
+                resume = (
+                    item.get("UserData", {}).get("PlaybackPositionTicks")
+                    and item.get("UserData", {}).get("PlaybackPositionTicks") > 0
+                )
                 last_played_date = item.get("UserData", {}).get("LastPlayedDate")
                 if last_played_date is not None and "." in last_played_date:
                     last_played_date = last_played_date.split(".")[0]
@@ -781,7 +776,10 @@ class ZSpace:
                     played=item.get("UserData", {}).get("Played"),
                     resume=resume,
                     last_played_date=datetime.strptime(last_played_date, "%Y-%m-%dT%H:%M:%S").strftime(
-                        "%Y-%m-%d %H:%M:%S") if last_played_date else None,
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    if last_played_date
+                    else None,
                     play_count=item.get("UserData", {}).get("PlayCount"),
                     percentage=item.get("UserData", {}).get("PlayedPercentage"),
                 )
@@ -798,14 +796,13 @@ class ZSpace:
                 imdbid=item.get("ProviderIds", {}).get("Imdb"),
                 tvdbid=item.get("ProviderIds", {}).get("Tvdb"),
                 path=item.get("Path"),
-                user_state=user_state
-
+                user_state=user_state,
             )
         except Exception as e:
             logger.error(e)
         return None
 
-    def get_iteminfo(self, itemid: str) -> Optional[schemas.MediaServerItem]:
+    def get_iteminfo(self, itemid: str) -> schemas.MediaServerItem | None:
         """
         获取单个项目详情
         """
@@ -823,7 +820,7 @@ class ZSpace:
             logger.error(f"连接/Users/{self.user}/Items/{itemid}出错：{e}")
         return None
 
-    def get_items_count(self, parent: Union[str, int]) -> Optional[int]:
+    def get_items_count(self, parent: str | int) -> int | None:
         """
         获取指定媒体库的媒体条目总数
 
@@ -849,8 +846,9 @@ class ZSpace:
             logger.error(f"查询媒体库 {parent} 的媒体总数出错：{e}")
             return None
 
-    def get_items(self, parent: Union[str, int], start_index: Optional[int] = 0,
-                  limit: Optional[int] = -1) -> Generator[MediaServerItem | None | Any, Any, None]:
+    def get_items(
+        self, parent: str | int, start_index: int | None = 0, limit: int | None = -1
+    ) -> Generator[MediaServerItem | None | Any, Any]:
         """
         获取媒体服务器项目列表，支持分页和不分页逻辑，默认不分页获取所有数据
 
@@ -873,7 +871,7 @@ class ZSpace:
                 "StartIndex": current_start_index,
                 "Limit": page_size,
                 "Fields": "ProviderIds,OriginalTitle,ProductionYear,Path,"
-                          "UserDataPlayCount,UserDataLastPlayedDate,ParentId"
+                "UserDataPlayCount,UserDataLastPlayedDate,ParentId",
             }
             try:
                 res = self.__request_utils().get_res(url, params=params)
@@ -893,9 +891,7 @@ class ZSpace:
                         continue
                     provider_ids = item.get("ProviderIds") or {}
                     needs_detail = (
-                        not provider_ids.get("Tmdb")
-                        or not item.get("ProductionYear")
-                        or not item.get("Path")
+                        not provider_ids.get("Tmdb") or not item.get("ProductionYear") or not item.get("Path")
                     )
                     if needs_detail and item.get("Id"):
                         detail_item = self.get_iteminfo(item.get("Id"))
@@ -911,15 +907,15 @@ class ZSpace:
                 break
             current_start_index += len(items)
             total_count = result.get("TotalRecordCount")
-            if not items or (
-                    total_count is not None and current_start_index >= total_count
-            ) or (
-                    total_count is None and len(items) < page_size
+            if (
+                not items
+                or (total_count is not None and current_start_index >= total_count)
+                or (total_count is None and len(items) < page_size)
             ):
                 break
         return None
 
-    def get_webhook_message(self, form: Any, args: dict) -> Optional[schemas.WebhookEventInfo]:
+    def get_webhook_message(self, form: Any, args: dict) -> schemas.WebhookEventInfo | None:
         """
         解析极影视 Webhook 报文
         """
@@ -934,64 +930,75 @@ class ZSpace:
         except Exception as e:
             logger.debug(f"解析极影视 webhook报文出错：{e}")
             return None
-        event_type = message.get('Event')
+        event_type = message.get("Event")
         if not event_type:
             return None
         logger.debug(f"接收到极影视 webhook：{message}")
         event_item = schemas.WebhookEventInfo(event=event_type, channel="zspace")
-        if message.get('Item'):
-            event_item.media_type = message.get('Item', {}).get('Type')
-            if message.get('Item', {}).get('Type') == 'Episode' \
-                    or message.get('Item', {}).get('Type') == 'Series' \
-                    or message.get('Item', {}).get('Type') == 'Season':
+        if message.get("Item"):
+            event_item.media_type = message.get("Item", {}).get("Type")
+            if (
+                message.get("Item", {}).get("Type") == "Episode"
+                or message.get("Item", {}).get("Type") == "Series"
+                or message.get("Item", {}).get("Type") == "Season"
+            ):
                 event_item.item_type = "TV"
-                if message.get('Item', {}).get('SeriesName') \
-                        and message.get('Item', {}).get('ParentIndexNumber') \
-                        and message.get('Item', {}).get('IndexNumber'):
+                if (
+                    message.get("Item", {}).get("SeriesName")
+                    and message.get("Item", {}).get("ParentIndexNumber")
+                    and message.get("Item", {}).get("IndexNumber")
+                ):
                     event_item.item_name = "%s %s%s %s" % (
-                        message.get('Item', {}).get('SeriesName'),
-                        "S" + str(message.get('Item', {}).get('ParentIndexNumber')),
-                        "E" + str(message.get('Item', {}).get('IndexNumber')),
-                        message.get('Item', {}).get('Name'))
-                elif message.get('Item', {}).get('SeriesName'):
+                        message.get("Item", {}).get("SeriesName"),
+                        "S" + str(message.get("Item", {}).get("ParentIndexNumber")),
+                        "E" + str(message.get("Item", {}).get("IndexNumber")),
+                        message.get("Item", {}).get("Name"),
+                    )
+                elif message.get("Item", {}).get("SeriesName"):
                     event_item.item_name = "%s %s" % (
-                        message.get('Item', {}).get('SeriesName'),
-                        message.get('Item', {}).get('Name'))
+                        message.get("Item", {}).get("SeriesName"),
+                        message.get("Item", {}).get("Name"),
+                    )
                 else:
-                    event_item.item_name = message.get('Item', {}).get('Name')
-                event_item.item_id = message.get('Item', {}).get('SeriesId')
-                event_item.season_id = message.get('Item', {}).get('ParentIndexNumber')
-                event_item.episode_id = message.get('Item', {}).get('IndexNumber')
-            elif message.get('Item', {}).get('Type') == 'Audio':
+                    event_item.item_name = message.get("Item", {}).get("Name")
+                event_item.item_id = message.get("Item", {}).get("SeriesId")
+                event_item.season_id = message.get("Item", {}).get("ParentIndexNumber")
+                event_item.episode_id = message.get("Item", {}).get("IndexNumber")
+            elif message.get("Item", {}).get("Type") == "Audio":
                 event_item.item_type = "AUD"
-                album = message.get('Item', {}).get('Album')
-                file_name = message.get('Item', {}).get('FileName')
+                album = message.get("Item", {}).get("Album")
+                file_name = message.get("Item", {}).get("FileName")
                 event_item.item_name = album
                 event_item.overview = file_name
-                event_item.item_id = message.get('Item', {}).get('AlbumId')
+                event_item.item_id = message.get("Item", {}).get("AlbumId")
             else:
                 event_item.item_type = "MOV"
                 event_item.item_name = "%s %s" % (
-                    message.get('Item', {}).get('Name'), "(" + str(message.get('Item', {}).get('ProductionYear')) + ")")
-                event_item.item_id = message.get('Item', {}).get('Id')
+                    message.get("Item", {}).get("Name"),
+                    "(" + str(message.get("Item", {}).get("ProductionYear")) + ")",
+                )
+                event_item.item_id = message.get("Item", {}).get("Id")
 
-            event_item.item_path = message.get('Item', {}).get('Path')
-            event_item.tmdb_id = message.get('Item', {}).get('ProviderIds', {}).get('Tmdb')
-            if message.get('Item', {}).get('Overview') and len(message.get('Item', {}).get('Overview')) > 100:
-                event_item.overview = str(message.get('Item', {}).get('Overview'))[:100] + "..."
+            event_item.item_path = message.get("Item", {}).get("Path")
+            event_item.tmdb_id = message.get("Item", {}).get("ProviderIds", {}).get("Tmdb")
+            if message.get("Item", {}).get("Overview") and len(message.get("Item", {}).get("Overview")) > 100:
+                event_item.overview = str(message.get("Item", {}).get("Overview"))[:100] + "..."
             else:
-                event_item.overview = message.get('Item', {}).get('Overview')
-            event_item.percentage = message.get('TranscodingInfo', {}).get('CompletionPercentage')
+                event_item.overview = message.get("Item", {}).get("Overview")
+            event_item.percentage = message.get("TranscodingInfo", {}).get("CompletionPercentage")
             if not event_item.percentage:
-                if message.get('PlaybackInfo', {}).get('PositionTicks') and message.get('Item', {}).get('RunTimeTicks'):
-                    event_item.percentage = message.get('PlaybackInfo', {}).get('PositionTicks') / \
-                                            message.get('Item', {}).get('RunTimeTicks') * 100
-        if message.get('Session'):
-            event_item.ip = message.get('Session').get('RemoteEndPoint')
-            event_item.device_name = message.get('Session').get('DeviceName')
-            event_item.client = message.get('Session').get('Client')
+                if message.get("PlaybackInfo", {}).get("PositionTicks") and message.get("Item", {}).get("RunTimeTicks"):
+                    event_item.percentage = (
+                        message.get("PlaybackInfo", {}).get("PositionTicks")
+                        / message.get("Item", {}).get("RunTimeTicks")
+                        * 100
+                    )
+        if message.get("Session"):
+            event_item.ip = message.get("Session").get("RemoteEndPoint")
+            event_item.device_name = message.get("Session").get("DeviceName")
+            event_item.client = message.get("Session").get("Client")
         if message.get("User"):
-            event_item.user_name = message.get("User").get('Name')
+            event_item.user_name = message.get("User").get("Name")
         if message.get("item_isvirtual"):
             event_item.item_isvirtual = message.get("item_isvirtual")
             event_item.item_type = message.get("item_type")
@@ -1002,14 +1009,13 @@ class ZSpace:
             event_item.episode_id = message.get("episode_id")
 
         if event_item.item_id:
-            event_item.image_url = self.get_remote_image_by_id(item_id=event_item.item_id,
-                                                               image_type="Backdrop")
+            event_item.image_url = self.get_remote_image_by_id(item_id=event_item.item_id, image_type="Backdrop")
 
         event_item.json_object = message
 
         return event_item
 
-    def get_data(self, url: str) -> Optional[Response]:
+    def get_data(self, url: str) -> Response | None:
         """
         自定义URL从媒体服务器获取数据，其中[HOST]、[APIKEY]、[USER]会被替换成实际的值。
         极影视这里的 [APIKEY] 实际替换为登录返回的 AccessToken，以兼容现有占位符。
@@ -1017,16 +1023,18 @@ class ZSpace:
         """
         if not self._host or not self._apikey:
             return None
-        url = url.replace("[HOST]", self._host or '') \
-            .replace("[APIKEY]", self._apikey or '') \
-            .replace("[USER]", self.user or '')
+        url = (
+            url.replace("[HOST]", self._host or "")
+            .replace("[APIKEY]", self._apikey or "")
+            .replace("[USER]", self.user or "")
+        )
         try:
             return self.__request_utils(headers={"Content-Type": "application/json"}).get_res(url=url)
         except Exception as e:
             logger.error(f"连接极影视出错：{e}")
             return None
 
-    def post_data(self, url: str, data: Optional[str] = None, headers: dict = None) -> Optional[Response]:
+    def post_data(self, url: str, data: str | None = None, headers: dict = None) -> Response | None:
         """
         自定义URL从媒体服务器获取数据，其中[HOST]、[APIKEY]、[USER]会被替换成实际的值。
         极影视这里的 [APIKEY] 实际替换为登录返回的 AccessToken，以兼容现有占位符。
@@ -1036,9 +1044,11 @@ class ZSpace:
         """
         if not self._host or not self._apikey:
             return None
-        url = url.replace("[HOST]", self._host or '') \
-            .replace("[APIKEY]", self._apikey or '') \
-            .replace("[USER]", self.user or '')
+        url = (
+            url.replace("[HOST]", self._host or "")
+            .replace("[APIKEY]", self._apikey or "")
+            .replace("[USER]", self.user or "")
+        )
         try:
             return self.__request_utils(headers=headers).post_res(url=url, data=data)
         except Exception as e:
@@ -1050,10 +1060,9 @@ class ZSpace:
         拼装媒体播放链接
         :param item_id: 媒体的ID
         """
-        return f"{self._playhost or self._host}web/index.html#!" \
-               f"/item?id={item_id}&context=home&serverId={self.serverid}"
+        return f"{self._playhost or self._host}web/index.html#!/item?id={item_id}&context=home&serverId={self.serverid}"
 
-    def get_backdrop_url(self, item_id: str, image_tag: str, remote: Optional[bool] = False) -> str:
+    def get_backdrop_url(self, item_id: str, image_tag: str, remote: bool | None = False) -> str:
         """
         获取极影视的Backdrop图片地址
         :param item_id: 在极影视中的ID
@@ -1068,8 +1077,7 @@ class ZSpace:
             host_url = self._playhost or self._host
         else:
             host_url = self._host
-        return f"{host_url}emby/Items/{item_id}/" \
-               f"Images/Backdrop?tag={image_tag}&api_key={self._apikey}"
+        return f"{host_url}emby/Items/{item_id}/Images/Backdrop?tag={image_tag}&api_key={self._apikey}"
 
     def __get_local_image_by_id(self, item_id: str) -> str:
         """
@@ -1080,8 +1088,7 @@ class ZSpace:
             return ""
         return f"{self._host}emby/Items/{item_id}/Images/Primary?api_key={self._apikey}"
 
-    def get_resume(self, num: Optional[int] = 12, username: Optional[str] = None) -> Optional[
-        List[schemas.MediaServerPlayItem]]:
+    def get_resume(self, num: int | None = 12, username: str | None = None) -> list[schemas.MediaServerPlayItem] | None:
         """
         获得继续观看
         """
@@ -1094,11 +1101,7 @@ class ZSpace:
         if not user:
             return None
         url = f"{self._host}emby/Users/{user}/Items/Resume"
-        params = {
-            "Limit": 100,
-            "MediaTypes": "Video",
-            "Fields": "ProductionYear,Path"
-        }
+        params = {"Limit": 100, "MediaTypes": "Video", "Fields": "ProductionYear,Path"}
         try:
             res = self.__request_utils().get_res(url, params=params)
             if res:
@@ -1111,8 +1114,11 @@ class ZSpace:
                     if item.get("Type") not in ["Movie", "Episode"]:
                         continue
                     item_path = item.get("Path")
-                    if item_path and library_folders and not any(
-                            str(item_path).startswith(folder) for folder in library_folders):
+                    if (
+                        item_path
+                        and library_folders
+                        and not any(str(item_path).startswith(folder) for folder in library_folders)
+                    ):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))
@@ -1120,29 +1126,33 @@ class ZSpace:
                         title = item.get("Name")
                         subtitle = str(item.get("ProductionYear")) if item.get("ProductionYear") else None
                     else:
-                        title = f'{item.get("SeriesName")}'
-                        subtitle = f'S{item.get("ParentIndexNumber")}:{item.get("IndexNumber")} - {item.get("Name")}'
+                        title = f"{item.get('SeriesName')}"
+                        subtitle = f"S{item.get('ParentIndexNumber')}:{item.get('IndexNumber')} - {item.get('Name')}"
                     if item_type == MediaType.MOVIE.value:
                         if item.get("BackdropImageTags"):
-                            image = self.get_backdrop_url(item_id=item.get("Id"),
-                                                          image_tag=item.get("BackdropImageTags")[0])
+                            image = self.get_backdrop_url(
+                                item_id=item.get("Id"), image_tag=item.get("BackdropImageTags")[0]
+                            )
                         else:
                             image = self.__get_local_image_by_id(item.get("Id"))
                     else:
-                        image = self.get_backdrop_url(item_id=item.get("SeriesId"),
-                                                      image_tag=item.get("SeriesPrimaryImageTag"))
+                        image = self.get_backdrop_url(
+                            item_id=item.get("SeriesId"), image_tag=item.get("SeriesPrimaryImageTag")
+                        )
                         if not image:
                             image = self.__get_local_image_by_id(item.get("SeriesId"))
-                    ret_resume.append(schemas.MediaServerPlayItem(
-                        id=item.get("Id"),
-                        title=title,
-                        subtitle=subtitle,
-                        type=item_type,
-                        image=image,
-                        link=link,
-                        percent=item.get("UserData", {}).get("PlayedPercentage"),
-                        server_type='zspace'
-                    ))
+                    ret_resume.append(
+                        schemas.MediaServerPlayItem(
+                            id=item.get("Id"),
+                            title=title,
+                            subtitle=subtitle,
+                            type=item_type,
+                            image=image,
+                            link=link,
+                            percent=item.get("UserData", {}).get("PlayedPercentage"),
+                            server_type="zspace",
+                        )
+                    )
                 return ret_resume
             else:
                 logger.error("Users/Items/Resume 未获取到返回数据")
@@ -1150,8 +1160,7 @@ class ZSpace:
             logger.error(f"连接Users/Items/Resume出错：{e}")
         return None
 
-    def get_latest(self, num: Optional[int] = 20, username: Optional[str] = None) -> Optional[
-        List[schemas.MediaServerPlayItem]]:
+    def get_latest(self, num: int | None = 20, username: str | None = None) -> list[schemas.MediaServerPlayItem] | None:
         """
         获得最近更新。
 
@@ -1175,7 +1184,7 @@ class ZSpace:
             "SortOrder": "Descending",
             "IncludeItemTypes": "Movie,Series",
             "Limit": 100,
-            "Fields": "ProductionYear,Path,BackdropImageTags"
+            "Fields": "ProductionYear,Path,BackdropImageTags",
         }
         try:
             res = self.__request_utils().get_res(url, params=params)
@@ -1194,22 +1203,27 @@ class ZSpace:
                     if item.get("Type") not in ["Movie", "Series"]:
                         continue
                     item_path = item.get("Path")
-                    if item_path and library_folders and not any(
-                            str(item_path).startswith(folder) for folder in library_folders):
+                    if (
+                        item_path
+                        and library_folders
+                        and not any(str(item_path).startswith(folder) for folder in library_folders)
+                    ):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))
                     image = self.__get_local_image_by_id(item_id=item.get("Id"))
-                    ret_latest.append(schemas.MediaServerPlayItem(
-                        id=item.get("Id"),
-                        title=item.get("Name"),
-                        subtitle=str(item.get("ProductionYear")) if item.get("ProductionYear") else None,
-                        type=item_type,
-                        image=image,
-                        link=link,
-                        BackdropImageTags=item.get("BackdropImageTags"),
-                        server_type='zspace'
-                    ))
+                    ret_latest.append(
+                        schemas.MediaServerPlayItem(
+                            id=item.get("Id"),
+                            title=item.get("Name"),
+                            subtitle=str(item.get("ProductionYear")) if item.get("ProductionYear") else None,
+                            type=item_type,
+                            image=image,
+                            link=link,
+                            BackdropImageTags=item.get("BackdropImageTags"),
+                            server_type="zspace",
+                        )
+                    )
                 return ret_latest
             else:
                 logger.debug("Users/Items?SortBy=DateCreated 未获取到返回数据")
@@ -1230,7 +1244,7 @@ class ZSpace:
             library_folders += [folder for folder in library.get("Path")]
         return library_folders
 
-    def __login(self, username: Optional[str], password: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    def __login(self, username: str | None, password: str | None) -> tuple[str | None, str | None]:
         """
         使用用户名密码登录极影视，返回访问令牌和用户ID
         """
@@ -1239,18 +1253,8 @@ class ZSpace:
         url = f"{self._host}emby/Users/AuthenticateByName"
         try:
             res = self.__request_utils(
-                include_token=False,
-                headers={
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            ).post_res(
-                url=url,
-                data=json.dumps({
-                    "Username": username,
-                    "Pw": password
-                })
-            )
+                include_token=False, headers={"Content-Type": "application/json", "Accept": "application/json"}
+            ).post_res(url=url, data=json.dumps({"Username": username, "Pw": password}))
             if res:
                 result = res.json() or {}
                 auth_token = result.get("AccessToken")
@@ -1263,7 +1267,7 @@ class ZSpace:
             logger.error(f"连接Users/AuthenticateByName出错：{e}")
         return None, None
 
-    def __get_current_user(self) -> Optional[dict]:
+    def __get_current_user(self) -> dict | None:
         """
         获取当前登录用户信息。
 
@@ -1285,7 +1289,7 @@ class ZSpace:
             logger.error(f"连接 {url} 出错：{e}")
         return None
 
-    def __get_current_user_id(self) -> Optional[str]:
+    def __get_current_user_id(self) -> str | None:
         """
         获取当前登录用户ID
         """

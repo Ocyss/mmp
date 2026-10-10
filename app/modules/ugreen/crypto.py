@@ -5,8 +5,9 @@ import hashlib
 import json
 import os
 import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 from cryptography.hazmat.primitives import serialization
@@ -39,9 +40,7 @@ class UgreenCrypto:
         language: str = "zh-CN",
     ) -> None:
         self.public_key_pem = self.normalize_public_key(public_key)
-        self.public_key = serialization.load_pem_public_key(
-            self.public_key_pem.encode("utf-8")
-        )
+        self.public_key = serialization.load_pem_public_key(self.public_key_pem.encode("utf-8"))
         self.token = token
         self.client_id = client_id
         self.client_version = client_version
@@ -53,11 +52,7 @@ class UgreenCrypto:
         key = (public_key or "").strip().strip('"').replace("\\n", "\n")
         if "BEGIN" in key:
             return key if key.endswith("\n") else f"{key}\n"
-        return (
-            "-----BEGIN RSA PUBLIC KEY-----\n"
-            f"{key}\n"
-            "-----END RSA PUBLIC KEY-----\n"
-        )
+        return f"-----BEGIN RSA PUBLIC KEY-----\n{key}\n-----END RSA PUBLIC KEY-----\n"
 
     @staticmethod
     def generate_aes_key() -> str:
@@ -71,9 +66,7 @@ class UgreenCrypto:
                 next_prefix = f"{prefix}[{key}]" if prefix else str(key)
                 pairs.extend(UgreenCrypto._flatten_query(next_prefix, item))
             return pairs
-        if isinstance(value, Sequence) and not isinstance(
-            value, (str, bytes, bytearray)
-        ):
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
             for item in value:
                 next_prefix = f"{prefix}[]"
                 pairs.extend(UgreenCrypto._flatten_query(next_prefix, item))
@@ -105,9 +98,7 @@ class UgreenCrypto:
         raw = plaintext.encode("utf-8")
         for start in range(0, len(raw), max_chunk):
             chunk = raw[start : start + max_chunk]
-            encrypted_chunks.append(
-                self.public_key.encrypt(chunk, padding.PKCS1v15())
-            )
+            encrypted_chunks.append(self.public_key.encrypt(chunk, padding.PKCS1v15()))
         return base64.b64encode(b"".join(encrypted_chunks)).decode("utf-8")
 
     @staticmethod
@@ -168,9 +159,7 @@ class UgreenCrypto:
         if token_value:
             headers["X-Ugreen-Security-Key"] = self.build_security_key(token_value)
             headers["X-Ugreen-Security-Code"] = self.rsa_encrypt_long(aes_key)
-            headers["X-Ugreen-Token"] = (
-                self.rsa_encrypt_long(token_value) if encrypt_token else token_value
-            )
+            headers["X-Ugreen-Token"] = self.rsa_encrypt_long(token_value) if encrypt_token else token_value
         return headers
 
     def build_encrypted_request(
@@ -193,9 +182,7 @@ class UgreenCrypto:
         - 业务侧不需要、也不应该手工拼接 `encrypt_query`。
         """
         parsed = urlsplit(url)
-        clean_url = urlunsplit(
-            (parsed.scheme, parsed.netloc, parsed.path, "", parsed.fragment)
-        )
+        clean_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", parsed.fragment))
 
         url_query_plain = parsed.query
         input_query_plain = self.encode_query(params)

@@ -21,26 +21,26 @@ class UpdatePersonaDefinitionInput(BaseModel):
             "For new personas, provide the new lowercase persona_id."
         ),
     )
-    label: Optional[str] = Field(
+    label: str | None = Field(
         None,
         description="Optional new label shown to users, such as 默认 or 说明型.",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None,
         description="Optional short description of the persona's intended style.",
     )
-    aliases: Optional[list[str]] = Field(
+    aliases: list[str] | None = Field(
         None,
         description="Optional full replacement list of aliases for this persona.",
     )
-    instructions: Optional[str] = Field(
+    instructions: str | None = Field(
         None,
         description=(
             "Optional full replacement body for PERSONA.md, excluding YAML frontmatter. "
             "Use this when the persona definition should be rewritten completely."
         ),
     )
-    append_instructions: Optional[list[str]] = Field(
+    append_instructions: list[str] | None = Field(
         None,
         description=(
             "Optional extra persona rules to append to the existing PERSONA body. "
@@ -65,7 +65,7 @@ class UpdatePersonaDefinitionTool(MoviePilotTool):
         "Use this when the user explicitly asks to modify how a persona is defined, such as changing tone rules, "
         "rewriting the persona body, adjusting aliases, or creating a new persona."
     )
-    args_schema: Type[BaseModel] = UpdatePersonaDefinitionInput
+    args_schema: type[BaseModel] = UpdatePersonaDefinitionInput
     require_admin: bool = True
 
     def get_tool_message(self, **kwargs) -> str:
@@ -76,19 +76,16 @@ class UpdatePersonaDefinitionTool(MoviePilotTool):
     async def run(
         self,
         persona_id: str,
-        label: Optional[str] = None,
-        description: Optional[str] = None,
-        aliases: Optional[list[str]] = None,
-        instructions: Optional[str] = None,
-        append_instructions: Optional[list[str]] = None,
+        label: str | None = None,
+        description: str | None = None,
+        aliases: list[str] | None = None,
+        instructions: str | None = None,
+        append_instructions: list[str] | None = None,
         create_if_missing: bool = False,
         **kwargs,
     ) -> str:
         logger.info("执行工具: %s, 参数: persona_id=%s", self.name, persona_id)
-        if not any(
-            value is not None
-            for value in (label, description, aliases, instructions, append_instructions)
-        ):
+        if not any(value is not None for value in (label, description, aliases, instructions, append_instructions)):
             return json.dumps(
                 {
                     "success": False,
@@ -112,13 +109,9 @@ class UpdatePersonaDefinitionTool(MoviePilotTool):
                 "success": True,
                 "created": created,
                 "active_persona": runtime_config.active_persona,
-                "persona": persona.to_dict(
-                    is_active=persona.persona_id == runtime_config.active_persona
-                ),
+                "persona": persona.to_dict(is_active=persona.persona_id == runtime_config.active_persona),
                 "message": (
-                    f"已创建人格 `{persona.persona_id}`"
-                    if created
-                    else f"已更新人格 `{persona.persona_id}` 的定义"
+                    f"已创建人格 `{persona.persona_id}`" if created else f"已更新人格 `{persona.persona_id}` 的定义"
                 ),
             }
             return json.dumps(payload, ensure_ascii=False, indent=2)

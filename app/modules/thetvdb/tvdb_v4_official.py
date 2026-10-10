@@ -27,11 +27,7 @@ class Auth:
         try:
             # 使用项目统一的RequestUtils类
             req_utils = RequestUtils(proxies=proxy, timeout=timeout)
-            response = req_utils.post_res(
-                url=url,
-                data=login_info_bytes,
-                headers={"Content-Type": "application/json"}
-            )
+            response = req_utils.post_res(url=url, data=login_info_bytes, headers={"Content-Type": "application/json"})
 
             if response and response.status_code == 200:
                 result = response.json()
@@ -122,8 +118,7 @@ class Url:
     def __init__(self):
         self.base_url = "https://api4.thetvdb.com/v4/"
 
-    def construct(self, url_sect: str, url_id: int = None,
-                  url_subsect: str = None, url_lang: str = None, **kwargs):
+    def construct(self, url_sect: str, url_id: int = None, url_subsect: str = None, url_lang: str = None, **kwargs):
         """
         构建API URL
         """
@@ -292,14 +287,20 @@ class TVDB:
         url = self.url.construct("series", id, "extended", meta=meta, short=short)
         return self.request.make_request(url, if_modified_since)
 
-    def get_series_episodes(self, id: int, season_type: str = "default", page: int = 0,
-                            lang: str = None, meta: str = None, if_modified_since: bool = None, **kwargs) -> dict:
+    def get_series_episodes(
+        self,
+        id: int,
+        season_type: str = "default",
+        page: int = 0,
+        lang: str = None,
+        meta: str = None,
+        if_modified_since: bool = None,
+        **kwargs,
+    ) -> dict:
         """
         返回指定剧集和季类型的各集信息字典 (可分页，可指定语言)
         """
-        url = self.url.construct(
-            "series", id, "episodes/" + season_type, lang, page=page, meta=meta, **kwargs
-        )
+        url = self.url.construct("series", id, "episodes/" + season_type, lang, page=page, meta=meta, **kwargs)
         return self.request.make_request(url, if_modified_since)
 
     def get_series_translation(self, id: int, lang: str, meta: str = None, if_modified_since: bool = None) -> dict:
@@ -616,7 +617,7 @@ class TVDB:
         """
         返回当前认证用户的收藏夹信息字典
         """
-        url = self.url.construct('user/favorites')
+        url = self.url.construct("user/favorites")
         return self.request.make_request(url)
 
     def clear_cache(self):

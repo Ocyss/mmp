@@ -11,12 +11,8 @@ from app.schemas import MediaType
 router = APIRouter()
 
 
-@router.get(
-    "/person/{person_id}", summary="人物详情", response_model=schemas.MediaPerson
-)
-async def douban_person(
-    person_id: int, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+@router.get("/person/{person_id}", summary="人物详情", response_model=schemas.MediaPerson)
+async def douban_person(person_id: int, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     根据人物ID查询人物详情
     """
@@ -26,11 +22,11 @@ async def douban_person(
 @router.get(
     "/person/credits/{person_id}",
     summary="人物参演作品",
-    response_model=List[schemas.MediaInfo],
+    response_model=list[schemas.MediaInfo],
 )
 async def douban_person_credits(
     person_id: int,
-    page: Optional[int] = 1,
+    page: int | None = 1,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -45,11 +41,9 @@ async def douban_person_credits(
 @router.get(
     "/credits/{doubanid}/{type_name}",
     summary="豆瓣演员阵容",
-    response_model=List[schemas.MediaPerson],
+    response_model=list[schemas.MediaPerson],
 )
-async def douban_credits(
-    doubanid: str, type_name: str, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def douban_credits(doubanid: str, type_name: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     根据豆瓣ID查询演员阵容，type_name: 电影/电视剧
     """
@@ -64,11 +58,9 @@ async def douban_credits(
 @router.get(
     "/recommend/{doubanid}/{type_name}",
     summary="豆瓣推荐电影/电视剧",
-    response_model=List[schemas.MediaInfo],
+    response_model=list[schemas.MediaInfo],
 )
-async def douban_recommend(
-    doubanid: str, type_name: str, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def douban_recommend(doubanid: str, type_name: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     根据豆瓣ID查询推荐电影/电视剧，type_name: 电影/电视剧
     """
@@ -85,9 +77,7 @@ async def douban_recommend(
 
 
 @router.get("/{doubanid}", summary="查询豆瓣详情", response_model=schemas.MediaInfo)
-async def douban_info(
-    doubanid: str, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def douban_info(doubanid: str, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     根据豆瓣ID查询豆瓣媒体信息
     """

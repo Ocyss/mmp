@@ -1,7 +1,7 @@
 import copy
 import threading
 import traceback
-from typing import Any, Union, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from app.chain import ChainBase
 from app.chain.download import DownloadChain
@@ -11,14 +11,15 @@ from app.chain.skills import SkillsChain
 from app.chain.subscribe import SubscribeChain
 from app.chain.system import SystemChain
 from app.chain.transfer import TransferChain
-from app.core.event import Event as ManagerEvent, eventmanager, Event
+from app.core.event import Event, eventmanager
+from app.core.event import Event as ManagerEvent
 from app.core.plugin import PluginManager
 from app.helper.message import MessageHelper
 from app.helper.thread import ThreadHelper
 from app.log import logger
 from app.scheduler import Scheduler
-from app.schemas import Notification, CommandRegisterEventData
-from app.schemas.types import EventType, MessageChannel, ChainEventType
+from app.schemas import CommandRegisterEventData, Notification
+from app.schemas.types import ChainEventType, EventType, MessageChannel
 from app.utils.object import ObjectUtils
 from app.utils.singleton import Singleton
 from app.utils.structures import DictUtils
@@ -28,7 +29,7 @@ class CommandChain(ChainBase):
     pass
 
 
-def _finish_command_processing_status(status: Optional[dict], user_id: Optional[str] = None) -> None:
+def _finish_command_processing_status(status: dict | None, user_id: str | None = None) -> None:
     """
     命令执行完成后通过消息模块收口渠道处理状态。
     """
@@ -153,14 +154,14 @@ class Command(metaclass=Singleton):
         # 初始化命令
         self.init_commands()
 
-    def init_commands(self, pid: Optional[str] = None) -> None:
+    def init_commands(self, pid: str | None = None) -> None:
         """
         初始化菜单命令
         """
         # 使用线程池提交后台任务，避免引起阻塞
         ThreadHelper().submit(self.__init_commands_background, pid)
 
-    def __init_commands_background(self, pid: Optional[str] = None) -> None:
+    def __init_commands_background(self, pid: str | None = None) -> None:
         """
         后台初始化菜单命令
         """
@@ -184,52 +185,37 @@ class Command(metaclass=Singleton):
                     event_data: CommandRegisterEventData = event.event_data
                     # 如果事件被取消，跳过命令注册
                     if event_data.cancel:
-                        logger.debug(
-                            f"Command initialization canceled by event: {event_data.source}"
-                        )
+                        logger.debug(f"Command initialization canceled by event: {event_data.source}")
                         return
                     # 如果拦截源与插件标识一致时，这里认为需要强制触发注册
                     if pid is not None and pid == event_data.source:
                         force_register = True
                     initial_commands = event_data.commands or {}
-                    logger.debug(
-                        f"Registering command count from event: {len(initial_commands)}"
-                    )
+                    logger.debug(f"Registering command count from event: {len(initial_commands)}")
                 else:
-                    logger.debug(
-                        f"Registering initial command count: {len(initial_commands)}"
-                    )
+                    logger.debug(f"Registering initial command count: {len(initial_commands)}")
 
                 # initial_commands 必须是 self._commands 的子集
-                filtered_initial_commands = DictUtils.filter_keys_to_subset(
-                    initial_commands, self._commands
-                )
+                filtered_initial_commands = DictUtils.filter_keys_to_subset(initial_commands, self._commands)
                 # 如果 filtered_initial_commands 为空，则跳过注册
                 if not filtered_initial_commands and not force_register:
                     logger.debug("Filtered commands are empty, skipping registration.")
                     return
 
                 # 对比调整后的命令与当前命令
-                if (
-                    filtered_initial_commands != self._registered_commands
-                    or force_register
-                ):
-                    logger.debug(
-                        "Command set has changed or force registration is enabled."
-                    )
+                if filtered_initial_commands != self._registered_commands or force_register:
+                    logger.debug("Command set has changed or force registration is enabled.")
                     self._registered_commands = filtered_initial_commands
                     CommandChain().register_commands(commands=filtered_initial_commands)
                 else:
-                    logger.debug(
-                        "Command set unchanged, skipping broadcast registration."
-                    )
+                    logger.debug("Command set unchanged, skipping broadcast registration.")
         except Exception as e:
             logger.error(
                 f"Error occurred during command initialization in background: {e}",
                 exc_info=True,
             )
 
-    def __trigger_register_commands_event(self) -> tuple[Optional[Event], dict]:
+    def __trigger_register_commands_event(self) -> tuple[Event | None, dict]:
         """
         触发事件，允许调整命令数据
         """
@@ -254,19 +240,17 @@ class Command(metaclass=Singleton):
                 commands[cmd] = command_data
 
         # 初始化命令字典
-        commands: Dict[str, dict] = {}
+        commands: dict[str, dict] = {}
         add_commands(self._preset_commands, "preset")
         add_commands(self._plugin_commands, "plugin")
         add_commands(self._other_commands, "other")
 
         # 触发事件允许可以拦截和调整命令
-        event_data = CommandRegisterEventData(
-            commands=commands, origin="CommandChain", service=None
-        )
+        event_data = CommandRegisterEventData(commands=commands, origin="CommandChain", service=None)
         event = eventmanager.send_event(ChainEventType.CommandRegister, event_data)
         return event, commands
 
-    def __build_plugin_commands(self, _: Optional[str] = None) -> Dict[str, dict]:
+    def __build_plugin_commands(self, _: str | None = None) -> dict[str, dict]:
         """
         构建插件命令
         """
@@ -290,11 +274,11 @@ class Command(metaclass=Singleton):
 
     def __run_command(
         self,
-        command: Dict[str, any],
-        data_str: Optional[str] = "",
+        command: dict[str, any],
+        data_str: str | None = "",
         channel: MessageChannel = None,
-        source: Optional[str] = None,
-        userid: Union[str, int] = None,
+        source: str | None = None,
+        userid: str | int = None,
     ):
         """
         运行定时服务
@@ -372,9 +356,9 @@ class Command(metaclass=Singleton):
         self,
         cmd: str,
         func: Any,
-        data: Optional[dict] = None,
-        desc: Optional[str] = None,
-        category: Optional[str] = None,
+        data: dict | None = None,
+        desc: str | None = None,
+        category: str | None = None,
         show: bool = True,
     ) -> None:
         """
@@ -392,10 +376,10 @@ class Command(metaclass=Singleton):
     def execute(
         self,
         cmd: str,
-        data_str: Optional[str] = "",
+        data_str: str | None = "",
         channel: MessageChannel = None,
-        source: Optional[str] = None,
-        userid: Union[str, int] = None,
+        source: str | None = None,
+        userid: str | int = None,
     ) -> None:
         """
         执行命令
@@ -404,9 +388,7 @@ class Command(metaclass=Singleton):
         if command:
             try:
                 if userid:
-                    logger.info(
-                        f"用户 {userid} 开始执行：{command.get('description')} ..."
-                    )
+                    logger.info(f"用户 {userid} 开始执行：{command.get('description')} ...")
                 else:
                     logger.info(f"开始执行：{command.get('description')} ...")
 
@@ -424,12 +406,8 @@ class Command(metaclass=Singleton):
                 else:
                     logger.info(f"{command.get('description')} 执行完成")
             except Exception as err:
-                logger.error(
-                    f"执行命令 {cmd} 出错：{str(err)} - {traceback.format_exc()}"
-                )
-                self.messagehelper.put(
-                    title=f"执行命令 {cmd} 出错", message=str(err), role="system"
-                )
+                logger.error(f"执行命令 {cmd} 出错：{str(err)} - {traceback.format_exc()}")
+                self.messagehelper.put(title=f"执行命令 {cmd} 出错", message=str(err), role="system")
 
     @staticmethod
     def send_plugin_event(etype: EventType, data: dict) -> None:

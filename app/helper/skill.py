@@ -4,7 +4,7 @@ import re
 import shutil
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlencode, urljoin, urlparse
@@ -42,13 +42,13 @@ class SkillInfo:
     path: str = ""
     source_type: str = "local"
     source_label: str = "本地"
-    repo_url: Optional[str] = None
-    repo_name: Optional[str] = None
-    skill_path: Optional[str] = None
-    registry_url: Optional[str] = None
-    registry_name: Optional[str] = None
-    registry_slug: Optional[str] = None
-    download_url: Optional[str] = None
+    repo_url: str | None = None
+    repo_name: str | None = None
+    skill_path: str | None = None
+    registry_url: str | None = None
+    registry_name: str | None = None
+    registry_slug: str | None = None
+    download_url: str | None = None
     installed: bool = False
     removable: bool = False
 
@@ -81,7 +81,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return settings.ROOT_PATH / "skills"
 
     @staticmethod
-    def get_market_sources() -> List[str]:
+    def get_market_sources() -> list[str]:
         """
         解析配置中的技能市场列表。
         """
@@ -90,7 +90,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return [item.strip() for item in settings.SKILL_MARKET.split(",") if item.strip()]
 
     @staticmethod
-    def get_default_market_sources() -> List[str]:
+    def get_default_market_sources() -> list[str]:
         """
         返回系统默认的技能市场列表，用于区分内置源和用户追加源。
         """
@@ -110,7 +110,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return skill_dir
 
     @staticmethod
-    def _canonical_market_source(source: str) -> Optional[str]:
+    def _canonical_market_source(source: str) -> str | None:
         """
         生成市场源的规范化值，用于去重、默认源比对和持久化。
         """
@@ -126,16 +126,13 @@ class SkillHelper(metaclass=WeakSingleton):
         if repo:
             # 对 GitHub 仓库保留分支和技能根目录，避免不同路径的技能仓库混淆。
             if repo["branch"]:
-                return (
-                    f"{repo['repo_url']}/tree/"
-                    f"{repo['branch']}/{repo['root_path'].strip('/')}"
-                ).rstrip("/")
+                return (f"{repo['repo_url']}/tree/{repo['branch']}/{repo['root_path'].strip('/')}").rstrip("/")
             return repo["repo_url"].rstrip("/")
 
         return normalized.rstrip("/")
 
     @staticmethod
-    def _build_repo_source_label(repo_name: Optional[str]) -> str:
+    def _build_repo_source_label(repo_name: str | None) -> str:
         """
         根据仓库名称生成展示标签。
         """
@@ -147,7 +144,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return f"仓库来源 · {repo_name}"
 
     @staticmethod
-    def _build_registry_source_label(registry_name: Optional[str]) -> str:
+    def _build_registry_source_label(registry_name: str | None) -> str:
         """
         根据注册表名称生成展示标签。
         """
@@ -169,14 +166,12 @@ class SkillHelper(metaclass=WeakSingleton):
             return self._build_repo_source_label(repo.get("repo_name"))
         return source
 
-    def list_market_source_entries(self) -> List[SkillMarketSource]:
+    def list_market_source_entries(self) -> list[SkillMarketSource]:
         """
         返回当前技能源及其是否属于内置默认源的展示信息。
         """
-        default_keys = {
-            self._canonical_market_source(item) for item in self.get_default_market_sources()
-        }
-        results: List[SkillMarketSource] = []
+        default_keys = {self._canonical_market_source(item) for item in self.get_default_market_sources()}
+        results: list[SkillMarketSource] = []
         for source in self.get_market_sources():
             source_key = self._canonical_market_source(source)
             builtin = source_key in default_keys
@@ -191,7 +186,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return results
 
     @staticmethod
-    def _persist_market_sources(sources: List[str]) -> Tuple[bool, str]:
+    def _persist_market_sources(sources: list[str]) -> tuple[bool, str]:
         """
         将技能源列表写回配置文件，并同步更新内存中的 settings。
         """
@@ -204,7 +199,7 @@ class SkillHelper(metaclass=WeakSingleton):
             return False, message
         return True, message
 
-    def add_custom_market_source(self, source: str) -> Tuple[bool, str]:
+    def add_custom_market_source(self, source: str) -> tuple[bool, str]:
         """
         添加自定义 GitHub 技能源，支持 owner/repo 与 GitHub URL 两种写法。
         """
@@ -219,21 +214,17 @@ class SkillHelper(metaclass=WeakSingleton):
         if not canonical_source:
             return False, "技能源地址不能为空"
 
-        existing_keys = {
-            self._canonical_market_source(item) for item in self.get_market_sources()
-        }
+        existing_keys = {self._canonical_market_source(item) for item in self.get_market_sources()}
         if canonical_source in existing_keys:
             return False, "该技能源已存在"
 
         current_sources = self.get_market_sources()
-        success, message = self._persist_market_sources(
-            current_sources + [canonical_source]
-        )
+        success, message = self._persist_market_sources(current_sources + [canonical_source])
         if not success:
             return False, message
         return True, f"已添加技能源：{self.describe_market_source(canonical_source)}"
 
-    def remove_custom_market_source(self, source: str) -> Tuple[bool, str]:
+    def remove_custom_market_source(self, source: str) -> tuple[bool, str]:
         """
         删除一个自定义技能源，内置默认源不允许移除。
         """
@@ -241,17 +232,13 @@ class SkillHelper(metaclass=WeakSingleton):
         if not canonical_source:
             return False, "技能源地址无效"
 
-        default_keys = {
-            self._canonical_market_source(item) for item in self.get_default_market_sources()
-        }
+        default_keys = {self._canonical_market_source(item) for item in self.get_default_market_sources()}
         if canonical_source in default_keys:
             return False, f"技能源 {self.describe_market_source(source)} 是内置默认源，不能删除"
 
         current_sources = self.get_market_sources()
         remaining_sources = [
-            item
-            for item in current_sources
-            if self._canonical_market_source(item) != canonical_source
+            item for item in current_sources if self._canonical_market_source(item) != canonical_source
         ]
         if len(remaining_sources) == len(current_sources):
             return False, "技能源不存在"
@@ -262,7 +249,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return True, f"已删除技能源：{self.describe_market_source(source)}"
 
     @staticmethod
-    def _normalize_repo_url(repo_url: str) -> Optional[str]:
+    def _normalize_repo_url(repo_url: str) -> str | None:
         """
         将技能市场配置统一归一为 GitHub HTTPS 地址。
         """
@@ -274,7 +261,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return f"https://github.com/{repo_url.strip('/')}"
 
     @staticmethod
-    def _parse_market_repo(repo_url: str) -> Optional[dict]:
+    def _parse_market_repo(repo_url: str) -> dict | None:
         """
         解析市场仓库地址，提取仓库、分支和技能根目录信息。
         """
@@ -309,7 +296,7 @@ class SkillHelper(metaclass=WeakSingleton):
         }
 
     @staticmethod
-    def _parse_market_registry(source_url: str) -> Optional[dict]:
+    def _parse_market_registry(source_url: str) -> dict | None:
         """
         解析注册表市场地址，目前支持 ClawHub。
         """
@@ -323,11 +310,7 @@ class SkillHelper(metaclass=WeakSingleton):
 
         base_url = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
         path = parsed.path.rstrip("/")
-        api_base = (
-            f"{base_url}{path}"
-            if path.endswith("/api/v1")
-            else f"{base_url}/api/v1"
-        )
+        api_base = f"{base_url}{path}" if path.endswith("/api/v1") else f"{base_url}/api/v1"
         return {
             "registry_url": base_url,
             "registry_name": "ClawHub",
@@ -367,12 +350,12 @@ class SkillHelper(metaclass=WeakSingleton):
         """
         return (SkillHelper.get_bundled_skills_dir() / skill_id / "SKILL.md").exists()
 
-    def list_local_skills(self) -> List[SkillInfo]:
+    def list_local_skills(self) -> list[SkillInfo]:
         """
         扫描本地已安装技能，并补充来源和是否可删除等展示信息。
         """
         skill_root = self._ensure_user_skills_dir()
-        results: List[SkillInfo] = []
+        results: list[SkillInfo] = []
 
         for path in sorted(skill_root.iterdir(), key=lambda item: item.name.lower()):
             if not path.is_dir():
@@ -429,7 +412,7 @@ class SkillHelper(metaclass=WeakSingleton):
 
         return results
 
-    def list_market_skills(self, force: bool = False) -> List[SkillInfo]:
+    def list_market_skills(self, force: bool = False) -> list[SkillInfo]:
         """
         聚合所有市场源的技能，并用本地技能状态标记已安装项。
         """
@@ -437,7 +420,7 @@ class SkillHelper(metaclass=WeakSingleton):
         local_ids = {skill.id for skill in local_skills}
         local_names = {skill.name for skill in local_skills}
 
-        deduped: Dict[str, SkillInfo] = {}
+        deduped: dict[str, SkillInfo] = {}
         for source in self.get_market_sources():
             with fresh(force):
                 market_skills = self._list_market_source_skills(source)
@@ -459,9 +442,9 @@ class SkillHelper(metaclass=WeakSingleton):
 
     @staticmethod
     def filter_market_skills(
-        skills: List[SkillInfo],
+        skills: list[SkillInfo],
         query: str,
-    ) -> List[SkillInfo]:
+    ) -> list[SkillInfo]:
         """
         按关键词过滤市场技能。
 
@@ -476,7 +459,7 @@ class SkillHelper(metaclass=WeakSingleton):
         if not terms:
             return skills
 
-        results: List[SkillInfo] = []
+        results: list[SkillInfo] = []
         for skill in skills:
             haystack = " ".join(
                 filter(
@@ -496,7 +479,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return results
 
     @cached(maxsize=24, ttl=_MARKET_CACHE_TTL, skip_empty=True)
-    def _list_market_source_skills(self, source: str) -> List[SkillInfo]:
+    def _list_market_source_skills(self, source: str) -> list[SkillInfo]:
         """
         根据市场源类型分发到仓库扫描或注册表读取。
         """
@@ -506,7 +489,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return self._list_market_repo_skills(source)
 
     @cached(maxsize=16, ttl=_MARKET_CACHE_TTL, skip_empty=True)
-    def _list_market_repo_skills(self, repo_url: str) -> List[SkillInfo]:
+    def _list_market_repo_skills(self, repo_url: str) -> list[SkillInfo]:
         """
         读取单个市场仓库中的技能列表。
 
@@ -526,7 +509,7 @@ class SkillHelper(metaclass=WeakSingleton):
                 if not names:
                     return []
                 root_prefix = names[0].split("/", 1)[0] + "/"
-                results: List[SkillInfo] = []
+                results: list[SkillInfo] = []
                 seen_paths = set()
                 for archive_name in names:
                     if not archive_name.endswith("/SKILL.md"):
@@ -534,7 +517,7 @@ class SkillHelper(metaclass=WeakSingleton):
                     if not archive_name.startswith(root_prefix):
                         continue
 
-                    rel_path = archive_name[len(root_prefix):].strip("/")
+                    rel_path = archive_name[len(root_prefix) :].strip("/")
                     if not rel_path.startswith(f"{repo['root_path'].strip('/')}/"):
                         continue
                     if "/.system/" in f"/{rel_path}/":
@@ -567,9 +550,7 @@ class SkillHelper(metaclass=WeakSingleton):
                             version=metadata["version"],
                             path=f"{repo['repo_url']}/tree/{repo['branch']}/{skill_dir}",
                             source_type="market",
-                            source_label=self._build_repo_source_label(
-                                repo["repo_name"]
-                            ),
+                            source_label=self._build_repo_source_label(repo["repo_name"]),
                             repo_url=repo["repo_url"],
                             repo_name=repo["repo_name"],
                             skill_path=skill_dir,
@@ -582,7 +563,7 @@ class SkillHelper(metaclass=WeakSingleton):
             logger.error("解析技能市场压缩包失败：%s", e)
             return []
 
-    def _list_market_registry_skills(self, registry: dict) -> List[SkillInfo]:
+    def _list_market_registry_skills(self, registry: dict) -> list[SkillInfo]:
         """
         从注册表拉取技能列表。
 
@@ -604,14 +585,14 @@ class SkillHelper(metaclass=WeakSingleton):
 
         payload = self._load_json_response(response)
         items = self._extract_registry_items(payload)
-        results: List[SkillInfo] = []
+        results: list[SkillInfo] = []
         for item in items:
             skill = self._build_registry_skill(item, registry)
             if skill:
                 results.append(skill)
         return results
 
-    def install_market_skill(self, skill: SkillInfo) -> Tuple[bool, str]:
+    def install_market_skill(self, skill: SkillInfo) -> tuple[bool, str]:
         """
         将市场技能安装到用户技能目录，并记录来源元数据。
         """
@@ -651,7 +632,7 @@ class SkillHelper(metaclass=WeakSingleton):
                 try:
                     wrote = False
                     for archive_name in matched:
-                        rel_name = archive_name[len(skill_prefix):]
+                        rel_name = archive_name[len(skill_prefix) :]
                         if not rel_name:
                             continue
                         output_path = target_dir / rel_name
@@ -675,7 +656,7 @@ class SkillHelper(metaclass=WeakSingleton):
                             "repo_name": repo["repo_name"],
                             "branch": repo["branch"],
                             "skill_path": skill.skill_path,
-                            "installed_at": datetime.now(timezone.utc).isoformat(),
+                            "installed_at": datetime.now(UTC).isoformat(),
                         },
                     )
                     return True, f"技能 {skill.id} 已安装到 {target_dir}"
@@ -686,9 +667,7 @@ class SkillHelper(metaclass=WeakSingleton):
             logger.error("安装市场技能失败：%s", e)
             return False, f"安装技能失败：{e}"
 
-    def _install_registry_skill(
-        self, skill: SkillInfo, target_dir: Path
-    ) -> Tuple[bool, str]:
+    def _install_registry_skill(self, skill: SkillInfo, target_dir: Path) -> tuple[bool, str]:
         """
         从注册表下载并安装技能包。
         """
@@ -719,7 +698,7 @@ class SkillHelper(metaclass=WeakSingleton):
                             "registry_name": skill.registry_name,
                             "registry_slug": skill.registry_slug or skill.id,
                             "download_url": skill.download_url,
-                            "installed_at": datetime.now(timezone.utc).isoformat(),
+                            "installed_at": datetime.now(UTC).isoformat(),
                         },
                     )
                     return True, f"技能 {skill.id} 已安装到 {target_dir}"
@@ -730,7 +709,7 @@ class SkillHelper(metaclass=WeakSingleton):
             logger.error("安装注册表技能失败：%s", e)
             return False, f"安装技能失败：{e}"
 
-    def remove_local_skill(self, skill_id: str) -> Tuple[bool, str]:
+    def remove_local_skill(self, skill_id: str) -> tuple[bool, str]:
         """
         删除一个本地技能目录，内置技能会被显式拦截。
         """
@@ -765,7 +744,7 @@ class SkillHelper(metaclass=WeakSingleton):
             return {}
 
     @staticmethod
-    def _extract_registry_items(payload: dict) -> List[dict]:
+    def _extract_registry_items(payload: dict) -> list[dict]:
         """
         从不同响应结构中提取技能列表。
         """
@@ -787,7 +766,7 @@ class SkillHelper(metaclass=WeakSingleton):
                     return [item for item in items if isinstance(item, dict)]
         return []
 
-    def _list_clawhub_registry_skills(self, registry: dict) -> List[SkillInfo]:
+    def _list_clawhub_registry_skills(self, registry: dict) -> list[SkillInfo]:
         """
         按 ClawHub 官方前端的调用方式，通过 Convex query 获取公开技能列表。
         """
@@ -796,7 +775,7 @@ class SkillHelper(metaclass=WeakSingleton):
         if not convex_url:
             return []
 
-        results: Dict[str, SkillInfo] = {}
+        results: dict[str, SkillInfo] = {}
         cursor = None
         for _ in range(_CLAWHUB_LIST_MAX_PAGES):
             args = {
@@ -838,9 +817,7 @@ class SkillHelper(metaclass=WeakSingleton):
 
         return list(results.values())
 
-    def _build_registry_skill(
-        self, item: dict, registry: dict
-    ) -> Optional[SkillInfo]:
+    def _build_registry_skill(self, item: dict, registry: dict) -> SkillInfo | None:
         """
         将注册表返回的条目转换为统一的 SkillInfo。
         """
@@ -884,9 +861,7 @@ class SkillHelper(metaclass=WeakSingleton):
             version=0,
             path=f"{registry['registry_url']}{page_path}",
             source_type="registry",
-            source_label=self._build_registry_source_label(
-                registry["registry_name"]
-            ),
+            source_label=self._build_registry_source_label(registry["registry_name"]),
             registry_url=registry["registry_url"],
             registry_name=registry["registry_name"],
             registry_slug=str(slug),
@@ -898,7 +873,7 @@ class SkillHelper(metaclass=WeakSingleton):
         )
 
     @staticmethod
-    def _extract_registry_owner_handle(item: dict) -> Optional[str]:
+    def _extract_registry_owner_handle(item: dict) -> str | None:
         """
         尽量从注册表条目中提取作者/拥有者 handle。
         """
@@ -925,7 +900,7 @@ class SkillHelper(metaclass=WeakSingleton):
         query = urlencode({"slug": slug})
         return f"{api_base.rstrip('/')}/download?{query}"
 
-    def _download_registry_archive(self, skill: SkillInfo) -> Optional[bytes]:
+    def _download_registry_archive(self, skill: SkillInfo) -> bytes | None:
         """
         下载注册表技能包 ZIP。
         """
@@ -940,7 +915,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return response.content
 
     @cached(maxsize=4, ttl=_MARKET_CACHE_TTL, skip_empty=True)
-    def _discover_clawhub_runtime_env(self, registry_url: str) -> Optional[dict]:
+    def _discover_clawhub_runtime_env(self, registry_url: str) -> dict | None:
         """
         从 ClawHub 首页的 runtime env 脚本中提取当前生效的 Convex 部署地址。
         """
@@ -985,7 +960,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return ""
 
     @staticmethod
-    def _extract_runtime_env_asset_path(html: str) -> Optional[str]:
+    def _extract_runtime_env_asset_path(html: str) -> str | None:
         """
         从 ClawHub 首页 HTML 中定位 runtime env 资源路径。
         """
@@ -995,7 +970,7 @@ class SkillHelper(metaclass=WeakSingleton):
         return match.group(0).strip('"')
 
     @staticmethod
-    def _extract_runtime_env_value(script: str, key: str) -> Optional[str]:
+    def _extract_runtime_env_value(script: str, key: str) -> str | None:
         """
         从运行时脚本中提取指定环境变量的值。
         """
@@ -1015,11 +990,7 @@ class SkillHelper(metaclass=WeakSingleton):
         兼容 `package/`、`skill-name/` 或直接根目录三种常见打包形式。
         """
         names = zf.namelist()
-        skill_md_names = [
-            name
-            for name in names
-            if name.endswith("SKILL.md") and "/.system/" not in f"/{name}/"
-        ]
+        skill_md_names = [name for name in names if name.endswith("SKILL.md") and "/.system/" not in f"/{name}/"]
         if not skill_md_names:
             return False
 
@@ -1030,7 +1001,7 @@ class SkillHelper(metaclass=WeakSingleton):
             if prefix and not archive_name.startswith(prefix):
                 continue
 
-            rel_name = archive_name[len(prefix):] if prefix else archive_name
+            rel_name = archive_name[len(prefix) :] if prefix else archive_name
             if not rel_name:
                 continue
 
@@ -1045,16 +1016,14 @@ class SkillHelper(metaclass=WeakSingleton):
             wrote = True
         return wrote
 
-    def _download_repo_archive(self, repo: dict) -> Optional[bytes]:
+    def _download_repo_archive(self, repo: dict) -> bytes | None:
         """
         下载市场仓库压缩包，并在缺省分支之间做回退尝试。
         """
         branches = [repo.get("branch")] if repo.get("branch") else []
         branches.extend([branch for branch in _DEFAULT_BRANCHES if branch not in branches])
         for branch in branches:
-            archive_url = (
-                f"https://codeload.github.com/{repo['owner']}/{repo['repo']}/zip/refs/heads/{branch}"
-            )
+            archive_url = f"https://codeload.github.com/{repo['owner']}/{repo['repo']}/zip/refs/heads/{branch}"
             response = self._request_github(
                 url=archive_url,
                 repo_name=repo["repo_name"],
@@ -1111,7 +1080,7 @@ class SkillHelper(metaclass=WeakSingleton):
     @staticmethod
     def _request_registry(
         url: str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
         timeout: int = 30,
     ):
         """

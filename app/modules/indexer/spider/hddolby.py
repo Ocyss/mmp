@@ -1,10 +1,10 @@
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
 
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas import MediaType
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.string import StringUtils
 
 
@@ -12,6 +12,7 @@ class HddolbySpider:
     """
     HDDolby API
     """
+
     _indexerid = None
     _domain = None
     _domain_host = None
@@ -58,7 +59,7 @@ class HddolbySpider:
     }
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量。
         """
@@ -67,20 +68,20 @@ class HddolbySpider:
     def __init__(self, indexer: dict):
         self.systemconfig = SystemConfigOper()
         if indexer:
-            self._indexerid = indexer.get('id')
-            self._domain = indexer.get('domain')
+            self._indexerid = indexer.get("id")
+            self._domain = indexer.get("domain")
             self._domain_host = StringUtils.get_url_domain(self._domain)
-            self._name = indexer.get('name')
-            if indexer.get('proxy'):
+            self._name = indexer.get("name")
+            if indexer.get("proxy"):
                 self._proxy = settings.PROXY
-            self._cookie = indexer.get('cookie')
-            self._ua = indexer.get('ua')
-            self._apikey = indexer.get('apikey')
-            self._timeout = indexer.get('timeout') or 15
+            self._cookie = indexer.get("cookie")
+            self._ua = indexer.get("ua")
+            self._apikey = indexer.get("apikey")
+            self._timeout = indexer.get("timeout") or 15
             self._searchurl = f"https://api.{self._domain_host}/api/v1/torrent/search"
             self._pageurl = f"{self._domain}details.php?id=%s&hit=1"
 
-    def __get_params(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> dict:
+    def __get_params(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> dict:
         """
         获取请求参数
         """
@@ -100,7 +101,7 @@ class HddolbySpider:
             "visible": 1,
         }
 
-    def __parse_result(self, results: List[dict]) -> List[dict]:
+    def __parse_result(self, results: list[dict]) -> list[dict]:
         """
         解析搜索结果
         """
@@ -136,7 +137,7 @@ class HddolbySpider:
             }
             """
             # 类别
-            category_value = result.get('category')
+            category_value = result.get("category")
             if category_value in self._tv_category:
                 category = MediaType.TV.value
             elif category_value in self._movie_category:
@@ -144,32 +145,32 @@ class HddolbySpider:
             else:
                 category = MediaType.UNKNOWN.value
             # 标签
-            torrentLabelIds = result.get('tags', "").split(";") or []
+            torrentLabelIds = result.get("tags", "").split(";") or []
             torrentLabels = []
             for labelId in torrentLabelIds:
                 if self._labels.get(labelId) is not None:
                     torrentLabels.append(self._labels.get(labelId))
             # 种子信息
             torrent = {
-                'title': result.get('name'),
-                'description': result.get('small_descr'),
-                'enclosure': self.__get_download_url(result.get('id'), result.get('downhash')),
-                'pubdate': result.get('added'),
-                'size': result.get('size'),
-                'seeders': result.get('seeders'),
-                'peers': result.get('leechers'),
-                'grabs': result.get('times_completed'),
-                'downloadvolumefactor': self.__get_downloadvolumefactor(result.get('promotion_time_type')),
-                'uploadvolumefactor': self.__get_uploadvolumefactor(result.get('promotion_time_type')),
-                'freedate': result.get('promotion_until'),
-                'page_url': self._pageurl % result.get('id'),
-                'labels': torrentLabels,
-                'category': category
+                "title": result.get("name"),
+                "description": result.get("small_descr"),
+                "enclosure": self.__get_download_url(result.get("id"), result.get("downhash")),
+                "pubdate": result.get("added"),
+                "size": result.get("size"),
+                "seeders": result.get("seeders"),
+                "peers": result.get("leechers"),
+                "grabs": result.get("times_completed"),
+                "downloadvolumefactor": self.__get_downloadvolumefactor(result.get("promotion_time_type")),
+                "uploadvolumefactor": self.__get_uploadvolumefactor(result.get("promotion_time_type")),
+                "freedate": result.get("promotion_until"),
+                "page_url": self._pageurl % result.get("id"),
+                "labels": torrentLabels,
+                "category": category,
             }
             torrents.append(torrent)
         return torrents
 
-    def search(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    def search(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         搜索
         """
@@ -182,19 +183,19 @@ class HddolbySpider:
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json, text/plain, */*",
-                "x-api-key": self._apikey
+                "x-api-key": self._apikey,
             },
             cookies=self._cookie,
             proxies=self._proxy,
             referer=f"{self._domain}",
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
             result = res.json()
             if result.get("error"):
                 logger.warn(f"{self._name} 搜索失败，错误信息：{result.get('error').get('message')}")
                 return True, []
-            return False, self.__parse_result(result.get('data'))
+            return False, self.__parse_result(result.get("data"))
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")
             return True, []
@@ -202,7 +203,9 @@ class HddolbySpider:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
 
-    async def async_search(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    async def async_search(
+        self, keyword: str, mtype: MediaType = None, page: int | None = 0
+    ) -> tuple[bool, list[dict]]:
         """
         异步搜索
         """
@@ -214,19 +217,19 @@ class HddolbySpider:
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json, text/plain, */*",
-                "x-api-key": self._apikey
+                "x-api-key": self._apikey,
             },
             cookies=self._cookie,
             proxies=self._proxy,
             referer=f"{self._domain}",
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
             result = res.json()
             if result.get("error"):
                 logger.warn(f"{self._name} 搜索失败，错误信息：{result.get('error').get('message')}")
                 return True, []
-            return False, self.__parse_result(result.get('data'))
+            return False, self.__parse_result(result.get("data"))
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")
             return True, []
@@ -239,12 +242,7 @@ class HddolbySpider:
         """
         获取下载系数
         """
-        discount_dict = {
-            2: 0,
-            5: 0.5,
-            6: 1,
-            7: 0.3
-        }
+        discount_dict = {2: 0, 5: 0.5, 6: 1, 7: 0.3}
         if discount:
             return discount_dict.get(discount, 1)
         return 1
@@ -254,11 +252,7 @@ class HddolbySpider:
         """
         获取上传系数
         """
-        discount_dict = {
-            3: 2,
-            4: 2,
-            6: 2
-        }
+        discount_dict = {3: 2, 4: 2, 6: 2}
         if discount:
             return discount_dict.get(discount, 1)
         return 1

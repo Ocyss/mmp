@@ -18,14 +18,15 @@ MAX_PAGE_SIZE = 50
 
 class QueryPopularSubscribesInput(BaseModel):
     """查询热门订阅工具的输入参数模型"""
+
     media_type: str = Field(..., description="Allowed values: movie, tv")
-    page: Optional[int] = Field(1, description="Page number for pagination (default: 1)")
-    count: Optional[int] = Field(30, description="Number of items per page (default: 30, max: 50)")
-    min_sub: Optional[int] = Field(None, description="Minimum number of subscribers filter (optional, e.g., 5)")
-    genre_id: Optional[int] = Field(None, description="Filter by genre ID (optional)")
-    min_rating: Optional[float] = Field(None, description="Minimum rating filter (optional, e.g., 7.5)")
-    max_rating: Optional[float] = Field(None, description="Maximum rating filter (optional, e.g., 10.0)")
-    sort_type: Optional[str] = Field(None, description="Sort type (optional, e.g., 'count', 'rating')")
+    page: int | None = Field(1, description="Page number for pagination (default: 1)")
+    count: int | None = Field(30, description="Number of items per page (default: 30, max: 50)")
+    min_sub: int | None = Field(None, description="Minimum number of subscribers filter (optional, e.g., 5)")
+    genre_id: int | None = Field(None, description="Filter by genre ID (optional)")
+    min_rating: float | None = Field(None, description="Minimum rating filter (optional, e.g., 7.5)")
+    max_rating: float | None = Field(None, description="Maximum rating filter (optional, e.g., 10.0)")
+    sort_type: str | None = Field(None, description="Sort type (optional, e.g., 'count', 'rating')")
 
 
 class QueryPopularSubscribesTool(MoviePilotTool):
@@ -36,18 +37,18 @@ class QueryPopularSubscribesTool(MoviePilotTool):
         ToolTag.Recommendation,
     ]
     description: str = "Query popular subscriptions based on user shared data. Shows media with the most subscribers, supports filtering by genre, rating, minimum subscribers, and pagination."
-    args_schema: Type[BaseModel] = QueryPopularSubscribesInput
+    args_schema: type[BaseModel] = QueryPopularSubscribesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         media_type = kwargs.get("media_type", "")
         page = kwargs.get("page", 1)
         min_sub = kwargs.get("min_sub")
         min_rating = kwargs.get("min_rating")
         max_rating = kwargs.get("max_rating")
-        
+
         parts = [f"查询热门订阅 [{media_type}]"]
-        
+
         if min_sub:
             parts.append(f"最少订阅: {min_sub}")
         if min_rating:
@@ -56,20 +57,25 @@ class QueryPopularSubscribesTool(MoviePilotTool):
             parts.append(f"最高评分: {max_rating}")
         if page > 1:
             parts.append(f"第{page}页")
-        
+
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(self, media_type: str,
-                  page: Optional[int] = 1,
-                  count: Optional[int] = 30,
-                  min_sub: Optional[int] = None,
-                  genre_id: Optional[int] = None,
-                  min_rating: Optional[float] = None,
-                  max_rating: Optional[float] = None,
-                  sort_type: Optional[str] = None, **kwargs) -> str:
+    async def run(
+        self,
+        media_type: str,
+        page: int | None = 1,
+        count: int | None = 30,
+        min_sub: int | None = None,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+        **kwargs,
+    ) -> str:
         logger.info(
             f"执行工具: {self.name}, 参数: media_type={media_type}, page={page}, count={count}, min_sub={min_sub}, "
-            f"genre_id={genre_id}, min_rating={min_rating}, max_rating={max_rating}, sort_type={sort_type}")
+            f"genre_id={genre_id}, min_rating={min_rating}, max_rating={max_rating}, sort_type={sort_type}"
+        )
 
         try:
             if page is None or page < 1:
@@ -89,7 +95,7 @@ class QueryPopularSubscribesTool(MoviePilotTool):
                 genre_id=genre_id,
                 min_rating=min_rating,
                 max_rating=max_rating,
-                sort_type=sort_type
+                sort_type=sort_type,
             )
 
             if not subscribes:
@@ -161,7 +167,7 @@ class QueryPopularSubscribesTool(MoviePilotTool):
                     "poster_path": media_dict.get("poster_path"),
                     "backdrop_path": media_dict.get("backdrop_path"),
                     "popularity": media_dict.get("popularity"),  # 订阅人数
-                    "subscriber_count": media_dict.get("popularity")  # 明确标注为订阅人数
+                    "subscriber_count": media_dict.get("popularity"),  # 明确标注为订阅人数
                 }
                 simplified_medias.append(simplified)
 

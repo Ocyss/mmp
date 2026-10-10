@@ -44,8 +44,8 @@ class IndexerModule(_ModuleBase):
         """加载站点用户数据解析器"""
         # 加载模块
         self._site_schemas = ModuleHelper.load(
-            'app.modules.indexer.parser',
-            filter_func=lambda _, obj: hasattr(obj, 'schema') and getattr(obj, 'schema') is not None)
+            "app.modules.indexer.parser", filter_func=lambda _, obj: hasattr(obj, "schema") and obj.schema is not None
+        )
         pass
 
     @staticmethod
@@ -78,7 +78,7 @@ class IndexerModule(_ModuleBase):
         """停止索引模块"""
         pass
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -87,19 +87,17 @@ class IndexerModule(_ModuleBase):
             return False, "未配置站点或未通过用户认证"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """索引模块无需独立开关配置"""
         pass
 
     @staticmethod
-    def __search_check(site: dict, search_word: Optional[str] = None) -> bool:
+    def __search_check(site: dict, search_word: str | None = None) -> bool:
         """
         检查是否可以执行搜索
         """
         # 可能为关键字或ttxxxx
-        if search_word \
-                and site.get('language') == "en" \
-                and StringUtils.is_chinese(search_word):
+        if search_word and site.get("language") == "en" and StringUtils.is_chinese(search_word):
             # 不支持中文
             logger.warn(f"{site.get('name')} 不支持中文搜索")
             return False
@@ -113,7 +111,7 @@ class IndexerModule(_ModuleBase):
         return True
 
     @staticmethod
-    def __clear_search_text(text: Optional[str]) -> Optional[str]:
+    def __clear_search_text(text: str | None) -> str | None:
         """
         清理搜索文本
         :param text: 需要清理的文本
@@ -154,38 +152,46 @@ class IndexerModule(_ModuleBase):
         if not result_array or len(result_array) == 0:
             logger.warn(f"{site.get('name')} 未搜索到数据，耗时 {seconds} 秒")
             return []
-        logger.info(
-            f"{site.get('name')} 搜索完成，耗时 {seconds} 秒，返回数据：{len(result_array)}")
-        return [TorrentInfo(site=site.get("id"),
-                            site_name=site.get("name"),
-                            site_cookie=site.get("cookie"),
-                            site_ua=site.get("ua"),
-                            site_proxy=site.get("proxy"),
-                            site_order=site.get("pri"),
-                            site_downloader=site.get("downloader"),
-                            **result) for result in result_array]
+        logger.info(f"{site.get('name')} 搜索完成，耗时 {seconds} 秒，返回数据：{len(result_array)}")
+        return [
+            TorrentInfo(
+                site=site.get("id"),
+                site_name=site.get("name"),
+                site_cookie=site.get("cookie"),
+                site_ua=site.get("ua"),
+                site_proxy=site.get("proxy"),
+                site_order=site.get("pri"),
+                site_downloader=site.get("downloader"),
+                **result,
+            )
+            for result in result_array
+        ]
 
     @staticmethod
-    def __parse_subtitle_result(site: dict, result_array: list, seconds: int) -> List[SubtitleInfo]:
+    def __parse_subtitle_result(site: dict, result_array: list, seconds: int) -> list[SubtitleInfo]:
         """
         解析字幕搜索结果为 SubtitleInfo 对象。
         """
         if not result_array or len(result_array) == 0:
             logger.warn(f"{site.get('name')} 未搜索到字幕，耗时 {seconds} 秒")
             return []
-        logger.info(
-            f"{site.get('name')} 字幕搜索完成，耗时 {seconds} 秒，返回数据：{len(result_array)}")
-        return [SubtitleInfo(site=site.get("id"),
-                             site_name=site.get("name"),
-                             site_cookie=site.get("cookie"),
-                             site_ua=site.get("ua"),
-                             site_proxy=site.get("proxy"),
-                             site_order=site.get("pri"),
-                             **result) for result in result_array if
-                result.get("language") and result.get("enclosure") and result.get("title") and result.get("size")]
+        logger.info(f"{site.get('name')} 字幕搜索完成，耗时 {seconds} 秒，返回数据：{len(result_array)}")
+        return [
+            SubtitleInfo(
+                site=site.get("id"),
+                site_name=site.get("name"),
+                site_cookie=site.get("cookie"),
+                site_ua=site.get("ua"),
+                site_proxy=site.get("proxy"),
+                site_order=site.get("pri"),
+                **result,
+            )
+            for result in result_array
+            if result.get("language") and result.get("enclosure") and result.get("title") and result.get("size")
+        ]
 
     @staticmethod
-    def get_search_page_size(site: dict, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(site: dict, keyword: str | None = None) -> int | None:
         """
         获取站点搜索单页容量；None 表示当前搜索入口不支持可靠翻页。
         """
@@ -195,15 +201,13 @@ class IndexerModule(_ModuleBase):
             return SPIDER_PARSER_CLASSES[site_parser].get_search_page_size(keyword=keyword)
         try:
             page_size = int(site.get("result_num") or SiteSpider.default_result_num())
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             page_size = SiteSpider.default_result_num()
         return page_size if page_size > 0 else SiteSpider.default_result_num()
 
-    def search_torrents(self, site: dict,
-                        keyword: str = None,
-                        mtype: MediaType = None,
-                        cat: Optional[str] = None,
-                        page: Optional[int] = 0) -> List[TorrentInfo]:
+    def search_torrents(
+        self, site: dict, keyword: str = None, mtype: MediaType = None, cat: str | None = None, page: int | None = 0
+    ) -> list[TorrentInfo]:
         """
         搜索一个站点
         :param site:  站点
@@ -230,60 +234,25 @@ class IndexerModule(_ModuleBase):
 
         # 开始搜索
         try:
-            if site.get('parser') == "TNodeSpider":
-                error_flag, result = TNodeSpider(site).search(
-                    keyword=search_word,
-                    page=page
-                )
-            elif site.get('parser') == "TorrentLeech":
-                error_flag, result = TorrentLeech(site).search(
-                    keyword=search_word,
-                    page=page
-                )
-            elif site.get('parser') == "mTorrent":
-                error_flag, result = MTorrentSpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
-                )
-            elif site.get('parser') == "SunnyPT":
-                error_flag, result = SunnyPTSpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
-                )
-            elif site.get('parser') == "Yema":
-                error_flag, result = YemaSpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
-                )
-            elif site.get('parser') == "Haidan":
-                error_flag, result = HaiDanSpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype
-                )
-            elif site.get('parser') == "HDDolby":
-                error_flag, result = HddolbySpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
-                )
-            elif site.get('parser') == "RousiPro":
-                error_flag, result = RousiSpider(site).search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
-                )
+            if site.get("parser") == "TNodeSpider":
+                error_flag, result = TNodeSpider(site).search(keyword=search_word, page=page)
+            elif site.get("parser") == "TorrentLeech":
+                error_flag, result = TorrentLeech(site).search(keyword=search_word, page=page)
+            elif site.get("parser") == "mTorrent":
+                error_flag, result = MTorrentSpider(site).search(keyword=search_word, mtype=mtype, page=page)
+            elif site.get("parser") == "SunnyPT":
+                error_flag, result = SunnyPTSpider(site).search(keyword=search_word, mtype=mtype, cat=cat, page=page)
+            elif site.get("parser") == "Yema":
+                error_flag, result = YemaSpider(site).search(keyword=search_word, mtype=mtype, page=page)
+            elif site.get("parser") == "Haidan":
+                error_flag, result = HaiDanSpider(site).search(keyword=search_word, mtype=mtype)
+            elif site.get("parser") == "HDDolby":
+                error_flag, result = HddolbySpider(site).search(keyword=search_word, mtype=mtype, page=page)
+            elif site.get("parser") == "RousiPro":
+                error_flag, result = RousiSpider(site).search(keyword=search_word, mtype=mtype, cat=cat, page=page)
             else:
                 error_flag, result = self.__spider_search(
-                    search_word=search_word,
-                    indexer=site,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
+                    search_word=search_word, indexer=site, mtype=mtype, cat=cat, page=page
                 )
         except Exception as err:
             logger.error(f"{site.get('name')} 搜索出错：{str(err)}")
@@ -295,15 +264,9 @@ class IndexerModule(_ModuleBase):
         self.__indexer_statistic(site=site, error_flag=error_flag, seconds=seconds)
 
         # 返回结果
-        return self.__parse_result(
-            site=site,
-            result_array=result,
-            seconds=seconds
-        )
+        return self.__parse_result(site=site, result_array=result, seconds=seconds)
 
-    def search_subtitles(self, site: dict,
-                         keyword: str = None,
-                         page: Optional[int] = 0) -> List[SubtitleInfo]:
+    def search_subtitles(self, site: dict, keyword: str = None, page: int | None = 0) -> list[SubtitleInfo]:
         """
         搜索一个站点的字幕资源。
         :param site: 站点
@@ -326,27 +289,18 @@ class IndexerModule(_ModuleBase):
 
         try:
             error_flag, result = self.__spider_search(
-                search_word=search_word,
-                indexer=site,
-                page=page,
-                search_type="subtitles"
+                search_word=search_word, indexer=site, page=page, search_type="subtitles"
             )
         except Exception as err:
             logger.error(f"{site.get('name')} 字幕搜索出错：{str(err)}")
 
         seconds = (datetime.now() - start_time).seconds
         self.__indexer_statistic(site=site, error_flag=error_flag, seconds=seconds)
-        return self.__parse_subtitle_result(
-            site=site,
-            result_array=result,
-            seconds=seconds
-        )
+        return self.__parse_subtitle_result(site=site, result_array=result, seconds=seconds)
 
-    async def async_search_torrents(self, site: dict,
-                                    keyword: str = None,
-                                    mtype: MediaType = None,
-                                    cat: Optional[str] = None,
-                                    page: Optional[int] = 0) -> List[TorrentInfo]:
+    async def async_search_torrents(
+        self, site: dict, keyword: str = None, mtype: MediaType = None, cat: str | None = None, page: int | None = 0
+    ) -> list[TorrentInfo]:
         """
         异步搜索一个站点
         :param site:  站点
@@ -373,60 +327,31 @@ class IndexerModule(_ModuleBase):
 
         # 开始搜索
         try:
-            if site.get('parser') == "TNodeSpider":
-                error_flag, result = await TNodeSpider(site).async_search(
-                    keyword=search_word,
-                    page=page
-                )
-            elif site.get('parser') == "TorrentLeech":
-                error_flag, result = await TorrentLeech(site).async_search(
-                    keyword=search_word,
-                    page=page
-                )
-            elif site.get('parser') == "mTorrent":
+            if site.get("parser") == "TNodeSpider":
+                error_flag, result = await TNodeSpider(site).async_search(keyword=search_word, page=page)
+            elif site.get("parser") == "TorrentLeech":
+                error_flag, result = await TorrentLeech(site).async_search(keyword=search_word, page=page)
+            elif site.get("parser") == "mTorrent":
                 error_flag, result = await MTorrentSpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
+                    keyword=search_word, mtype=mtype, page=page
                 )
-            elif site.get('parser') == "SunnyPT":
+            elif site.get("parser") == "SunnyPT":
                 error_flag, result = await SunnyPTSpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
+                    keyword=search_word, mtype=mtype, cat=cat, page=page
                 )
-            elif site.get('parser') == "Yema":
-                error_flag, result = await YemaSpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
-                )
-            elif site.get('parser') == "Haidan":
-                error_flag, result = await HaiDanSpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype
-                )
-            elif site.get('parser') == "HDDolby":
-                error_flag, result = await HddolbySpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    page=page
-                )
-            elif site.get('parser') == "RousiPro":
+            elif site.get("parser") == "Yema":
+                error_flag, result = await YemaSpider(site).async_search(keyword=search_word, mtype=mtype, page=page)
+            elif site.get("parser") == "Haidan":
+                error_flag, result = await HaiDanSpider(site).async_search(keyword=search_word, mtype=mtype)
+            elif site.get("parser") == "HDDolby":
+                error_flag, result = await HddolbySpider(site).async_search(keyword=search_word, mtype=mtype, page=page)
+            elif site.get("parser") == "RousiPro":
                 error_flag, result = await RousiSpider(site).async_search(
-                    keyword=search_word,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
+                    keyword=search_word, mtype=mtype, cat=cat, page=page
                 )
             else:
                 error_flag, result = await self.__async_spider_search(
-                    search_word=search_word,
-                    indexer=site,
-                    mtype=mtype,
-                    cat=cat,
-                    page=page
+                    search_word=search_word, indexer=site, mtype=mtype, cat=cat, page=page
                 )
         except Exception as err:
             logger.error(f"{site.get('name')} 搜索出错：{str(err)}")
@@ -438,15 +363,9 @@ class IndexerModule(_ModuleBase):
         await self.__async_indexer_statistic(site=site, error_flag=error_flag, seconds=seconds)
 
         # 返回结果
-        return self.__parse_result(
-            site=site,
-            result_array=result,
-            seconds=seconds
-        )
+        return self.__parse_result(site=site, result_array=result, seconds=seconds)
 
-    async def async_search_subtitles(self, site: dict,
-                                     keyword: str = None,
-                                     page: Optional[int] = 0) -> List[SubtitleInfo]:
+    async def async_search_subtitles(self, site: dict, keyword: str = None, page: int | None = 0) -> list[SubtitleInfo]:
         """
         异步搜索一个站点的字幕资源。
         :param site: 站点
@@ -469,29 +388,24 @@ class IndexerModule(_ModuleBase):
 
         try:
             error_flag, result = await self.__async_spider_search(
-                search_word=search_word,
-                indexer=site,
-                page=page,
-                search_type="subtitles"
+                search_word=search_word, indexer=site, page=page, search_type="subtitles"
             )
         except Exception as err:
             logger.error(f"{site.get('name')} 字幕搜索出错：{str(err)}")
 
         seconds = (datetime.now() - start_time).seconds
         await self.__async_indexer_statistic(site=site, error_flag=error_flag, seconds=seconds)
-        return self.__parse_subtitle_result(
-            site=site,
-            result_array=result,
-            seconds=seconds
-        )
+        return self.__parse_subtitle_result(site=site, result_array=result, seconds=seconds)
 
     @staticmethod
-    def __spider_search(indexer: dict,
-                        search_word: Optional[str] = None,
-                        mtype: MediaType = None,
-                        cat: Optional[str] = None,
-                        page: Optional[int] = 0,
-                        search_type: Optional[str] = "torrents") -> Tuple[bool, List[dict]]:
+    def __spider_search(
+        indexer: dict,
+        search_word: str | None = None,
+        mtype: MediaType = None,
+        cat: str | None = None,
+        page: int | None = 0,
+        search_type: str | None = "torrents",
+    ) -> tuple[bool, list[dict]]:
         """
         根据关键字搜索单个站点
         :param: indexer: 站点配置
@@ -502,12 +416,9 @@ class IndexerModule(_ModuleBase):
         :param: timeout: 超时时间
         :return: 是否发生错误, 种子列表
         """
-        _spider = SiteSpider(indexer=indexer,
-                             keyword=search_word,
-                             mtype=mtype,
-                             cat=cat,
-                             page=page,
-                             search_type=search_type)
+        _spider = SiteSpider(
+            indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type
+        )
 
         try:
             result = _spider.get_torrents()
@@ -516,12 +427,14 @@ class IndexerModule(_ModuleBase):
             del _spider
 
     @staticmethod
-    async def __async_spider_search(indexer: dict,
-                                    search_word: Optional[str] = None,
-                                    mtype: MediaType = None,
-                                    cat: Optional[str] = None,
-                                    page: Optional[int] = 0,
-                                    search_type: Optional[str] = "torrents") -> Tuple[bool, List[dict]]:
+    async def __async_spider_search(
+        indexer: dict,
+        search_word: str | None = None,
+        mtype: MediaType = None,
+        cat: str | None = None,
+        page: int | None = 0,
+        search_type: str | None = "torrents",
+    ) -> tuple[bool, list[dict]]:
         """
         异步根据关键字搜索单个站点
         :param: indexer: 站点配置
@@ -532,12 +445,9 @@ class IndexerModule(_ModuleBase):
         :param: timeout: 超时时间
         :return: 是否发生错误, 种子列表
         """
-        _spider = SiteSpider(indexer=indexer,
-                             keyword=search_word,
-                             mtype=mtype,
-                             cat=cat,
-                             page=page,
-                             search_type=search_type)
+        _spider = SiteSpider(
+            indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type
+        )
 
         try:
             result = await _spider.async_get_torrents()
@@ -545,10 +455,9 @@ class IndexerModule(_ModuleBase):
         finally:
             del _spider
 
-    def refresh_torrents(self, site: dict,
-                         keyword: Optional[str] = None,
-                         cat: Optional[str] = None,
-                         page: Optional[int] = 0) -> Optional[List[TorrentInfo]]:
+    def refresh_torrents(
+        self, site: dict, keyword: str | None = None, cat: str | None = None, page: int | None = 0
+    ) -> list[TorrentInfo] | None:
         """
         获取站点最新一页的种子，多个站点需要多线程处理
         :param site:  站点
@@ -559,10 +468,9 @@ class IndexerModule(_ModuleBase):
         """
         return self.search_torrents(site=site, keyword=keyword, cat=cat, page=page)
 
-    async def async_refresh_torrents(self, site: dict,
-                                     keyword: Optional[str] = None,
-                                     cat: Optional[str] = None,
-                                     page: Optional[int] = 0) -> Optional[List[TorrentInfo]]:
+    async def async_refresh_torrents(
+        self, site: dict, keyword: str | None = None, cat: str | None = None, page: int | None = 0
+    ) -> list[TorrentInfo] | None:
         """
         异步获取站点最新一页的种子，多个站点需要多线程处理
         :param site:  站点
@@ -573,14 +481,14 @@ class IndexerModule(_ModuleBase):
         """
         return await self.async_search_torrents(site=site, keyword=keyword, cat=cat, page=page)
 
-    def refresh_userdata(self, site: dict) -> Optional[SiteUserData]:
+    def refresh_userdata(self, site: dict) -> SiteUserData | None:
         """
         刷新站点的用户数据
         :param site:  站点
         :return: 用户数据
         """
 
-        def __get_site_obj() -> Optional[SiteParserBase]:
+        def __get_site_obj() -> SiteParserBase | None:
             """
             获取站点解析器
             """
@@ -594,7 +502,8 @@ class IndexerModule(_ModuleBase):
                         token=site.get("token"),
                         ua=site.get("ua"),
                         proxy=site.get("proxy"),
-                        api_url=site.get("api_url"))
+                        api_url=site.get("api_url"),
+                    )
             return None
 
         site_obj = __get_site_obj()
@@ -624,9 +533,11 @@ class IndexerModule(_ModuleBase):
                 leeching=site_obj.leeching,
                 leeching_size=site_obj.leeching_size,
                 message_unread=site_obj.message_unread,
-                message_unread_contents=site_obj.message_unread_contents.copy() if site_obj.message_unread_contents else [],
-                updated_day=datetime.now().strftime('%Y-%m-%d'),
-                err_msg=site_obj.err_msg
+                message_unread_contents=site_obj.message_unread_contents.copy()
+                if site_obj.message_unread_contents
+                else [],
+                updated_day=datetime.now().strftime("%Y-%m-%d"),
+                err_msg=site_obj.err_msg,
             )
         finally:
             site_obj.clear()

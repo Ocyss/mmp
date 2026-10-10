@@ -1,9 +1,9 @@
-from langchain_core.messages import SystemMessage, ContentBlock
+from langchain_core.messages import ContentBlock, SystemMessage
 
 
 def append_to_system_message(
-        system_message: SystemMessage | None,
-        text: str,
+    system_message: SystemMessage | None,
+    text: str,
 ) -> SystemMessage:
     """将文本追加到系统消息。
 

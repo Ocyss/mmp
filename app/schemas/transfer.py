@@ -1,9 +1,10 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.schemas.context import MetaInfo, MediaInfo
+from app.schemas.context import MediaInfo, MetaInfo
 from app.schemas.file import FileItem
 from app.schemas.history import DownloadHistory
 from app.schemas.system import TransferDirectoryConf
@@ -14,32 +15,33 @@ class DownloaderTorrent(BaseModel):
     """
     下载器任务信息
     """
-    downloader: Optional[str] = None
-    hash: Optional[str] = None
-    title: Optional[str] = None
-    site_name: Optional[str] = None
-    name: Optional[str] = None
-    year: Optional[str] = None
-    season_episode: Optional[str] = None
-    path: Optional[Path] = None
-    size: Optional[float] = 0.0
-    progress: Optional[float] = 0.0
-    state: Optional[str] = 'downloading'
-    upspeed: Optional[str] = None
-    dlspeed: Optional[str] = None
-    tags: Optional[str] = None
-    save_path: Optional[str] = None
-    content_path: Optional[str] = None
-    category: Optional[str] = None
-    download_limit: Optional[float] = None
-    upload_limit: Optional[float] = None
-    ratio_limit: Optional[float] = None
-    seeding_time_limit: Optional[int] = None
-    trackers: Optional[List[str]] = Field(default_factory=list)
-    media: Optional[dict] = Field(default_factory=dict)
-    userid: Optional[str] = None
-    username: Optional[str] = None
-    left_time: Optional[str] = None
+
+    downloader: str | None = None
+    hash: str | None = None
+    title: str | None = None
+    site_name: str | None = None
+    name: str | None = None
+    year: str | None = None
+    season_episode: str | None = None
+    path: Path | None = None
+    size: float | None = 0.0
+    progress: float | None = 0.0
+    state: str | None = "downloading"
+    upspeed: str | None = None
+    dlspeed: str | None = None
+    tags: str | None = None
+    save_path: str | None = None
+    content_path: str | None = None
+    category: str | None = None
+    download_limit: float | None = None
+    upload_limit: float | None = None
+    ratio_limit: float | None = None
+    seeding_time_limit: int | None = None
+    trackers: list[str] | None = Field(default_factory=list)
+    media: dict | None = Field(default_factory=dict)
+    userid: str | None = None
+    username: str | None = None
+    left_time: str | None = None
 
 
 class TransferTorrent(DownloaderTorrent):
@@ -58,26 +60,27 @@ class TransferTask(BaseModel):
     """
     文件整理任务
     """
+
     fileitem: FileItem
-    meta: Optional[Any] = None
-    mediainfo: Optional[Any] = None
-    media_source: Optional[str] = None
-    target_directory: Optional[TransferDirectoryConf] = None
-    target_storage: Optional[str] = None
-    target_path: Optional[Path] = None
-    transfer_type: Optional[str] = None
-    scrape: Optional[bool] = False
-    library_type_folder: Optional[bool] = False
-    library_category_folder: Optional[bool] = False
-    episodes_info: Optional[List[TmdbEpisode]] = None
-    username: Optional[str] = None
-    downloader: Optional[str] = None
-    download_hash: Optional[str] = None
-    download_history: Optional[DownloadHistory] = None
-    transfer_batch_id: Optional[str] = None
-    manual: Optional[bool] = False
-    background: Optional[bool] = True
-    preview: Optional[bool] = False
+    meta: Any | None = None
+    mediainfo: Any | None = None
+    media_source: str | None = None
+    target_directory: TransferDirectoryConf | None = None
+    target_storage: str | None = None
+    target_path: Path | None = None
+    transfer_type: str | None = None
+    scrape: bool | None = False
+    library_type_folder: bool | None = False
+    library_category_folder: bool | None = False
+    episodes_info: list[TmdbEpisode] | None = None
+    username: str | None = None
+    downloader: str | None = None
+    download_hash: str | None = None
+    download_history: DownloadHistory | None = None
+    transfer_batch_id: str | None = None
+    manual: bool | None = False
+    background: bool | None = True
+    preview: bool | None = False
 
     def to_dict(self):
         """
@@ -95,52 +98,55 @@ class TransferJobTask(BaseModel):
     """
     文件整理作业任务
     """
-    fileitem: Optional[FileItem] = None
-    meta: Optional[MetaInfo] = None
-    state: Optional[str] = None
-    downloader: Optional[str] = None
-    download_hash: Optional[str] = None
+
+    fileitem: FileItem | None = None
+    meta: MetaInfo | None = None
+    state: str | None = None
+    downloader: str | None = None
+    download_hash: str | None = None
 
 
 class TransferJob(BaseModel):
     """
     文件整理作业
     """
-    media: Optional[MediaInfo] = None
-    season: Optional[int] = None
-    tasks: Optional[List[TransferJobTask]] = Field(default_factory=list)
+
+    media: MediaInfo | None = None
+    season: int | None = None
+    tasks: list[TransferJobTask] | None = Field(default_factory=list)
 
 
 class TransferInfo(BaseModel):
     """
     文件整理结果
     """
+
     # 是否成功标志
     success: bool = True
     # 整理⼁路径
-    fileitem: Optional[FileItem] = None
+    fileitem: FileItem | None = None
     # 转移后的目录项，媒体的根目录
-    target_diritem: Optional[FileItem] = None
+    target_diritem: FileItem | None = None
     # 转移后路径
-    target_item: Optional[FileItem] = None
+    target_item: FileItem | None = None
     # 整理方式
-    transfer_type: Optional[str] = None
+    transfer_type: str | None = None
     # 处理文件数
-    file_count: Optional[int] = Field(default=0)
+    file_count: int | None = Field(default=0)
     # 处理文件清单
-    file_list: Optional[list] = Field(default_factory=list)
+    file_list: list | None = Field(default_factory=list)
     # 目标文件清单
-    file_list_new: Optional[list] = Field(default_factory=list)
+    file_list_new: list | None = Field(default_factory=list)
     # 总文件大小
-    total_size: Optional[int] = Field(default=0)
+    total_size: int | None = Field(default=0)
     # 失败清单
-    fail_list: Optional[list] = Field(default_factory=list)
+    fail_list: list | None = Field(default_factory=list)
     # 错误信息
-    message: Optional[str] = None
+    message: str | None = None
     # 是否需要刮削
-    need_scrape: Optional[bool] = False
+    need_scrape: bool | None = False
     # 是否需要通知
-    need_notify: Optional[bool] = False
+    need_notify: bool | None = False
 
     def to_dict(self):
         """
@@ -156,28 +162,31 @@ class TransferQueue(BaseModel):
     """
     异步整理队列信息
     """
+
     # 任务信息
-    task: Optional[TransferTask] = None
+    task: TransferTask | None = None
     # 回调函数
-    callback: Optional[Callable] = None
+    callback: Callable | None = None
     # 整理结果
-    result: Optional[TransferInfo] = None
+    result: TransferInfo | None = None
 
 
 class EpisodeFormat(BaseModel):
     """
     剧集自定义识别格式
     """
-    format: Optional[str] = None
-    detail: Optional[str] = None
-    part: Optional[str] = None
-    offset: Optional[str] = None
+
+    format: str | None = None
+    detail: str | None = None
+    part: str | None = None
+    offset: str | None = None
 
 
 class EpisodeFormatRule(BaseModel):
     """
     集数定位规则
     """
+
     name: str
     enabled: bool = True
     order: int = 0
@@ -189,8 +198,9 @@ class EpisodeFormatRecommendItem(BaseModel):
     """
     集数定位推荐请求
     """
-    fileitem: Optional[FileItem] = None
-    fileitems: Optional[List[FileItem]] = None
+
+    fileitem: FileItem | None = None
+    fileitems: list[FileItem] | None = None
 
 
 class ManualTransferItem(BaseModel):
@@ -201,57 +211,57 @@ class ManualTransferItem(BaseModel):
     # 文件项
     fileitem: FileItem = None
     # 文件项列表（前端多选时传入）
-    fileitems: Optional[List[FileItem]] = None
+    fileitems: list[FileItem] | None = None
     # 日志ID
-    logid: Optional[int] = None
+    logid: int | None = None
     # 日志ID列表（前端多选历史记录时传入）
-    logids: Optional[List[int]] = None
+    logids: list[int] | None = None
     # 目标存储
-    target_storage: Optional[str] = None
+    target_storage: str | None = None
     # 目标路径
-    target_path: Optional[str] = None
+    target_path: str | None = None
     # TMDB ID
-    tmdbid: Optional[int] = None
+    tmdbid: int | None = None
     # 豆瓣ID
-    doubanid: Optional[str] = None
+    doubanid: str | None = None
     # Bangumi ID
-    bangumiid: Optional[int] = None
+    bangumiid: int | None = None
     # AniList ID
-    anilistid: Optional[int] = None
+    anilistid: int | None = None
     # 媒体数据源
-    media_source: Optional[str] = None
+    media_source: str | None = None
     # 数据源原生ID
-    media_id: Optional[str] = None
+    media_id: str | None = None
     # 类型
-    type_name: Optional[str] = None
+    type_name: str | None = None
     # 季号
-    season: Optional[int] = None
+    season: int | None = None
     # 整理方式
-    transfer_type: Optional[str] = None
+    transfer_type: str | None = None
     # 自定义格式
-    episode_format: Optional[str] = None
+    episode_format: str | None = None
     # 指定集数
-    episode_detail: Optional[str] = None
+    episode_detail: str | None = None
     # 指定PART
-    episode_part: Optional[str] = None
+    episode_part: str | None = None
     # 集数偏移
-    episode_offset: Optional[str] = None
+    episode_offset: str | None = None
     # 最小文件大小
-    min_filesize: Optional[int] = 0
+    min_filesize: int | None = 0
     # 刮削
-    scrape: Optional[bool] = False
+    scrape: bool | None = False
     # 媒体库类型子目录
-    library_type_folder: Optional[bool] = None
+    library_type_folder: bool | None = None
     # 媒体库类别子目录
-    library_category_folder: Optional[bool] = None
+    library_category_folder: bool | None = None
     # 复用历史识别信息
-    from_history: Optional[bool] = False
+    from_history: bool | None = False
     # 剧集组
-    episode_group: Optional[str] = None
+    episode_group: str | None = None
     # 仅预览，不执行整理
-    preview: Optional[bool] = False
+    preview: bool | None = False
     # 重新整理，清理命中的成功历史及其旧目标
-    reorganize: Optional[bool] = False
+    reorganize: bool | None = False
 
 
 class ManualTransferHistoryInfo(BaseModel):
@@ -271,14 +281,14 @@ class ManualTransferTargetPath(BaseModel):
     """
 
     # 目标存储
-    target_storage: Optional[str] = None
+    target_storage: str | None = None
     # 目标路径
-    target_path: Optional[str] = None
+    target_path: str | None = None
     # 整理方式
-    transfer_type: Optional[str] = None
+    transfer_type: str | None = None
     # 刮削
-    scrape: Optional[bool] = False
+    scrape: bool | None = False
     # 媒体库类型子目录
-    library_type_folder: Optional[bool] = False
+    library_type_folder: bool | None = False
     # 媒体库类别子目录
-    library_category_folder: Optional[bool] = False
+    library_category_folder: bool | None = False

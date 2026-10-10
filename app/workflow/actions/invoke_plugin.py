@@ -1,15 +1,16 @@
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.core.plugin import PluginManager
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class InvokePluginParams(ActionParams):
     """
     调用插件动作参数
     """
+
     plugin_id: str = Field(default=None, description="插件ID")
     action_id: str = Field(default=None, description="动作ID")
     action_params: dict = Field(default={}, description="动作参数")
@@ -28,17 +29,17 @@ class InvokePluginAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "调用插件"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "调用插件提供的动作"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return InvokePluginParams().model_dump()
 
     @property

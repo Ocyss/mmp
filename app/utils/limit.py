@@ -3,10 +3,11 @@ import inspect
 import threading
 import time
 from collections import deque
-from typing import Any, Tuple, List, Callable, Optional
+from collections.abc import Callable
+from typing import Any, List, Optional, Tuple
 
 from app.log import logger
-from app.schemas import RateLimitExceededException, LimitException
+from app.schemas import LimitException, RateLimitExceededException
 
 
 # 抽象基类
@@ -33,7 +34,7 @@ class BaseRateLimiter:
         """
         return False
 
-    def can_call(self) -> Tuple[bool, str]:
+    def can_call(self) -> tuple[bool, str]:
         """
         检查是否可以进行调用
         :return: 如果允许调用，返回 True 和空消息，否则返回 False 和限流消息
@@ -129,7 +130,7 @@ class ExponentialBackoffRateLimiter(BaseRateLimiter):
         """
         return True
 
-    def can_call(self) -> Tuple[bool, str]:
+    def can_call(self) -> tuple[bool, str]:
         """
         检查是否可以进行调用，如果当前时间超过下一次允许调用的时间，则允许调用
         :return: 如果允许调用，返回 True 和空消息，否则返回 False 和限流消息
@@ -162,9 +163,7 @@ class ExponentialBackoffRateLimiter(BaseRateLimiter):
         current_time = time.time()
         with self.lock:
             self.next_allowed_time = current_time + self.current_wait
-            self.current_wait = min(
-                self.current_wait * self.backoff_factor, self.max_wait
-            )
+            self.current_wait = min(self.current_wait * self.backoff_factor, self.max_wait)
             wait_time = self.next_allowed_time - current_time
             self.log_warning(f"触发限流，将在 {wait_time:.2f} 秒后允许继续调用")
 
@@ -195,7 +194,7 @@ class WindowRateLimiter(BaseRateLimiter):
         self.window_seconds = window_seconds
         self.call_times = deque()
 
-    def can_call(self) -> Tuple[bool, str]:
+    def can_call(self) -> tuple[bool, str]:
         """
         检查是否可以进行调用，如果在时间窗口内的调用次数少于最大允许次数，则允许调用。
         :return: 如果允许调用，返回 True 和空消息，否则返回 False 和限流消息
@@ -203,10 +202,7 @@ class WindowRateLimiter(BaseRateLimiter):
         current_time = time.time()
         with self.lock:
             # 清理超出时间窗口的调用记录
-            while (
-                self.call_times
-                and current_time - self.call_times[0] > self.window_seconds
-            ):
+            while self.call_times and current_time - self.call_times[0] > self.window_seconds:
                 self.call_times.popleft()
 
             if len(self.call_times) < self.max_calls:
@@ -243,7 +239,7 @@ class CompositeRateLimiter(BaseRateLimiter):
 
     def __init__(
         self,
-        limiters: List[BaseRateLimiter],
+        limiters: list[BaseRateLimiter],
         source: str = "",
         enable_logging: bool = True,
     ):
@@ -256,7 +252,7 @@ class CompositeRateLimiter(BaseRateLimiter):
         super().__init__(source, enable_logging)
         self.limiters = limiters
 
-    def can_call(self) -> Tuple[bool, str]:
+    def can_call(self) -> tuple[bool, str]:
         """
         检查是否可以进行调用，当组合的任意限流器触发限流时，阻止调用。
         :return: 如果所有限流器都允许调用，返回 True 和空消息，否则返回 False 和限流信息。
@@ -283,9 +279,7 @@ class CompositeRateLimiter(BaseRateLimiter):
 
 
 # 通用装饰器：自定义限流器实例
-def rate_limit_handler(
-    limiter: BaseRateLimiter, raise_on_limit: bool = False
-) -> Callable:
+def rate_limit_handler(limiter: BaseRateLimiter, raise_on_limit: bool = False) -> Callable:
     """
     通用装饰器，允许用户传递自定义的限流器实例，用于处理限流逻辑
     该装饰器可灵活支持任意继承自 BaseRateLimiter 的限流器
@@ -297,7 +291,7 @@ def rate_limit_handler(
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Optional[Any]:
+        def wrapper(*args, **kwargs) -> Any | None:
             # 检查是否传入了 "raise_exception" 参数，优先使用该参数，否则使用默认的 raise_on_limit 值
             raise_exception = kwargs.get("raise_exception", raise_on_limit)
 
@@ -327,7 +321,7 @@ def rate_limit_handler(
                 return None
 
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs) -> Optional[Any]:
+        async def async_wrapper(*args, **kwargs) -> Any | None:
             # 检查是否传入了 "raise_exception" 参数，优先使用该参数，否则使用默认的 raise_on_limit 值
             raise_exception = kwargs.get("raise_exception", raise_on_limit)
 
@@ -387,9 +381,7 @@ def rate_limit_exponential(
     :return: 装饰器函数
     """
     # 实例化 ExponentialBackoffRateLimiter，并传入相关参数
-    limiter = ExponentialBackoffRateLimiter(
-        base_wait, max_wait, backoff_factor, source, enable_logging
-    )
+    limiter = ExponentialBackoffRateLimiter(base_wait, max_wait, backoff_factor, source, enable_logging)
     # 使用通用装饰器逻辑包装该限流器
     return rate_limit_handler(limiter, raise_on_limit)
 

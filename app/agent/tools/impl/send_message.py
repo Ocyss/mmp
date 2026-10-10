@@ -14,21 +14,21 @@ from app.schemas.types import NotificationType
 class SendMessageInput(BaseModel):
     """发送消息工具的输入参数模型"""
 
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="The message content to send to the user (should be clear and informative)",
     )
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         description="Title of the message, a short summary of the message content",
     )
-    image_url: Optional[str] = Field(
+    image_url: str | None = Field(
         None,
         description="Optional image URL to send together with the message on channels that support images (such as Telegram and Slack)",
     )
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "SendMessageInput":
+    def validate_payload(self) -> SendMessageInput:
         """校验消息内容和可选格式参数。"""
         if not self.message and not self.title and not self.image_url:
             raise ValueError("message、title、image_url 至少需要提供一个")
@@ -53,10 +53,10 @@ class SendMessageTool(MoviePilotTool):
         "send images. This is a terminal response tool: after it sends the user-facing "
         "message, do not send another final text reply with the same content."
     )
-    args_schema: Type[BaseModel] = SendMessageInput
+    args_schema: type[BaseModel] = SendMessageInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据消息参数生成友好的提示消息"""
         message = kwargs.get("message", "") or ""
         title = kwargs.get("title") or ""
@@ -76,19 +76,16 @@ class SendMessageTool(MoviePilotTool):
 
     async def run(
         self,
-        message: Optional[str] = None,
-        title: Optional[str] = None,
-        image_url: Optional[str] = None,
+        message: str | None = None,
+        title: str | None = None,
+        image_url: str | None = None,
         **kwargs,
     ) -> str:
         """发送消息到当前会话渠道。"""
         title = title or ("图片" if image_url and not message else "")
         text = message or ""
 
-        logger.info(
-            f"执行工具: {self.name}, 参数: title={title}, message={text}, "
-            f"image_url={image_url}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: title={title}, message={text}, image_url={image_url}")
         try:
             await self.send_notification_message(
                 Notification(

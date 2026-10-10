@@ -1,10 +1,10 @@
+import base64
 import re
 import threading
-import base64
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.common import retry
@@ -25,7 +25,13 @@ class VoceChat:
     _client = None
     _file_client = None
 
-    def __init__(self, VOCECHAT_HOST: Optional[str] = None, VOCECHAT_API_KEY: Optional[str] = None, VOCECHAT_CHANNEL_ID: Optional[str] = None, **kwargs):
+    def __init__(
+        self,
+        VOCECHAT_HOST: str | None = None,
+        VOCECHAT_API_KEY: str | None = None,
+        VOCECHAT_CHANNEL_ID: str | None = None,
+        **kwargs,
+    ):
         """
         初始化
         """
@@ -40,15 +46,14 @@ class VoceChat:
         self._apikey = VOCECHAT_API_KEY
         self._channel_id = VOCECHAT_CHANNEL_ID
         if self._apikey and self._host and self._channel_id:
-            self._client = RequestUtils(headers={
-                "content-type": "text/markdown",
-                "x-api-key": self._apikey,
-                "accept": "application/json; charset=utf-8"
-            })
-            self._file_client = RequestUtils(headers={
-                "x-api-key": self._apikey,
-                "accept": "*/*"
-            })
+            self._client = RequestUtils(
+                headers={
+                    "content-type": "text/markdown",
+                    "x-api-key": self._apikey,
+                    "accept": "application/json; charset=utf-8",
+                }
+            )
+            self._file_client = RequestUtils(headers={"x-api-key": self._apikey, "accept": "*/*"})
 
     def get_state(self):
         """
@@ -66,9 +71,14 @@ class VoceChat:
         if result and result.status_code == 200:
             return result.json()
 
-    def send_msg(self, title: str, text: Optional[str] = None,
-                 image: Optional[str] = None,
-                 userid: Optional[str] = None, link: Optional[str] = None) -> Optional[bool]:
+    def send_msg(
+        self,
+        title: str,
+        text: str | None = None,
+        image: str | None = None,
+        userid: str | None = None,
+        link: str | None = None,
+    ) -> bool | None:
         """
         微信消息发送入口，支持文本、图片、链接跳转、指定发送对象
         :param title: 消息标题
@@ -123,7 +133,7 @@ class VoceChat:
             return "image/webp"
         return default
 
-    def download_file(self, path: str) -> Optional[Tuple[bytes, str]]:
+    def download_file(self, path: str) -> tuple[bytes, str] | None:
         """
         下载 VoceChat 文件资源
         """
@@ -140,15 +150,16 @@ class VoceChat:
         mime_type = (res.headers.get("Content-Type") or "").split(";")[0].strip()
         return res.content, mime_type or self._guess_mime_type(res.content)
 
-    def download_file_to_data_url(self, path: str) -> Optional[str]:
+    def download_file_to_data_url(self, path: str) -> str | None:
         file_data = self.download_file(path)
         if not file_data:
             return None
         content, mime_type = file_data
         return f"data:{mime_type};base64,{base64.b64encode(content).decode()}"
 
-    def send_medias_msg(self, title: str, medias: List[MediaInfo],
-                        userid: Optional[str] = None, link: Optional[str] = None) -> Optional[bool]:
+    def send_medias_msg(
+        self, title: str, medias: list[MediaInfo], userid: str | None = None, link: str | None = None
+    ) -> bool | None:
         """
         发送列表类消息
         """
@@ -159,18 +170,22 @@ class VoceChat:
             index, caption = 1, "**%s**" % title
             for media in medias:
                 if media.vote_average:
-                    caption = "%s\n%s. [%s](%s)\n_%s，%s_" % (caption,
-                                                             index,
-                                                             media.title_year,
-                                                             media.detail_link,
-                                                             f"类型：{media.type.value}",
-                                                             f"评分：{media.vote_average}")
+                    caption = "%s\n%s. [%s](%s)\n_%s，%s_" % (
+                        caption,
+                        index,
+                        media.title_year,
+                        media.detail_link,
+                        f"类型：{media.type.value}",
+                        f"评分：{media.vote_average}",
+                    )
                 else:
-                    caption = "%s\n%s. [%s](%s)\n_%s_" % (caption,
-                                                          index,
-                                                          media.title_year,
-                                                          media.detail_link,
-                                                          f"类型：{media.type.value}")
+                    caption = "%s\n%s. [%s](%s)\n_%s_" % (
+                        caption,
+                        index,
+                        media.title_year,
+                        media.detail_link,
+                        f"类型：{media.type.value}",
+                    )
                 index += 1
 
             if link:
@@ -187,10 +202,9 @@ class VoceChat:
             logger.error(f"发送消息失败：{msg_e}")
             return False
 
-    def send_torrents_msg(self, torrents: List[Context],
-                          userid: Optional[str] = None,
-                          title: Optional[str] = None,
-                          link: Optional[str] = None) -> Optional[bool]:
+    def send_torrents_msg(
+        self, torrents: list[Context], userid: str | None = None, title: str | None = None, link: str | None = None
+    ) -> bool | None:
         """
         发送列表消息
         """
@@ -207,15 +221,14 @@ class VoceChat:
                 site_name = torrent.site_name
                 meta = MetaInfo(torrent.title, torrent.description)
                 link = torrent.page_url
-                title = f"{meta.season_episode} " \
-                        f"{meta.resource_term} " \
-                        f"{meta.video_term} " \
-                        f"{meta.release_group}"
+                title = f"{meta.season_episode} {meta.resource_term} {meta.video_term} {meta.release_group}"
                 title = re.sub(r"\s+", " ", title).strip()
                 free = torrent.volume_factor
                 seeder = f"{torrent.seeders}↑"
-                caption = f"{caption}\n{index}.【{site_name}】[{title}]({link}) " \
-                          f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}"
+                caption = (
+                    f"{caption}\n{index}.【{site_name}】[{title}]({link}) "
+                    f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}"
+                )
                 index += 1
 
             if link:

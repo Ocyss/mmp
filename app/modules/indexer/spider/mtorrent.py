@@ -1,14 +1,14 @@
 import base64
 import json
 import re
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas import MediaType
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.string import StringUtils
 
 
@@ -16,6 +16,7 @@ class MTorrentSpider:
     """
     mTorrent API
     """
+
     _indexerid = None
     _domain = None
     _url = None
@@ -28,13 +29,13 @@ class MTorrentSpider:
     _downloadurl = "https://api.%s/api/torrent/genDlToken"
     _subtitle_list_url = "https://api.%s/api/subtitle/list"
     _subtitle_genlink_url = "https://api.%s/api/subtitle/genlink"
-    _subtitle_download_url ="https://api.%s/api/subtitle/dlV2?credential=%s"
+    _subtitle_download_url = "https://api.%s/api/subtitle/dlV2?credential=%s"
     _pageurl = "%sdetail/%s"
     _timeout = 15
 
     # 电影分类
-    _movie_category = ['401', '419', '420', '421', '439', '405', '404']
-    _tv_category = ['403', '402', '435', '438', '404', '405']
+    _movie_category = ["401", "419", "420", "421", "439", "405", "404"]
+    _tv_category = ["403", "402", "435", "438", "404", "405"]
 
     # API KEY
     _apikey = None
@@ -50,11 +51,11 @@ class MTorrentSpider:
         "4": "中字",
         "5": "DIY 中字",
         "6": "国配 中字",
-        "7": "DIY 国配 中字"
+        "7": "DIY 国配 中字",
     }
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量。
         """
@@ -63,20 +64,20 @@ class MTorrentSpider:
     def __init__(self, indexer: dict):
         self.systemconfig = SystemConfigOper()
         if indexer:
-            self._indexerid = indexer.get('id')
-            self._url = indexer.get('domain')
+            self._indexerid = indexer.get("id")
+            self._url = indexer.get("domain")
             self._domain = StringUtils.get_url_domain(self._url)
             self._searchurl = self._searchurl % self._domain
-            self._name = indexer.get('name')
-            if indexer.get('proxy'):
+            self._name = indexer.get("name")
+            if indexer.get("proxy"):
                 self._proxy = settings.PROXY
-            self._cookie = indexer.get('cookie')
-            self._ua = indexer.get('ua')
-            self._apikey = indexer.get('apikey')
-            self._token = indexer.get('token')
-            self._timeout = indexer.get('timeout') or 15
+            self._cookie = indexer.get("cookie")
+            self._ua = indexer.get("ua")
+            self._apikey = indexer.get("apikey")
+            self._token = indexer.get("token")
+            self._timeout = indexer.get("timeout") or 15
 
-    def __get_params(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> dict:
+    def __get_params(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> dict:
         """
         获取请求参数
         """
@@ -94,10 +95,10 @@ class MTorrentSpider:
             "categories": categories,
             "pageNumber": int(page) + 1,
             "pageSize": self._size,
-            "visible": 1
+            "visible": 1,
         }
 
-    def __parse_result(self, results: List[dict]):
+    def __parse_result(self, results: list[dict]):
         """
         解析搜索结果
         """
@@ -106,9 +107,8 @@ class MTorrentSpider:
             return torrents
 
         for result in results:
-            category_value = result.get('category')
-            if category_value in self._tv_category \
-                    and category_value not in self._movie_category:
+            category_value = result.get("category")
+            if category_value in self._tv_category and category_value not in self._movie_category:
                 category = MediaType.TV.value
             elif category_value in self._movie_category:
                 category = MediaType.MOVIE.value
@@ -116,34 +116,34 @@ class MTorrentSpider:
                 category = MediaType.UNKNOWN.value
             # 处理馒头新版标签
             labels = []
-            labels_new = result.get('labelsNew')
+            labels_new = result.get("labelsNew")
             if labels_new:
                 # 新版标签本身就是list
                 labels = labels_new
             else:
                 # 旧版标签
-                labels_value = self._labels.get(result.get('labels') or "0") or ""
+                labels_value = self._labels.get(result.get("labels") or "0") or ""
                 if labels_value:
                     labels = labels_value.split()
-            status = result.get('status', {})
+            status = result.get("status", {})
             torrent = {
-                'title': result.get('name'),
-                'description': result.get('smallDescr'),
-                'enclosure': self.__get_download_url(result.get('id')),
-                'pubdate': StringUtils.format_timestamp(result.get('createdDate')),
-                'size': int(result.get('size') or '0'),
-                'seeders': int(status.get("seeders") or '0'),
-                'peers': int(status.get("leechers") or '0'),
-                'grabs': int(status.get("timesCompleted") or '0'),
-                'downloadvolumefactor': self.__get_downloadvolumefactor(status.get("discount")),
-                'uploadvolumefactor': self.__get_uploadvolumefactor(status.get("discount")),
-                'page_url': self._pageurl % (self._url, result.get('id')),
-                'imdbid': self.__find_imdbid(result.get('imdb')),
-                'labels': labels,
-                'category': category
+                "title": result.get("name"),
+                "description": result.get("smallDescr"),
+                "enclosure": self.__get_download_url(result.get("id")),
+                "pubdate": StringUtils.format_timestamp(result.get("createdDate")),
+                "size": int(result.get("size") or "0"),
+                "seeders": int(status.get("seeders") or "0"),
+                "peers": int(status.get("leechers") or "0"),
+                "grabs": int(status.get("timesCompleted") or "0"),
+                "downloadvolumefactor": self.__get_downloadvolumefactor(status.get("discount")),
+                "uploadvolumefactor": self.__get_uploadvolumefactor(status.get("discount")),
+                "page_url": self._pageurl % (self._url, result.get("id")),
+                "imdbid": self.__find_imdbid(result.get("imdb")),
+                "labels": labels,
+                "category": category,
             }
-            if discount_end_time := status.get('discountEndTime'):
-                torrent['freedate'] = StringUtils.format_timestamp(discount_end_time)
+            if discount_end_time := status.get("discountEndTime"):
+                torrent["freedate"] = StringUtils.format_timestamp(discount_end_time)
             # 解析全站促销时的规则(当前馒头只有下载促销)
             if promotion_rule := status.get("promotionRule"):
                 discount = promotion_rule.get("discount", "NORMAL")
@@ -158,7 +158,7 @@ class MTorrentSpider:
             torrents.append(torrent)
         return torrents
 
-    def search(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    def search(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         搜索
         """
@@ -171,17 +171,13 @@ class MTorrentSpider:
 
         # 发送请求
         res = RequestUtils(
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": f"{self._ua}",
-                "x-api-key": self._apikey
-            },
+            headers={"Content-Type": "application/json", "User-Agent": f"{self._ua}", "x-api-key": self._apikey},
             proxies=self._proxy,
             referer=f"{self._domain}browse",
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
-            results = res.json().get('data', {}).get("data") or []
+            results = res.json().get("data", {}).get("data") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")
@@ -190,7 +186,9 @@ class MTorrentSpider:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
 
-    async def async_search(self, keyword: str, mtype: MediaType = None, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    async def async_search(
+        self, keyword: str, mtype: MediaType = None, page: int | None = 0
+    ) -> tuple[bool, list[dict]]:
         """
         搜索
         """
@@ -203,17 +201,13 @@ class MTorrentSpider:
 
         # 发送请求
         res = await AsyncRequestUtils(
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": f"{self._ua}",
-                "x-api-key": self._apikey
-            },
+            headers={"Content-Type": "application/json", "User-Agent": f"{self._ua}", "x-api-key": self._apikey},
             proxies=self._proxy,
             referer=f"{self._domain}browse",
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
-            results = res.json().get('data', {}).get("data") or []
+            results = res.json().get("data", {}).get("data") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")
@@ -238,13 +232,7 @@ class MTorrentSpider:
         """
         获取下载系数
         """
-        discount_dict = {
-            "FREE": 0,
-            "PERCENT_50": 0.5,
-            "PERCENT_70": 0.3,
-            "_2X_FREE": 0,
-            "_2X_PERCENT_50": 0.5
-        }
+        discount_dict = {"FREE": 0, "PERCENT_50": 0.5, "PERCENT_70": 0.3, "_2X_FREE": 0, "_2X_PERCENT_50": 0.5}
         if discount:
             return discount_dict.get(discount, 1)
         return 1
@@ -254,11 +242,7 @@ class MTorrentSpider:
         """
         获取上传系数
         """
-        uploadvolumefactor_dict = {
-            "_2X": 2.0,
-            "_2X_FREE": 2.0,
-            "_2X_PERCENT_50": 2.0
-        }
+        uploadvolumefactor_dict = {"_2X": 2.0, "_2X_FREE": 2.0, "_2X_PERCENT_50": 2.0}
         if discount:
             return uploadvolumefactor_dict.get(discount, 1)
         return 1
@@ -269,24 +253,22 @@ class MTorrentSpider:
         """
         url = self._downloadurl % self._domain
         params = {
-            'method': 'post',
-            'cookie': False,
-            'params': {
-                'id': torrent_id
+            "method": "post",
+            "cookie": False,
+            "params": {"id": torrent_id},
+            "header": {
+                "User-Agent": f"{self._ua}",
+                "Accept": "application/json, text/plain, */*",
+                "x-api-key": self._apikey,
             },
-            'header': {
-                'User-Agent': f'{self._ua}',
-                'Accept': 'application/json, text/plain, */*',
-                'x-api-key': self._apikey
-            },
-            'proxy': True if self._proxy else False,
-            'result': 'data'
+            "proxy": True if self._proxy else False,
+            "result": "data",
         }
         # base64编码
-        base64_str = base64.b64encode(json.dumps(params).encode('utf-8')).decode('utf-8')
+        base64_str = base64.b64encode(json.dumps(params).encode("utf-8")).decode("utf-8")
         return f"[{base64_str}]{url}"
 
-    def get_subtitle_links(self, page_url: str) -> List[str]:
+    def get_subtitle_links(self, page_url: str) -> list[str]:
         """
         获取指定页面的字幕下载链接
 
@@ -303,7 +285,7 @@ class MTorrentSpider:
             return []
         return self.get_subtitle_links_by_id(torrent_id)
 
-    def get_subtitle_links_by_id(self, torrent_id: str) -> List[str]:
+    def get_subtitle_links_by_id(self, torrent_id: str) -> list[str]:
         """
         获取指定种子的字幕下载链接
 
@@ -321,7 +303,7 @@ class MTorrentSpider:
             logger.error(f"{self._name} 获取字幕失败：{e}")
         return results
 
-    def __subtitle_ids(self, torrent_id: str) -> Optional[List[str]]:
+    def __subtitle_ids(self, torrent_id: str) -> list[str] | None:
         """
         获取指定种子的字幕列表
 
@@ -346,9 +328,7 @@ class MTorrentSpider:
             if int(result.get("code", -1)) == 0:
                 return [item["id"] for item in result.get("data", []) if "id" in item]
             else:
-                logger.warn(
-                    f'{self._name} 获取字幕列表失败，返回：{result.get("message", "未知")}'
-                )
+                logger.warn(f"{self._name} 获取字幕列表失败，返回：{result.get('message', '未知')}")
                 return None
         elif res is not None:
             logger.warn(f"{self._name} 获取字幕列表失败，错误码：{res.status_code}")
@@ -357,7 +337,7 @@ class MTorrentSpider:
             logger.warn(f"{self._name} 获取字幕列表失败，无法连接 {self._domain}")
             return None
 
-    def __subtitle_genlink(self, subtitle_id: str) -> Optional[str]:
+    def __subtitle_genlink(self, subtitle_id: str) -> str | None:
         """
         获取字幕下载链接
 
@@ -382,9 +362,7 @@ class MTorrentSpider:
             if int(result.get("code", -1)) == 0 and isinstance(result.get("data"), str):
                 return self._subtitle_download_url % (self._domain, result["data"])
             else:
-                logger.warn(
-                    f'{self._name} 获取字幕下载链接失败，返回：{result.get("message", "未知")}'
-                )
+                logger.warn(f"{self._name} 获取字幕下载链接失败，返回：{result.get('message', '未知')}")
                 return None
         elif res is not None:
             logger.warn(f"{self._name} 获取字幕下载链接失败，错误码：{res.status_code}")

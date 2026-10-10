@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple, List, Dict
+from typing import Dict, List, Optional, Tuple
 
 from app import schemas
 from app.chain import ChainBase
@@ -25,49 +25,49 @@ class StorageChain(ChainBase):
         """
         self.run_module("reset_config", storage=storage)
 
-    def generate_qrcode(self, storage: str) -> Optional[Tuple[dict, str]]:
+    def generate_qrcode(self, storage: str) -> tuple[dict, str] | None:
         """
         生成二维码
         """
         return self.run_module("generate_qrcode", storage=storage)
 
-    def generate_auth_url(self, storage: str) -> Optional[Tuple[dict, str]]:
+    def generate_auth_url(self, storage: str) -> tuple[dict, str] | None:
         """
         生成 OAuth2 授权 URL
         """
         return self.run_module("generate_auth_url", storage=storage)
 
-    def check_login(self, storage: str, **kwargs) -> Optional[Tuple[dict, str]]:
+    def check_login(self, storage: str, **kwargs) -> tuple[dict, str] | None:
         """
         登录确认
         """
         return self.run_module("check_login", storage=storage, **kwargs)
 
-    def list_files(self, fileitem: schemas.FileItem, recursion: bool = False) -> Optional[List[schemas.FileItem]]:
+    def list_files(self, fileitem: schemas.FileItem, recursion: bool = False) -> list[schemas.FileItem] | None:
         """
         查询当前目录下所有目录和文件
         """
         return self.run_module("list_files", fileitem=fileitem, recursion=recursion)
 
-    def any_files(self, fileitem: schemas.FileItem, extensions: list = None) -> Optional[bool]:
+    def any_files(self, fileitem: schemas.FileItem, extensions: list = None) -> bool | None:
         """
         查询当前目录下是否存在指定扩展名任意文件
         """
         return self.run_module("any_files", fileitem=fileitem, extensions=extensions)
 
-    def create_folder(self, fileitem: schemas.FileItem, name: str) -> Optional[schemas.FileItem]:
+    def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         """
         return self.run_module("create_folder", fileitem=fileitem, name=name)
 
-    def get_folder(self, storage: str, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, storage: str, path: Path) -> schemas.FileItem | None:
         """
         获取目录，不存在则递归创建
         """
         return self.run_module("get_folder", storage=storage, path=path)
 
-    def download_file(self, fileitem: schemas.FileItem, path: Path = None) -> Optional[Path]:
+    def download_file(self, fileitem: schemas.FileItem, path: Path = None) -> Path | None:
         """
         下载文件
         :param fileitem: 文件项
@@ -75,8 +75,9 @@ class StorageChain(ChainBase):
         """
         return self.run_module("download_file", fileitem=fileitem, path=path)
 
-    def upload_file(self, fileitem: schemas.FileItem, path: Path,
-                    new_name: Optional[str] = None) -> Optional[schemas.FileItem]:
+    def upload_file(
+        self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None
+    ) -> schemas.FileItem | None:
         """
         上传文件
         :param fileitem: 保存目录项
@@ -85,44 +86,45 @@ class StorageChain(ChainBase):
         """
         return self.run_module("upload_file", fileitem=fileitem, path=path, new_name=new_name)
 
-    def delete_file(self, fileitem: schemas.FileItem) -> Optional[bool]:
+    def delete_file(self, fileitem: schemas.FileItem) -> bool | None:
         """
         删除文件或目录
         """
         return self.run_module("delete_file", fileitem=fileitem)
 
-    def rename_file(self, fileitem: schemas.FileItem, name: str) -> Optional[bool]:
+    def rename_file(self, fileitem: schemas.FileItem, name: str) -> bool | None:
         """
         重命名文件或目录
         """
         return self.run_module("rename_file", fileitem=fileitem, name=name)
 
-    def exists(self, fileitem: schemas.FileItem) -> Optional[bool]:
+    def exists(self, fileitem: schemas.FileItem) -> bool | None:
         """
         判断文件或目录是否存在
         """
         return True if self.get_item(fileitem) else False
 
-    def get_item(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def get_item(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         查询目录或文件
         """
         return self.get_file_item(storage=fileitem.storage, path=Path(fileitem.path))
 
-    def get_file_item(self, storage: str, path: Path) -> Optional[schemas.FileItem]:
+    def get_file_item(self, storage: str, path: Path) -> schemas.FileItem | None:
         """
         根据路径获取文件项
         """
         return self.run_module("get_file_item", storage=storage, path=path)
 
-    def get_parent_item(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def get_parent_item(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取上级目录项
         """
         return self.run_module("get_parent_item", fileitem=fileitem)
 
-    def snapshot_storage(self, storage: str, path: Path,
-                         last_snapshot_time: float = None, max_depth: int = 5) -> Optional[Dict[str, Dict]]:
+    def snapshot_storage(
+        self, storage: str, path: Path, last_snapshot_time: float = None, max_depth: int = 5
+    ) -> dict[str, dict] | None:
         """
         快照存储
         :param storage: 存储类型
@@ -130,22 +132,23 @@ class StorageChain(ChainBase):
         :param last_snapshot_time: 上次快照时间，用于增量快照
         :param max_depth: 最大递归深度，避免过深遍历
         """
-        return self.run_module("snapshot_storage", storage=storage, path=path,
-                               last_snapshot_time=last_snapshot_time, max_depth=max_depth)
+        return self.run_module(
+            "snapshot_storage", storage=storage, path=path, last_snapshot_time=last_snapshot_time, max_depth=max_depth
+        )
 
-    def storage_usage(self, storage: str) -> Optional[schemas.StorageUsage]:
+    def storage_usage(self, storage: str) -> schemas.StorageUsage | None:
         """
         存储使用情况
         """
         return self.run_module("storage_usage", storage=storage)
 
-    def support_transtype(self, storage: str) -> Optional[dict]:
+    def support_transtype(self, storage: str) -> dict | None:
         """
         获取支持的整理方式
         """
         return self.run_module("support_transtype", storage=storage)
 
-    def is_bluray_folder(self, fileitem: Optional[schemas.FileItem]) -> bool:
+    def is_bluray_folder(self, fileitem: schemas.FileItem | None) -> bool:
         """
         检查是否蓝光目录
         """
@@ -158,15 +161,12 @@ class StorageChain(ChainBase):
         return False
 
     @staticmethod
-    def contains_bluray_subdirectories(fileitems: Optional[List[schemas.FileItem]]) -> bool:
+    def contains_bluray_subdirectories(fileitems: list[schemas.FileItem] | None) -> bool:
         """
         判断是否包含蓝光必备的文件夹
         """
         required_files = {"BDMV", "CERTIFICATE"}
-        return any(
-            item.type == "dir" and item.name in required_files
-            for item in fileitems or []
-        )
+        return any(item.type == "dir" and item.name in required_files for item in fileitems or [])
 
     def delete_media_file(self, fileitem: schemas.FileItem, delete_self: bool = True) -> bool:
         """

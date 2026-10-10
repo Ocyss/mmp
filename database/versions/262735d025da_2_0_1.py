@@ -10,8 +10,8 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = '262735d025da'
-down_revision = '294b007932ef'
+revision = "262735d025da"
+down_revision = "294b007932ef"
 branch_labels = None
 depends_on = None
 
@@ -21,40 +21,43 @@ def upgrade() -> None:
     # 初始化消息通知范围
     _systemconfig = SystemConfigOper()
     if not _systemconfig.get(SystemConfigKey.NotificationSwitchs):
-        _systemconfig.set(SystemConfigKey.NotificationSwitchs, [
-            {
-                'type': '资源下载',
-                'action': 'all',
-            },
-            {
-                'type': '整理入库',
-                'action': 'all',
-            },
-            {
-                'type': '订阅',
-                'action': 'all',
-            },
-            {
-                'type': '站点',
-                'action': 'admin',
-            },
-            {
-                'type': '媒体服务器',
-                'action': 'admin',
-            },
-            {
-                'type': '手动处理',
-                'action': 'admin',
-            },
-            {
-                'type': '插件',
-                'action': 'admin',
-            },
-            {
-                'type': '其它',
-                'action': 'admin',
-            },
-        ])
+        _systemconfig.set(
+            SystemConfigKey.NotificationSwitchs,
+            [
+                {
+                    "type": "资源下载",
+                    "action": "all",
+                },
+                {
+                    "type": "整理入库",
+                    "action": "all",
+                },
+                {
+                    "type": "订阅",
+                    "action": "all",
+                },
+                {
+                    "type": "站点",
+                    "action": "admin",
+                },
+                {
+                    "type": "媒体服务器",
+                    "action": "admin",
+                },
+                {
+                    "type": "手动处理",
+                    "action": "admin",
+                },
+                {
+                    "type": "插件",
+                    "action": "admin",
+                },
+                {
+                    "type": "其它",
+                    "action": "admin",
+                },
+            ],
+        )
     # ### end Alembic commands ###
 
 

@@ -9,9 +9,10 @@ import socket
 import sqlite3
 import sys
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -21,7 +22,6 @@ import psutil
 from app.core.config import settings
 from app.doctor.models import DoctorFinding, DoctorFindingStatus, DoctorReport, DoctorSeverity
 from app.utils.system import SystemUtils
-
 
 CheckFunc = Callable[["DoctorRunnerProtocol"], None]
 
@@ -46,12 +46,8 @@ LOG_ERROR_PATTERNS = (
     re.compile(r"加载插件.+出错"),
     re.compile(r"数据库更新失败"),
 )
-LOG_RECORD_PATTERN = re.compile(
-    r"(?:【(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)】|(?:DEBUG|INFO|WARNING|ERROR|CRITICAL):)"
-)
-LOG_TIMESTAMP_PATTERN = re.compile(
-    r"(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})"
-)
+LOG_RECORD_PATTERN = re.compile(r"(?:【(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)】|(?:DEBUG|INFO|WARNING|ERROR|CRITICAL):)")
+LOG_TIMESTAMP_PATTERN = re.compile(r"(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})")
 LOG_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG_LOOKBACK_HOURS = 24
 CONSOLE_LOGGER_PATTERN = re.compile(r"\[([^\]]+)]")
@@ -107,7 +103,7 @@ class DoctorRunnerProtocol:
         fixable: bool = False,
         fixed: bool = False,
         affects_report_status: bool = True,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> DoctorFinding:
         """
         添加诊断发现。
@@ -154,17 +150,17 @@ def _mask_text(text: str) -> str:
     return masked
 
 
-def _read_json(path: Path) -> Optional[dict[str, Any]]:
+def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
 
 
-def _runtime_process(runtime: Optional[dict[str, Any]]) -> Optional[psutil.Process]:
+def _runtime_process(runtime: dict[str, Any] | None) -> psutil.Process | None:
     runtime = runtime or {}
     pid = runtime.get("pid")
     create_time = runtime.get("create_time")
@@ -177,18 +173,18 @@ def _runtime_process(runtime: Optional[dict[str, Any]]) -> Optional[psutil.Proce
         if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
             return None
         return process
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError:
         return None
 
 
 def _process_description(process: psutil.Process) -> str:
     try:
         name = process.name()
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
         name = "unknown"
     try:
         command = " ".join(process.cmdline()[:4])
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
         command = ""
     suffix = f" {command}" if command else ""
     return f"PID {process.pid} ({name}){suffix}"
@@ -197,11 +193,11 @@ def _process_description(process: psutil.Process) -> str:
 def _process_name_and_command(process: psutil.Process) -> tuple[str, str]:
     try:
         name = process.name().lower()
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
         name = ""
     try:
         command = " ".join(process.cmdline()).lower()
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
         command = ""
     return name, command
 
@@ -211,11 +207,7 @@ def _is_expected_port_process(name: str, process: psutil.Process) -> bool:
     if name == "backend":
         return "app/main.py" in command or "-m app.main" in command or "uvicorn" in command
     if name == "frontend":
-        return (
-            "nginx" in process_name
-            or "service.js" in command
-            or "node" in process_name
-        )
+        return "nginx" in process_name or "service.js" in command or "node" in process_name
     return False
 
 
@@ -223,7 +215,7 @@ def _port_occupants(port: int) -> list[psutil.Process]:
     occupants: dict[int, psutil.Process] = {}
     try:
         connections = psutil.net_connections(kind="inet")
-    except (psutil.AccessDenied, OSError):
+    except psutil.AccessDenied, OSError:
         return []
     for conn in connections:
         local = conn.laddr
@@ -235,12 +227,12 @@ def _port_occupants(port: int) -> list[psutil.Process]:
             continue
         try:
             occupants[conn.pid] = psutil.Process(conn.pid)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
             continue
     return list(occupants.values())
 
 
-def _client_host(host: Optional[str]) -> str:
+def _client_host(host: str | None) -> str:
     host = (host or "").strip()
     return "127.0.0.1" if host in LOCAL_HOSTS else host
 
@@ -265,7 +257,7 @@ def _is_moviepilot_backend_payload(payload: Any) -> bool:
     return bool(data.get("BACKEND_VERSION"))
 
 
-def _backend_health_payload(port: int, timeout: float = BACKEND_HEALTH_TIMEOUT) -> Optional[dict[str, Any]]:
+def _backend_health_payload(port: int, timeout: float = BACKEND_HEALTH_TIMEOUT) -> dict[str, Any] | None:
     """
     读取本机后端健康接口响应，用于识别非 CLI 管理的 MoviePilot 进程。
     """
@@ -277,7 +269,7 @@ def _backend_health_payload(port: int, timeout: float = BACKEND_HEALTH_TIMEOUT) 
             if response.status != 200:
                 return None
             raw = response.read().decode("utf-8", errors="replace")
-    except (HTTPError, URLError):
+    except HTTPError, URLError:
         return None
     except OSError:
         return None
@@ -301,7 +293,7 @@ def _tail_lines(path: Path, max_lines: int = 120, max_bytes: int = 256 * 1024) -
     return list(deque((_mask_text(line) for line in text.splitlines()), maxlen=max_lines))
 
 
-def _parse_log_timestamp(line: str) -> Optional[datetime]:
+def _parse_log_timestamp(line: str) -> datetime | None:
     """解析日志行中的时间戳。"""
     match = LOG_TIMESTAMP_PATTERN.search(line[:96])
     if not match:
@@ -314,7 +306,7 @@ def _parse_log_timestamp(line: str) -> Optional[datetime]:
 
 def _recent_log_lines(
     lines: list[str],
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> list[str]:
     """按日志记录边界保留诊断时间窗内的日志。"""
     if not lines:
@@ -367,8 +359,7 @@ def _aggregate_log_entries(
             sources.append(path.name)
 
     details = [
-        f"[{', '.join(item['sources'])}] {item['line']}"
-        for item in list(unique_entries.values())[-max_matches:]
+        f"[{', '.join(item['sources'])}] {item['line']}" for item in list(unique_entries.values())[-max_matches:]
     ]
     return details, log_files
 
@@ -402,9 +393,8 @@ def _partition_error_lines(
         if LOG_RECORD_PATTERN.search(line):
             logger_match = CONSOLE_LOGGER_PATTERN.search(line)
             console_logger = logger_match.group(1).strip().lower() if logger_match else ""
-            plugin_context = (
-                console_logger in plugin_logger_names
-                or any(pattern.search(line) for pattern in PLUGIN_ERROR_PATTERNS)
+            plugin_context = console_logger in plugin_logger_names or any(
+                pattern.search(line) for pattern in PLUGIN_ERROR_PATTERNS
             )
         if not any(pattern.search(line) for pattern in LOG_ERROR_PATTERNS):
             continue
@@ -525,7 +515,7 @@ def _check_runtime_file(
     name: str,
     path: Path,
     port: int,
-) -> Optional[psutil.Process]:
+) -> psutil.Process | None:
     runtime = _read_json(path)
     process = _runtime_process(runtime)
     if runtime and not process:
@@ -559,7 +549,7 @@ def _check_port(
     *,
     name: str,
     port: int,
-    managed_process: Optional[psutil.Process],
+    managed_process: psutil.Process | None,
 ) -> None:
     occupants = _port_occupants(port)
     if not occupants:
@@ -873,11 +863,7 @@ def _check_logs(runner: DoctorRunnerProtocol) -> None:
         if not component_entries:
             continue
         first_path = component_entries[0][0]
-        finding_suffix = (
-            "plugin_errors"
-            if component == "plugin" and first_path == core_first_path
-            else "recent_errors"
-        )
+        finding_suffix = "plugin_errors" if component == "plugin" and first_path == core_first_path else "recent_errors"
         detail_lines, source_files = _aggregate_log_entries(component_entries)
         runner.add(
             finding_id=f"logs.{first_path.stem}.{finding_suffix}",

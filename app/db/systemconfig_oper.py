@@ -13,6 +13,7 @@ class SystemConfigOper(DbOper, metaclass=Singleton):
     """
     系统配置管理
     """
+
     def __init__(self):
         """
         加载配置到内存
@@ -24,7 +25,7 @@ class SystemConfigOper(DbOper, metaclass=Singleton):
         for item in SystemConfig.list(self._db):
             self.__SYSTEMCONF[item.key] = item.value
 
-    def set(self, key: Union[str, SystemConfigKey], value: Any) -> Optional[bool]:
+    def set(self, key: str | SystemConfigKey, value: Any) -> bool | None:
         """
         设置系统设置
         :param key: 配置键
@@ -52,7 +53,7 @@ class SystemConfigOper(DbOper, metaclass=Singleton):
                 conf.create(self._db)
                 return True
 
-    async def async_set(self, key: Union[str, SystemConfigKey], value: Any) -> Optional[bool]:
+    async def async_set(self, key: str | SystemConfigKey, value: Any) -> bool | None:
         """
         异步设置系统设置
         :param key: 配置键
@@ -89,7 +90,7 @@ class SystemConfigOper(DbOper, metaclass=Singleton):
                 self.__SYSTEMCONF[key] = copy.deepcopy(value)
             return True
 
-    def get(self, key: Union[str, SystemConfigKey] = None) -> Any:
+    def get(self, key: str | SystemConfigKey = None) -> Any:
         """
         获取系统设置
         """
@@ -122,7 +123,7 @@ class SystemConfigOper(DbOper, metaclass=Singleton):
             # 避免将__SYSTEMCONF内的值引用出去，会导致set时误判没有变动
             return copy.deepcopy(self.__SYSTEMCONF)
 
-    def delete(self, key: Union[str, SystemConfigKey]) -> bool:
+    def delete(self, key: str | SystemConfigKey) -> bool:
         """
         删除系统设置
         """

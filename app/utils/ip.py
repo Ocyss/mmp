@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 
 
 class IpUtils:
-
     @staticmethod
     def is_ipv4(ip):
         """
@@ -15,10 +14,10 @@ class IpUtils:
         except AttributeError:  # no inet_pton here,sorry
             try:
                 socket.inet_aton(ip)
-            except socket.error:
+            except OSError:
                 return False
-            return ip.count('.') == 3
-        except socket.error:  # not a valid ip
+            return ip.count(".") == 3
+        except OSError:  # not a valid ip
             return False
         return True
 
@@ -29,7 +28,7 @@ class IpUtils:
         """
         try:
             socket.inet_pton(socket.AF_INET6, ip)
-        except socket.error:  # not a valid ip
+        except OSError:  # not a valid ip
             return False
         return True
 
@@ -52,7 +51,7 @@ class IpUtils:
         try:
             socket.inet_aton(addr)
             return True
-        except socket.error:
+        except OSError:
             return False
 
     @staticmethod
@@ -63,7 +62,7 @@ class IpUtils:
         # 获取域名对应的 IP 地址
         try:
             ip = socket.gethostbyname(domain)
-        except socket.error:
+        except OSError:
             return False
 
         # 判断 IP 地址是否属于内网 IP 地址范围

@@ -1,12 +1,12 @@
 import json
-from typing import Optional, Union, List, Tuple, Any
+from typing import Any, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.modules.synologychat.synologychat import SynologyChat
-from app.schemas import MessageChannel, CommingMessage, Notification
+from app.schemas import CommingMessage, MessageChannel, Notification
 from app.schemas.types import ModuleType
 from app.utils.http import RequestUtils
 
@@ -41,8 +41,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
         """
         初始化模块
         """
-        super().init_service(service_name=SynologyChat.__name__.lower(),
-                             service_type=SynologyChat)
+        super().init_service(service_name=SynologyChat.__name__.lower(), service_type=SynologyChat)
         self._channel = MessageChannel.SynologyChat
 
     @staticmethod
@@ -73,7 +72,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
     def stop(self):
         pass
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -85,25 +84,23 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                 return False, f"Synology Chat {name} 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 Synology Chat 管理员配置，兼容逗号分隔和首尾空白。
         """
         return [
-            admin.strip()
-            for admin in str((config or {}).get("SYNOLOGYCHAT_ADMINS") or "").split(",")
-            if admin.strip()
+            admin.strip() for admin in str((config or {}).get("SYNOLOGYCHAT_ADMINS") or "").split(",") if admin.strip()
         ]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 Synology Chat 斜杠命令是否应因非管理员身份被拒绝。
@@ -111,25 +108,18 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
     @staticmethod
-    def _send_admin_denied(
-            client: Optional[SynologyChat], userid: Optional[Union[str, int]]
-    ) -> None:
+    def _send_admin_denied(client: SynologyChat | None, userid: str | int | None) -> None:
         """
         向 Synology Chat 非管理员用户发送命令拒绝提示。
         """
         if client and userid:
             client.send_msg(title="只有管理员才有权限执行此命令", userid=str(userid))
 
-    def message_parser(self, source: str, body: Any, form: Any,
-                       args: Any) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -167,8 +157,10 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
             audio_refs = self._extract_audio_refs(message)
             files = self._extract_files(message)
             if (text or images or audio_refs or files) and user_id:
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, user_id, user_name
+                if (
+                    text
+                    and text.startswith("/")
+                    and self._should_reject_admin_command(client_config.config, user_id, user_name)
                 ):
                     self._send_admin_denied(client, user_id)
                     return None
@@ -178,17 +170,22 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                     f"images={len(images) if images else 0}, audios={len(audio_refs) if audio_refs else 0}, "
                     f"files={len(files) if files else 0}"
                 )
-                return CommingMessage(channel=MessageChannel.SynologyChat, source=client_config.name,
-                                      userid=user_id, username=user_name, text=text or "",
-                                      images=images, audio_refs=audio_refs, files=files)
+                return CommingMessage(
+                    channel=MessageChannel.SynologyChat,
+                    source=client_config.name,
+                    userid=user_id,
+                    username=user_name,
+                    text=text or "",
+                    images=images,
+                    audio_refs=audio_refs,
+                    files=files,
+                )
         except Exception as err:
             logger.debug(f"解析SynologyChat消息失败：{str(err)}")
         return None
 
     @classmethod
-    def _extract_images(
-        cls, message: dict
-    ) -> Optional[List[CommingMessage.MessageImage]]:
+    def _extract_images(cls, message: dict) -> list[CommingMessage.MessageImage] | None:
         images = []
         for key in ("file_url", "image_url", "pic_url"):
             value = message.get(key)
@@ -214,8 +211,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                             CommingMessage.MessageImage(
                                 ref=url,
                                 name=item.get("name") or item.get("filename"),
-                                mime_type=item.get("content_type")
-                                or item.get("mime_type"),
+                                mime_type=item.get("content_type") or item.get("mime_type"),
                                 size=item.get("size"),
                             )
                         )
@@ -227,7 +223,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
         return deduped or None
 
     @classmethod
-    def _extract_audio_refs(cls, message: dict) -> Optional[List[str]]:
+    def _extract_audio_refs(cls, message: dict) -> list[str] | None:
         audio_refs = []
         for key in ("audio_url", "voice_url", "file_url"):
             value = message.get(key)
@@ -250,17 +246,13 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                     url = item.get("url") or item.get("file_url") or item.get("audio_url")
                     if not isinstance(url, str):
                         continue
-                    content_type = (
-                        item.get("content_type")
-                        or item.get("mime_type")
-                        or ""
-                    ).lower()
-                    name = (
-                        item.get("name")
-                        or item.get("filename")
-                        or ""
-                    ).lower()
-                    if content_type.startswith("audio/") or cls._looks_like_audio(url) or name.endswith(cls._AUDIO_SUFFIXES):
+                    content_type = (item.get("content_type") or item.get("mime_type") or "").lower()
+                    name = (item.get("name") or item.get("filename") or "").lower()
+                    if (
+                        content_type.startswith("audio/")
+                        or cls._looks_like_audio(url)
+                        or name.endswith(cls._AUDIO_SUFFIXES)
+                    ):
                         audio_refs.append(f"synology://file/{quote(url, safe='')}")
 
         deduped = []
@@ -274,23 +266,17 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
         if not value or not isinstance(value, str):
             return False
         lowered = value.lower()
-        return lowered.startswith("http") and any(
-            suffix in lowered for suffix in cls._IMAGE_SUFFIXES
-        )
+        return lowered.startswith("http") and any(suffix in lowered for suffix in cls._IMAGE_SUFFIXES)
 
     @classmethod
     def _looks_like_audio(cls, value: str) -> bool:
         if not value or not isinstance(value, str):
             return False
         lowered = value.lower()
-        return lowered.startswith("http") and any(
-            suffix in lowered for suffix in cls._AUDIO_SUFFIXES
-        )
+        return lowered.startswith("http") and any(suffix in lowered for suffix in cls._AUDIO_SUFFIXES)
 
     @classmethod
-    def _extract_files(
-        cls, message: dict
-    ) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _extract_files(cls, message: dict) -> list[CommingMessage.MessageAttachment] | None:
         files = []
         for key in ("attachments", "files"):
             raw_value = message.get(key)
@@ -307,16 +293,18 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                 url = item.get("url") or item.get("file_url") or item.get("download_url")
                 if not isinstance(url, str) or not url.startswith("http"):
                     continue
-                content_type = (
-                    item.get("content_type") or item.get("mime_type") or ""
-                ).lower()
+                content_type = (item.get("content_type") or item.get("mime_type") or "").lower()
                 name = (item.get("name") or item.get("filename") or "").lower()
-                is_image = content_type.startswith("image/") or name.endswith(
-                    cls._IMAGE_SUFFIXES
-                ) or cls._looks_like_image(url)
-                is_audio = content_type.startswith("audio/") or name.endswith(
-                    cls._AUDIO_SUFFIXES
-                ) or cls._looks_like_audio(url)
+                is_image = (
+                    content_type.startswith("image/")
+                    or name.endswith(cls._IMAGE_SUFFIXES)
+                    or cls._looks_like_image(url)
+                )
+                is_audio = (
+                    content_type.startswith("audio/")
+                    or name.endswith(cls._AUDIO_SUFFIXES)
+                    or cls._looks_like_audio(url)
+                )
                 if is_image or is_audio:
                     continue
                 files.append(
@@ -337,7 +325,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
             deduped.append(file_item)
         return deduped or None
 
-    def download_synologychat_file_bytes(self, file_ref: str, source: str) -> Optional[bytes]:
+    def download_synologychat_file_bytes(self, file_ref: str, source: str) -> bytes | None:
         """
         下载 Synology Chat 音频文件并返回原始字节
         """
@@ -363,16 +351,17 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
             targets = message.targets
             userid = message.userid
             if not userid and targets is not None:
-                userid = targets.get('synologychat_userid')
+                userid = targets.get("synologychat_userid")
                 if not userid:
-                    logger.warn(f"用户没有指定 SynologyChat用户ID，消息无法发送")
+                    logger.warn("用户没有指定 SynologyChat用户ID，消息无法发送")
                     return
             client: SynologyChat = self.get_instance(conf.name)
             if client:
-                client.send_msg(title=message.title, text=message.text,
-                                image=message.image, userid=userid, link=message.link)
+                client.send_msg(
+                    title=message.title, text=message.text, image=message.image, userid=userid, link=message.link
+                )
 
-    def post_medias_message(self, message: Notification, medias: List[MediaInfo]) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message: 消息体
@@ -384,10 +373,9 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                 continue
             client: SynologyChat = self.get_instance(conf.name)
             if client:
-                client.send_medias_msg(title=message.title, medias=medias,
-                                       userid=message.userid)
+                client.send_medias_msg(title=message.title, medias=medias, userid=message.userid)
 
-    def post_torrents_message(self, message: Notification, torrents: List[Context]) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message: 消息体
@@ -399,5 +387,6 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                 continue
             client: SynologyChat = self.get_instance(conf.name)
             if client:
-                client.send_torrents_msg(title=message.title, torrents=torrents,
-                                         userid=message.userid, link=message.link)
+                client.send_torrents_msg(
+                    title=message.title, torrents=torrents, userid=message.userid, link=message.link
+                )

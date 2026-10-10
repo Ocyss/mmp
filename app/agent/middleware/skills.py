@@ -3,8 +3,7 @@ import re
 import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Annotated, Any, List, Optional
-from typing import NotRequired, TypedDict
+from typing import Annotated, Any, List, NotRequired, Optional, TypedDict
 
 import yaml  # noqa
 from anyio import Path as AsyncPath
@@ -14,10 +13,10 @@ from langchain.agents.middleware.types import (
     ContextT,
     ModelRequest,
     ModelResponse,
+    PrivateStateAttr,  # noqa
     ResponseT,
     ToolCallRequest,
 )
-from langchain.agents.middleware.types import PrivateStateAttr  # noqa
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from langgraph.runtime import Runtime
@@ -107,9 +106,7 @@ def _parse_skill_metadata(  # noqa: C901
 ) -> SkillMetadata | None:
     """从 SKILL.md 内容中解析 YAML 前言并验证元数据。"""
     if len(content) > MAX_SKILL_FILE_SIZE:
-        logger.warning(
-            "Skipping %s: content too large (%d bytes)", skill_path, len(content)
-        )
+        logger.warning("Skipping %s: content too large (%d bytes)", skill_path, len(content))
         return None
 
     # 匹配 --- 分隔的 YAML 前言
@@ -135,9 +132,7 @@ def _parse_skill_metadata(  # noqa: C901
     name = str(frontmatter_data.get("name", "")).strip()
     description = str(frontmatter_data.get("description", "")).strip()
     if not name or not description:
-        logger.warning(
-            "Skipping %s: missing required 'name' or 'description'", skill_path
-        )
+        logger.warning("Skipping %s: missing required 'name' or 'description'", skill_path)
         return None
     description_str = description
     if len(description_str) > MAX_SKILL_DESCRIPTION_LENGTH:
@@ -181,7 +176,7 @@ def _parse_skill_metadata(  # noqa: C901
     if raw_version is not None:
         try:
             version = int(raw_version)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.warning(
                 "Invalid 'version' in %s (got %r), defaulting to 0",
                 skill_path,
@@ -235,7 +230,7 @@ async def _alist_skills(source_path: AsyncPath) -> list[SkillMetadata]:
     skills: list[SkillMetadata] = []
 
     # 查找所有技能目录 (包含 SKILL.md 的目录)
-    skill_dirs: List[AsyncPath] = []
+    skill_dirs: list[AsyncPath] = []
     async for path in source_path.iterdir():
         if await path.is_dir() and await (path / "SKILL.md").is_file():
             skill_dirs.append(path)
@@ -258,9 +253,7 @@ async def _alist_skills(source_path: AsyncPath) -> list[SkillMetadata]:
                 stat.st_size,
             )
             continue
-        skill_content = (await skill_md_path.read_bytes()).decode(
-            "utf-8", errors="replace"
-        )
+        skill_content = (await skill_md_path.read_bytes()).decode("utf-8", errors="replace")
 
         # 解析元数据
         skill_metadata = _parse_skill_metadata(
@@ -279,11 +272,7 @@ def _list_skills(source_path: Path) -> list[SkillMetadata]:
     if not source_path.exists():
         return []
 
-    skill_dirs = [
-        path
-        for path in source_path.iterdir()
-        if path.is_dir() and (path / "SKILL.md").is_file()
-    ]
+    skill_dirs = [path for path in source_path.iterdir() if path.is_dir() and (path / "SKILL.md").is_file()]
     if not skill_dirs:
         return []
 
@@ -299,9 +288,7 @@ def _list_skills(source_path: Path) -> list[SkillMetadata]:
                 skill_md_path.stat().st_size,
             )
             continue
-        skill_content = skill_md_path.read_bytes().decode(
-            "utf-8", errors="replace"
-        )
+        skill_content = skill_md_path.read_bytes().decode("utf-8", errors="replace")
         skill_metadata = _parse_skill_metadata(
             content=skill_content,
             skill_path=str(skill_md_path),
@@ -355,7 +342,7 @@ def _extract_version(skill_md: Path) -> int:
         return 0
     try:
         return int(raw)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return 0
 
 
@@ -393,9 +380,7 @@ def _sync_bundled_skills(bundled_dir: Path, target_dir: Path) -> None:
             # 目标不存在，直接复制
             try:
                 shutil.copytree(str(skill_src), str(skill_dst))
-                logger.info(
-                    "已自动复制内置技能 '%s' -> '%s'", skill_src.name, skill_dst
-                )
+                logger.info("已自动复制内置技能 '%s' -> '%s'", skill_src.name, skill_dst)
             except Exception as e:
                 logger.warning("复制内置技能 '%s' 失败: %s", skill_src.name, e)
             continue
@@ -447,12 +432,9 @@ class _SkillToolProvider:
             skill.get("id"),
             skill.get("name"),
         ]
-        return any(
-            cls._normalize_name(candidate) == normalized_query
-            for candidate in candidates
-        )
+        return any(cls._normalize_name(candidate) == normalized_query for candidate in candidates)
 
-    async def _find_skill(self, name: str) -> Optional[SkillMetadata]:
+    async def _find_skill(self, name: str) -> SkillMetadata | None:
         """从中间件配置的 skills 目录中查找指定技能。"""
         all_skills: dict[str, SkillMetadata] = {}
         for source_path in self._sources:
@@ -502,10 +484,7 @@ class _SkillToolProvider:
             candidate = json.dumps(
                 {
                     **truncated_payload,
-                    "content": (
-                        original_content[:middle]
-                        + SKILL_CONTENT_TRUNCATION_SUFFIX
-                    ),
+                    "content": (original_content[:middle] + SKILL_CONTENT_TRUNCATION_SUFFIX),
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -561,10 +540,7 @@ def _format_skill_tool_catalog(skills: list[SkillMetadata]) -> str:
     """渲染 Skill 工具描述中的可用技能目录。"""
     if not skills:
         return "(No skills are currently available.)"
-    return "\n".join(
-        f"- {skill['id']}: {skill['name']} - {skill['description']}"
-        for skill in skills
-    )
+    return "\n".join(f"- {skill['id']}: {skill['name']} - {skill['description']}" for skill in skills)
 
 
 class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # noqa
@@ -581,7 +557,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
         *,
         sources: list[str],
         bundled_skills_dir: str | None = None,
-        stream_handler: Optional[Any] = None,
+        stream_handler: Any | None = None,
     ) -> None:
         """初始化 Skill 中间件。
 
@@ -605,9 +581,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
                 coroutine=self._skill_provider.load_skill,
                 name=SKILL_TOOL_NAME,
                 description=SKILL_TOOL_DESCRIPTION.format(
-                    skills_catalog=_format_skill_tool_catalog(
-                        self._load_skills_metadata()
-                    )
+                    skills_catalog=_format_skill_tool_catalog(self._load_skills_metadata())
                 ),
                 args_schema=SkillToolInput,
                 tags=[ToolTag.Read, ToolTag.Skill],
@@ -634,15 +608,11 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
                 all_skills[skill["name"]] = skill
         return list(all_skills.values())
 
-    def _refresh_skill_tool_description(
-        self, skills: list[SkillMetadata]
-    ) -> None:
+    def _refresh_skill_tool_description(self, skills: list[SkillMetadata]) -> None:
         """刷新 skill 工具描述中的可用技能目录。"""
         if not self.tools:
             return
-        self.tools[0].description = SKILL_TOOL_DESCRIPTION.format(
-            skills_catalog=_format_skill_tool_catalog(skills)
-        )
+        self.tools[0].description = SKILL_TOOL_DESCRIPTION.format(skills_catalog=_format_skill_tool_catalog(skills))
 
     @staticmethod
     def _format_skills_list(skills: list[SkillMetadata]) -> str:
@@ -671,9 +641,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
             skills_list=skills_list,
         )
 
-        new_system_message = append_to_system_message(
-            request.system_message, skills_section
-        )
+        new_system_message = append_to_system_message(request.system_message, skills_section)
 
         return request.override(system_message=new_system_message)
 
@@ -705,9 +673,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """在模型调用时注入技能文档。"""
         modified_request = self.modify_request(request)
@@ -728,9 +694,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
         tool_args = tool_call.get("args") or {}
         if not isinstance(tool_args, dict):
             tool_args = {}
-        logger.info(
-            f"开始执行 Skill 工具: name={tool_args.get('name') or '-'}"
-        )
+        logger.info(f"开始执行 Skill 工具: name={tool_args.get('name') or '-'}")
         if self.stream_handler and getattr(self.stream_handler, "is_streaming", False):
             self.stream_handler.record_tool_call(
                 tool_name=SKILL_TOOL_NAME,

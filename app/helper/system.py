@@ -8,9 +8,9 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 
-import docker
 import psutil
 
+import docker
 from app.core.config import settings
 from app.log import logger
 from app.utils.mixins import ConfigReloadMixin
@@ -21,6 +21,7 @@ class SystemHelper(ConfigReloadMixin):
     """
     系统工具类，提供系统相关的操作和判断
     """
+
     AUTO_UPDATE_ENABLED_VALUES = {"release", "dev"}
     CONFIG_WATCH = {
         "DEBUG",
@@ -51,12 +52,12 @@ class SystemHelper(ConfigReloadMixin):
         return SystemUtils.is_docker() or SystemHelper._is_local_cli_managed()
 
     @staticmethod
-    def _load_runtime_file(path: Path) -> Optional[dict]:
+    def _load_runtime_file(path: Path) -> dict | None:
         if not path.exists():
             return None
         try:
             payload = json.loads(path.read_text(encoding="utf-8", errors="replace"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return None
         return payload if isinstance(payload, dict) else None
 
@@ -73,7 +74,7 @@ class SystemHelper(ConfigReloadMixin):
 
         try:
             pid = int(pid)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
         if pid != os.getpid():
@@ -85,11 +86,11 @@ class SystemHelper(ConfigReloadMixin):
         try:
             current_process = psutil.Process(os.getpid())
             return abs(current_process.create_time() - float(create_time)) <= 2
-        except (psutil.Error, TypeError, ValueError):
+        except psutil.Error, TypeError, ValueError:
             return False
 
     @staticmethod
-    def normalize_auto_update_mode(mode: Optional[str]) -> str:
+    def normalize_auto_update_mode(mode: str | None) -> str:
         """
         统一自动升级模式值，兼容历史 true 表示 release。
         """
@@ -101,24 +102,20 @@ class SystemHelper(ConfigReloadMixin):
         """
         获取当前配置中的自动升级模式。
         """
-        return SystemHelper.normalize_auto_update_mode(
-            settings.MOVIEPILOT_AUTO_UPDATE
-        )
+        return SystemHelper.normalize_auto_update_mode(settings.MOVIEPILOT_AUTO_UPDATE)
 
     @staticmethod
-    def is_auto_update_enabled(mode: Optional[str] = None) -> bool:
+    def is_auto_update_enabled(mode: str | None = None) -> bool:
         """
         判断给定模式或当前配置是否启用了启动时自动升级。
         """
         effective_mode = (
-            SystemHelper.get_auto_update_mode()
-            if mode is None
-            else SystemHelper.normalize_auto_update_mode(mode)
+            SystemHelper.get_auto_update_mode() if mode is None else SystemHelper.normalize_auto_update_mode(mode)
         )
         return effective_mode in SystemHelper.AUTO_UPDATE_ENABLED_VALUES
 
     @staticmethod
-    def queue_one_shot_update(mode: str = "release") -> Tuple[bool, str]:
+    def queue_one_shot_update(mode: str = "release") -> tuple[bool, str]:
         """
         写入一次性升级标记，供重启后的启动流程消费。
         """
@@ -127,12 +124,8 @@ class SystemHelper(ConfigReloadMixin):
             return False, "升级模式仅支持 release 或 dev"
 
         try:
-            SystemHelper.__one_shot_update_flag_file.parent.mkdir(
-                parents=True, exist_ok=True
-            )
-            SystemHelper.__one_shot_update_flag_file.write_text(
-                effective_mode, encoding="utf-8"
-            )
+            SystemHelper.__one_shot_update_flag_file.parent.mkdir(parents=True, exist_ok=True)
+            SystemHelper.__one_shot_update_flag_file.write_text(effective_mode, encoding="utf-8")
             logger.info(f"已写入一次性升级标记，模式: {effective_mode}")
             return True, ""
         except OSError as err:
@@ -140,7 +133,7 @@ class SystemHelper(ConfigReloadMixin):
             return False, f"写入一次性升级标记失败：{err}"
 
     @staticmethod
-    def consume_one_shot_update_mode() -> Optional[str]:
+    def consume_one_shot_update_mode() -> str | None:
         """
         读取并清除一次性升级标记，避免后续启动重复执行。
         """
@@ -214,7 +207,7 @@ class SystemHelper(ConfigReloadMixin):
         """
         container_id = None
         try:
-            with open("/proc/self/mountinfo", "r", encoding="utf-8", errors="replace") as f:
+            with open("/proc/self/mountinfo", encoding="utf-8", errors="replace") as f:
                 data = f.read()
                 index_resolv_conf = data.find("resolv.conf")
                 if index_resolv_conf != -1:
@@ -225,9 +218,7 @@ class SystemHelper(ConfigReloadMixin):
                         index_resolv_conf = data.find("/sys/fs/cgroup/devices")
                         if index_resolv_conf != -1:
                             index_second_slash = data.rfind(" ", 0, index_resolv_conf)
-                            index_first_slash = (
-                                    data.rfind("/", 0, index_second_slash) + 1
-                            )
+                            index_first_slash = data.rfind("/", 0, index_second_slash) + 1
                             container_id = data[index_first_slash:index_second_slash]
         except Exception as e:
             logger.debug(f"获取容器ID失败: {str(e)}")
@@ -248,10 +239,10 @@ class SystemHelper(ConfigReloadMixin):
             client = docker.DockerClient(base_url=settings.DOCKER_CLIENT_API)
             # 获取容器信息
             container = client.containers.get(container_id)
-            restart_policy = container.attrs.get('HostConfig', {}).get('RestartPolicy', {})
-            policy_name = restart_policy.get('Name', 'no')
+            restart_policy = container.attrs.get("HostConfig", {}).get("RestartPolicy", {})
+            policy_name = restart_policy.get("Name", "no")
             # 检查是否有有效的重启策略
-            auto_restart_policies = ['always', 'unless-stopped', 'on-failure']
+            auto_restart_policies = ["always", "unless-stopped", "on-failure"]
             has_restart_policy = policy_name in auto_restart_policies
 
             logger.info(f"容器重启策略: {policy_name}, 支持自动重启: {has_restart_policy}")
@@ -264,12 +255,8 @@ class SystemHelper(ConfigReloadMixin):
     @staticmethod
     def _mark_docker_intentional_restart() -> None:
         try:
-            SystemHelper.__docker_restart_intent_file.parent.mkdir(
-                parents=True, exist_ok=True
-            )
-            SystemHelper.__docker_restart_intent_file.write_text(
-                str(os.getpid()), encoding="utf-8"
-            )
+            SystemHelper.__docker_restart_intent_file.parent.mkdir(parents=True, exist_ok=True)
+            SystemHelper.__docker_restart_intent_file.write_text(str(os.getpid()), encoding="utf-8")
         except OSError as err:
             logger.warning(f"写入内置重启标记失败: {err}")
 
@@ -281,7 +268,7 @@ class SystemHelper(ConfigReloadMixin):
             logger.warning(f"清理内置重启标记失败: {err}")
 
     @staticmethod
-    def restart() -> Tuple[bool, str]:
+    def restart() -> tuple[bool, str]:
         """
         执行Docker重启操作
         """
@@ -321,7 +308,7 @@ class SystemHelper(ConfigReloadMixin):
             return SystemHelper._docker_api_restart()
 
     @staticmethod
-    def upgrade(mode: str = "release") -> Tuple[bool, str]:
+    def upgrade(mode: str = "release") -> tuple[bool, str]:
         """
         触发升级并重启。
 
@@ -368,7 +355,7 @@ class SystemHelper(ConfigReloadMixin):
         thread.start()
 
     @staticmethod
-    def _docker_api_restart() -> Tuple[bool, str]:
+    def _docker_api_restart() -> tuple[bool, str]:
         """
         使用Docker API重启容器，并尝试优雅停止
         """

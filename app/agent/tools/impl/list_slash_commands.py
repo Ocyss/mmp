@@ -14,7 +14,6 @@ class ListSlashCommandsInput(BaseModel):
     """查询所有可用斜杠命令工具的输入参数模型"""
 
 
-
 class ListSlashCommandsTool(MoviePilotTool):
     name: str = "list_slash_commands"
     tags: list[str] = [
@@ -30,10 +29,10 @@ class ListSlashCommandsTool(MoviePilotTool):
         "This is especially useful when the user describes an action in natural language and you need to "
         "find the matching command to fulfill their request."
     )
-    args_schema: Type[BaseModel] = ListSlashCommandsInput
+    args_schema: type[BaseModel] = ListSlashCommandsInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         return "查询所有可用命令"
 

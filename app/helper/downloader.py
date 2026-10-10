@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.helper.service import ServiceBaseHelper
 from app.schemas import DownloaderConf, ServiceInfo
-from app.schemas.types import SystemConfigKey, ModuleType
+from app.schemas.types import ModuleType, SystemConfigKey
 
 
 class DownloaderHelper(ServiceBaseHelper[DownloaderConf]):
@@ -12,16 +12,14 @@ class DownloaderHelper(ServiceBaseHelper[DownloaderConf]):
 
     def __init__(self):
         super().__init__(
-            config_key=SystemConfigKey.Downloaders,
-            conf_type=DownloaderConf,
-            module_type=ModuleType.Downloader
+            config_key=SystemConfigKey.Downloaders, conf_type=DownloaderConf, module_type=ModuleType.Downloader
         )
 
     def is_downloader(
-            self,
-            service_type: Optional[str] = None,
-            service: Optional[ServiceInfo] = None,
-            name: Optional[str] = None,
+        self,
+        service_type: str | None = None,
+        service: ServiceInfo | None = None,
+        name: str | None = None,
     ) -> bool:
         """
         通用的下载器类型判断方法

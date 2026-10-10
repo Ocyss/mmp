@@ -29,7 +29,7 @@ class UsageMiddleware(AgentMiddleware):
             return None
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     @classmethod
@@ -65,11 +65,7 @@ class UsageMiddleware(AgentMiddleware):
 
     @classmethod
     def _extract_model_name(cls, model: Any) -> str | None:
-        return (
-            getattr(model, "model", None)
-            or getattr(model, "model_name", None)
-            or getattr(model, "model_id", None)
-        )
+        return getattr(model, "model", None) or getattr(model, "model_name", None) or getattr(model, "model_id", None)
 
     @classmethod
     def _extract_context_window_tokens(cls, model: Any) -> int | None:
@@ -234,11 +230,7 @@ class UsageMiddleware(AgentMiddleware):
         if input_tokens is None:
             bedrock_input_tokens = cls._lookup_int(token_usage, "inputTokens")
             if bedrock_input_tokens is not None:
-                input_tokens = (
-                    bedrock_input_tokens
-                    + (cache_read_tokens or 0)
-                    + (cache_write_tokens or 0)
-                )
+                input_tokens = bedrock_input_tokens + (cache_read_tokens or 0) + (cache_write_tokens or 0)
         if input_tokens is None and any(
             value is not None
             for value in (
@@ -247,11 +239,7 @@ class UsageMiddleware(AgentMiddleware):
                 cache_miss_tokens,
             )
         ):
-            input_tokens = (
-                (cache_read_tokens or 0)
-                + (cache_write_tokens or 0)
-                + (cache_miss_tokens or 0)
-            )
+            input_tokens = (cache_read_tokens or 0) + (cache_write_tokens or 0) + (cache_miss_tokens or 0)
 
         if output_tokens is None:
             output_tokens = cls._lookup_int(
@@ -292,11 +280,7 @@ class UsageMiddleware(AgentMiddleware):
         )
         resolved_input = input_tokens or 0
         resolved_output = output_tokens or 0
-        resolved_total = (
-            total_tokens
-            if total_tokens is not None
-            else resolved_input + resolved_output
-        )
+        resolved_total = total_tokens if total_tokens is not None else resolved_input + resolved_output
         resolved_cache_read = cache_read_tokens or 0
         resolved_cache_write = cache_write_tokens or 0
         uncached_input_tokens = (
@@ -307,11 +291,7 @@ class UsageMiddleware(AgentMiddleware):
                 0,
             )
         )
-        cache_hit_ratio = (
-            resolved_cache_read / resolved_input
-            if has_cache_usage and resolved_input
-            else None
-        )
+        cache_hit_ratio = resolved_cache_read / resolved_input if has_cache_usage and resolved_input else None
 
         return {
             "has_usage": has_usage,
@@ -328,9 +308,7 @@ class UsageMiddleware(AgentMiddleware):
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         response = await handler(request)
 
@@ -339,11 +317,7 @@ class UsageMiddleware(AgentMiddleware):
 
         try:
             ai_message = next(
-                (
-                    message
-                    for message in reversed(response.result)
-                    if isinstance(message, AIMessage)
-                ),
+                (message for message in reversed(response.result) if isinstance(message, AIMessage)),
                 None,
             )
             usage = (

@@ -15,12 +15,13 @@ from app.utils.media import resolve_media_identity
 
 class SearchMediaInput(BaseModel):
     """搜索媒体工具的输入参数模型"""
+
     title: str = Field(..., description="The title of the media to search for (e.g., 'The Matrix', 'Breaking Bad')")
-    year: Optional[str] = Field(None, description="Release year of the media (optional, helps narrow down results)")
-    media_type: Optional[str] = Field(None,
-                                      description="Allowed values: movie, tv")
-    season: Optional[int] = Field(None,
-                                  description="Season number for TV shows and anime (optional, only applicable for series)")
+    year: str | None = Field(None, description="Release year of the media (optional, helps narrow down results)")
+    media_type: str | None = Field(None, description="Allowed values: movie, tv")
+    season: int | None = Field(
+        None, description="Season number for TV shows and anime (optional, only applicable for series)"
+    )
 
 
 class SearchMediaTool(MoviePilotTool):
@@ -30,15 +31,15 @@ class SearchMediaTool(MoviePilotTool):
         ToolTag.Media,
     ]
     description: str = "Search TMDB database for media resources (movies, TV shows, anime, etc.) by title, year, type, and other criteria. Returns detailed media information from TMDB. Use 'recognize_media' to extract info from torrent titles/file paths, or 'scrape_metadata' to generate metadata files."
-    args_schema: Type[BaseModel] = SearchMediaInput
+    args_schema: type[BaseModel] = SearchMediaInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         title = kwargs.get("title", "")
         year = kwargs.get("year")
         media_type = kwargs.get("media_type")
         season = kwargs.get("season")
-        
+
         message = f"搜索媒体: {title}"
         if year:
             message += f" ({year})"
@@ -46,13 +47,15 @@ class SearchMediaTool(MoviePilotTool):
             message += f" [{media_type}]"
         if season is not None:
             message += f" 第{season}季"
-        
+
         return message
 
-    async def run(self, title: str, year: Optional[str] = None,
-                  media_type: Optional[str] = None, season: Optional[int] = None, **kwargs) -> str:
+    async def run(
+        self, title: str, year: str | None = None, media_type: str | None = None, season: int | None = None, **kwargs
+    ) -> str:
         logger.info(
-            f"执行工具: {self.name}, 参数: title={title}, year={year}, media_type={media_type}, season={season}")
+            f"执行工具: {self.name}, 参数: title={title}, year={year}, media_type={media_type}, season={season}"
+        )
 
         try:
             media_chain = MediaChain()
@@ -98,10 +101,12 @@ class SearchMediaTool(MoviePilotTool):
                             "anilist_id": r.anilist_id,
                             "media_source": media_source,
                             "media_id": media_id,
-                            "overview": r.overview[:200] + "..." if r.overview and len(r.overview) > 200 else r.overview,
+                            "overview": r.overview[:200] + "..."
+                            if r.overview and len(r.overview) > 200
+                            else r.overview,
                             "vote_average": r.vote_average,
                             "poster_path": r.poster_path,
-                            "detail_link": r.detail_link
+                            "detail_link": r.detail_link,
                         }
                         simplified_results.append(simplified)
                     result_json = json.dumps(simplified_results, ensure_ascii=False, indent=2)

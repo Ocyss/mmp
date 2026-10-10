@@ -1,7 +1,8 @@
+import builtins
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from app import schemas
 from app.core.config import global_vars, settings
@@ -21,12 +22,7 @@ class LocalStorage(StorageBase):
     # 存储类型
     schema = StorageSchema.Local
     # 支持的整理方式
-    transtype = {
-        "copy": "复制",
-        "move": "移动",
-        "link": "硬链接",
-        "softlink": "软链接"
-    }
+    transtype = {"copy": "复制", "move": "移动", "link": "硬链接", "softlink": "软链接"}
 
     # 文件块大小，默认10MB
     chunk_size = 10 * 1024 * 1024
@@ -71,7 +67,7 @@ class LocalStorage(StorageBase):
             modify_time=path.stat().st_mtime,
         )
 
-    def list(self, fileitem: schemas.FileItem) -> List[schemas.FileItem]:
+    def list(self, fileitem: schemas.FileItem) -> builtins.list[schemas.FileItem]:
         """
         浏览文件
         """
@@ -82,13 +78,15 @@ class LocalStorage(StorageBase):
             if SystemUtils.is_windows():
                 partitions = SystemUtils.get_windows_drives() or ["C:/"]
                 for partition in partitions:
-                    ret_items.append(schemas.FileItem(
-                        storage=self.schema.value,
-                        type="dir",
-                        path=partition + "/",
-                        name=partition,
-                        basename=partition
-                    ))
+                    ret_items.append(
+                        schemas.FileItem(
+                            storage=self.schema.value,
+                            type="dir",
+                            path=partition + "/",
+                            name=partition,
+                            basename=partition,
+                        )
+                    )
                 return ret_items
             else:
                 path = "/"
@@ -118,7 +116,7 @@ class LocalStorage(StorageBase):
             ret_items.append(self.__get_fileitem(item))
         return ret_items
 
-    def create_folder(self, fileitem: schemas.FileItem, name: str) -> Optional[schemas.FileItem]:
+    def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         :param fileitem: 父目录
@@ -131,7 +129,7 @@ class LocalStorage(StorageBase):
             path_obj.mkdir(parents=True, exist_ok=True)
         return self.__get_diritem(path_obj)
 
-    def get_folder(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, path: Path) -> schemas.FileItem | None:
         """
         获取目录
         """
@@ -139,7 +137,7 @@ class LocalStorage(StorageBase):
             path.mkdir(parents=True, exist_ok=True)
         return self.__get_diritem(path)
 
-    def get_item(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item(self, path: Path) -> schemas.FileItem | None:
         """
         获取文件或目录，不存在返回None
         """
@@ -149,7 +147,7 @@ class LocalStorage(StorageBase):
             return self.__get_fileitem(path)
         return self.__get_diritem(path)
 
-    def get_item_strict(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item_strict(self, path: Path) -> schemas.FileItem | None:
         """
         获取文件或目录，无法确认状态时抛出 StorageQueryError。
         Path.exists() 会把部分 errno（如 EBADF/ELOOP）归入「不存在」，
@@ -157,7 +155,7 @@ class LocalStorage(StorageBase):
         """
         try:
             path.stat()
-        except (FileNotFoundError, NotADirectoryError):
+        except FileNotFoundError, NotADirectoryError:
             return None
         except OSError as e:
             raise StorageQueryError(f"【本地】读取文件状态失败: {path} - {e}") from e
@@ -166,7 +164,7 @@ class LocalStorage(StorageBase):
         except OSError as e:
             raise StorageQueryError(f"【本地】读取文件信息失败: {path} - {e}") from e
 
-    def detail(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def detail(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取文件详情
         """
@@ -208,7 +206,7 @@ class LocalStorage(StorageBase):
             return False
         return True
 
-    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Optional[Path]:
+    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Path | None:
         """
         下载文件
         """
@@ -264,12 +262,7 @@ class LocalStorage(StorageBase):
         finally:
             progress_callback(100)
 
-    def upload(
-            self,
-            fileitem: schemas.FileItem,
-            path: Path,
-            new_name: Optional[str] = None
-    ) -> Optional[schemas.FileItem]:
+    def upload(self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None) -> schemas.FileItem | None:
         """
         上传文件（带进度）
         """
@@ -295,12 +288,7 @@ class LocalStorage(StorageBase):
             return True
         return False
 
-    def copy(
-            self,
-            fileitem: schemas.FileItem,
-            path: Path,
-            new_name: str
-    ) -> bool:
+    def copy(self, fileitem: schemas.FileItem, path: Path, new_name: str) -> bool:
         """
         复制文件（带进度）
         """
@@ -317,12 +305,7 @@ class LocalStorage(StorageBase):
             logger.error(f"【本地】复制文件失败：{err}")
         return False
 
-    def move(
-            self,
-            fileitem: schemas.FileItem,
-            path: Path,
-            new_name: str
-    ) -> bool:
+    def move(self, fileitem: schemas.FileItem, path: Path, new_name: str) -> bool:
         """
         移动文件（带进度）
         """
@@ -366,17 +349,14 @@ class LocalStorage(StorageBase):
             return False
         return True
 
-    def usage(self) -> Optional[schemas.StorageUsage]:
+    def usage(self) -> schemas.StorageUsage | None:
         """
         存储使用情况
         """
         directory_helper = DirectoryHelper()
         total_storage, free_storage = SystemUtils.space_usage(
-            [Path(d.download_path) for d in directory_helper.get_local_download_dirs() if d.download_path] +
-            [Path(d.library_path) for d in directory_helper.get_local_library_dirs() if d.library_path],
+            [Path(d.download_path) for d in directory_helper.get_local_download_dirs() if d.download_path]
+            + [Path(d.library_path) for d in directory_helper.get_local_library_dirs() if d.library_path],
             btrfs_fsid_dedup=settings.BTRFS_FSID_DEDUP,
         )
-        return schemas.StorageUsage(
-            total=total_storage,
-            available=free_storage
-        )
+        return schemas.StorageUsage(total=total_storage, available=free_storage)

@@ -1,9 +1,10 @@
 import math
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.core.context import MediaInfo
 from app.core.meta import MetaBase
@@ -20,12 +21,12 @@ class PendingSlashInteraction:
 
     request_id: str
     user_id: str
-    channel: Optional[MessageChannel]
-    source: Optional[str]
-    username: Optional[str]
+    channel: MessageChannel | None
+    source: str | None
+    username: str | None
     command: str
     page: int = 0
-    awaiting_input: Optional[str] = None
+    awaiting_input: str | None = None
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -37,29 +38,25 @@ class SlashInteractionManager:
     _ttl = timedelta(hours=24)
 
     def __init__(self):
-        self._by_id: Dict[str, PendingSlashInteraction] = {}
-        self._by_user: Dict[str, str] = {}
+        self._by_id: dict[str, PendingSlashInteraction] = {}
+        self._by_user: dict[str, str] = {}
         self._lock = Lock()
 
     def _cleanup_locked(self) -> None:
         expire_before = datetime.now() - self._ttl
-        expired = [
-            request_id
-            for request_id, request in self._by_id.items()
-            if request.created_at < expire_before
-        ]
+        expired = [request_id for request_id, request in self._by_id.items() if request.created_at < expire_before]
         for request_id in expired:
             request = self._by_id.pop(request_id, None)
             if request:
                 self._by_user.pop(str(request.user_id), None)
 
     def create_or_replace(
-            self,
-            user_id: Union[str, int],
-            command: str,
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            username: Optional[str],
+        self,
+        user_id: str | int,
+        command: str,
+        channel: MessageChannel | None,
+        source: str | None,
+        username: str | None,
     ) -> PendingSlashInteraction:
         with self._lock:
             self._cleanup_locked()
@@ -79,9 +76,7 @@ class SlashInteractionManager:
             self._by_user[user_key] = request.request_id
             return request
 
-    def get_by_user(
-            self, user_id: Union[str, int]
-    ) -> Optional[PendingSlashInteraction]:
+    def get_by_user(self, user_id: str | int) -> PendingSlashInteraction | None:
         with self._lock:
             self._cleanup_locked()
             request_id = self._by_user.get(str(user_id))
@@ -89,9 +84,7 @@ class SlashInteractionManager:
                 return None
             return self._by_id.get(request_id)
 
-    def get_by_id(
-            self, request_id: str, user_id: Union[str, int]
-    ) -> Optional[PendingSlashInteraction]:
+    def get_by_id(self, request_id: str, user_id: str | int) -> PendingSlashInteraction | None:
         with self._lock:
             self._cleanup_locked()
             request = self._by_id.get(request_id)
@@ -111,7 +104,7 @@ class SlashInteractionManager:
             self._by_user.clear()
 
 
-def supports_interaction_buttons(channel: Optional[MessageChannel]) -> bool:
+def supports_interaction_buttons(channel: MessageChannel | None) -> bool:
     """
     渠道同时支持按钮和回调时，优先使用按钮交互。
     """
@@ -122,7 +115,7 @@ def supports_interaction_buttons(channel: Optional[MessageChannel]) -> bool:
     )
 
 
-def supports_markdown(channel: Optional[MessageChannel]) -> bool:
+def supports_markdown(channel: MessageChannel | None) -> bool:
     """
     仅在支持 Markdown 的渠道上输出 Markdown 内容。
     """
@@ -130,10 +123,10 @@ def supports_markdown(channel: Optional[MessageChannel]) -> bool:
 
 
 def page_items(
-        items: Sequence[Any],
-        page: int,
-        page_size: int,
-) -> Tuple[List[Any], int, int]:
+    items: Sequence[Any],
+    page: int,
+    page_size: int,
+) -> tuple[list[Any], int, int]:
     """
     对列表做分页并规范化页码。
     """
@@ -148,11 +141,11 @@ def page_items(
 
 
 def build_navigation_buttons(
-        prefix: str,
-        request: Any,
-        page: int,
-        total_pages: int,
-) -> List[List[dict]]:
+    prefix: str,
+    request: Any,
+    page: int,
+    total_pages: int,
+) -> list[list[dict]]:
     """
     构造标准上一页/下一页按钮。
     """
@@ -178,25 +171,21 @@ def build_navigation_buttons(
 
 
 def update_or_post_message(
-        chain,
-        channel: MessageChannel,
-        source: Optional[str],
-        userid: Union[str, int],
-        username: Optional[str],
-        title: str,
-        text: str,
-        buttons: Optional[List[List[dict]]] = None,
-        original_message_id: Optional[Union[str, int]] = None,
-        original_chat_id: Optional[str] = None,
+    chain,
+    channel: MessageChannel,
+    source: str | None,
+    userid: str | int,
+    username: str | None,
+    title: str,
+    text: str,
+    buttons: list[list[dict]] | None = None,
+    original_message_id: str | int | None = None,
+    original_chat_id: str | None = None,
 ) -> None:
     """
     优先编辑原消息，失败时回退为发送新消息。
     """
-    if (
-            original_message_id
-            and original_chat_id
-            and ChannelCapabilityManager.supports_editing(channel)
-    ):
+    if original_message_id and original_chat_id and ChannelCapabilityManager.supports_editing(channel):
         edit_kwargs = {}
         if channel == MessageChannel.WebAgent:
             edit_kwargs["metadata"] = {"userid": userid}
@@ -236,24 +225,15 @@ def escape_markdown_table_cell(value: object) -> str:
 
 
 def format_markdown_table(
-        headers: Sequence[str],
-        rows: Sequence[Sequence[object]],
+    headers: Sequence[str],
+    rows: Sequence[Sequence[object]],
 ) -> str:
     """
     生成 Markdown 表格文本。
     """
-    header_line = (
-            "| "
-            + " | ".join(escape_markdown_table_cell(item) for item in headers)
-            + " |"
-    )
+    header_line = "| " + " | ".join(escape_markdown_table_cell(item) for item in headers) + " |"
     separator_line = "| " + " | ".join("---" for _ in headers) + " |"
-    data_lines = [
-        "| "
-        + " | ".join(escape_markdown_table_cell(item) for item in row)
-        + " |"
-        for row in rows
-    ]
+    data_lines = ["| " + " | ".join(escape_markdown_table_cell(item) for item in row) + " |" for row in rows]
     return "\n".join([header_line, separator_line, *data_lines])
 
 
@@ -265,21 +245,21 @@ class PendingMediaInteraction:
 
     request_id: str
     user_id: str
-    channel: Optional[MessageChannel]
-    source: Optional[str]
-    username: Optional[str]
+    channel: MessageChannel | None
+    source: str | None
+    username: str | None
     action: str
     keyword: str
     phase: str = "media"
     page: int = 0
     title: str = ""
-    meta: Optional[MetaBase] = None
-    current_media: Optional[MediaInfo] = None
-    items: List[Any] = field(default_factory=list)
-    download_dirs: List[Any] = field(default_factory=list)
-    pending_download_mode: Optional[str] = None
-    pending_download_context: Optional[Any] = None
-    pending_no_exists: Optional[Dict[Any, Any]] = None
+    meta: MetaBase | None = None
+    current_media: MediaInfo | None = None
+    items: list[Any] = field(default_factory=list)
+    download_dirs: list[Any] = field(default_factory=list)
+    pending_download_mode: str | None = None
+    pending_download_context: Any | None = None
+    pending_no_exists: dict[Any, Any] | None = None
     pending_torrent_page: int = 0
     created_at: datetime = field(default_factory=datetime.now)
 
@@ -294,8 +274,8 @@ class MediaInteractionManager:
     _ttl = timedelta(hours=24)
 
     def __init__(self):
-        self._by_id: Dict[str, PendingMediaInteraction] = {}
-        self._by_user: Dict[str, str] = {}
+        self._by_id: dict[str, PendingMediaInteraction] = {}
+        self._by_user: dict[str, str] = {}
         self._lock = Lock()
 
     def _cleanup_locked(self) -> None:
@@ -303,27 +283,23 @@ class MediaInteractionManager:
         清理超时会话，避免内存中残留旧交互状态。
         """
         expire_before = datetime.now() - self._ttl
-        expired = [
-            request_id
-            for request_id, request in self._by_id.items()
-            if request.created_at < expire_before
-        ]
+        expired = [request_id for request_id, request in self._by_id.items() if request.created_at < expire_before]
         for request_id in expired:
             request = self._by_id.pop(request_id, None)
             if request:
                 self._by_user.pop(str(request.user_id), None)
 
     def create_or_replace(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            username: Optional[str],
-            action: str,
-            keyword: str,
-            title: str = "",
-            meta: Optional[MetaBase] = None,
-            items: Optional[List[Any]] = None,
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        username: str | None,
+        action: str,
+        keyword: str,
+        title: str = "",
+        meta: MetaBase | None = None,
+        items: list[Any] | None = None,
     ) -> PendingMediaInteraction:
         """
         为用户创建新的交互状态，并替换旧会话。
@@ -351,9 +327,7 @@ class MediaInteractionManager:
             self._by_user[user_key] = request.request_id
             return request
 
-    def get_by_user(
-            self, user_id: Union[str, int]
-    ) -> Optional[PendingMediaInteraction]:
+    def get_by_user(self, user_id: str | int) -> PendingMediaInteraction | None:
         """
         按用户读取当前会话，供文本回复和旧按钮兼容使用。
         """
@@ -364,9 +338,7 @@ class MediaInteractionManager:
                 return None
             return self._by_id.get(request_id)
 
-    def get_by_id(
-            self, request_id: str, user_id: Union[str, int]
-    ) -> Optional[PendingMediaInteraction]:
+    def get_by_id(self, request_id: str, user_id: str | int) -> PendingMediaInteraction | None:
         """
         按请求 ID 读取会话，并校验用户归属。
         """
@@ -407,16 +379,16 @@ class PendingPluginInputInteraction:
     request_id: str
     user_id: str
     plugin_id: str
-    channel: Optional[MessageChannel]
-    source: Optional[str]
-    username: Optional[str]
-    chat_id: Optional[str] = None
-    prompt_id: Optional[str] = None
-    payload: Optional[Any] = None
+    channel: MessageChannel | None
+    source: str | None
+    username: str | None
+    chat_id: str | None = None
+    prompt_id: str | None = None
+    payload: Any | None = None
     timeout_seconds: int = 120
     created_at: datetime = field(default_factory=datetime.now)
     # Optional reply binding for channels that can report reply_to_message_id.
-    prompt_message_id: Optional[str] = None
+    prompt_message_id: str | None = None
 
     @property
     def expires_at(self) -> datetime:
@@ -433,28 +405,28 @@ class PluginInputInteractionManager:
     EXPIRED_GRACE_SECONDS = 300
 
     def __init__(self):
-        self._by_id: Dict[str, PendingPluginInputInteraction] = {}
-        self._by_user_channel: Dict[Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]], str] = {}
-        self._expired_by_user_channel: Dict[
-            Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]],
+        self._by_id: dict[str, PendingPluginInputInteraction] = {}
+        self._by_user_channel: dict[tuple[str, MessageChannel | None, str | None, str | None], str] = {}
+        self._expired_by_user_channel: dict[
+            tuple[str, MessageChannel | None, str | None, str | None],
             PendingPluginInputInteraction,
         ] = {}
         self._lock = Lock()
 
     @staticmethod
     def _user_channel_source_key(
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str] = None,
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]]:
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None = None,
+        chat_id: str | int | None = None,
+    ) -> tuple[str, MessageChannel | None, str | None, str | None]:
         return str(user_id), channel, source, str(chat_id) if chat_id not in (None, "") else None
 
     @classmethod
     def _keys_overlap(
-            cls,
-            left: Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]],
-            right: Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]],
+        cls,
+        left: tuple[str, MessageChannel | None, str | None, str | None],
+        right: tuple[str, MessageChannel | None, str | None, str | None],
     ) -> bool:
         left_user, left_channel, left_source, left_chat_id = left
         right_user, right_channel, right_source, right_chat_id = right
@@ -478,11 +450,7 @@ class PluginInputInteractionManager:
         for key in expired_tombstones:
             self._expired_by_user_channel.pop(key, None)
 
-        expired = [
-            request_id
-            for request_id, request in self._by_id.items()
-            if request.expires_at < now
-        ]
+        expired = [request_id for request_id, request in self._by_id.items() if request.expires_at < now]
         for request_id in expired:
             request = self._by_id.pop(request_id, None)
             if request:
@@ -496,18 +464,18 @@ class PluginInputInteractionManager:
                 self._expired_by_user_channel[key] = request
 
     def create_or_replace(
-            self,
-            user_id: Union[str, int],
-            plugin_id: str,
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            username: Optional[str],
-            chat_id: Optional[Union[str, int]] = None,
-            prompt_id: Optional[str] = None,
-            timeout_seconds: int = 120,
-            payload: Optional[Any] = None,
-            *,
-            prompt_message_id: Optional[Union[str, int]] = None,
+        self,
+        user_id: str | int,
+        plugin_id: str,
+        channel: MessageChannel | None,
+        source: str | None,
+        username: str | None,
+        chat_id: str | int | None = None,
+        prompt_id: str | None = None,
+        timeout_seconds: int = 120,
+        payload: Any | None = None,
+        *,
+        prompt_message_id: str | int | None = None,
     ) -> PendingPluginInputInteraction:
         with self._lock:
             self._cleanup_locked()
@@ -555,12 +523,12 @@ class PluginInputInteractionManager:
             return request
 
     def get_by_user(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel] = None,
-            source: Optional[str] = None,
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Optional[PendingPluginInputInteraction]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None = None,
+        source: str | None = None,
+        chat_id: str | int | None = None,
+    ) -> PendingPluginInputInteraction | None:
         with self._lock:
             self._cleanup_locked()
             request_id = self._find_request_id_locked(user_id, channel, source, chat_id)
@@ -569,12 +537,12 @@ class PluginInputInteractionManager:
             return None
 
     def pop_by_user(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel] = None,
-            source: Optional[str] = None,
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Optional[PendingPluginInputInteraction]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None = None,
+        source: str | None = None,
+        chat_id: str | int | None = None,
+    ) -> PendingPluginInputInteraction | None:
         with self._lock:
             self._cleanup_locked()
             key, request_id = self._find_key_and_request_id_locked(user_id, channel, source, chat_id)
@@ -587,15 +555,15 @@ class PluginInputInteractionManager:
             return request
 
     def consume_by_user(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel] = None,
-            source: Optional[str] = None,
-            chat_id: Optional[Union[str, int]] = None,
-            *,
-            reply_to_message_id: Optional[Union[str, int]] = None,
-            bypass_reply_check: bool = False,
-    ) -> Tuple[Optional[PendingPluginInputInteraction], Optional[str]]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None = None,
+        source: str | None = None,
+        chat_id: str | int | None = None,
+        *,
+        reply_to_message_id: str | int | None = None,
+        bypass_reply_check: bool = False,
+    ) -> tuple[PendingPluginInputInteraction | None, str | None]:
         with self._lock:
             key, request_id = self._find_key_and_request_id_locked(user_id, channel, source, chat_id)
 
@@ -610,10 +578,10 @@ class PluginInputInteractionManager:
                         return None, None
                     return request, "expired"
                 elif not self._reply_matches_prompt(
-                        request,
-                        chat_id,
-                        reply_to_message_id,
-                        ignore_reply_to_message_id=bypass_reply_check,
+                    request,
+                    chat_id,
+                    reply_to_message_id,
+                    ignore_reply_to_message_id=bypass_reply_check,
                 ):
                     return None, None
                 else:
@@ -632,11 +600,11 @@ class PluginInputInteractionManager:
 
     @staticmethod
     def _reply_matches_prompt(
-            request: PendingPluginInputInteraction,
-            chat_id: Optional[Union[str, int]],
-            reply_to_message_id: Optional[Union[str, int]],
-            *,
-            ignore_reply_to_message_id: bool = False,
+        request: PendingPluginInputInteraction,
+        chat_id: str | int | None,
+        reply_to_message_id: str | int | None,
+        *,
+        ignore_reply_to_message_id: bool = False,
     ) -> bool:
         if not request.prompt_message_id:
             return True
@@ -651,22 +619,22 @@ class PluginInputInteractionManager:
         return str(reply_to_message_id) == str(request.prompt_message_id)
 
     def _find_request_id_locked(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Optional[str]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        chat_id: str | int | None = None,
+    ) -> str | None:
         _, request_id = self._find_key_and_request_id_locked(user_id, channel, source, chat_id)
         return request_id
 
     def _find_key_and_request_id_locked(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Tuple[Optional[Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]]], Optional[str]]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        chat_id: str | int | None = None,
+    ) -> tuple[tuple[str, MessageChannel | None, str | None, str | None] | None, str | None]:
         for key in self._candidate_keys(user_id, channel, source, chat_id):
             request_id = self._by_user_channel.get(key)
             if request_id:
@@ -674,13 +642,12 @@ class PluginInputInteractionManager:
         return None, None
 
     def _find_expired_key_and_request_locked(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> Tuple[Optional[Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]]],
-               Optional[PendingPluginInputInteraction]]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        chat_id: str | int | None = None,
+    ) -> tuple[tuple[str, MessageChannel | None, str | None, str | None] | None, PendingPluginInputInteraction | None]:
         now = datetime.now()
         for key in self._candidate_keys(user_id, channel, source, chat_id):
             request = self._expired_by_user_channel.get(key)
@@ -693,12 +660,12 @@ class PluginInputInteractionManager:
         return None, None
 
     def _candidate_keys(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            chat_id: Optional[Union[str, int]] = None,
-    ) -> List[Tuple[str, Optional[MessageChannel], Optional[str], Optional[str]]]:
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        chat_id: str | int | None = None,
+    ) -> list[tuple[str, MessageChannel | None, str | None, str | None]]:
         chat_key = str(chat_id) if chat_id not in (None, "") else None
         candidates = [
             self._user_channel_source_key(user_id, channel, source, chat_key),
@@ -747,7 +714,7 @@ class AgentInteractionOption:
 
     label: str
     value: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclass
@@ -759,12 +726,12 @@ class PendingAgentInteraction:
     request_id: str
     session_id: str
     user_id: str
-    channel: Optional[str]
-    source: Optional[str]
-    username: Optional[str]
-    title: Optional[str]
+    channel: str | None
+    source: str | None
+    username: str | None
+    title: str | None
     prompt: str
-    options: List[AgentInteractionOption]
+    options: list[AgentInteractionOption]
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -776,7 +743,7 @@ class AgentInteractionManager:
     _ttl = timedelta(hours=24)
 
     def __init__(self):
-        self._pending_interactions: Dict[str, PendingAgentInteraction] = {}
+        self._pending_interactions: dict[str, PendingAgentInteraction] = {}
         self._lock = Lock()
 
     def _cleanup_locked(self) -> None:
@@ -790,15 +757,15 @@ class AgentInteractionManager:
             self._pending_interactions.pop(request_id, None)
 
     def create_request(
-            self,
-            session_id: str,
-            user_id: str,
-            channel: Optional[str],
-            source: Optional[str],
-            username: Optional[str],
-            title: Optional[str],
-            prompt: str,
-            options: List[AgentInteractionOption],
+        self,
+        session_id: str,
+        user_id: str,
+        channel: str | None,
+        source: str | None,
+        username: str | None,
+        title: str | None,
+        prompt: str,
+        options: list[AgentInteractionOption],
     ) -> PendingAgentInteraction:
         """
         创建一条待用户确认的 Agent 交互请求。
@@ -823,11 +790,11 @@ class AgentInteractionManager:
             return request
 
     def resolve(
-            self,
-            request_id: str,
-            option_index: int,
-            user_id: Optional[str] = None,
-    ) -> Optional[tuple[PendingAgentInteraction, AgentInteractionOption]]:
+        self,
+        request_id: str,
+        option_index: int,
+        user_id: str | None = None,
+    ) -> tuple[PendingAgentInteraction, AgentInteractionOption] | None:
         """
         消费一条 Agent 交互请求，并返回选中的选项。
         """
@@ -863,14 +830,14 @@ class PendingSkillsInteraction:
 
     request_id: str
     user_id: str
-    channel: Optional[MessageChannel]
-    source: Optional[str]
-    username: Optional[str]
+    channel: MessageChannel | None
+    source: str | None
+    username: str | None
     view: str = "root"
     local_page: int = 0
     market_page: int = 0
     market_query: str = ""
-    awaiting_input: Optional[str] = None
+    awaiting_input: str | None = None
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -884,8 +851,8 @@ class SkillsInteractionManager:
     _ttl = timedelta(hours=24)
 
     def __init__(self):
-        self._by_id: Dict[str, PendingSkillsInteraction] = {}
-        self._by_user: Dict[str, str] = {}
+        self._by_id: dict[str, PendingSkillsInteraction] = {}
+        self._by_user: dict[str, str] = {}
         self._lock = Lock()
 
     def _cleanup_locked(self):
@@ -893,22 +860,18 @@ class SkillsInteractionManager:
         清理超时会话，避免按钮回调无限积累。
         """
         expire_before = datetime.now() - self._ttl
-        expired = [
-            request_id
-            for request_id, request in self._by_id.items()
-            if request.created_at < expire_before
-        ]
+        expired = [request_id for request_id, request in self._by_id.items() if request.created_at < expire_before]
         for request_id in expired:
             request = self._by_id.pop(request_id, None)
             if request:
                 self._by_user.pop(str(request.user_id), None)
 
     def create_or_replace(
-            self,
-            user_id: Union[str, int],
-            channel: Optional[MessageChannel],
-            source: Optional[str],
-            username: Optional[str],
+        self,
+        user_id: str | int,
+        channel: MessageChannel | None,
+        source: str | None,
+        username: str | None,
     ) -> PendingSkillsInteraction:
         """
         为用户创建新会话，并替换掉旧的技能交互状态。
@@ -931,9 +894,7 @@ class SkillsInteractionManager:
             self._by_user[user_key] = request_id
             return request
 
-    def get_by_user(
-            self, user_id: Union[str, int]
-    ) -> Optional[PendingSkillsInteraction]:
+    def get_by_user(self, user_id: str | int) -> PendingSkillsInteraction | None:
         """
         按用户获取当前有效会话，供纯文本回复路由使用。
         """
@@ -944,9 +905,7 @@ class SkillsInteractionManager:
                 return None
             return self._by_id.get(request_id)
 
-    def get_by_id(
-            self, request_id: str, user_id: Union[str, int]
-    ) -> Optional[PendingSkillsInteraction]:
+    def get_by_id(self, request_id: str, user_id: str | int) -> PendingSkillsInteraction | None:
         """
         按请求 ID 获取会话，并校验会话归属用户。
         """

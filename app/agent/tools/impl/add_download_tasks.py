@@ -24,16 +24,21 @@ from app.utils.crypto import HashUtils
 class AddDownloadTasksInput(BaseModel):
     """添加下载任务工具的输入参数模型"""
 
-    torrent_url: List[str] = Field(
+    torrent_url: list[str] = Field(
         ...,
-        description="One or more torrent_url values. Supports refs from get_search_results (`hash:id`) and magnet links."
+        description="One or more torrent_url values. Supports refs from get_search_results (`hash:id`) and magnet links.",
     )
-    downloader: Optional[str] = Field(None,
-                                      description="Name of the downloader to use (optional, uses default if not specified)")
-    save_path: Optional[str] = Field(None,
-                                     description="Directory path where the downloaded files should be saved. Using `<storage>:<path>` for remote storage. e.g. rclone:/MP, smb:/server/share/Movies. (optional, uses default path if not specified)")
-    labels: Optional[str] = Field(None,
-                                  description="Comma-separated list of labels/tags to assign to the download (optional, e.g., 'movie,hd,bluray')")
+    downloader: str | None = Field(
+        None, description="Name of the downloader to use (optional, uses default if not specified)"
+    )
+    save_path: str | None = Field(
+        None,
+        description="Directory path where the downloaded files should be saved. Using `<storage>:<path>` for remote storage. e.g. rclone:/MP, smb:/server/share/Movies. (optional, uses default path if not specified)",
+    )
+    labels: str | None = Field(
+        None,
+        description="Comma-separated list of labels/tags to assign to the download (optional, e.g., 'movie,hd,bluray')",
+    )
 
 
 class AddDownloadTasksTool(MoviePilotTool):
@@ -46,9 +51,9 @@ class AddDownloadTasksTool(MoviePilotTool):
         ToolTag.Resource,
     ]
     description: str = "Add torrent download tasks using refs from get_search_results or magnet links."
-    args_schema: Type[BaseModel] = AddDownloadTasksInput
+    args_schema: type[BaseModel] = AddDownloadTasksInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据下载参数生成友好的提示消息"""
         torrent_urls = self._normalize_torrent_urls(kwargs.get("torrent_url"))
         downloader = kwargs.get("downloader")
@@ -76,14 +81,14 @@ class AddDownloadTasksTool(MoviePilotTool):
         return HashUtils.sha1(context.torrent_info.enclosure or "")[:7]
 
     @staticmethod
-    def _is_torrent_ref(torrent_ref: Optional[str]) -> bool:
+    def _is_torrent_ref(torrent_ref: str | None) -> bool:
         """判断是否为内部搜索结果引用"""
         if not torrent_ref:
             return False
         return bool(re.fullmatch(r"[0-9a-f]{7}:\d+", str(torrent_ref).strip()))
 
     @staticmethod
-    def _is_magnet_link_input(torrent_url: Optional[str]) -> bool:
+    def _is_magnet_link_input(torrent_url: str | None) -> bool:
         """判断输入是否为允许直接添加的磁力链接"""
         if not torrent_url:
             return False
@@ -91,7 +96,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         return value.startswith("magnet:")
 
     @classmethod
-    def _resolve_cached_context(cls, torrent_ref: str) -> Optional[Context]:
+    def _resolve_cached_context(cls, torrent_ref: str) -> Context | None:
         """从最近一次搜索缓存中解析种子上下文，仅支持 hash:id 格式"""
         ref = str(torrent_ref).strip()
         if ":" not in ref:
@@ -99,7 +104,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         try:
             ref_hash, ref_index = ref.split(":", 1)
             index = int(ref_index)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
         if index < 1:
@@ -114,7 +119,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         return context
 
     @classmethod
-    async def _async_resolve_cached_context(cls, torrent_ref: str) -> Optional[Context]:
+    async def _async_resolve_cached_context(cls, torrent_ref: str) -> Context | None:
         """异步读取最近搜索缓存，避免在协程里直接访问同步文件缓存。"""
         ref = str(torrent_ref).strip()
         if ":" not in ref:
@@ -122,7 +127,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         try:
             ref_hash, ref_index = ref.split(":", 1)
             index = int(ref_index)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
         if index < 1:
@@ -137,7 +142,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         return context
 
     @staticmethod
-    def _merge_labels_with_system_tag(labels: Optional[str]) -> Optional[str]:
+    def _merge_labels_with_system_tag(labels: str | None) -> str | None:
         """合并用户标签与系统默认标签，确保任务可被系统管理"""
         system_tag = (settings.TORRENT_TAG or "").strip()
         user_labels = [item.strip() for item in (labels or "").split(",") if item.strip()]
@@ -148,17 +153,17 @@ class AddDownloadTasksTool(MoviePilotTool):
         return ",".join(user_labels) if user_labels else None
 
     @staticmethod
-    def _format_failed_result(failed_messages: List[str]) -> str:
+    def _format_failed_result(failed_messages: list[str]) -> str:
         """统一格式化失败结果"""
         return ", ".join([message for message in failed_messages if message])
 
     @staticmethod
-    def _build_failure_message(torrent_ref: str, error_msg: Optional[str] = None) -> str:
+    def _build_failure_message(torrent_ref: str, error_msg: str | None = None) -> str:
         """构造失败提示"""
         normalized_error = (error_msg or "").strip()
         prefix = "添加种子任务失败："
         if normalized_error.startswith(prefix):
-            normalized_error = normalized_error[len(prefix):].lstrip()
+            normalized_error = normalized_error[len(prefix) :].lstrip()
         if AddDownloadTasksTool._is_magnet_link_input(normalized_error):
             normalized_error = ""
         if normalized_error:
@@ -168,7 +173,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         return ""
 
     @classmethod
-    def _normalize_torrent_urls(cls, torrent_url: Optional[Union[List[str], str]]) -> List[str]:
+    def _normalize_torrent_urls(cls, torrent_url: list[str] | str | None) -> list[str]:
         """统一规范 torrent_url 输入，保留所有非空值"""
         if torrent_url is None:
             return []
@@ -181,7 +186,7 @@ class AddDownloadTasksTool(MoviePilotTool):
         return [str(item).strip() for item in candidates if item and str(item).strip()]
 
     @staticmethod
-    def _resolve_direct_download_dir(save_path: Optional[str]) -> Optional[Path]:
+    def _resolve_direct_download_dir(save_path: str | None) -> Path | None:
         """解析直接下载使用的目录，优先使用 save_path，其次使用默认下载目录"""
         if save_path is not None:
             return Path(validate_download_save_path(save_path))
@@ -200,9 +205,9 @@ class AddDownloadTasksTool(MoviePilotTool):
     def _download_direct_sync(
         torrent_input: str,
         download_dir: Path,
-        merged_labels: Optional[str],
-        downloader: Optional[str],
-    ) -> tuple[Optional[str], Optional[str]]:
+        merged_labels: str | None,
+        downloader: str | None,
+    ) -> tuple[str | None, str | None]:
         """同步添加磁力下载任务，避免下载器调用阻塞事件循环。"""
         result = DownloadChain().download(
             content=torrent_input,
@@ -220,10 +225,10 @@ class AddDownloadTasksTool(MoviePilotTool):
     @staticmethod
     def _download_single_sync(
         context: Context,
-        downloader: Optional[str],
-        save_path: Optional[str],
-        merged_labels: Optional[str],
-    ) -> tuple[Optional[str], Optional[str]]:
+        downloader: str | None,
+        save_path: str | None,
+        merged_labels: str | None,
+    ) -> tuple[str | None, str | None]:
         """同步提交带上下文的下载任务，避免站点下载与下载器调用阻塞事件循环。"""
         if save_path is not None:
             save_path = validate_download_save_path(save_path)
@@ -235,12 +240,18 @@ class AddDownloadTasksTool(MoviePilotTool):
             return_detail=True,
         )
 
-    async def run(self, torrent_url: Optional[List[str]] = None,
-                  downloader: Optional[str] = None, save_path: Optional[str] = None,
-                  labels: Optional[str] = None, **kwargs) -> str:
+    async def run(
+        self,
+        torrent_url: list[str] | None = None,
+        downloader: str | None = None,
+        save_path: str | None = None,
+        labels: str | None = None,
+        **kwargs,
+    ) -> str:
         """执行添加下载任务。"""
         logger.info(
-            f"执行工具: {self.name}, 参数: torrent_url={torrent_url}, downloader={downloader}, save_path={save_path}, labels={labels}")
+            f"执行工具: {self.name}, 参数: torrent_url={torrent_url}, downloader={downloader}, save_path={save_path}, labels={labels}"
+        )
 
         try:
             torrent_inputs = self._normalize_torrent_urls(torrent_url)
@@ -288,7 +299,7 @@ class AddDownloadTasksTool(MoviePilotTool):
                         site_cookie=siteinfo.cookie,
                         site_proxy=siteinfo.proxy,
                         site_order=siteinfo.pri,
-                        site_downloader=siteinfo.downloader
+                        site_downloader=siteinfo.downloader,
                     )
                     meta_info = MetaInfo(title=torrent_title, subtitle=torrent_description)
                     media_info = cached_context.media_info if cached_context.media_info else None
@@ -301,20 +312,12 @@ class AddDownloadTasksTool(MoviePilotTool):
                         failed_messages.append(f"{torrent_input} 无法识别媒体信息")
                         continue
 
-                    context = Context(
-                        torrent_info=torrent_info,
-                        meta_info=meta_info,
-                        media_info=media_info
-                    )
+                    context = Context(torrent_info=torrent_info, meta_info=meta_info, media_info=media_info)
                 else:
                     if not self._is_magnet_link_input(torrent_input):
-                        failed_messages.append(
-                            f"{torrent_input} 不是有效的下载内容，非 hash:id 时仅支持 magnet: 开头"
-                        )
+                        failed_messages.append(f"{torrent_input} 不是有效的下载内容，非 hash:id 时仅支持 magnet: 开头")
                         continue
-                    download_dir = await self.run_blocking(
-                        "storage", self._resolve_direct_download_dir, save_path
-                    )
+                    download_dir = await self.run_blocking("storage", self._resolve_direct_download_dir, save_path)
                     if not download_dir:
                         failed_messages.append(f"{torrent_input} 缺少保存路径，且系统未配置可用下载目录")
                         continue

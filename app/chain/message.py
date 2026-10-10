@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, Dict, Union, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote, urlparse
 
 from app.agent import ReplyMode, agent_manager
@@ -22,25 +22,25 @@ from app.chain.site import SiteChain, site_interaction_manager
 from app.chain.skills import SkillsChain, skills_interaction_manager
 from app.chain.subscribe import SubscribeChain, subscribe_interaction_manager
 from app.chain.transfer import TransferChain
-from app.core.config import settings, global_vars
-from app.core.context import MediaInfo, Context
+from app.core.config import global_vars, settings
+from app.core.context import Context, MediaInfo
 from app.core.meta import MetaBase
 from app.db.models import TransferHistory
 from app.db.transferhistory_oper import TransferHistoryOper
 from app.db.user_oper import UserOper
 from app.helper.directory import DirectoryHelper
 from app.helper.interaction import (
+    PendingMediaInteraction,
     agent_interaction_manager,
     media_interaction_manager,
     plugin_input_interaction_manager,
-    PendingMediaInteraction,
 )
 from app.helper.torrent import TorrentHelper
 from app.log import logger
 from app.schemas import CommingMessage, DownloadDirectory, FileURI, NotExistMediaInfo, Notification
-from app.schemas.message import ChannelCapabilityManager, ChannelCapability
+from app.schemas.message import ChannelCapability, ChannelCapabilityManager
 from app.schemas.system import TransferDirectoryConf
-from app.schemas.types import EventType, MessageChannel, MediaType
+from app.schemas.types import EventType, MediaType, MessageChannel
 from app.utils.http import RequestUtils
 from app.utils.media import build_media_key, resolve_media_identity
 from app.utils.string import StringUtils
@@ -54,12 +54,12 @@ class MessageChain(ChainBase):
     _ai_prefix = "/ai"
     _no_ai_prefix = "/noai"
     # 用户会话信息 {userid: (session_id, last_time)}
-    _user_sessions: Dict[Union[str, int], tuple] = {}
+    _user_sessions: dict[str | int, tuple] = {}
     # 会话超时时间（分钟）
     _session_timeout_minutes: int = 24 * 60
 
     @staticmethod
-    def _schedule_agent_session_clear(session_id: str, userid: Union[str, int]) -> None:
+    def _schedule_agent_session_clear(session_id: str, userid: str | int) -> None:
         """
         异步调度 Agent 会话清理，避免同步消息链阻塞在模型资源释放上。
         """
@@ -92,12 +92,12 @@ class MessageChain(ChainBase):
     class _ProcessingStatus:
         channel: MessageChannel
         source: str
-        userid: Optional[Union[str, int]] = None
-        message_id: Optional[Union[str, int]] = None
-        chat_id: Optional[Union[str, int]] = None
-        metadata: Optional[Dict[str, Any]] = None
+        userid: str | int | None = None
+        message_id: str | int | None = None
+        chat_id: str | int | None = None
+        metadata: dict[str, Any] | None = None
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             """转换为模块接口可安全传递的普通字典。"""
             return {
                 "channel": self.channel.value,
@@ -126,9 +126,7 @@ class MessageChain(ChainBase):
         # 用户ID
         userid = info.userid
         # 用户名（当渠道未提供公开用户名时，回退为 userid 的字符串，避免后续类型校验异常）
-        username = (
-            str(info.username) if info.username not in (None, "") else str(userid)
-        )
+        username = str(info.username) if info.username not in (None, "") else str(userid)
         if userid is None or userid == "":
             logger.debug(f"未识别到用户ID：{body}{form}{args}")
             return
@@ -162,18 +160,18 @@ class MessageChain(ChainBase):
         )
 
     def handle_message(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: Optional[str],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
-            images: Optional[List[CommingMessage.MessageImage]] = None,
-            audio_refs: Optional[List[str]] = None,
-            files: Optional[List[CommingMessage.MessageAttachment]] = None,
-            reply_to_message_id: Optional[Union[str, int]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str | None,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
+        images: list[CommingMessage.MessageImage] | None = None,
+        audio_refs: list[str] | None = None,
+        files: list[CommingMessage.MessageAttachment] | None = None,
+        reply_to_message_id: str | int | None = None,
     ) -> None:
         """
         识别消息内容，执行操作
@@ -210,17 +208,17 @@ class MessageChain(ChainBase):
                     return
 
             if self._handle_plugin_input_interaction(
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    text=text,
-                    original_chat_id=original_chat_id,
-                    reply_to_message_id=reply_to_message_id,
-                    images=images,
-                    audio_refs=audio_refs,
-                    files=files,
-                    has_audio_input=has_audio_input,
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                text=text,
+                original_chat_id=original_chat_id,
+                reply_to_message_id=reply_to_message_id,
+                images=images,
+                audio_refs=audio_refs,
+                files=files,
+                has_audio_input=has_audio_input,
             ):
                 return
 
@@ -251,21 +249,24 @@ class MessageChain(ChainBase):
                     text=text,
                 )
 
-            processing_finish_deferred = self._handle_message_core(
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                text=text,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
-                reply_to_message_id=reply_to_message_id,
-                images=images,
-                audio_refs=audio_refs,
-                files=files,
-                has_audio_input=has_audio_input,
-                processing_status=processing_status,
-            ) is True
+            processing_finish_deferred = (
+                self._handle_message_core(
+                    channel=channel,
+                    source=source,
+                    userid=userid,
+                    username=username,
+                    text=text,
+                    original_message_id=original_message_id,
+                    original_chat_id=original_chat_id,
+                    reply_to_message_id=reply_to_message_id,
+                    images=images,
+                    audio_refs=audio_refs,
+                    files=files,
+                    has_audio_input=has_audio_input,
+                    processing_status=processing_status,
+                )
+                is True
+            )
         finally:
             if not processing_finish_deferred:
                 self._mark_message_processing_finished(
@@ -278,20 +279,20 @@ class MessageChain(ChainBase):
                 )
 
     def _handle_message_core(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: Optional[str],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
-            images: Optional[List[CommingMessage.MessageImage]] = None,
-            audio_refs: Optional[List[str]] = None,
-            files: Optional[List[CommingMessage.MessageAttachment]] = None,
-            has_audio_input: bool = False,
-            processing_status: Optional[_ProcessingStatus] = None,
-            reply_to_message_id: Optional[Union[str, int]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str | None,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
+        images: list[CommingMessage.MessageImage] | None = None,
+        audio_refs: list[str] | None = None,
+        files: list[CommingMessage.MessageAttachment] | None = None,
+        has_audio_input: bool = False,
+        processing_status: _ProcessingStatus | None = None,
+        reply_to_message_id: str | int | None = None,
     ) -> bool:
         """执行实际消息路由，便于统一包裹处理中状态。"""
 
@@ -316,17 +317,17 @@ class MessageChain(ChainBase):
             return False
 
         if self._handle_plugin_input_interaction(
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                text=text,
-                original_chat_id=original_chat_id,
-                reply_to_message_id=reply_to_message_id,
-                images=images,
-                audio_refs=audio_refs,
-                files=files,
-                has_audio_input=has_audio_input,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            text=text,
+            original_chat_id=original_chat_id,
+            reply_to_message_id=reply_to_message_id,
+            images=images,
+            audio_refs=audio_refs,
+            files=files,
+            has_audio_input=has_audio_input,
         ):
             return False
 
@@ -354,9 +355,7 @@ class MessageChain(ChainBase):
                     "user": userid,
                     "channel": channel,
                     "source": source,
-                    "processing_status": processing_status.to_dict()
-                    if processing_status
-                    else None,
+                    "processing_status": processing_status.to_dict() if processing_status else None,
                 },
             )
             return bool(processing_status)
@@ -378,49 +377,48 @@ class MessageChain(ChainBase):
         latest_slash_interaction = self._get_latest_slash_interaction(userid)
         if latest_slash_interaction == "sites":
             if SiteChain().handle_text_interaction(
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    text=text,
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                text=text,
             ):
                 return False
 
         if latest_slash_interaction == "subscribes":
             if SubscribeChain().handle_text_interaction(
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    text=text,
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                text=text,
             ):
                 return False
 
         if latest_slash_interaction == "skills":
             if SkillsChain().handle_text_interaction(
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    text=text,
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                text=text,
             ):
                 return False
 
         if media_interaction_manager.get_by_user(userid):
             if MediaInteractionChain().handle_text_interaction(
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    text=text,
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                text=text,
             ):
                 return False
 
         if (
-                not no_ai_requested
-                and
-                settings.AI_AGENT_ENABLE
-                and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input)
+            not no_ai_requested
+            and settings.AI_AGENT_ENABLE
+            and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input)
         ):
             return self._handle_ai_message(
                 text=text,
@@ -436,11 +434,11 @@ class MessageChain(ChainBase):
             )
 
         if MediaInteractionChain().handle_text_interaction(
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                text=text,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            text=text,
         ):
             return False
 
@@ -458,18 +456,18 @@ class MessageChain(ChainBase):
         return False
 
     def _handle_plugin_input_interaction(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: str,
-            original_chat_id: Optional[Union[str, int]] = None,
-            images: Optional[List[CommingMessage.MessageImage]] = None,
-            audio_refs: Optional[List[str]] = None,
-            files: Optional[List[CommingMessage.MessageAttachment]] = None,
-            has_audio_input: bool = False,
-            reply_to_message_id: Optional[Union[str, int]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str,
+        original_chat_id: str | int | None = None,
+        images: list[CommingMessage.MessageImage] | None = None,
+        audio_refs: list[str] | None = None,
+        files: list[CommingMessage.MessageAttachment] | None = None,
+        has_audio_input: bool = False,
+        reply_to_message_id: str | int | None = None,
     ) -> bool:
         """
         将插件输入会话中的下一条普通文本派发给指定插件。
@@ -574,7 +572,7 @@ class MessageChain(ChainBase):
         return True
 
     @classmethod
-    def _strip_no_ai_prefix(cls, text: str) -> Tuple[bool, str]:
+    def _strip_no_ai_prefix(cls, text: str) -> tuple[bool, str]:
         """
         解析 /noai 前缀，显式要求本条消息绕过全局智能体。
         """
@@ -593,12 +591,12 @@ class MessageChain(ChainBase):
         return (text or "").lower().startswith(cls._ai_prefix)
 
     def _is_agent_message(
-            self,
-            userid: Union[str, int],
-            text: str,
-            images: Optional[List[CommingMessage.MessageImage]] = None,
-            files: Optional[List[CommingMessage.MessageAttachment]] = None,
-            has_audio_input: bool = False,
+        self,
+        userid: str | int,
+        text: str,
+        images: list[CommingMessage.MessageImage] | None = None,
+        files: list[CommingMessage.MessageAttachment] | None = None,
+        has_audio_input: bool = False,
     ) -> bool:
         """
         判断本条消息是否会进入 Agent worker，由 Agent worker 管理 typing 生命周期。
@@ -609,10 +607,7 @@ class MessageChain(ChainBase):
             return True
         if text.startswith("/"):
             return False
-        if not (
-                settings.AI_AGENT_ENABLE
-                and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input)
-        ):
+        if not (settings.AI_AGENT_ENABLE and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input)):
             return False
         if self._get_latest_slash_interaction(userid):
             return False
@@ -621,14 +616,14 @@ class MessageChain(ChainBase):
         return True
 
     def _mark_message_processing_started(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            original_message_id: Optional[Union[str, int]],
-            original_chat_id: Optional[Union[str, int]],
-            text: str,
-    ) -> Optional[_ProcessingStatus]:
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        original_message_id: str | int | None,
+        original_chat_id: str | int | None,
+        text: str,
+    ) -> _ProcessingStatus | None:
         """为支持的渠道标记“消息正在处理”。"""
         status = self.start_message_processing_status(
             channel=channel,
@@ -652,13 +647,13 @@ class MessageChain(ChainBase):
         )
 
     def _mark_message_processing_finished(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            status: Optional[_ProcessingStatus] = None,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[Union[str, int]] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        status: _ProcessingStatus | None = None,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | int | None = None,
     ) -> None:
         """
         结束渠道侧“消息正在处理”状态。
@@ -676,15 +671,15 @@ class MessageChain(ChainBase):
         )
 
     def _handle_callback(
-            self,
-            text: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
-            processing_status: Optional[_ProcessingStatus] = None,
+        self,
+        text: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
+        processing_status: _ProcessingStatus | None = None,
     ) -> bool:
         """
         处理按钮回调
@@ -695,66 +690,66 @@ class MessageChain(ChainBase):
         logger.info(f"处理按钮回调：{callback_data}")
 
         if self._handle_transfer_callback(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
         ):
             return False
 
         if SkillsChain().handle_callback_interaction(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            original_message_id=original_message_id,
+            original_chat_id=original_chat_id,
         ):
             return False
 
         if SiteChain().handle_callback_interaction(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            original_message_id=original_message_id,
+            original_chat_id=original_chat_id,
         ):
             return False
 
         if SubscribeChain().handle_callback_interaction(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            original_message_id=original_message_id,
+            original_chat_id=original_chat_id,
         ):
             return False
 
         if MediaInteractionChain().handle_callback_interaction(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            original_message_id=original_message_id,
+            original_chat_id=original_chat_id,
         ):
             return False
 
         if self._handle_agent_choice_callback(
-                callback_data=callback_data,
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                original_message_id=original_message_id,
-                original_chat_id=original_chat_id,
+            callback_data=callback_data,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            original_message_id=original_message_id,
+            original_chat_id=original_chat_id,
         ):
             return True
 
@@ -791,15 +786,15 @@ class MessageChain(ChainBase):
         return False
 
     @staticmethod
-    def _get_latest_slash_interaction(userid: Union[str, int]) -> Optional[str]:
+    def _get_latest_slash_interaction(userid: str | int) -> str | None:
         """
         返回当前用户最近一次激活的 slash 交互类型。
         """
         candidates = []
         for name, manager in (
-                ("sites", site_interaction_manager),
-                ("subscribes", subscribe_interaction_manager),
-                ("skills", skills_interaction_manager),
+            ("sites", site_interaction_manager),
+            ("subscribes", subscribe_interaction_manager),
+            ("skills", skills_interaction_manager),
         ):
             request = manager.get_by_user(userid)
             if request:
@@ -810,14 +805,14 @@ class MessageChain(ChainBase):
 
     @staticmethod
     def _parse_transfer_callback(
-            callback_data: str,
-    ) -> Optional[tuple[str, int]]:
+        callback_data: str,
+    ) -> tuple[str, int] | None:
         """
         解析整理失败通知按钮回调。
         """
         for prefix, action in (
-                ("transfer_retry_", "retry"),
-                ("transfer_ai_retry_", "ai_retry"),
+            ("transfer_retry_", "retry"),
+            ("transfer_ai_retry_", "ai_retry"),
         ):
             if callback_data.startswith(prefix):
                 history_id = callback_data.replace(prefix, "", 1)
@@ -826,12 +821,12 @@ class MessageChain(ChainBase):
         return None
 
     def _handle_transfer_callback(
-            self,
-            callback_data: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        callback_data: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> bool:
         """
         处理整理失败通知中的重试类按钮。
@@ -861,8 +856,8 @@ class MessageChain(ChainBase):
 
     @staticmethod
     def _parse_agent_choice_callback(
-            callback_data: str,
-    ) -> Optional[tuple[str, int]]:
+        callback_data: str,
+    ) -> tuple[str, int] | None:
         """
         解析 Agent 按钮选择回调。
         """
@@ -884,14 +879,14 @@ class MessageChain(ChainBase):
         return request_id, int(option_index)
 
     def _handle_agent_choice_callback(
-            self,
-            callback_data: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        callback_data: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> bool:
         """
         将 Agent 按钮选择回传为同一会话中的下一条用户消息。
@@ -941,14 +936,14 @@ class MessageChain(ChainBase):
         )
 
     def _update_interaction_message_feedback(
-            self,
-            channel: MessageChannel,
-            source: str,
-            original_message_id: Optional[Union[str, int]],
-            original_chat_id: Optional[str],
-            prompt: str,
-            selected_label: str,
-            title: Optional[str] = None,
+        self,
+        channel: MessageChannel,
+        source: str,
+        original_message_id: str | int | None,
+        original_chat_id: str | None,
+        prompt: str,
+        selected_label: str,
+        title: str | None = None,
     ) -> None:
         """
         在用户点击交互按钮后，立即更新原消息，明确显示已选择的内容。
@@ -970,12 +965,12 @@ class MessageChain(ChainBase):
         )
 
     def _retry_transfer_history(
-            self,
-            history_id: int,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        history_id: int,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         立即重新整理一条失败的整理记录。
@@ -1020,12 +1015,12 @@ class MessageChain(ChainBase):
         )
 
     def _take_over_transfer_history_by_ai(
-            self,
-            history_id: int,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        history_id: int,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         由智能助手接管一条失败的整理记录。
@@ -1097,8 +1092,7 @@ class MessageChain(ChainBase):
                         userid=userid,
                         username=username,
                         title="智能助手整理完成",
-                        text=final_output.strip()
-                             or f"整理记录 #{history_id} 已由智能助手处理完成。",
+                        text=final_output.strip() or f"整理记录 #{history_id} 已由智能助手处理完成。",
                         link=settings.MP_DOMAIN("#/history"),
                         save_history=False,
                     )
@@ -1119,7 +1113,7 @@ class MessageChain(ChainBase):
 
         asyncio.run_coroutine_threadsafe(_run_ai_takeover(), global_vars.loop)
 
-    def _get_or_create_session_id(self, userid: Union[str, int]) -> str:
+    def _get_or_create_session_id(self, userid: str | int) -> str:
         """
         获取或创建会话ID
         如果用户上次会话在15分钟内，则复用相同的会话ID；否则创建新的会话ID
@@ -1149,7 +1143,7 @@ class MessageChain(ChainBase):
         logger.info(f"创建新会话ID: {new_session_id}, 用户: {userid}")
         return new_session_id
 
-    def _bind_session_id(self, userid: Union[str, int], session_id: str) -> None:
+    def _bind_session_id(self, userid: str | int, session_id: str) -> None:
         """
         将用户会话绑定到指定的 session_id，并刷新最后活动时间。
         """
@@ -1158,7 +1152,7 @@ class MessageChain(ChainBase):
             self._schedule_agent_session_clear(old_session[0], userid)
         self._user_sessions[userid] = (session_id, datetime.now())
 
-    def bind_user_session(self, userid: Union[str, int], session_id: str) -> None:
+    def bind_user_session(self, userid: str | int, session_id: str) -> None:
         """
         绑定用户与指定智能体会话，供非传统入口复用远程命令状态查询。
 
@@ -1168,12 +1162,12 @@ class MessageChain(ChainBase):
         self._bind_session_id(userid, session_id)
 
     def _record_user_message(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: str,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str,
     ) -> None:
         """
         保存一条用户消息到消息历史与数据库。
@@ -1196,7 +1190,7 @@ class MessageChain(ChainBase):
             action=0,
         )
 
-    def clear_user_session(self, userid: Union[str, int]) -> bool:
+    def clear_user_session(self, userid: str | int) -> bool:
         """
         清除指定用户的会话信息
         返回是否成功清除
@@ -1208,10 +1202,10 @@ class MessageChain(ChainBase):
         return False
 
     def remote_clear_session(
-            self,
-            channel: MessageChannel,
-            userid: Union[str, int],
-            source: Optional[str] = None,
+        self,
+        channel: MessageChannel,
+        userid: str | int,
+        source: str | None = None,
     ):
         """
         清除用户会话（远程命令接口）
@@ -1226,9 +1220,7 @@ class MessageChain(ChainBase):
         if session_id:
             clear_task = None
             try:
-                clear_task = agent_manager.clear_session(
-                    session_id=session_id, user_id=str(userid)
-                )
+                clear_task = agent_manager.clear_session(session_id=session_id, user_id=str(userid))
                 asyncio.run_coroutine_threadsafe(
                     clear_task,
                     global_vars.loop,
@@ -1259,10 +1251,10 @@ class MessageChain(ChainBase):
             )
 
     def remote_stop_agent(
-            self,
-            channel: MessageChannel,
-            userid: Union[str, int],
-            source: Optional[str] = None,
+        self,
+        channel: MessageChannel,
+        userid: str | int,
+        source: str | None = None,
     ):
         """
         应急停止当前正在执行的Agent推理（远程命令接口）。
@@ -1315,11 +1307,11 @@ class MessageChain(ChainBase):
             )
 
     @staticmethod
-    def _format_token_count(value: Optional[int]) -> str:
+    def _format_token_count(value: int | None) -> str:
         return f"{value:,}" if value is not None else "未知"
 
     @classmethod
-    def _format_session_status_text(cls, status: Dict[str, Any]) -> str:
+    def _format_session_status_text(cls, status: dict[str, Any]) -> str:
         context_window_tokens = status.get("context_window_tokens")
         last_input_tokens = status.get("last_input_tokens")
         if context_window_tokens and status.get("model_call_count"):
@@ -1331,8 +1323,7 @@ class MessageChain(ChainBase):
                 f"{cls._format_token_count(context_window_tokens)} "
                 f"({context_ratio * 100:.2f}%)"
                 if context_ratio is not None
-                else f"{cls._format_token_count(last_input_tokens)} / "
-                     f"{cls._format_token_count(context_window_tokens)}"
+                else f"{cls._format_token_count(last_input_tokens)} / {cls._format_token_count(context_window_tokens)}"
             )
         else:
             context_usage_text = "暂无模型调用数据"
@@ -1358,11 +1349,7 @@ class MessageChain(ChainBase):
                 f"命中 {cls._format_token_count(status.get('last_cache_read_input_tokens'))} / "
                 f"写入 {cls._format_token_count(status.get('last_cache_write_input_tokens'))} / "
                 f"未命中 {cls._format_token_count(status.get('last_uncached_input_tokens'))}"
-                + (
-                    f" ({last_cache_ratio * 100:.2f}%)"
-                    if last_cache_ratio is not None
-                    else ""
-                ),
+                + (f" ({last_cache_ratio * 100:.2f}%)" if last_cache_ratio is not None else ""),
             )
             lines.insert(
                 8,
@@ -1370,19 +1357,15 @@ class MessageChain(ChainBase):
                 f"命中 {cls._format_token_count(status.get('total_cache_read_input_tokens'))} / "
                 f"写入 {cls._format_token_count(status.get('total_cache_write_input_tokens'))} / "
                 f"未命中 {cls._format_token_count(status.get('total_uncached_input_tokens'))}"
-                + (
-                    f" ({total_cache_ratio * 100:.2f}%)"
-                    if total_cache_ratio is not None
-                    else ""
-                ),
+                + (f" ({total_cache_ratio * 100:.2f}%)" if total_cache_ratio is not None else ""),
             )
         return "\n".join(lines)
 
     def remote_session_status(
-            self,
-            channel: MessageChannel,
-            userid: Union[str, int],
-            source: Optional[str] = None,
+        self,
+        channel: MessageChannel,
+        userid: str | int,
+        source: str | None = None,
     ):
         """查询当前用户的智能体会话状态。"""
         session_info = self._user_sessions.get(userid)
@@ -1412,18 +1395,18 @@ class MessageChain(ChainBase):
         )
 
     def _handle_ai_message(
-            self,
-            text: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
-            images: Optional[List[CommingMessage.MessageImage]] = None,
-            files: Optional[List[CommingMessage.MessageAttachment]] = None,
-            session_id: Optional[str] = None,
-            has_audio_input: bool = False,
+        self,
+        text: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
+        images: list[CommingMessage.MessageImage] | None = None,
+        files: list[CommingMessage.MessageAttachment] | None = None,
+        session_id: str | None = None,
+        has_audio_input: bool = False,
     ) -> bool:
         """
         处理AI智能体消息
@@ -1448,7 +1431,7 @@ class MessageChain(ChainBase):
             # 提取用户消息
             if self._has_ai_prefix(text):
                 # 前缀匹配不区分大小写，但保留原始正文避免改变用户输入内容。
-                user_message = text[len(self._ai_prefix):].strip()
+                user_message = text[len(self._ai_prefix) :].strip()
             else:
                 user_message = text.strip()  # 按原消息处理
 
@@ -1473,12 +1456,10 @@ class MessageChain(ChainBase):
             original_images = images
             all_files = list(files or [])
             if images and LLMHelper.supports_image_input(
-                    provider=settings.LLM_PROVIDER,
-                    model=settings.LLM_MODEL,
+                provider=settings.LLM_PROVIDER,
+                model=settings.LLM_MODEL,
             ):
-                images = self._download_attachments_to_data_urls(
-                    images, channel, source
-                )
+                images = self._download_attachments_to_data_urls(images, channel, source)
                 if original_images and not images and not user_message and not files:
                     self.post_message(
                         Notification(
@@ -1493,12 +1474,7 @@ class MessageChain(ChainBase):
                     return False
             elif images:
                 image_attachments = self._build_image_attachments(images)
-                if (
-                        original_images
-                        and not image_attachments
-                        and not user_message
-                        and not files
-                ):
+                if original_images and not image_attachments and not user_message and not files:
                     self.post_message(
                         Notification(
                             channel=channel,
@@ -1541,9 +1517,7 @@ class MessageChain(ChainBase):
                 "channel": channel.value if channel else None,
                 "source": source,
                 "username": username,
-                "original_message_id": str(original_message_id)
-                if original_message_id
-                else None,
+                "original_message_id": str(original_message_id) if original_message_id else None,
                 "original_chat_id": original_chat_id,
             }
             if has_audio_input:
@@ -1557,14 +1531,10 @@ class MessageChain(ChainBase):
 
         except Exception as e:
             logger.error(f"处理AI智能体消息失败: {e}")
-            self.messagehelper.put(
-                f"AI智能体处理失败: {str(e)}", role="system", title="MoviePilot助手"
-            )
+            self.messagehelper.put(f"AI智能体处理失败: {str(e)}", role="system", title="MoviePilot助手")
             return False
 
-    def _transcribe_audio_refs(
-            self, audio_refs: List[str], channel: MessageChannel, source: str
-    ) -> Optional[str]:
+    def _transcribe_audio_refs(self, audio_refs: list[str], channel: MessageChannel, source: str) -> str | None:
         """
         下载并识别语音消息，仅处理当前已接入的渠道。
         """
@@ -1579,15 +1549,11 @@ class MessageChain(ChainBase):
             try:
                 if audio_ref.startswith("tg://voice_file_id/"):
                     file_id = audio_ref.replace("tg://voice_file_id/", "", 1)
-                    content = self.run_module(
-                        "download_telegram_file_bytes", file_id=file_id, source=source
-                    )
+                    content = self.run_module("download_telegram_file_bytes", file_id=file_id, source=source)
                     filename = "input.ogg"
                 elif audio_ref.startswith("tg://audio_file_id/"):
                     file_id = audio_ref.replace("tg://audio_file_id/", "", 1)
-                    content = self.run_module(
-                        "download_telegram_file_bytes", file_id=file_id, source=source
-                    )
+                    content = self.run_module("download_telegram_file_bytes", file_id=file_id, source=source)
                     filename = "input.mp3"
                 elif audio_ref.startswith("wxwork://voice_media_id/"):
                     content = self.run_module(
@@ -1602,63 +1568,39 @@ class MessageChain(ChainBase):
                         media_ref=audio_ref,
                         source=source,
                     )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.amr"
-                    )
+                    filename = self._guess_audio_filename(audio_ref, default="input.amr")
                 elif audio_ref.startswith("slack://file/"):
-                    content = self.run_module(
-                        "download_slack_file_bytes", file_ref=audio_ref, source=source
-                    )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    content = self.run_module("download_slack_file_bytes", file_ref=audio_ref, source=source)
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 elif audio_ref.startswith("discord://file/"):
-                    content = self.run_module(
-                        "download_discord_file_bytes", file_ref=audio_ref, source=source
-                    )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    content = self.run_module("download_discord_file_bytes", file_ref=audio_ref, source=source)
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 elif audio_ref.startswith("qq://file/"):
-                    content = self.run_module(
-                        "download_qq_file_bytes", file_ref=audio_ref, source=source
-                    )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    content = self.run_module("download_qq_file_bytes", file_ref=audio_ref, source=source)
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 elif audio_ref.startswith("vocechat://file/"):
                     content = self.run_module(
                         "download_vocechat_file_bytes",
                         file_ref=audio_ref,
                         source=source,
                     )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 elif audio_ref.startswith("synology://file/"):
                     content = self.run_module(
                         "download_synologychat_file_bytes",
                         file_ref=audio_ref,
                         source=source,
                     )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 elif audio_ref.startswith("wxbot://voice"):
                     continue
                 elif audio_ref.startswith("feishu://file/"):
-                    content = self.run_module(
-                        "download_feishu_file_bytes", file_ref=audio_ref, source=source
-                    )
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.opus"
-                    )
+                    content = self.run_module("download_feishu_file_bytes", file_ref=audio_ref, source=source)
+                    filename = self._guess_audio_filename(audio_ref, default="input.opus")
                 elif audio_ref.startswith("http"):
                     resp = RequestUtils(timeout=30).get_res(audio_ref)
                     content = resp.content if resp and resp.content else None
-                    filename = self._guess_audio_filename(
-                        audio_ref, default="input.ogg"
-                    )
+                    filename = self._guess_audio_filename(audio_ref, default="input.ogg")
                 else:
                     logger.debug(
                         "暂不支持的语音引用: channel=%s, source=%s, ref=%s",
@@ -1677,9 +1619,7 @@ class MessageChain(ChainBase):
                     )
                     continue
 
-                transcript = AgentCapabilityManager.transcribe_audio(
-                    content=content, filename=filename
-                )
+                transcript = AgentCapabilityManager.transcribe_audio(content=content, filename=filename)
                 if transcript:
                     transcripts.append(transcript)
                     logger.info(
@@ -1712,11 +1652,11 @@ class MessageChain(ChainBase):
         return default
 
     def _download_attachments_to_data_urls(
-            self,
-            attachments: List[CommingMessage.MessageImage],
-            channel: MessageChannel,
-            source: str,
-    ) -> Optional[List[str]]:
+        self,
+        attachments: list[CommingMessage.MessageImage],
+        channel: MessageChannel,
+        source: str,
+    ) -> list[str] | None:
         """
         下载可直接提供给 LLM 的附件内容，并统一转换为 data URL。
         """
@@ -1739,12 +1679,10 @@ class MessageChain(ChainBase):
                     )
                     if base64_data:
                         data_urls.append(f"data:image/jpeg;base64,{base64_data}")
-                elif attachment_ref.startswith(
-                        "wxwork://media_id/"
-                ) or attachment_ref.startswith(
-                    "wxbot://image/"
-                ) or attachment_ref.startswith(
-                    "wxclaw://image/"
+                elif (
+                    attachment_ref.startswith("wxwork://media_id/")
+                    or attachment_ref.startswith("wxbot://image/")
+                    or attachment_ref.startswith("wxclaw://image/")
                 ):
                     data_url = self.run_module(
                         "download_wechat_image_to_data_url",
@@ -1811,8 +1749,8 @@ class MessageChain(ChainBase):
         return data_urls if data_urls else None
 
     def _build_image_attachments(
-            self, images: List[CommingMessage.MessageImage]
-    ) -> List[CommingMessage.MessageAttachment]:
+        self, images: list[CommingMessage.MessageImage]
+    ) -> list[CommingMessage.MessageAttachment]:
         """
         将图片引用转换为附件描述，以便按文件方式交给 Agent 处理。
         """
@@ -1838,12 +1776,12 @@ class MessageChain(ChainBase):
         return attachments
 
     def _prepare_agent_files(
-            self,
-            session_id: str,
-            files: Optional[List[CommingMessage.MessageAttachment]],
-            channel: MessageChannel,
-            source: str,
-    ) -> Optional[List[dict]]:
+        self,
+        session_id: str,
+        files: list[CommingMessage.MessageAttachment] | None,
+        channel: MessageChannel,
+        source: str,
+    ) -> list[dict] | None:
         """
         下载用户上传的附件，落盘到临时目录，并生成 Agent 可消费的文件描述。
         """
@@ -1888,9 +1826,7 @@ class MessageChain(ChainBase):
 
         return prepared_files or None
 
-    def _download_message_file_bytes(
-            self, file_ref: str, channel: MessageChannel, source: str
-    ) -> Optional[bytes]:
+    def _download_message_file_bytes(self, file_ref: str, channel: MessageChannel, source: str) -> bytes | None:
         """
         下载消息附件的原始字节内容。
         """
@@ -1900,69 +1836,41 @@ class MessageChain(ChainBase):
             return self._decode_data_url_bytes(file_ref)
         if file_ref.startswith("tg://file_id/"):
             file_id = file_ref.replace("tg://file_id/", "", 1)
-            return self.run_module(
-                "download_telegram_file_bytes", file_id=file_id, source=source
-            )
+            return self.run_module("download_telegram_file_bytes", file_id=file_id, source=source)
         if file_ref.startswith("tg://document_file_id/"):
             file_id = file_ref.replace("tg://document_file_id/", "", 1)
-            return self.run_module(
-                "download_telegram_file_bytes", file_id=file_id, source=source
-            )
+            return self.run_module("download_telegram_file_bytes", file_id=file_id, source=source)
         if file_ref.startswith("wxwork://media_id/"):
-            return self.run_module(
-                "download_wechat_media_bytes", media_ref=file_ref, source=source
-            )
+            return self.run_module("download_wechat_media_bytes", media_ref=file_ref, source=source)
         if file_ref.startswith("wxwork://file_media_id/"):
-            return self.run_module(
-                "download_wechat_media_bytes", media_ref=file_ref, source=source
-            )
+            return self.run_module("download_wechat_media_bytes", media_ref=file_ref, source=source)
         if file_ref.startswith("wxbot://image/"):
-            data_url = self.run_module(
-                "download_wechat_image_to_data_url", image_ref=file_ref, source=source
-            )
+            data_url = self.run_module("download_wechat_image_to_data_url", image_ref=file_ref, source=source)
             return self._decode_data_url_bytes(data_url) if data_url else None
         if file_ref.startswith("wxclaw://image/"):
-            data_url = self.run_module(
-                "download_wechat_image_to_data_url", image_ref=file_ref, source=source
-            )
+            data_url = self.run_module("download_wechat_image_to_data_url", image_ref=file_ref, source=source)
             return self._decode_data_url_bytes(data_url) if data_url else None
         if file_ref.startswith("wxbot://file/"):
             file_url = unquote(file_ref.replace("wxbot://file/", "", 1))
             resp = RequestUtils(timeout=30).get_res(file_url)
             return resp.content if resp and resp.content else None
         if file_ref.startswith("wxclaw://file/") or file_ref.startswith("wxclaw://voice/"):
-            return self.run_module(
-                "download_wechat_media_bytes", media_ref=file_ref, source=source
-            )
+            return self.run_module("download_wechat_media_bytes", media_ref=file_ref, source=source)
         if file_ref.startswith("feishu://file/"):
-            return self.run_module(
-                "download_feishu_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_feishu_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("slack://file/"):
-            return self.run_module(
-                "download_slack_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_slack_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("discord://file/"):
-            return self.run_module(
-                "download_discord_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_discord_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("qq://file/"):
-            return self.run_module(
-                "download_qq_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_qq_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("vocechat://file/"):
-            return self.run_module(
-                "download_vocechat_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_vocechat_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("synology://file/"):
-            return self.run_module(
-                "download_synologychat_file_bytes", file_ref=file_ref, source=source
-            )
+            return self.run_module("download_synologychat_file_bytes", file_ref=file_ref, source=source)
         if file_ref.startswith("http"):
             if channel == MessageChannel.Slack:
-                data_url = self.run_module(
-                    "download_slack_file_to_data_url", file_url=file_ref, source=source
-                )
+                data_url = self.run_module("download_slack_file_to_data_url", file_url=file_ref, source=source)
                 return self._decode_data_url_bytes(data_url) if data_url else None
             resp = RequestUtils(timeout=30).get_res(file_ref)
             return resp.content if resp and resp.content else None
@@ -1975,11 +1883,11 @@ class MessageChain(ChainBase):
         return None
 
     def _save_agent_attachment(
-            self,
-            session_id: str,
-            filename: Optional[str],
-            content: bytes,
-            mime_type: Optional[str] = None,
+        self,
+        session_id: str,
+        filename: str | None,
+        content: bytes,
+        mime_type: str | None = None,
     ) -> Path:
         """
         将用户上传文件写入临时目录，并返回本地路径。
@@ -1994,9 +1902,7 @@ class MessageChain(ChainBase):
         return local_path
 
     @staticmethod
-    def _sanitize_attachment_name(
-            filename: Optional[str], mime_type: Optional[str] = None
-    ) -> str:
+    def _sanitize_attachment_name(filename: str | None, mime_type: str | None = None) -> str:
         """
         规范化附件文件名，避免路径穿越和非法字符。
         """
@@ -2040,7 +1946,7 @@ class MessageChain(ChainBase):
         return f"image_{index}.jpg"
 
     @staticmethod
-    def _guess_image_mime_type(image_ref: str, filename: Optional[str]) -> str:
+    def _guess_image_mime_type(image_ref: str, filename: str | None) -> str:
         """
         根据图片引用或文件名推测 MIME 类型。
         """
@@ -2053,7 +1959,7 @@ class MessageChain(ChainBase):
         return "image/jpeg"
 
     @staticmethod
-    def _decode_data_url_bytes(data_url: Optional[str]) -> Optional[bytes]:
+    def _decode_data_url_bytes(data_url: str | None) -> bytes | None:
         """
         将 data URL 解码为原始字节。
         """
@@ -2080,16 +1986,14 @@ class MediaInteractionChain(ChainBase):
     _auto_download_dir_name = "自动匹配目录"
 
     @staticmethod
-    def has_pending_interaction(user_id: Union[str, int]) -> bool:
+    def has_pending_interaction(user_id: str | int) -> bool:
         """
         判断用户当前是否存在未结束的媒体交互。
         """
         return media_interaction_manager.get_by_user(user_id) is not None
 
     @staticmethod
-    def _get_noexits_info(
-            meta: MetaBase, mediainfo: MediaInfo
-    ) -> Dict[Union[int, str], Dict[int, NotExistMediaInfo]]:
+    def _get_noexits_info(meta: MetaBase, mediainfo: MediaInfo) -> dict[int | str, dict[int, NotExistMediaInfo]]:
         """
         构造媒体缺失集信息，用于全量重搜或自动下载补全集数。
         """
@@ -2145,8 +2049,8 @@ class MediaInteractionChain(ChainBase):
 
     @staticmethod
     def parse_callback(
-            callback_data: str,
-    ) -> Optional[Tuple[Optional[str], str, Optional[int]]]:
+        callback_data: str,
+    ) -> tuple[str | None, str, int | None] | None:
         """
         解析新旧两种媒体交互按钮格式。
         """
@@ -2171,14 +2075,14 @@ class MediaInteractionChain(ChainBase):
         return None
 
     def handle_callback_interaction(
-            self,
-            callback_data: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        callback_data: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> bool:
         """
         处理按钮回调，并将当前视图刷新到原消息上。
@@ -2290,12 +2194,12 @@ class MediaInteractionChain(ChainBase):
         return False
 
     def handle_text_interaction(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: str,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str,
     ) -> bool:
         """
         处理文本式交互。
@@ -2437,7 +2341,7 @@ class MediaInteractionChain(ChainBase):
         return True
 
     @staticmethod
-    def _resolve_action(text: str) -> Tuple[Optional[str], str]:
+    def _resolve_action(text: str) -> tuple[str | None, str]:
         """
         将用户输入归类为搜索、订阅或普通聊天。
         """
@@ -2454,13 +2358,13 @@ class MediaInteractionChain(ChainBase):
         return "Search", text
 
     def _start_media_interaction(
-            self,
-            action: str,
-            content: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        action: str,
+        content: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         根据用户输入搜索媒体，并进入媒体选择阶段。
@@ -2508,15 +2412,15 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _handle_media_selection(
-            self,
-            request: PendingMediaInteraction,
-            page_index: Optional[int],
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        page_index: int | None,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         处理媒体选择阶段的序号输入。
@@ -2563,15 +2467,15 @@ class MediaInteractionChain(ChainBase):
             )
 
     def _search_media_resources(
-            self,
-            request: PendingMediaInteraction,
-            mediainfo: MediaInfo,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        mediainfo: MediaInfo,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         根据已选媒体搜索资源，并切换到资源选择阶段。
@@ -2646,15 +2550,15 @@ class MediaInteractionChain(ChainBase):
             request.title = mediainfo.title
             request.items = list(contexts)
             if self._prompt_download_dir_selection(
-                    request=request,
-                    download_mode="auto",
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
-                    no_exists=no_exists,
-                    original_message_id=original_message_id,
-                    original_chat_id=original_chat_id,
+                request=request,
+                download_mode="auto",
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
+                no_exists=no_exists,
+                original_message_id=original_message_id,
+                original_chat_id=original_chat_id,
             ):
                 return
             self._auto_download(
@@ -2682,13 +2586,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _subscribe_media(
-            self,
-            request: PendingMediaInteraction,
-            mediainfo: MediaInfo,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        request: PendingMediaInteraction,
+        mediainfo: MediaInfo,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         根据已选媒体创建订阅或洗版订阅。
@@ -2712,11 +2616,7 @@ class MediaInteractionChain(ChainBase):
                 )
                 return
 
-        mp_name = (
-            UserOper().get_name(**{f"{channel.name.lower()}_userid": userid})
-            if channel
-            else None
-        )
+        mp_name = UserOper().get_name(**{f"{channel.name.lower()}_userid": userid}) if channel else None
         SubscribeChain().add(
             title=mediainfo.title,
             year=mediainfo.year,
@@ -2731,13 +2631,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _handle_torrent_selection(
-            self,
-            request: PendingMediaInteraction,
-            page_index: Optional[int],
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        request: PendingMediaInteraction,
+        page_index: int | None,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         处理资源选择阶段的下载操作。
@@ -2753,12 +2653,12 @@ class MediaInteractionChain(ChainBase):
 
         if page_index == 0:
             if self._prompt_download_dir_selection(
-                    request=request,
-                    download_mode="auto",
-                    channel=channel,
-                    source=source,
-                    userid=userid,
-                    username=username,
+                request=request,
+                download_mode="auto",
+                channel=channel,
+                source=source,
+                userid=userid,
+                username=username,
             ):
                 return
             self._auto_download(
@@ -2788,13 +2688,13 @@ class MediaInteractionChain(ChainBase):
 
         context: Context = page_items[page_index - 1]
         if self._prompt_download_dir_selection(
-                request=request,
-                download_mode="single",
-                channel=channel,
-                source=source,
-                userid=userid,
-                username=username,
-                context=context,
+            request=request,
+            download_mode="single",
+            channel=channel,
+            source=source,
+            userid=userid,
+            username=username,
+            context=context,
         ):
             return
         DownloadChain().download_single(
@@ -2806,17 +2706,17 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _prompt_download_dir_selection(
-            self,
-            request: PendingMediaInteraction,
-            download_mode: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            context: Optional[Context] = None,
-            no_exists: Optional[Dict[Union[int, str], Dict[int, NotExistMediaInfo]]] = None,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        download_mode: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        context: Context | None = None,
+        no_exists: dict[int | str, dict[int, NotExistMediaInfo]] | None = None,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> bool:
         """
         在下载前进入目录选择阶段；没有配置下载目录时保持原下载流程。
@@ -2846,13 +2746,13 @@ class MediaInteractionChain(ChainBase):
         return True
 
     def _handle_download_dir_selection(
-            self,
-            request: PendingMediaInteraction,
-            page_index: Optional[int],
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
+        self,
+        request: PendingMediaInteraction,
+        page_index: int | None,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
     ) -> None:
         """
         处理下载目录阶段的序号输入，并继续执行挂起的下载动作。
@@ -2913,13 +2813,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _execute_pending_download(
-            self,
-            request: PendingMediaInteraction,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            save_path: Optional[str],
+        self,
+        request: PendingMediaInteraction,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        save_path: str | None,
     ) -> None:
         """
         使用用户确认的下载目录执行单资源下载或自动择优下载。
@@ -2977,15 +2877,15 @@ class MediaInteractionChain(ChainBase):
         request.pending_torrent_page = 0
 
     def _auto_download(
-            self,
-            request: PendingMediaInteraction,
-            cache_list: List[Context],
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            no_exists: Optional[Dict[Union[int, str], Dict[int, NotExistMediaInfo]]] = None,
-            save_path: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        cache_list: list[Context],
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        no_exists: dict[int | str, dict[int, NotExistMediaInfo]] | None = None,
+        save_path: str | None = None,
     ) -> None:
         """
         自动择优下载当前资源列表，并在未完成时补建订阅。
@@ -3014,19 +2914,11 @@ class MediaInteractionChain(ChainBase):
 
         logger.info("%s 未下载未完整，添加订阅 ...", request.current_media.title_year)
         if downloads and request.current_media.type == MediaType.TV:
-            note = [
-                download.meta_info.begin_episode
-                for download in downloads
-                if download.meta_info.begin_episode
-            ]
+            note = [download.meta_info.begin_episode for download in downloads if download.meta_info.begin_episode]
         else:
             note = None
 
-        mp_name = (
-            UserOper().get_name(**{f"{channel.name.lower()}_userid": userid})
-            if channel
-            else None
-        )
+        mp_name = UserOper().get_name(**{f"{channel.name.lower()}_userid": userid}) if channel else None
         SubscribeChain().add(
             title=request.current_media.title,
             year=request.current_media.year,
@@ -3042,13 +2934,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _render_interaction(
-            self,
-            request: PendingMediaInteraction,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         按当前阶段渲染媒体列表或资源列表。
@@ -3082,13 +2974,13 @@ class MediaInteractionChain(ChainBase):
             )
 
     def _post_medias_message(
-            self,
-            request: PendingMediaInteraction,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         发送或更新媒体选择列表。
@@ -3131,13 +3023,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _post_torrents_message(
-            self,
-            request: PendingMediaInteraction,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         发送或更新资源选择列表。
@@ -3160,7 +3052,9 @@ class MediaInteractionChain(ChainBase):
             )
         else:
             if total > self._page_size(channel):
-                title = f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择 p: 上一页 n: 下一页）"
+                title = (
+                    f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择 p: 上一页 n: 下一页）"
+                )
             else:
                 title = f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择）"
             buttons = None
@@ -3181,13 +3075,13 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _post_download_dirs_message(
-            self,
-            request: PendingMediaInteraction,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request: PendingMediaInteraction,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         发送或更新下载目录选择列表。
@@ -3234,21 +3128,21 @@ class MediaInteractionChain(ChainBase):
         )
 
     def _create_media_buttons(
-            self,
-            channel: MessageChannel,
-            request: PendingMediaInteraction,
-            items: List[MediaInfo],
-            total: int,
-            total_pages: int,
-    ) -> List[List[Dict[str, str]]]:
+        self,
+        channel: MessageChannel,
+        request: PendingMediaInteraction,
+        items: list[MediaInfo],
+        total: int,
+        total_pages: int,
+    ) -> list[list[dict[str, str]]]:
         """
         为媒体列表生成选择和翻页按钮。
         """
-        buttons: List[List[Dict[str, str]]] = []
+        buttons: list[list[dict[str, str]]] = []
         max_text_length = ChannelCapabilityManager.get_max_button_text_length(channel)
         max_per_row = ChannelCapabilityManager.get_max_buttons_per_row(channel)
 
-        current_row: List[Dict[str, str]] = []
+        current_row: list[dict[str, str]] = []
         for index, media in enumerate(items, start=1):
             if max_per_row == 1:
                 button_text = f"{index}. {media.title_year}"
@@ -3279,17 +3173,17 @@ class MediaInteractionChain(ChainBase):
         return buttons
 
     def _create_torrent_buttons(
-            self,
-            channel: MessageChannel,
-            request: PendingMediaInteraction,
-            items: List[Context],
-            total: int,
-            total_pages: int,
-    ) -> List[List[Dict[str, str]]]:
+        self,
+        channel: MessageChannel,
+        request: PendingMediaInteraction,
+        items: list[Context],
+        total: int,
+        total_pages: int,
+    ) -> list[list[dict[str, str]]]:
         """
         为资源列表生成下载和翻页按钮。
         """
-        buttons: List[List[Dict[str, str]]] = [
+        buttons: list[list[dict[str, str]]] = [
             [
                 {
                     "text": "🤖 自动选择下载",
@@ -3300,7 +3194,7 @@ class MediaInteractionChain(ChainBase):
         max_text_length = ChannelCapabilityManager.get_max_button_text_length(channel)
         max_per_row = ChannelCapabilityManager.get_max_buttons_per_row(channel)
 
-        current_row: List[Dict[str, str]] = []
+        current_row: list[dict[str, str]] = []
         for index, context in enumerate(items, start=1):
             torrent = context.torrent_info
             if max_per_row == 1:
@@ -3332,21 +3226,21 @@ class MediaInteractionChain(ChainBase):
         return buttons
 
     def _create_download_dir_buttons(
-            self,
-            channel: MessageChannel,
-            request: PendingMediaInteraction,
-            items: List[DownloadDirectory],
-            total: int,
-            total_pages: int,
-    ) -> List[List[Dict[str, str]]]:
+        self,
+        channel: MessageChannel,
+        request: PendingMediaInteraction,
+        items: list[DownloadDirectory],
+        total: int,
+        total_pages: int,
+    ) -> list[list[dict[str, str]]]:
         """
         为下载目录列表生成选择和翻页按钮。
         """
-        buttons: List[List[Dict[str, str]]] = []
+        buttons: list[list[dict[str, str]]] = []
         max_text_length = ChannelCapabilityManager.get_max_button_text_length(channel)
         max_per_row = ChannelCapabilityManager.get_max_buttons_per_row(channel)
 
-        current_row: List[Dict[str, str]] = []
+        current_row: list[dict[str, str]] = []
         for index, download_dir in enumerate(items, start=1):
             if max_per_row == 1:
                 button_text = f"{index}. {self._format_download_dir_label(download_dir)}"
@@ -3388,7 +3282,7 @@ class MediaInteractionChain(ChainBase):
         return page < total_pages - 1
 
     @staticmethod
-    def _get_current_phase_items(request: PendingMediaInteraction) -> List[Any]:
+    def _get_current_phase_items(request: PendingMediaInteraction) -> list[Any]:
         """
         获取当前阶段用于分页的数据列表。
         """
@@ -3398,14 +3292,14 @@ class MediaInteractionChain(ChainBase):
 
     @staticmethod
     def _navigation_buttons(
-            request: PendingMediaInteraction,
-            total_pages: int,
-    ) -> List[List[Dict[str, str]]]:
+        request: PendingMediaInteraction,
+        total_pages: int,
+    ) -> list[list[dict[str, str]]]:
         """
         按当前页状态生成上一页和下一页按钮。
         """
-        buttons: List[List[Dict[str, str]]] = []
-        nav_row: List[Dict[str, str]] = []
+        buttons: list[list[dict[str, str]]] = []
+        nav_row: list[dict[str, str]] = []
         if request.page > 0:
             nav_row.append(
                 {
@@ -3426,10 +3320,10 @@ class MediaInteractionChain(ChainBase):
 
     @staticmethod
     def _page_items(
-            items: List[Any],
-            page: int,
-            page_size: int,
-    ) -> Tuple[List[Any], int, int]:
+        items: list[Any],
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Any], int, int]:
         """
         返回当前页数据，并把页码限制在有效范围内。
         """
@@ -3440,15 +3334,11 @@ class MediaInteractionChain(ChainBase):
         return items[start:end], page, total_pages
 
     @classmethod
-    def _get_download_dirs(cls, media_info: Optional[MediaInfo] = None) -> List[DownloadDirectory]:
+    def _get_download_dirs(cls, media_info: MediaInfo | None = None) -> list[DownloadDirectory]:
         """
         获取可供消息交互选择的下载目录。
         """
-        dir_infos = [
-            dir_info
-            for dir_info in DirectoryHelper().get_download_dirs()
-            if dir_info.download_path
-        ]
+        dir_infos = [dir_info for dir_info in DirectoryHelper().get_download_dirs() if dir_info.download_path]
         download_dirs = [
             DownloadDirectory(
                 name=dir_info.name,
@@ -3488,15 +3378,15 @@ class MediaInteractionChain(ChainBase):
         判断是否为自动匹配下载目录选项。
         """
         return (
-                download_dir.name == cls._auto_download_dir_name
-                and not download_dir.download_path
-                and not download_dir.save_path
+            download_dir.name == cls._auto_download_dir_name
+            and not download_dir.download_path
+            and not download_dir.save_path
         )
 
     @staticmethod
     def _match_download_dir_media(
-            dir_info: TransferDirectoryConf,
-            media_info: Optional[MediaInfo],
+        dir_info: TransferDirectoryConf,
+        media_info: MediaInfo | None,
     ) -> bool:
         """
         判断下载目录是否适用于当前媒体。
@@ -3529,18 +3419,14 @@ class MediaInteractionChain(ChainBase):
             return f"{name} ({save_path})"
         return name
 
-    def _page_size(self, channel: Optional[MessageChannel]) -> int:
+    def _page_size(self, channel: MessageChannel | None) -> int:
         """
         按渠道交互能力选择分页大小。
         """
-        return (
-            self._button_page_size
-            if self._supports_interactive_buttons(channel)
-            else self._text_page_size
-        )
+        return self._button_page_size if self._supports_interactive_buttons(channel) else self._text_page_size
 
     @staticmethod
-    def _supports_interactive_buttons(channel: Optional[MessageChannel]) -> bool:
+    def _supports_interactive_buttons(channel: MessageChannel | None) -> bool:
         """
         判断渠道是否同时支持按钮展示与按钮回调。
         """
@@ -3552,10 +3438,10 @@ class MediaInteractionChain(ChainBase):
 
     @staticmethod
     def _build_no_exists_messages(
-            mediainfo: MediaInfo,
-            no_exists: Optional[Dict[Union[int, str], Dict[int, NotExistMediaInfo]]],
-            show_missing_only: bool,
-    ) -> List[str]:
+        mediainfo: MediaInfo,
+        no_exists: dict[int | str, dict[int, NotExistMediaInfo]] | None,
+        show_missing_only: bool,
+    ) -> list[str]:
         """
         将缺失集信息转换为可发送的文案。
         """
@@ -3569,32 +3455,26 @@ class MediaInteractionChain(ChainBase):
                 f"第 {sea} 季缺失 {StringUtils.str_series(no_exist.episodes) if no_exist.episodes else no_exist.total_episode} 集"
                 for sea, no_exist in season_map.items()
             ]
-        return [
-            f"第 {sea} 季总 {no_exist.total_episode} 集"
-            for sea, no_exist in season_map.items()
-        ]
+        return [f"第 {sea} 季总 {no_exist.total_episode} 集" for sea, no_exist in season_map.items()]
 
     @staticmethod
-    def _should_auto_download(userid: Union[str, int]) -> bool:
+    def _should_auto_download(userid: str | int) -> bool:
         """
         判断当前用户是否命中自动下载名单。
         """
         auto_download_user = settings.AUTO_DOWNLOAD_USER
         return bool(
             auto_download_user
-            and (
-                    auto_download_user == "all"
-                    or any(userid == user for user in auto_download_user.split(","))
-            )
+            and (auto_download_user == "all" or any(userid == user for user in auto_download_user.split(",")))
         )
 
     def _post_invalid_input(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: Optional[str],
-            title: str = "输入有误！",
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str | None,
+        title: str = "输入有误！",
     ) -> None:
         """
         发送统一的非法输入提示。

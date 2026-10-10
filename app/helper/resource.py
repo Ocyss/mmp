@@ -18,7 +18,7 @@ class ResourceHelper:
     """
 
     _repo = f"{settings.GITHUB_PROXY}https://raw.githubusercontent.com/jxxghp/MoviePilot-Resources/main/package.v2.json"
-    _files_api = f"https://api.github.com/repos/jxxghp/MoviePilot-Resources/contents/resources.v2"
+    _files_api = "https://api.github.com/repos/jxxghp/MoviePilot-Resources/contents/resources.v2"
     _base_dir: Path = settings.ROOT_PATH
 
     def __init__(self):
@@ -66,9 +66,7 @@ class ResourceHelper:
         if SystemUtils.is_frozen():
             return None
         logger.info("开始检测资源包版本...")
-        res = RequestUtils(
-            proxies=self.proxies, headers=settings.GITHUB_HEADERS, timeout=10
-        ).get_res(self._repo)
+        res = RequestUtils(proxies=self.proxies, headers=settings.GITHUB_HEADERS, timeout=10).get_res(self._repo)
         if res:
             try:
                 resource_info = json.loads(res.text)
@@ -127,9 +125,7 @@ class ResourceHelper:
                                 continue
                             if item.get("download_url"):
                                 logger.info(f"开始更新资源文件：{file_name} ...")
-                                download_url = (
-                                    f"{settings.GITHUB_PROXY}{item.get('download_url')}"
-                                )
+                                download_url = f"{settings.GITHUB_PROXY}{item.get('download_url')}"
                                 res = RequestUtils(
                                     proxies=self.proxies,
                                     headers=settings.GITHUB_HEADERS,
@@ -140,9 +136,7 @@ class ResourceHelper:
                                     success = False
                                     break
                                 elif res.status_code != 200:
-                                    logger.error(
-                                        f"下载文件 {file_name} 失败：{res.status_code} - {res.reason}"
-                                    )
+                                    logger.error(f"下载文件 {file_name} 失败：{res.status_code} - {res.reason}")
                                     success = False
                                     break
                                 file_path = self._base_dir / save_path / file_name

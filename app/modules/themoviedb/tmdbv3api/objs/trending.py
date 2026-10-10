@@ -12,7 +12,7 @@ class Trending(TMDb):
             self._urls["trending"] % (media_type, time_window),
             params="page=%s" % page,
             key="results",
-            call_cached=False
+            call_cached=False,
         )
 
     def all_day(self, page=1):
@@ -88,7 +88,7 @@ class Trending(TMDb):
             self._urls["trending"] % (media_type, time_window),
             params="page=%s" % page,
             key="results",
-            call_cached=False
+            call_cached=False,
         )
 
     async def async_all_day(self, page=1):

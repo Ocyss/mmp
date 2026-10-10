@@ -7,13 +7,13 @@ import hashlib
 import io
 import pickle
 import threading
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 from PIL import Image
 
 from app.core.cache import FileCache
 from app.core.config import settings
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.modules.qqbot.api import (
@@ -27,21 +27,21 @@ from app.utils.http import RequestUtils
 from app.utils.string import StringUtils
 
 # QQ Markdown 图片展示尺寸限制，避免竖版海报被客户端拉伸变形
-_DEFAULT_IMAGE_SIZE: Tuple[int, int] = (208, 320)
-_MAX_IMAGE_SIZE: Tuple[int, int] = (512, 512)
+_DEFAULT_IMAGE_SIZE: tuple[int, int] = (208, 320)
+_MAX_IMAGE_SIZE: tuple[int, int] = (512, 512)
 
 
 class QQBot:
     """QQ Bot 通知客户端"""
 
     def __init__(
-            self,
-            QQ_APP_ID: Optional[str] = None,
-            QQ_APP_SECRET: Optional[str] = None,
-            QQ_OPENID: Optional[str] = None,
-            QQ_GROUP_OPENID: Optional[str] = None,
-            name: Optional[str] = None,
-            **kwargs,
+        self,
+        QQ_APP_ID: str | None = None,
+        QQ_APP_SECRET: str | None = None,
+        QQ_OPENID: str | None = None,
+        QQ_GROUP_OPENID: str | None = None,
+        name: str | None = None,
+        **kwargs,
     ):
         """
         初始化 QQ Bot
@@ -109,7 +109,7 @@ class QQBot:
                 # 回调
                 RequestUtils(timeout=15).post_res(
                     f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={self._config_name}",
-                    json=payload
+                    json=payload,
                 )
             except Exception as e:
                 logger.error(f"QQ Bot 转发消息失败: {e}")
@@ -176,15 +176,13 @@ class QQBot:
         if self._gateway_thread is not None and self._gateway_thread.is_alive():
             self._gateway_thread.join(timeout=20)
             if self._gateway_thread.is_alive():
-                logger.warning(
-                    "QQ Bot Gateway 线程在 stop 后仍未退出，可能存在重复收消息，请重启进程"
-                )
+                logger.warning("QQ Bot Gateway 线程在 stop 后仍未退出，可能存在重复收消息，请重启进程")
 
     def get_state(self) -> bool:
         """获取就绪状态"""
         return self._ready
 
-    def _get_target(self, userid: Optional[str] = None, targets: Optional[dict] = None) -> tuple:
+    def _get_target(self, userid: str | None = None, targets: dict | None = None) -> tuple:
         """
         解析发送目标
         :return: (target_id, is_group)
@@ -218,7 +216,7 @@ class QQBot:
         return list(self._known_targets)
 
     @staticmethod
-    def _get_image_size(url: str) -> Optional[Tuple[int, int]]:
+    def _get_image_size(url: str) -> tuple[int, int] | None:
         """
         从图片 URL 获取尺寸，只下载前 64KB 解析文件头（参考 OpenClaw）
         :return: (width, height) 或 None
@@ -238,7 +236,7 @@ class QQBot:
             return None
 
     @staticmethod
-    def _fit_image_size(size: Optional[Tuple[int, int]]) -> Tuple[int, int]:
+    def _fit_image_size(size: tuple[int, int] | None) -> tuple[int, int]:
         """
         计算 QQ Markdown 图片展示尺寸，保持原始比例并限制最大边长。
         """
@@ -266,10 +264,10 @@ class QQBot:
 
     @staticmethod
     def _format_message_markdown(
-            title: Optional[str] = None,
-            text: Optional[str] = None,
-            image: Optional[str] = None,
-            link: Optional[str] = None,
+        title: str | None = None,
+        text: str | None = None,
+        image: str | None = None,
+        link: str | None = None,
     ) -> tuple:
         """
         将消息格式化为 QQ Markdown，类似 Telegram 处理方式
@@ -303,14 +301,14 @@ class QQBot:
         return content, bool(content)
 
     def send_msg(
-            self,
-            title: str,
-            text: Optional[str] = None,
-            image: Optional[str] = None,
-            link: Optional[str] = None,
-            userid: Optional[str] = None,
-            targets: Optional[dict] = None,
-            **kwargs,
+        self,
+        title: str,
+        text: str | None = None,
+        image: str | None = None,
+        link: str | None = None,
+        userid: str | None = None,
+        targets: dict | None = None,
+        **kwargs,
     ) -> bool:
         """
         发送 QQ 消息
@@ -336,7 +334,8 @@ class QQBot:
                 logger.debug(f"QQ Bot: 广播模式，共 {len(targets_to_send)} 个目标")
             else:
                 logger.warn(
-                    "QQ Bot: 未指定接收者且无互动用户，请在配置中设置 QQ_OPENID/QQ_GROUP_OPENID 或先让用户发消息")
+                    "QQ Bot: 未指定接收者且无互动用户，请在配置中设置 QQ_OPENID/QQ_GROUP_OPENID 或先让用户发消息"
+                )
                 return False
 
         # 使用 Markdown 格式发送（类似 Telegram）
@@ -357,19 +356,21 @@ class QQBot:
                 btns = []
                 for btn in row:
                     action_type = 0 if btn.get("url") else 2
-                    btns.append({
-                        "id": str(btn_id),
-                        "render_data": {
-                            "label": btn.get("text", "按钮")[:30],
-                            "visited_label": btn.get("text", "按钮")[:30],
-                            "style": 1
-                        },
-                        "action": {
-                            "type": action_type,
-                            "data": btn.get("url") if action_type == 0 else btn.get("callback_data", ""),
-                            "permission": {"type": 2}
+                    btns.append(
+                        {
+                            "id": str(btn_id),
+                            "render_data": {
+                                "label": btn.get("text", "按钮")[:30],
+                                "visited_label": btn.get("text", "按钮")[:30],
+                                "style": 1,
+                            },
+                            "action": {
+                                "type": action_type,
+                                "data": btn.get("url") if action_type == 0 else btn.get("callback_data", ""),
+                                "permission": {"type": 2},
+                            },
                         }
-                    })
+                    )
                     btn_id += 1
                 if btns:
                     rows.append({"buttons": btns})
@@ -412,12 +413,12 @@ class QQBot:
             return False
 
     def send_medias_msg(
-            self,
-            medias: List[MediaInfo],
-            userid: Optional[str] = None,
-            title: Optional[str] = None,
-            link: Optional[str] = None,
-            **kwargs,
+        self,
+        medias: list[MediaInfo],
+        userid: str | None = None,
+        title: str | None = None,
+        link: str | None = None,
+        **kwargs,
     ) -> bool:
         """发送媒体列表（转为文本）"""
         if not medias:
@@ -433,12 +434,12 @@ class QQBot:
         )
 
     def send_torrents_msg(
-            self,
-            torrents: List[Context],
-            userid: Optional[str] = None,
-            title: Optional[str] = None,
-            link: Optional[str] = None,
-            **kwargs,
+        self,
+        torrents: list[Context],
+        userid: str | None = None,
+        title: str | None = None,
+        link: str | None = None,
+        **kwargs,
     ) -> bool:
         """发送种子列表（转为文本）"""
         if not torrents:

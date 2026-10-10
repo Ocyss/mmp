@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 
 from app import schemas
 from app.chain import ChainBase
@@ -10,19 +10,19 @@ class BangumiChain(ChainBase):
     Bangumi处理链
     """
 
-    def calendar(self) -> Optional[List[MediaInfo]]:
+    def calendar(self) -> list[MediaInfo] | None:
         """
         获取Bangumi每日放送
         """
         return self.run_module("bangumi_calendar")
 
-    def discover(self, **kwargs) -> Optional[List[MediaInfo]]:
+    def discover(self, **kwargs) -> list[MediaInfo] | None:
         """
         发现Bangumi番剧
         """
         return self.run_module("bangumi_discover", **kwargs)
 
-    def bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    def bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息
         :param bangumiid: BangumiID
@@ -30,47 +30,47 @@ class BangumiChain(ChainBase):
         """
         return self.run_module("bangumi_info", bangumiid=bangumiid)
 
-    def bangumi_credits(self, bangumiid: int) -> List[schemas.MediaPerson]:
+    def bangumi_credits(self, bangumiid: int) -> list[schemas.MediaPerson]:
         """
         根据BangumiID查询电影演职员表
         :param bangumiid:  BangumiID
         """
         return self.run_module("bangumi_credits", bangumiid=bangumiid)
 
-    def bangumi_recommend(self, bangumiid: int) -> Optional[List[MediaInfo]]:
+    def bangumi_recommend(self, bangumiid: int) -> list[MediaInfo] | None:
         """
         根据BangumiID查询推荐电影
         :param bangumiid:  BangumiID
         """
         return self.run_module("bangumi_recommend", bangumiid=bangumiid)
 
-    def person_detail(self, person_id: int) -> Optional[schemas.MediaPerson]:
+    def person_detail(self, person_id: int) -> schemas.MediaPerson | None:
         """
         根据人物ID查询Bangumi人物详情
         :param person_id:  人物ID
         """
         return self.run_module("bangumi_person_detail", person_id=person_id)
 
-    def person_credits(self, person_id: int) -> Optional[List[MediaInfo]]:
+    def person_credits(self, person_id: int) -> list[MediaInfo] | None:
         """
         根据人物ID查询人物参演作品
         :param person_id:  人物ID
         """
         return self.run_module("bangumi_person_credits", person_id=person_id)
 
-    async def async_calendar(self) -> Optional[List[MediaInfo]]:
+    async def async_calendar(self) -> list[MediaInfo] | None:
         """
         获取Bangumi每日放送（异步版本）
         """
         return await self.async_run_module("async_bangumi_calendar")
 
-    async def async_discover(self, **kwargs) -> Optional[List[MediaInfo]]:
+    async def async_discover(self, **kwargs) -> list[MediaInfo] | None:
         """
         发现Bangumi番剧（异步版本）
         """
         return await self.async_run_module("async_bangumi_discover", **kwargs)
 
-    async def async_bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    async def async_bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息（异步版本）
         :param bangumiid: BangumiID
@@ -78,28 +78,28 @@ class BangumiChain(ChainBase):
         """
         return await self.async_run_module("async_bangumi_info", bangumiid=bangumiid)
 
-    async def async_bangumi_credits(self, bangumiid: int) -> List[schemas.MediaPerson]:
+    async def async_bangumi_credits(self, bangumiid: int) -> list[schemas.MediaPerson]:
         """
         根据BangumiID查询电影演职员表（异步版本）
         :param bangumiid:  BangumiID
         """
         return await self.async_run_module("async_bangumi_credits", bangumiid=bangumiid)
 
-    async def async_bangumi_recommend(self, bangumiid: int) -> Optional[List[MediaInfo]]:
+    async def async_bangumi_recommend(self, bangumiid: int) -> list[MediaInfo] | None:
         """
         根据BangumiID查询推荐电影（异步版本）
         :param bangumiid:  BangumiID
         """
         return await self.async_run_module("async_bangumi_recommend", bangumiid=bangumiid)
 
-    async def async_person_detail(self, person_id: int) -> Optional[schemas.MediaPerson]:
+    async def async_person_detail(self, person_id: int) -> schemas.MediaPerson | None:
         """
         根据人物ID查询Bangumi人物详情（异步版本）
         :param person_id:  人物ID
         """
         return await self.async_run_module("async_bangumi_person_detail", person_id=person_id)
 
-    async def async_person_credits(self, person_id: int) -> Optional[List[MediaInfo]]:
+    async def async_person_credits(self, person_id: int) -> list[MediaInfo] | None:
         """
         根据人物ID查询人物参演作品（异步版本）
         :param person_id:  人物ID

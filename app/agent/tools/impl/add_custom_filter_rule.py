@@ -6,13 +6,13 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     get_custom_rules,
     normalize_custom_rule,
     save_system_config,
     serialize_custom_rule,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -25,19 +25,11 @@ class AddCustomFilterRuleInput(BaseModel):
         description="Unique custom rule ID. Only letters and numbers are allowed.",
     )
     name: str = Field(..., description="Display name of the custom rule.")
-    include: Optional[str] = Field(
-        None, description="Optional include regex for the rule."
-    )
-    exclude: Optional[str] = Field(
-        None, description="Optional exclude regex for the rule."
-    )
-    size_range: Optional[str] = Field(
-        None, description="Optional size range in MB, for example '1000-5000'."
-    )
-    seeders: Optional[str] = Field(
-        None, description="Optional minimum seeder count as a non-negative integer."
-    )
-    publish_time: Optional[str] = Field(
+    include: str | None = Field(None, description="Optional include regex for the rule.")
+    exclude: str | None = Field(None, description="Optional exclude regex for the rule.")
+    size_range: str | None = Field(None, description="Optional size range in MB, for example '1000-5000'.")
+    seeders: str | None = Field(None, description="Optional minimum seeder count as a non-negative integer.")
+    publish_time: str | None = Field(
         None,
         description="Optional publish-time filter in minutes, for example '60' or '60-1440'.",
     )
@@ -54,21 +46,21 @@ class AddCustomFilterRuleTool(MoviePilotTool):
         "Add a custom filter rule to CustomFilterRules. "
         "The new rule can then be referenced by rule ID inside filter rule groups."
     )
-    args_schema: Type[BaseModel] = AddCustomFilterRuleInput
+    args_schema: type[BaseModel] = AddCustomFilterRuleInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         return f"新增自定义过滤规则 {kwargs.get('rule_id', '')}"
 
     async def run(
         self,
         rule_id: str,
         name: str,
-        include: Optional[str] = None,
-        exclude: Optional[str] = None,
-        size_range: Optional[str] = None,
-        seeders: Optional[str] = None,
-        publish_time: Optional[str] = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        size_range: str | None = None,
+        seeders: str | None = None,
+        publish_time: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, rule_id={rule_id}")

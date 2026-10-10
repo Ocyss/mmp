@@ -1,10 +1,11 @@
 from typing import Tuple, Union
 
+from sqlalchemy import text
+
 from app.core.config import settings
 from app.db import SessionFactory
 from app.modules import _ModuleBase
 from app.schemas.types import ModuleType, OtherModulesType
-from sqlalchemy import text
 
 
 class PostgreSQLModule(_ModuleBase):
@@ -40,7 +41,7 @@ class PostgreSQLModule(_ModuleBase):
         """
         return 0
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     def stop(self) -> None:

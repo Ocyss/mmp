@@ -20,11 +20,11 @@ class ScrapeMetadataInput(BaseModel):
         ...,
         description="Path to the file or directory to scrape metadata for (e.g., '/path/to/file.mkv' or '/path/to/directory')",
     )
-    storage: Optional[str] = Field(
+    storage: str | None = Field(
         "local",
         description="Storage type: 'local' for local storage, 'smb', 'alist', etc. for remote storage (default: 'local')",
     )
-    overwrite: Optional[bool] = Field(
+    overwrite: bool | None = Field(
         False,
         description="Whether to overwrite existing metadata files (default: False)",
     )
@@ -41,9 +41,9 @@ class ScrapeMetadataTool(MoviePilotTool):
     ]
     description: str = "Generate metadata files (NFO files, posters, backgrounds, etc.) for existing media files or directories. Automatically recognizes media information from the file path and creates metadata files. Supports both local and remote storage. Use 'search_media' to search TMDB database, or 'recognize_media' to extract info from torrent titles/file paths without generating files."
     require_admin: bool = True
-    args_schema: Type[BaseModel] = ScrapeMetadataInput
+    args_schema: type[BaseModel] = ScrapeMetadataInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据刮削参数生成友好的提示消息"""
         path = kwargs.get("path", "")
         storage = kwargs.get("storage", "local")
@@ -60,13 +60,11 @@ class ScrapeMetadataTool(MoviePilotTool):
     async def run(
         self,
         path: str,
-        storage: Optional[str] = "local",
-        overwrite: Optional[bool] = False,
+        storage: str | None = "local",
+        overwrite: bool | None = False,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: path={path}, storage={storage}, overwrite={overwrite}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: path={path}, storage={storage}, overwrite={overwrite}")
 
         try:
             # 验证路径
@@ -77,9 +75,7 @@ class ScrapeMetadataTool(MoviePilotTool):
                 )
 
             # 创建 FileItem
-            fileitem = FileItem(
-                storage=storage, path=path, type="file" if Path(path).suffix else "dir"
-            )
+            fileitem = FileItem(storage=storage, path=path, type="file" if Path(path).suffix else "dir")
 
             # 检查本地存储路径是否存在
             if storage == "local":

@@ -16,11 +16,11 @@ class TimerUtils:
 
     @staticmethod
     def normalize_schedule_trigger(
-            trigger_type: str,
-            trigger_value: str,
-            timezone_name: str,
-            require_future: bool = False,
-    ) -> Tuple[str, str]:
+        trigger_type: str,
+        trigger_value: str,
+        timezone_name: str,
+        require_future: bool = False,
+    ) -> tuple[str, str]:
         """
         校验并规范化单次时间或五段 cron 表达式。
 
@@ -48,9 +48,7 @@ class TimerUtils:
         try:
             run_at = datetime.datetime.fromisoformat(normalized_value)
         except ValueError as err:
-            raise ValueError(
-                "date 时间必须使用 ISO 8601 格式，例如 2026-07-19 20:30:00"
-            ) from err
+            raise ValueError("date 时间必须使用 ISO 8601 格式，例如 2026-07-19 20:30:00") from err
         if run_at.tzinfo is None:
             run_at = timezone.localize(run_at)
         else:
@@ -61,10 +59,10 @@ class TimerUtils:
 
     @staticmethod
     def build_schedule_trigger(
-            trigger_type: str,
-            trigger_value: str,
-            timezone_name: str,
-    ) -> Union[CronTrigger, DateTrigger]:
+        trigger_type: str,
+        trigger_value: str,
+        timezone_name: str,
+    ) -> CronTrigger | DateTrigger:
         """
         构建 APScheduler 单次或 cron 触发器。
 
@@ -88,11 +86,11 @@ class TimerUtils:
 
     @staticmethod
     def get_schedule_next_run_time(
-            trigger_type: str,
-            trigger_value: str,
-            timezone_name: str,
-            now: Optional[datetime.datetime] = None,
-    ) -> Optional[datetime.datetime]:
+        trigger_type: str,
+        trigger_value: str,
+        timezone_name: str,
+        now: datetime.datetime | None = None,
+    ) -> datetime.datetime | None:
         """
         计算指定触发配置的下一次执行时间。
 
@@ -114,11 +112,9 @@ class TimerUtils:
         return trigger.get_next_fire_time(None, current_time)
 
     @staticmethod
-    def random_scheduler(num_executions: int = 1,
-                         begin_hour: int = 7,
-                         end_hour: int = 23,
-                         min_interval: int = 20,
-                         max_interval: int = 40) -> List[datetime.datetime]:
+    def random_scheduler(
+        num_executions: int = 1, begin_hour: int = 7, end_hour: int = 23, min_interval: int = 20, max_interval: int = 40
+    ) -> list[datetime.datetime]:
         """
         按执行次数生成随机定时器
         :param num_executions: 执行次数
@@ -141,8 +137,7 @@ class TimerUtils:
             # 更新当前时间为下一个任务的时间触发器
             random_trigger += random_interval
             # 达到结束时间或者时间出现倒退时退出
-            if random_trigger.hour > end_hour \
-                    or random_trigger.hour < last_random_trigger.hour:
+            if random_trigger.hour > end_hour or random_trigger.hour < last_random_trigger.hour:
                 break
             # 添加到队列
             trigger.append(random_trigger)
@@ -150,9 +145,9 @@ class TimerUtils:
         return trigger
 
     @staticmethod
-    def random_even_scheduler(num_executions: int = 1,
-                              begin_hour: int = 7,
-                              end_hour: int = 23) -> List[datetime.datetime]:
+    def random_even_scheduler(
+        num_executions: int = 1, begin_hour: int = 7, end_hour: int = 23
+    ) -> list[datetime.datetime]:
         """
         按执行次数尽可能平均生成随机定时器
         :param num_executions: 执行次数
@@ -185,7 +180,7 @@ class TimerUtils:
         """
         if not input_datetime:
             return ""
-        current_datetime = datetime.datetime.now(datetime.timezone.utc).astimezone()
+        current_datetime = datetime.datetime.now(datetime.UTC).astimezone()
         time_difference = input_datetime - current_datetime
 
         if time_difference.total_seconds() < 0:

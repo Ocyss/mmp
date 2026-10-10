@@ -40,11 +40,7 @@ class List(TMDb):
             self._urls["create"],
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={
-                "name": name,
-                "description": description,
-                "language": self.language
-            }
+            json={"name": name, "description": description, "language": self.language},
         ).list_id
 
     def add_movie(self, list_id, movie_id):
@@ -57,7 +53,7 @@ class List(TMDb):
             self._urls["add_movie"] % list_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"media_id": movie_id}
+            json={"media_id": movie_id},
         )
 
     def remove_movie(self, list_id, movie_id):
@@ -70,7 +66,7 @@ class List(TMDb):
             self._urls["remove_movie"] % list_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"media_id": movie_id}
+            json={"media_id": movie_id},
         )
 
     def clear_list(self, list_id):
@@ -79,9 +75,7 @@ class List(TMDb):
         :param list_id: int
         """
         self._request_obj(
-            self._urls["clear_list"] % list_id,
-            params="session_id=%s&confirm=true" % self.session_id,
-            method="POST"
+            self._urls["clear_list"] % list_id, params="session_id=%s&confirm=true" % self.session_id, method="POST"
         )
 
     def delete_list(self, list_id):
@@ -90,9 +84,7 @@ class List(TMDb):
         :param list_id: int
         """
         self._request_obj(
-            self._urls["delete_list"] % list_id,
-            params="session_id=%s" % self.session_id,
-            method="DELETE"
+            self._urls["delete_list"] % list_id, params="session_id=%s" % self.session_id, method="DELETE"
         )
 
     # 异步版本方法
@@ -125,11 +117,7 @@ class List(TMDb):
             self._urls["create"],
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={
-                "name": name,
-                "description": description,
-                "language": self.language
-            }
+            json={"name": name, "description": description, "language": self.language},
         )
         return result.list_id
 
@@ -143,7 +131,7 @@ class List(TMDb):
             self._urls["add_movie"] % list_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"media_id": movie_id}
+            json={"media_id": movie_id},
         )
 
     async def async_remove_movie(self, list_id, movie_id):
@@ -156,7 +144,7 @@ class List(TMDb):
             self._urls["remove_movie"] % list_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"media_id": movie_id}
+            json={"media_id": movie_id},
         )
 
     async def async_clear_list(self, list_id):
@@ -165,9 +153,7 @@ class List(TMDb):
         :param list_id: int
         """
         await self._async_request_obj(
-            self._urls["clear_list"] % list_id,
-            params="session_id=%s&confirm=true" % self.session_id,
-            method="POST"
+            self._urls["clear_list"] % list_id, params="session_id=%s&confirm=true" % self.session_id, method="POST"
         )
 
     async def async_delete_list(self, list_id):
@@ -176,7 +162,5 @@ class List(TMDb):
         :param list_id: int
         """
         await self._async_request_obj(
-            self._urls["delete_list"] % list_id,
-            params="session_id=%s" % self.session_id,
-            method="DELETE"
+            self._urls["delete_list"] % list_id, params="session_id=%s" % self.session_id, method="DELETE"
         )

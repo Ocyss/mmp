@@ -1,8 +1,9 @@
 import hashlib
 from collections import deque
+from collections.abc import Generator, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, urlparse
 
 from app import schemas
@@ -17,31 +18,31 @@ from app.utils.url import UrlUtils
 class Ugreen:
     LIBRARY_PATH_PAGE_LIMIT = 200
 
-    _username: Optional[str] = None
-    _password: Optional[str] = None
+    _username: str | None = None
+    _password: str | None = None
 
-    _userinfo: Optional[dict] = None
-    _host: Optional[str] = None
-    _playhost: Optional[str] = None
+    _userinfo: dict | None = None
+    _host: str | None = None
+    _playhost: str | None = None
 
     _libraries: dict[str, dict] = {}
     _library_paths: dict[str, str] = {}
-    _sync_libraries: List[str] = []
+    _sync_libraries: list[str] = []
     _scan_type: int = 2
     _verify_ssl: bool = True
 
-    _api: Optional[Api] = None
+    _api: Api | None = None
 
     def __init__(
         self,
-        host: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        play_host: Optional[str] = None,
-        sync_libraries: Optional[list] = None,
-        scan_mode: Optional[Union[str, int]] = None,
-        scan_type: Optional[Union[str, int]] = None,
-        verify_ssl: Optional[Union[bool, str, int]] = True,
+        host: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        play_host: str | None = None,
+        sync_libraries: list | None = None,
+        scan_mode: str | int | None = None,
+        scan_type: str | int | None = None,
+        verify_ssl: bool | str | int | None = True,
         **kwargs,
     ):
         if not host or not username or not password:
@@ -65,7 +66,7 @@ class Ugreen:
             logger.error(f"请检查服务端地址 {host}")
 
     @property
-    def api(self) -> Optional[Api]:
+    def api(self) -> Api | None:
         """获取当前绿联影视 API 客户端"""
         return self._api
 
@@ -216,21 +217,21 @@ class Ugreen:
         self._library_paths = {}
 
     @staticmethod
-    def __normalize_dir_path(path: Union[str, Path, None]) -> str:
+    def __normalize_dir_path(path: str | Path | None) -> str:
         if path is None:
             return ""
         value = str(path).replace("\\", "/").rstrip("/")
         return value
 
     @staticmethod
-    def __is_subpath(path: Union[str, Path, None], parent: Union[str, Path, None]) -> bool:
+    def __is_subpath(path: str | Path | None, parent: str | Path | None) -> bool:
         path_str = Ugreen.__normalize_dir_path(path)
         parent_str = Ugreen.__normalize_dir_path(parent)
         if not path_str or not parent_str:
             return False
         return path_str == parent_str or path_str.startswith(parent_str + "/")
 
-    def __build_image_stream_url(self, source_url: str, size: int = 1) -> Optional[str]:
+    def __build_image_stream_url(self, source_url: str, size: int = 1) -> str | None:
         """
         通过绿联 getImaStream 中转图片，规避 scraper.ugnas.com 403 问题。
         """
@@ -257,7 +258,7 @@ class Ugreen:
             query=params,
         )
 
-    def __resolve_image(self, path: Optional[str]) -> Optional[str]:
+    def __resolve_image(self, path: str | None) -> str | None:
         if not path:
             return None
         if path.startswith("http://") or path.startswith("https://"):
@@ -298,7 +299,7 @@ class Ugreen:
             return False
 
     @staticmethod
-    def __parse_year(video_info: dict) -> Optional[Union[str, int]]:
+    def __parse_year(video_info: dict) -> str | int | None:
         year = video_info.get("year")
         if isinstance(year, int) and year > 0:
             return year
@@ -311,7 +312,7 @@ class Ugreen:
         return None
 
     @staticmethod
-    def __map_item_type(video_type: Any) -> Optional[str]:
+    def __map_item_type(video_type: Any) -> str | None:
         if video_type == 2:
             return "Series"
         if video_type == 1:
@@ -323,7 +324,7 @@ class Ugreen:
         return "Video"
 
     @staticmethod
-    def __build_media_server_item(video_info: dict, play_status: Optional[dict] = None):
+    def __build_media_server_item(video_info: dict, play_status: dict | None = None):
         user_state = schemas.MediaServerItemUserState()
         if isinstance(play_status, dict):
             progress = play_status.get("progress")
@@ -366,11 +367,11 @@ class Ugreen:
             return ""
         return f"{host.rstrip('/')}/"
 
-    def __build_play_url(self, item_id: Union[str, int], video_type: Any, media_lib_set_id: Any) -> str:
+    def __build_play_url(self, item_id: str | int, video_type: Any, media_lib_set_id: Any) -> str:
         # 绿联深链在部分版本会失效，统一回落到 NAS 根地址。
         return self.__build_root_url()
 
-    def __build_play_item_from_wrapper(self, wrapper: dict) -> Optional[schemas.MediaServerPlayItem]:
+    def __build_play_item_from_wrapper(self, wrapper: dict) -> schemas.MediaServerPlayItem | None:
         video_info = wrapper.get("video_info") if isinstance(wrapper.get("video_info"), dict) else wrapper
         if not isinstance(video_info, dict):
             return None
@@ -406,7 +407,7 @@ class Ugreen:
         )
 
     @staticmethod
-    def __infer_library_type(name: str, path: Optional[str]) -> str:
+    def __infer_library_type(name: str, path: str | None) -> str:
         name = name or ""
         path = path or ""
         if "电视剧" in path or any(key in name for key in ["剧", "综艺", "动漫", "纪录片"]):
@@ -428,8 +429,8 @@ class Ugreen:
 
     @staticmethod
     def __resolve_scan_type(
-        scan_mode: Optional[Union[str, int]] = None,
-        scan_type: Optional[Union[str, int]] = None,
+        scan_mode: str | int | None = None,
+        scan_type: str | int | None = None,
     ) -> int:
         """
         解析绿联扫描模式并转为 `media_lib_scan_type`。
@@ -470,7 +471,7 @@ class Ugreen:
         return mode_map.get(mode, 2)
 
     @staticmethod
-    def __resolve_verify_ssl(verify_ssl: Optional[Union[bool, str, int]]) -> bool:
+    def __resolve_verify_ssl(verify_ssl: bool | str | int | None) -> bool:
         if isinstance(verify_ssl, bool):
             return verify_ssl
         if verify_ssl is None:
@@ -482,7 +483,7 @@ class Ugreen:
             return False
         return True
 
-    def __scan_library(self, library_id: str, scan_type: Optional[int] = None) -> bool:
+    def __scan_library(self, library_id: str, scan_type: int | None = None) -> bool:
         if not self._api:
             return False
         return self._api.scan(
@@ -520,7 +521,7 @@ class Ugreen:
 
         return paths
 
-    def get_librarys(self, hidden: Optional[bool] = False) -> Optional[List[schemas.MediaServerLibrary]]:
+    def get_librarys(self, hidden: bool | None = False) -> list[schemas.MediaServerLibrary] | None:
         """
         获取绿联影视媒体库列表
 
@@ -602,7 +603,7 @@ class Ugreen:
             episode_count=None,
         )
 
-    def authenticate(self, username: str, password: str) -> Optional[str]:
+    def authenticate(self, username: str, password: str) -> str | None:
         if not username or not password or not self._host:
             return None
 
@@ -630,8 +631,8 @@ class Ugreen:
         return result
 
     def get_movies(
-        self, title: str, year: Optional[str] = None, tmdb_id: Optional[int] = None
-    ) -> Optional[List[schemas.MediaServerItem]]:
+        self, title: str, year: str | None = None, tmdb_id: int | None = None
+    ) -> list[schemas.MediaServerItem] | None:
         if not self.is_authenticated() or not self._api or not title:
             return None
 
@@ -654,7 +655,7 @@ class Ugreen:
                 movies.append(media_item)
         return movies
 
-    def __search_tv_item(self, title: str, year: Optional[str] = None, tmdb_id: Optional[int] = None) -> Optional[dict]:
+    def __search_tv_item(self, title: str, year: str | None = None, tmdb_id: int | None = None) -> dict | None:
         if not self._api:
             return None
         data = self._api.search(title)
@@ -674,12 +675,12 @@ class Ugreen:
 
     def get_tv_episodes(
         self,
-        item_id: Optional[str] = None,
-        title: Optional[str] = None,
-        year: Optional[str] = None,
-        tmdb_id: Optional[int] = None,
-        season: Optional[int] = None,
-    ) -> tuple[Optional[str], Optional[Dict[int, list]]]:
+        item_id: str | None = None,
+        title: str | None = None,
+        year: str | None = None,
+        tmdb_id: int | None = None,
+        season: int | None = None,
+    ) -> tuple[str | None, dict[int, list] | None]:
         """
         根据标题、年份、TMDB ID和季号查询绿联媒体库中的电视剧已入库集数。
         :param item_id: 绿联媒体库中的剧集ID，存在缓存ID时优先使用
@@ -734,7 +735,7 @@ class Ugreen:
             if category_id and isinstance(season_num, int):
                 season_map[str(category_id)] = season_num
 
-        season_episodes: Dict[int, list] = {}
+        season_episodes: dict[int, list] = {}
         for ep in tv_detail.get("tv_info") or []:
             if not isinstance(ep, dict):
                 continue
@@ -751,28 +752,22 @@ class Ugreen:
 
         return item_id, season_episodes
 
-    def refresh_root_library(self, scan_mode: Optional[Union[str, int]] = None) -> Optional[bool]:
+    def refresh_root_library(self, scan_mode: str | int | None = None) -> bool | None:
         if not self.is_authenticated() or not self._api:
             return None
 
         if not self._libraries:
             self.get_librarys()
 
-        scan_type = (
-            self.__resolve_scan_type(scan_mode=scan_mode)
-            if scan_mode is not None
-            else self._scan_type
-        )
+        scan_type = self.__resolve_scan_type(scan_mode=scan_mode) if scan_mode is not None else self._scan_type
         results = []
         for lib_id in self._libraries.keys():
-            logger.info(
-                f"刷新媒体库：{self._libraries[lib_id].get('name')}（扫描模式: {scan_type}）"
-            )
+            logger.info(f"刷新媒体库：{self._libraries[lib_id].get('name')}（扫描模式: {scan_type}）")
             results.append(self.__scan_library(library_id=lib_id, scan_type=scan_type))
 
         return all(results) if results else True
 
-    def __match_library_id_by_path(self, path: Optional[Path]) -> Optional[str]:
+    def __match_library_id_by_path(self, path: Path | None) -> str | None:
         if path is None:
             return None
 
@@ -787,17 +782,13 @@ class Ugreen:
 
     def refresh_library_by_items(
         self,
-        items: List[schemas.RefreshMediaItem],
-        scan_mode: Optional[Union[str, int]] = None,
-    ) -> Optional[bool]:
+        items: list[schemas.RefreshMediaItem],
+        scan_mode: str | int | None = None,
+    ) -> bool | None:
         if not self.is_authenticated() or not self._api:
             return None
 
-        scan_type = (
-            self.__resolve_scan_type(scan_mode=scan_mode)
-            if scan_mode is not None
-            else self._scan_type
-        )
+        scan_type = self.__resolve_scan_type(scan_mode=scan_mode) if scan_mode is not None else self._scan_type
         library_ids = set()
         for item in items:
             library_id = self.__match_library_id_by_path(item.target_path)
@@ -814,10 +805,10 @@ class Ugreen:
         return True
 
     @staticmethod
-    def get_webhook_message(body: Any) -> Optional[schemas.WebhookEventInfo]:
+    def get_webhook_message(body: Any) -> schemas.WebhookEventInfo | None:
         return None
 
-    def get_iteminfo(self, itemid: str) -> Optional[schemas.MediaServerItem]:
+    def get_iteminfo(self, itemid: str) -> schemas.MediaServerItem | None:
         if not self.is_authenticated() or not self._api or not itemid:
             return None
 
@@ -872,7 +863,7 @@ class Ugreen:
                     break
                 page += 1
 
-    def get_items_count(self, parent: Union[str, int]) -> Optional[int]:
+    def get_items_count(self, parent: str | int) -> int | None:
         """
         获取指定媒体库可同步的媒体条目总数
 
@@ -890,10 +881,10 @@ class Ugreen:
 
     def get_items(
         self,
-        parent: Union[str, int],
-        start_index: Optional[int] = 0,
-        limit: Optional[int] = -1,
-    ) -> Generator[schemas.MediaServerItem | None | Any, Any, None]:
+        parent: str | int,
+        start_index: int | None = 0,
+        limit: int | None = -1,
+    ) -> Generator[schemas.MediaServerItem | None | Any, Any]:
         """
         获取指定绿联影视媒体库的可同步条目
 
@@ -935,7 +926,7 @@ class Ugreen:
 
         return None
 
-    def get_play_url(self, item_id: str) -> Optional[str]:
+    def get_play_url(self, item_id: str) -> str | None:
         if not self.is_authenticated() or not self._api:
             return None
 
@@ -953,7 +944,7 @@ class Ugreen:
             media_lib_set_id=video_info.get("media_lib_set_id"),
         )
 
-    def get_resume(self, num: Optional[int] = 12) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def get_resume(self, num: int | None = 12) -> list[schemas.MediaServerPlayItem] | None:
         if not self.is_authenticated() or not self._api:
             return None
 
@@ -978,7 +969,7 @@ class Ugreen:
 
         return ret_resume
 
-    def get_latest(self, num: int = 20) -> Optional[List[schemas.MediaServerPlayItem]]:
+    def get_latest(self, num: int = 20) -> list[schemas.MediaServerPlayItem] | None:
         if not self.is_authenticated() or not self._api:
             return None
 
@@ -1003,7 +994,7 @@ class Ugreen:
 
         return latest
 
-    def get_latest_backdrops(self, num: int = 20, remote: bool = False) -> Optional[List[str]]:
+    def get_latest_backdrops(self, num: int = 20, remote: bool = False) -> list[str] | None:
         if not self.is_authenticated() or not self._api:
             return None
 
@@ -1011,7 +1002,7 @@ class Ugreen:
         if not data:
             return []
 
-        images: List[str] = []
+        images: list[str] = []
         for item in data.get("video_arr") or []:
             if len(images) == num:
                 break

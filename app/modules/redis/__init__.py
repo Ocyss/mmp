@@ -39,7 +39,7 @@ class RedisModule(_ModuleBase):
         """
         return 0
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     def stop(self) -> None:

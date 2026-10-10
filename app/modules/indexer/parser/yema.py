@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from typing import Optional, Tuple
 
@@ -63,8 +62,7 @@ class YemaSiteUserInfo(SiteParserBase):
         user_info = payload["data"]
         self.userid = user_info.get("id")
         self.username = user_info.get("name")
-        self.user_level = str(user_info.get("level")) \
-            if user_info.get("level") is not None else None
+        self.user_level = str(user_info.get("level")) if user_info.get("level") is not None else None
         self.join_at = StringUtils.unify_datetime_str(user_info.get("registerTime"))
         self.upload = int(user_info.get("promotionUploadSize") or 0)
         self.download = int(user_info.get("promotionDownloadSize") or 0)
@@ -89,7 +87,7 @@ class YemaSiteUserInfo(SiteParserBase):
         self,
         html_text: str,
         multi_page: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         跳过做种统计，开放 API 未提供该接口
 
@@ -99,7 +97,7 @@ class YemaSiteUserInfo(SiteParserBase):
         """
         return None
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         跳过站内消息，开放 API 未提供该接口
 
@@ -112,7 +110,7 @@ class YemaSiteUserInfo(SiteParserBase):
     def _parse_message_content(
         self,
         html_text: str,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None, str | None]:
         """
         跳过消息详情，开放 API 未提供该接口
 

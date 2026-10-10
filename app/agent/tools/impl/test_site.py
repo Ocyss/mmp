@@ -13,6 +13,7 @@ from app.log import logger
 
 class TestSiteInput(BaseModel):
     """测试站点连通性工具的输入参数模型"""
+
     site_identifier: int = Field(..., description="Site ID to test (can be obtained from query_sites tool)")
 
 
@@ -23,15 +24,15 @@ class TestSiteTool(MoviePilotTool):
         ToolTag.Site,
     ]
     description: str = "Test site connectivity and availability. This will check if a site is accessible and can be logged in. Accepts site ID only."
-    args_schema: Type[BaseModel] = TestSiteInput
+    args_schema: type[BaseModel] = TestSiteInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据测试参数生成友好的提示消息"""
         site_identifier = kwargs.get("site_identifier")
         return f"测试站点连通性: {site_identifier}"
 
     @staticmethod
-    def _test_site_sync(site_identifier: int) -> tuple[Optional[str], Optional[str], bool, str]:
+    def _test_site_sync(site_identifier: int) -> tuple[str | None, str | None, bool, str]:
         """在同步线程里执行站点联通测试，避免网络请求卡住事件循环。"""
         site = SiteOper().get(site_identifier)
         if not site:

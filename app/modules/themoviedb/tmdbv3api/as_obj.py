@@ -1,4 +1,3 @@
-# encoding: utf-8
 import sys
 
 
@@ -64,10 +63,12 @@ class AsObj:
         return str(self._obj_list) if self._list_only else str(self._dict())
 
     if sys.version_info >= (3, 8):
+
         def __reversed__(self):
             return reversed(self._dict())
 
     if sys.version_info >= (3, 9):
+
         def __class_getitem__(cls, key):
             return cls.__dict__.__class_getitem__(key)
 

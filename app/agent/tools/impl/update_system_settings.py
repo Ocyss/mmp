@@ -7,7 +7,6 @@ from typing import Any, Literal, Optional, Type, Union
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._system_setting_utils import (
     SettingSpec,
     get_default_list_match_field,
@@ -16,6 +15,7 @@ from app.agent.tools.impl._system_setting_utils import (
     resolve_setting_spec,
     should_redact_setting,
 )
+from app.agent.tools.tags import ToolTag
 from app.core.config import settings
 from app.core.event import eventmanager
 from app.db.systemconfig_oper import SystemConfigOper
@@ -23,7 +23,7 @@ from app.log import logger
 from app.schemas.event import ConfigChangeEventData
 from app.schemas.types import EventType
 
-SettingValue = Optional[Union[list, dict, bool, int, float, str]]
+SettingValue = Optional[list | dict | bool | int | float | str]
 
 
 class UpdateSystemSettingsInput(BaseModel):
@@ -55,11 +55,11 @@ class UpdateSystemSettingsInput(BaseModel):
             "upsert_list_item inserts or replaces one item inside a list; remove_list_item removes one item from a list."
         ),
     )
-    remove_keys: Optional[list[str]] = Field(
+    remove_keys: list[str] | None = Field(
         None,
         description="Optional dict keys to delete when operation is merge_dict.",
     )
-    match_field: Optional[str] = Field(
+    match_field: str | None = Field(
         None,
         description=(
             "Optional match field for list item upsert/remove. If omitted, common SystemConfig categories use built-in defaults such as 'name' or 'type'."
@@ -86,9 +86,9 @@ class UpdateSystemSettingsTool(MoviePilotTool):
         "Supports full replacement, shallow dict merge, and generic list item upsert/remove so the agent can manage downloaders, media servers, notification channels, storages, directories, search-site ranges, subscribe-site ranges, site auth params, AI agent config, and other system settings through one tool."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = UpdateSystemSettingsInput
+    args_schema: type[BaseModel] = UpdateSystemSettingsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据更新参数生成友好的提示消息。"""
 
         setting_key = kwargs.get("setting_key", "")
@@ -121,23 +121,19 @@ class UpdateSystemSettingsTool(MoviePilotTool):
         spec: SettingSpec,
         operation: str,
         value: Any,
-        match_field: Optional[str],
+        match_field: str | None,
         match_value: Any,
-    ) -> tuple[Optional[str], Any]:
+    ) -> tuple[str | None, Any]:
         resolved_field = match_field or get_default_list_match_field(spec.key)
         resolved_value = match_value
 
         if isinstance(value, dict):
             if not resolved_field:
-                raise ValueError(
-                    f"{operation} 需要提供 match_field，或使用带默认匹配字段的系统配置项"
-                )
+                raise ValueError(f"{operation} 需要提供 match_field，或使用带默认匹配字段的系统配置项")
             if resolved_value is None:
                 resolved_value = value.get(resolved_field)
             if resolved_value is None:
-                raise ValueError(
-                    f"{operation} 缺少匹配值，请在 value.{resolved_field} 或 match_value 中提供"
-                )
+                raise ValueError(f"{operation} 缺少匹配值，请在 value.{resolved_field} 或 match_value 中提供")
         else:
             if resolved_value is None:
                 resolved_value = value
@@ -151,8 +147,8 @@ class UpdateSystemSettingsTool(MoviePilotTool):
         current_value: Any,
         value: Any,
         operation: str,
-        remove_keys: Optional[list[str]] = None,
-        match_field: Optional[str] = None,
+        remove_keys: list[str] | None = None,
+        match_field: str | None = None,
         match_value: Any = None,
     ) -> Any:
         remove_keys = remove_keys or []
@@ -180,9 +176,7 @@ class UpdateSystemSettingsTool(MoviePilotTool):
             raise ValueError(f"{operation} 仅支持当前值为 list 的设置项")
 
         next_items = list(copy.deepcopy(current_value or []))
-        resolved_field, resolved_match_value = cls._resolve_list_match(
-            spec, operation, value, match_field, match_value
-        )
+        resolved_field, resolved_match_value = cls._resolve_list_match(spec, operation, value, match_field, match_value)
 
         if operation == "upsert_list_item":
             if value is None:
@@ -205,11 +199,7 @@ class UpdateSystemSettingsTool(MoviePilotTool):
         return [
             item
             for item in next_items
-            if not (
-                isinstance(item, dict)
-                and resolved_field
-                and item.get(resolved_field) == resolved_match_value
-            )
+            if not (isinstance(item, dict) and resolved_field and item.get(resolved_field) == resolved_match_value)
             and not (not resolved_field and item == resolved_match_value)
         ]
 
@@ -218,14 +208,12 @@ class UpdateSystemSettingsTool(MoviePilotTool):
         setting_key: str,
         value: SettingValue = None,
         operation: str = "replace",
-        remove_keys: Optional[list[str]] = None,
-        match_field: Optional[str] = None,
+        remove_keys: list[str] | None = None,
+        match_field: str | None = None,
         match_value: SettingValue = None,
         **kwargs,
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, setting_key={setting_key}, operation={operation}"
-        )
+        logger.info(f"执行工具: {self.name}, setting_key={setting_key}, operation={operation}")
 
         try:
             spec = resolve_setting_spec(setting_key)
@@ -283,10 +271,7 @@ class UpdateSystemSettingsTool(MoviePilotTool):
                 )
 
             saved_value = self._load_setting_value(spec)
-            redact_values = (
-                should_redact_setting(spec, saved_value)
-                or should_redact_setting(spec, current_value)
-            )
+            redact_values = should_redact_setting(spec, saved_value) or should_redact_setting(spec, current_value)
             response_previous_value = (
                 redact_secret_value(
                     current_value,

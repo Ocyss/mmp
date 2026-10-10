@@ -26,6 +26,7 @@ class AbstractSingleton(abc.ABC, metaclass=Singleton):
     """
     抽像类单例模式
     """
+
     pass
 
 
@@ -50,6 +51,7 @@ class AbstractSingletonClass(abc.ABC, metaclass=SingletonClass):
     """
     抽像类单例模式（按类）
     """
+
     pass
 
 
@@ -57,6 +59,7 @@ class WeakSingleton(abc.ABCMeta, type):
     """
     弱引用单例模式 - 当没有强引用时自动清理
     """
+
     _instances: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
     _lock = threading.RLock()
 

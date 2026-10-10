@@ -24,6 +24,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
     """
     目录监控门面，单例模式：装配本地/远程监控、维护生命周期与健康检查。
     """
+
     CONFIG_WATCH = {SystemConfigKey.Directories.value}
     # 目录监控健康检查间隔（秒）
     WATCHDOG_INTERVAL = 60
@@ -37,13 +38,13 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         # 本地目录监控列表读写锁
         self._watcher_lock = Lock()
         # 启动失败待重试的本地监控配置
-        self._pending_locals: List[Dict[str, Any]] = []
+        self._pending_locals: list[dict[str, Any]] = []
         # 已告警的监控目录，避免重复推送
         self._alerted_paths: set = set()
         # 各监控目录已告警过的自动重启次数
-        self._restart_marks: Dict[str, int] = {}
+        self._restart_marks: dict[str, int] = {}
         # 各监控目录连续稳定的健康检查周期数
-        self._stable_cycles: Dict[str, int] = {}
+        self._stable_cycles: dict[str, int] = {}
         # 定时服务
         self._scheduler = None
         # 整理分发器
@@ -51,8 +52,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         # 快照存储
         self._store = SnapshotStore()
         # 远程轮询监控
-        self._poller = RemotePoller(store=self._store, dispatcher=self._dispatcher,
-                                    alert_cb=self.__poller_alert)
+        self._poller = RemotePoller(store=self._store, dispatcher=self._dispatcher, alert_cb=self.__poller_alert)
         # 启动目录监控和文件整理
         self.init()
 
@@ -62,14 +62,13 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
     def get_reload_name(self):
         return "目录监控"
 
-    def save_snapshot(self, storage: str, snapshot: Dict, file_count: int = 0,
-                      last_snapshot_time: Optional[float] = None):
+    def save_snapshot(self, storage: str, snapshot: dict, file_count: int = 0, last_snapshot_time: float | None = None):
         """
         保存快照到文件缓存。
         """
         self._store.save(storage, snapshot, file_count=file_count, last_snapshot_time=last_snapshot_time)
 
-    def load_snapshot(self, storage: str) -> Optional[Dict]:
+    def load_snapshot(self, storage: str) -> dict | None:
         """
         从文件缓存加载快照。
         """
@@ -95,7 +94,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         return SnapshotStore.adjust_interval(file_count)
 
     @staticmethod
-    def compare_snapshots(old_snapshot: Dict, new_snapshot: Dict) -> Dict[str, List]:
+    def compare_snapshots(old_snapshot: dict, new_snapshot: dict) -> dict[str, list]:
         """
         比对快照，找出变化的文件。
         """
@@ -127,12 +126,11 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
                 continue
             valid_dirs.append(mon_dir)
 
-        deduped: Dict[str, Any] = {}
+        deduped: dict[str, Any] = {}
         for mon_dir in valid_dirs:
             key = f"{mon_dir.storage}_{mon_dir.download_path}"
             if key in deduped:
-                logger.warn(f"监控配置重复，忽略后一条: {mon_dir.download_path}"
-                            f"（媒体库 {mon_dir.library_path}）")
+                logger.warn(f"监控配置重复，忽略后一条: {mon_dir.download_path}（媒体库 {mon_dir.library_path}）")
                 continue
             deduped[key] = mon_dir
         monitor_dirs = list(deduped.values())
@@ -141,7 +139,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         # 启动定时服务进程
         self._scheduler = BackgroundScheduler(timezone=settings.TZ)
 
-        mon_storages: Dict[str, List[Path]] = {}
+        mon_storages: dict[str, list[Path]] = {}
         # 本地监控启动结果计数，用于输出真实的启动总结
         local_started = 0
         local_failed = 0
@@ -167,7 +165,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
             # 远程目录监控 - 使用智能间隔
             # 先尝试加载已有快照获取文件数量
             snapshot_data = self._store.load(storage)
-            file_count = snapshot_data.get('file_count', 0) if snapshot_data else 0
+            file_count = snapshot_data.get("file_count", 0) if snapshot_data else 0
             interval = SnapshotStore.adjust_interval(file_count)
             for path in paths:
                 logger.info(f"正在启动远程目录监控: {path} [{storage}]")
@@ -176,25 +174,18 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
 
             self._scheduler.add_job(
                 self.polling_observer,
-                'interval',
+                "interval",
                 minutes=interval,
-                kwargs={
-                    'storage': storage,
-                    'mon_paths': paths
-                },
+                kwargs={"storage": storage, "mon_paths": paths},
                 id=f"monitor_{storage}",
-                replace_existing=True
+                replace_existing=True,
             )
             logger.info(f"✓ 远程目录监控已启动: [间隔: {interval}分钟]")
 
         # 监控健康检查：重建异常监控线程、重试启动失败目录、重试历史查询失败的文件
         if local_started or local_failed or mon_storages:
             self._scheduler.add_job(
-                self.watchdog,
-                'interval',
-                seconds=self.WATCHDOG_INTERVAL,
-                id="monitor_watchdog",
-                replace_existing=True
+                self.watchdog, "interval", seconds=self.WATCHDOG_INTERVAL, id="monitor_watchdog", replace_existing=True
             )
             logger.info(f"✓ 目录监控健康检查已启动: [间隔: {self.WATCHDOG_INTERVAL}秒]")
 
@@ -235,13 +226,12 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
             if file_count is not None:
                 logger.info(f"监控目录 {mon_path} 包含约 {file_count} 个文件")
             if not use_polling and limits:
-                if limits['warnings']:
-                    for warning in limits['warnings']:
+                if limits["warnings"]:
+                    for warning in limits["warnings"]:
                         logger.warn(f"系统限制警告: {warning}")
-                if limits['max_user_watches'] > 0 and file_count is not None:
-                    usage_percent = (file_count / limits['max_user_watches']) * 100
-                    logger.info(
-                        f"系统监控资源使用率: {usage_percent:.1f}% ({file_count}/{limits['max_user_watches']})")
+                if limits["max_user_watches"] > 0 and file_count is not None:
+                    usage_percent = (file_count / limits["max_user_watches"]) * 100
+                    logger.info(f"系统监控资源使用率: {usage_percent:.1f}% ({file_count}/{limits['max_user_watches']})")
 
             # 网络/FUSE 挂载轮询降频，减少监控自身对挂载后端的持续 stat 压力
             poll_delay_ms = None
@@ -253,16 +243,13 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
                 mon_path=mon_path,
                 callback=self,
                 force_polling=True if use_polling else None,
-                poll_delay_ms=poll_delay_ms
+                poll_delay_ms=poll_delay_ms,
             )
             # 启动成功后再登记，避免失败的监控残留在列表中
             watcher.start()
             with self._watcher_lock:
                 self._watchers.append(watcher)
-                self._pending_locals = [
-                    pending for pending in self._pending_locals
-                    if pending["mon_path"] != mon_path
-                ]
+                self._pending_locals = [pending for pending in self._pending_locals if pending["mon_path"] != mon_path]
             self.__clear_alert(mon_path, f"本地目录监控已恢复: {mon_path} [{mode_name}]")
 
             logger.info(f"✓ 本地目录监控已启动: {mon_path} [{mode_name}]")
@@ -298,13 +285,8 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
 
         with self._watcher_lock:
             if all(pending["mon_path"] != mon_path for pending in self._pending_locals):
-                self._pending_locals.append({
-                    "mon_path": mon_path,
-                    "monitor_mode": monitor_mode
-                })
-        self.__send_alert(mon_path,
-                          f"启动本地目录监控失败: {mon_path}\n错误: {err_msg}\n"
-                          f"将自动退避重试")
+                self._pending_locals.append({"mon_path": mon_path, "monitor_mode": monitor_mode})
+        self.__send_alert(mon_path, f"启动本地目录监控失败: {mon_path}\n错误: {err_msg}\n将自动退避重试")
 
     def watchdog(self):
         """
@@ -334,9 +316,10 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
                 if watcher.restart_count > self._restart_marks.get(key, 0):
                     self._restart_marks[key] = watcher.restart_count
                     self._stable_cycles[key] = 0
-                    self.__send_alert(watcher.watch_path,
-                                      f"目录监控发生错误并已自动重启"
-                                      f"（累计 {watcher.restart_count} 次）: {watcher.watch_path}")
+                    self.__send_alert(
+                        watcher.watch_path,
+                        f"目录监控发生错误并已自动重启（累计 {watcher.restart_count} 次）: {watcher.watch_path}",
+                    )
                 else:
                     # 稳定满恢复窗口才宣告恢复，避免反复崩溃时告警/恢复消息来回刷屏
                     self._stable_cycles[key] = self._stable_cycles.get(key, 0) + 1
@@ -344,8 +327,9 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
                         self.__clear_alert(watcher.watch_path, f"目录监控已恢复正常: {watcher.watch_path}")
                 continue
             logger.error(f"目录监控异常: {watcher.watch_path} - {reason}，正在重建监控线程 ...")
-            self.__send_alert(watcher.watch_path,
-                              f"目录监控异常: {watcher.watch_path}\n原因: {reason}\n正在自动重建监控")
+            self.__send_alert(
+                watcher.watch_path, f"目录监控异常: {watcher.watch_path}\n原因: {reason}\n正在自动重建监控"
+            )
             self.__rebuild_watcher(watcher)
 
     def __rebuild_watcher(self, watcher: LocalDirectoryWatcher):
@@ -359,7 +343,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
             mon_path=watcher.watch_path,
             callback=self,
             force_polling=watcher.force_polling,
-            poll_delay_ms=watcher.poll_delay_ms
+            poll_delay_ms=watcher.poll_delay_ms,
         )
         try:
             new_watcher.start()
@@ -368,11 +352,13 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
             with self._watcher_lock:
                 self._watchers = [item for item in self._watchers if item is not watcher]
                 if all(pending["mon_path"] != watcher.watch_path for pending in self._pending_locals):
-                    self._pending_locals.append({
-                        "mon_path": watcher.watch_path,
-                        # 重建沿用原监控模式，force_polling 为 True 即兼容模式
-                        "monitor_mode": "compatibility" if watcher.force_polling else "fast"
-                    })
+                    self._pending_locals.append(
+                        {
+                            "mon_path": watcher.watch_path,
+                            # 重建沿用原监控模式，force_polling 为 True 即兼容模式
+                            "monitor_mode": "compatibility" if watcher.force_polling else "fast",
+                        }
+                    )
             return
         with self._watcher_lock:
             self._watchers = [new_watcher if item is watcher else item for item in self._watchers]
@@ -435,7 +421,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         logger.info(message)
         MessageHelper().put(message, title="目录监控")
 
-    def polling_observer(self, storage: str, mon_paths: List[Path]):
+    def polling_observer(self, storage: str, mon_paths: list[Path]):
         """
         轮询监控：执行一轮快照并按结果动态调整监控间隔。
         """
@@ -447,11 +433,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
         try:
             current_job = self._scheduler.get_job(f"monitor_{storage}")
             if current_job and current_job.trigger.interval.total_seconds() / 60 != new_interval:
-                self._scheduler.modify_job(
-                    f"monitor_{storage}",
-                    trigger='interval',
-                    minutes=new_interval
-                )
+                self._scheduler.modify_job(f"monitor_{storage}", trigger="interval", minutes=new_interval)
                 logger.info(f"{storage} 监控间隔已调整为 {new_interval} 分钟")
         except Exception as e:
             logger.error(f"调整监控间隔失败: {storage} - {e}")

@@ -66,9 +66,7 @@ class RotatingLineStream(io.TextIOBase):
                 handler.flush()
 
 
-def configure_rotating_stdio(
-    *, log_file: Path, max_bytes: int, backup_count: int
-) -> RotatingLineStream:
+def configure_rotating_stdio(*, log_file: Path, max_bytes: int, backup_count: int) -> RotatingLineStream:
     """
     将当前进程的 stdout/stderr 统一重定向到同一个滚动日志流。
     """

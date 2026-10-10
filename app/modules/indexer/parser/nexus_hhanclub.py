@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 
 from lxml import etree
@@ -19,20 +18,29 @@ class NexusHhanclubSiteUserInfo(NexusPhpSiteUserInfo):
 
         try:
             # 上传、下载、分享率
-            upload_match = re.search(r"[_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
-                                     html.xpath('//*[@id="user-info-panel"]/div[2]/div[2]/div[4]/text()')[0])
-            download_match = re.search(r"[_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
-                                       html.xpath('//*[@id="user-info-panel"]/div[2]/div[2]/div[5]/text()')[0])
-            ratio_match = re.search(r"分享率][:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+)",
-                                    html.xpath('//*[@id="user-info-panel"]/div[2]/div[1]/div[1]/div/text()')[0])
+            upload_match = re.search(
+                r"[_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                html.xpath('//*[@id="user-info-panel"]/div[2]/div[2]/div[4]/text()')[0],
+            )
+            download_match = re.search(
+                r"[_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                html.xpath('//*[@id="user-info-panel"]/div[2]/div[2]/div[5]/text()')[0],
+            )
+            ratio_match = re.search(
+                r"分享率][:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+)",
+                html.xpath('//*[@id="user-info-panel"]/div[2]/div[1]/div[1]/div/text()')[0],
+            )
 
             # 计算分享率
             self.upload = StringUtils.num_filesize(upload_match.group(1).strip()) if upload_match else 0
             self.download = StringUtils.num_filesize(download_match.group(1).strip()) if download_match else 0
             # 优先使用页面上的分享率
             calc_ratio = 0.0 if self.download <= 0.0 else round(self.upload / self.download, 3)
-            self.ratio = StringUtils.str_float(ratio_match.group(1)) if (
-                    ratio_match and ratio_match.group(1).strip()) else calc_ratio
+            self.ratio = (
+                StringUtils.str_float(ratio_match.group(1))
+                if (ratio_match and ratio_match.group(1).strip())
+                else calc_ratio
+            )
         finally:
             if html is not None:
                 del html

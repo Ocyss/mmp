@@ -38,9 +38,7 @@ async def torrents_cache(_: User = Depends(get_current_active_superuser_async)):
     torrent_data = []
     for domain, contexts in cache_info.items():
         for context in contexts:
-            torrent_hash = HashUtils.md5(
-                f"{context.torrent_info.title}{context.torrent_info.description}"
-            )
+            torrent_hash = HashUtils.md5(f"{context.torrent_info.title}{context.torrent_info.description}")
             torrent_data.append(
                 {
                     "hash": torrent_hash,
@@ -50,25 +48,15 @@ async def torrents_cache(_: User = Depends(get_current_active_superuser_async)):
                     "size": context.torrent_info.size,
                     "pubdate": context.torrent_info.pubdate,
                     "site_name": context.torrent_info.site_name,
-                    "media_name": context.media_info.title
-                    if context.media_info
-                    else "",
+                    "media_name": context.media_info.title if context.media_info else "",
                     "media_year": context.media_info.year if context.media_info else "",
                     "media_type": context.media_info.type if context.media_info else "",
-                    "season_episode": context.meta_info.season_episode
-                    if context.meta_info
-                    else "",
-                    "resource_term": context.meta_info.resource_term
-                    if context.meta_info
-                    else "",
+                    "season_episode": context.meta_info.season_episode if context.meta_info else "",
+                    "resource_term": context.meta_info.resource_term if context.meta_info else "",
                     "enclosure": context.torrent_info.enclosure,
                     "page_url": context.torrent_info.page_url,
-                    "poster_path": context.media_info.get_poster_image()
-                    if context.media_info
-                    else "",
-                    "backdrop_path": context.media_info.get_backdrop_image()
-                    if context.media_info
-                    else "",
+                    "poster_path": context.media_info.get_poster_image() if context.media_info else "",
+                    "backdrop_path": context.media_info.get_backdrop_image() if context.media_info else "",
                 }
             )
 
@@ -109,10 +97,7 @@ async def delete_cache(
         cache_data[domain] = [
             context
             for context in cache_data[domain]
-            if HashUtils.md5(
-                f"{context.torrent_info.title}{context.torrent_info.description}"
-            )
-            != torrent_hash
+            if HashUtils.md5(f"{context.torrent_info.title}{context.torrent_info.description}") != torrent_hash
         ]
 
         if len(cache_data[domain]) == original_count:
@@ -172,12 +157,12 @@ def refresh_cache(_: User = Depends(get_current_active_superuser)):
 async def reidentify_cache(
     domain: str,
     torrent_hash: str,
-    tmdbid: Optional[int] = None,
-    doubanid: Optional[str] = None,
-    bangumiid: Optional[int] = None,
-    anilistid: Optional[int] = None,
-    media_source: Optional[str] = None,
-    media_id: Optional[str] = None,
+    tmdbid: int | None = None,
+    doubanid: str | None = None,
+    bangumiid: int | None = None,
+    anilistid: int | None = None,
+    media_source: str | None = None,
+    media_id: str | None = None,
     _: User = Depends(get_current_active_superuser_async),
 ):
     """
@@ -206,12 +191,7 @@ async def reidentify_cache(
         # 查找指定种子
         target_context = None
         for context in cache_data[domain]:
-            if (
-                HashUtils.md5(
-                    f"{context.torrent_info.title}{context.torrent_info.description}"
-                )
-                == torrent_hash
-            ):
+            if HashUtils.md5(f"{context.torrent_info.title}{context.torrent_info.description}") == torrent_hash:
                 target_context = context
                 break
 
@@ -257,9 +237,7 @@ async def reidentify_cache(
             data={
                 "media_name": mediainfo.title if mediainfo else "",
                 "media_year": mediainfo.year if mediainfo else "",
-                "media_type": mediainfo.type.value
-                if mediainfo and mediainfo.type
-                else "",
+                "media_type": mediainfo.type.value if mediainfo and mediainfo.type else "",
             },
         )
     except Exception as e:

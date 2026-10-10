@@ -29,7 +29,6 @@ from app.agent.runtime import SubAgentDefinition, agent_runtime_manager
 from app.agent.tools.tags import ToolTag
 from app.log import logger
 
-
 SUBAGENT_TASK_TOOL_NAME = "task"
 SUBAGENT_CONTROL_TOOL_NAME = "subagent_task"
 SUBAGENT_STREAM_MARKER_KEY = "ls_agent_type"
@@ -131,23 +130,23 @@ class _SubAgentControlInput(BaseModel):
         default="start",
         description="Task action: start, status, wait, cancel, run, or pipeline.",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Single task description for action=start or action=run.",
     )
-    subagent_type: Optional[str] = Field(
+    subagent_type: str | None = Field(
         default="general-purpose",
         description="Single task subagent type for action=start or action=run.",
     )
-    tasks: Optional[list[_SubAgentTaskSpec]] = Field(
+    tasks: list[_SubAgentTaskSpec] | None = Field(
         default=None,
         description="Batch task specs for action=start or action=run.",
     )
-    task_ids: Optional[list[str]] = Field(
+    task_ids: list[str] | None = Field(
         default=None,
         description="Task IDs returned by action=start. Empty means all known tasks.",
     )
-    task_id: Optional[str] = Field(
+    task_id: str | None = Field(
         default=None,
         description="Single task ID for status, wait, or cancel.",
     )
@@ -155,12 +154,9 @@ class _SubAgentControlInput(BaseModel):
         default="all",
         description="For action=wait or action=run: wait for all selected tasks or any one task.",
     )
-    timeout_ms: Optional[int] = Field(
+    timeout_ms: int | None = Field(
         default=SUBAGENT_DEFAULT_WAIT_TIMEOUT_MS,
-        description=(
-            "Maximum wait time in milliseconds for action=wait, action=run, "
-            "or each action=pipeline step."
-        ),
+        description=("Maximum wait time in milliseconds for action=wait, action=run, or each action=pipeline step."),
     )
 
 
@@ -173,8 +169,8 @@ class _SubAgentRuntimeTask:
     subagent_type: str
     task: asyncio.Task
     created_at: datetime
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 def is_subagent_stream_metadata(metadata: Any) -> bool:
@@ -186,25 +182,21 @@ def is_subagent_stream_metadata(metadata: Any) -> bool:
         return True
 
     nested_metadata = metadata.get("metadata")
-    if isinstance(nested_metadata, dict) and nested_metadata.get(
-        SUBAGENT_STREAM_MARKER_KEY
-    ) == SUBAGENT_STREAM_MARKER_VALUE:
+    if (
+        isinstance(nested_metadata, dict)
+        and nested_metadata.get(SUBAGENT_STREAM_MARKER_KEY) == SUBAGENT_STREAM_MARKER_VALUE
+    ):
         return True
 
     configurable = metadata.get("configurable")
-    if isinstance(configurable, dict) and configurable.get(
-        SUBAGENT_STREAM_MARKER_KEY
-    ) == SUBAGENT_STREAM_MARKER_VALUE:
+    if isinstance(configurable, dict) and configurable.get(SUBAGENT_STREAM_MARKER_KEY) == SUBAGENT_STREAM_MARKER_VALUE:
         return True
 
-    return bool(
-        metadata.get("lc_agent_name")
-        in builtin_subagent_names(agent_runtime_manager.current_signature())
-    )
+    return bool(metadata.get("lc_agent_name") in builtin_subagent_names(agent_runtime_manager.current_signature()))
 
 
 def builtin_subagent_names(
-    runtime_signature: Optional[tuple[tuple[str, int, int], ...]] = None,
+    runtime_signature: tuple[tuple[str, int, int], ...] | None = None,
 ) -> frozenset[str]:
     """返回内置子代理名称集合。"""
     runtime_signature = runtime_signature or agent_runtime_manager.current_signature()
@@ -216,14 +208,11 @@ def _cached_builtin_subagent_names(
     runtime_signature: tuple[tuple[str, int, int], ...],
 ) -> frozenset[str]:
     """按运行时签名缓存内置子代理名称集合。"""
-    return frozenset(
-        profile.name
-        for profile in _builtin_subagent_profiles(runtime_signature)
-    )
+    return frozenset(profile.name for profile in _builtin_subagent_profiles(runtime_signature))
 
 
 def _builtin_subagent_profiles(
-    runtime_signature: Optional[tuple[tuple[str, int, int], ...]] = None,
+    runtime_signature: tuple[tuple[str, int, int], ...] | None = None,
 ) -> tuple[_SubAgentProfile, ...]:
     """从运行时配置目录加载 MoviePilot 子代理定义。"""
     runtime_signature = runtime_signature or agent_runtime_manager.current_signature()
@@ -236,10 +225,7 @@ def _cached_builtin_subagent_profiles(
 ) -> tuple[_SubAgentProfile, ...]:
     """按运行时签名缓存 MoviePilot 子代理定义。"""
     definitions = agent_runtime_manager.list_subagents()
-    profiles = tuple(
-        _profile_from_runtime_definition(definition)
-        for definition in definitions
-    )
+    profiles = tuple(_profile_from_runtime_definition(definition) for definition in definitions)
     if profiles:
         return profiles
     logger.warning("未加载到任何子代理定义，使用通用兜底子代理。")
@@ -307,9 +293,7 @@ def _select_tools(tools: list[BaseTool], profile: _SubAgentProfile) -> list[Base
 
 def _format_subagent_catalog(profiles: tuple[_SubAgentProfile, ...]) -> str:
     """渲染子代理目录供任务工具描述使用。"""
-    return "\n".join(
-        f"- {profile.name}: {profile.description}" for profile in profiles
-    )
+    return "\n".join(f"- {profile.name}: {profile.description}" for profile in profiles)
 
 
 def _extract_final_text(result: Any) -> str:
@@ -336,7 +320,7 @@ def _clip_text(text: Any, max_chars: int) -> tuple[str, bool]:
     return normalized[:max_chars], True
 
 
-def _format_datetime(value: Optional[datetime]) -> Optional[str]:
+def _format_datetime(value: datetime | None) -> str | None:
     """格式化任务时间。"""
     if not value:
         return None
@@ -377,7 +361,7 @@ class _SubAgentAgentProvider:
         model: BaseChatModel,
         profiles: tuple[_SubAgentProfile, ...],
         tools: list[BaseTool],
-        server_tools: Optional[list[dict[str, Any]]] = None,
+        server_tools: list[dict[str, Any]] | None = None,
     ) -> None:
         """初始化子代理执行器。"""
         self._model = model
@@ -387,13 +371,11 @@ class _SubAgentAgentProvider:
         self._agents = {}
         self._default_agent_name = "general-purpose"
 
-    def _resolve_profile(self, agent_name: Optional[str]) -> _SubAgentProfile:
+    def _resolve_profile(self, agent_name: str | None) -> _SubAgentProfile:
         """解析子代理类型，未知类型回退到默认子代理。"""
-        return self._profiles.get(agent_name or "") or self._profiles[
-            self._default_agent_name
-        ]
+        return self._profiles.get(agent_name or "") or self._profiles[self._default_agent_name]
 
-    def get_agent(self, agent_name: Optional[str]) -> tuple[str, Any]:
+    def get_agent(self, agent_name: str | None) -> tuple[str, Any]:
         """懒加载指定名称的子代理图。"""
         profile = self._resolve_profile(agent_name)
         cached_agent = self._agents.get(profile.name)
@@ -401,9 +383,7 @@ class _SubAgentAgentProvider:
             return profile.name, cached_agent
 
         subagent_tools = _select_tools(self._tools, profile)
-        logger.info(
-            f"创建子代理图: subagent_type={profile.name}, tools={len(subagent_tools)}"
-        )
+        logger.info(f"创建子代理图: subagent_type={profile.name}, tools={len(subagent_tools)}")
         agent = create_agent(
             model=self._model,
             tools=[*subagent_tools, *self._server_tools],
@@ -417,16 +397,14 @@ class _SubAgentAgentProvider:
         self,
         *,
         description: str,
-        subagent_type: Optional[str],
-        task_id: Optional[str] = None,
+        subagent_type: str | None,
+        task_id: str | None = None,
     ) -> str:
         """调用指定子代理并只返回供主代理读取的结果。"""
         agent_name, agent = self.get_agent(subagent_type)
         thread_suffix = task_id or uuid.uuid4().hex
         log_task_id = task_id or "-"
-        logger.info(
-            f"开始调用子代理: subagent_type={agent_name}, task_id={log_task_id}"
-        )
+        logger.info(f"开始调用子代理: subagent_type={agent_name}, task_id={log_task_id}")
         try:
             result = await agent.ainvoke(
                 {"messages": [HumanMessage(content=description)]},
@@ -442,15 +420,11 @@ class _SubAgentAgentProvider:
                 },
             )
         except Exception as err:
-            logger.error(
-                f"子代理调用失败: subagent_type={agent_name}, "
-                f"task_id={log_task_id}, error={err}"
-            )
+            logger.error(f"子代理调用失败: subagent_type={agent_name}, task_id={log_task_id}, error={err}")
             raise
         final_text = _extract_final_text(result)
         logger.info(
-            f"子代理调用完成: subagent_type={agent_name}, "
-            f"task_id={log_task_id}, result_chars={len(final_text)}"
+            f"子代理调用完成: subagent_type={agent_name}, task_id={log_task_id}, result_chars={len(final_text)}"
         )
         return final_text or "The subagent did not return a usable result."
 
@@ -464,7 +438,7 @@ class MoviePilotSubAgentMiddleware(AgentMiddleware):
         model: BaseChatModel,
         profiles: tuple[_SubAgentProfile, ...],
         tools: list[BaseTool],
-        server_tools: Optional[list[dict[str, Any]]] = None,
+        server_tools: list[dict[str, Any]] | None = None,
         system_prompt: str = SUBAGENT_PARENT_PROMPT,
         task_description: str = SUBAGENT_TASK_DESCRIPTION,
         stream_handler: Any = None,
@@ -482,10 +456,7 @@ class MoviePilotSubAgentMiddleware(AgentMiddleware):
             StructuredTool.from_function(
                 coroutine=self._run_task,
                 name=SUBAGENT_TASK_TOOL_NAME,
-                description=(
-                    f"{task_description}\n\nAvailable subagents:\n"
-                    f"{_format_subagent_catalog(profiles)}"
-                ),
+                description=(f"{task_description}\n\nAvailable subagents:\n{_format_subagent_catalog(profiles)}"),
                 args_schema=_TaskToolInput,
             )
         ]
@@ -504,9 +475,7 @@ class MoviePilotSubAgentMiddleware(AgentMiddleware):
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """在主代理模型调用前注入子代理使用说明。"""
         new_system_message = append_to_system_message(
@@ -527,10 +496,7 @@ class MoviePilotSubAgentMiddleware(AgentMiddleware):
             return await handler(request)
 
         tool_args = _extract_tool_call_args(request)
-        logger.info(
-            f"开始执行子代理工具: tool_name={tool_name}, "
-            f"subagent_type={tool_args.get('subagent_type') or '-'}"
-        )
+        logger.info(f"开始执行子代理工具: tool_name={tool_name}, subagent_type={tool_args.get('subagent_type') or '-'}")
         _record_subagent_tool_call(
             stream_handler=self.stream_handler,
             tool_name=SUBAGENT_TASK_TOOL_NAME,
@@ -554,7 +520,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         model: BaseChatModel,
         profiles: tuple[_SubAgentProfile, ...],
         tools: list[BaseTool],
-        server_tools: Optional[list[dict[str, Any]]] = None,
+        server_tools: list[dict[str, Any]] | None = None,
         task_description: str = SUBAGENT_CONTROL_DESCRIPTION,
         stream_handler: Any = None,
     ) -> None:
@@ -572,10 +538,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
             StructuredTool.from_function(
                 coroutine=self._control_task,
                 name=SUBAGENT_CONTROL_TOOL_NAME,
-                description=(
-                    f"{task_description}\n\nAvailable subagents:\n"
-                    f"{_format_subagent_catalog(profiles)}"
-                ),
+                description=(f"{task_description}\n\nAvailable subagents:\n{_format_subagent_catalog(profiles)}"),
                 args_schema=_SubAgentControlInput,
             )
         ]
@@ -586,7 +549,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
     @staticmethod
-    def _normalize_timeout_ms(timeout_ms: Optional[int]) -> int:
+    def _normalize_timeout_ms(timeout_ms: int | None) -> int:
         """规范化等待超时时间。"""
         if timeout_ms is None:
             return SUBAGENT_DEFAULT_WAIT_TIMEOUT_MS
@@ -642,8 +605,8 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
     def _selected_records(
         self,
         *,
-        task_ids: Optional[list[str]] = None,
-        task_id: Optional[str] = None,
+        task_ids: list[str] | None = None,
+        task_id: str | None = None,
         active_only: bool = False,
     ) -> tuple[list[_SubAgentRuntimeTask], list[str]]:
         """根据任务 ID 选择记录。"""
@@ -674,10 +637,10 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
     def _normalize_specs(
         self,
         *,
-        description: Optional[str],
-        subagent_type: Optional[str],
-        tasks: Optional[list[_SubAgentTaskSpec]],
-    ) -> tuple[list[_SubAgentTaskSpec], Optional[str]]:
+        description: str | None,
+        subagent_type: str | None,
+        tasks: list[_SubAgentTaskSpec] | None,
+    ) -> tuple[list[_SubAgentTaskSpec], str | None]:
         """规范化单任务和批量任务输入。"""
         specs = []
         for task in tasks or []:
@@ -697,24 +660,16 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         if len(specs) > SUBAGENT_MAX_ACTIVE_TASKS:
             return [], f"单次最多可提交 {SUBAGENT_MAX_ACTIVE_TASKS} 个子代理任务。"
 
-        active_count = sum(
-            1 for record in self._tasks.values() if not record.task.done()
-        )
+        active_count = sum(1 for record in self._tasks.values() if not record.task.done())
         if active_count + len(specs) > SUBAGENT_MAX_ACTIVE_TASKS:
-            return [], (
-                f"当前仍有 {active_count} 个子代理任务未完成，"
-                f"总并发上限为 {SUBAGENT_MAX_ACTIVE_TASKS}。"
-            )
+            return [], (f"当前仍有 {active_count} 个子代理任务未完成，总并发上限为 {SUBAGENT_MAX_ACTIVE_TASKS}。")
         return specs, None
 
     async def _execute_managed_task(self, record: _SubAgentRuntimeTask) -> str:
         """执行受调度器管理的子代理任务。"""
         async with self._semaphore:
             record.started_at = datetime.now()
-            logger.info(
-                f"异步子代理任务开始执行: task_id={record.task_id}, "
-                f"subagent_type={record.subagent_type}"
-            )
+            logger.info(f"异步子代理任务开始执行: task_id={record.task_id}, subagent_type={record.subagent_type}")
             try:
                 result = await self._provider.run_task(
                     description=record.description,
@@ -727,10 +682,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
                 )
                 return result
             except asyncio.CancelledError:
-                logger.info(
-                    f"异步子代理任务已取消: task_id={record.task_id}, "
-                    f"subagent_type={record.subagent_type}"
-                )
+                logger.info(f"异步子代理任务已取消: task_id={record.task_id}, subagent_type={record.subagent_type}")
                 raise
             except Exception as err:
                 logger.error(f"子代理任务执行失败: task_id={record.task_id}, error={err}")
@@ -773,10 +725,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
             )
             self._tasks[task_id] = record
             records.append(record)
-            logger.info(
-                f"已启动子代理任务: task_id={task_id}, "
-                f"subagent_type={record.subagent_type}"
-            )
+            logger.info(f"已启动子代理任务: task_id={task_id}, subagent_type={record.subagent_type}")
         return records
 
     async def _wait_records(
@@ -784,7 +733,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         *,
         records: list[_SubAgentRuntimeTask],
         wait_mode: str,
-        timeout_ms: Optional[int],
+        timeout_ms: int | None,
     ) -> None:
         """按等待模式等待一组任务完成。"""
         pending_tasks = [record.task for record in records if not record.task.done()]
@@ -796,17 +745,12 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         normalized_timeout_ms = self._normalize_timeout_ms(timeout_ms)
         timeout = normalized_timeout_ms / 1000
         if timeout <= 0:
-            logger.info(
-                f"子代理任务等待超时时间为 0，跳过等待: tasks={len(pending_tasks)}"
-            )
+            logger.info(f"子代理任务等待超时时间为 0，跳过等待: tasks={len(pending_tasks)}")
             return
 
-        return_when = (
-            asyncio.FIRST_COMPLETED if wait_mode == "any" else asyncio.ALL_COMPLETED
-        )
+        return_when = asyncio.FIRST_COMPLETED if wait_mode == "any" else asyncio.ALL_COMPLETED
         logger.info(
-            f"开始等待子代理任务: tasks={len(pending_tasks)}, "
-            f"wait_mode={wait_mode}, timeout_ms={normalized_timeout_ms}"
+            f"开始等待子代理任务: tasks={len(pending_tasks)}, wait_mode={wait_mode}, timeout_ms={normalized_timeout_ms}"
         )
         await asyncio.wait(
             pending_tasks,
@@ -814,17 +758,12 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
             return_when=return_when,
         )
         finished_count = sum(1 for task in pending_tasks if task.done())
-        logger.info(
-            f"子代理任务等待结束: finished={finished_count}, "
-            f"pending={len(pending_tasks) - finished_count}"
-        )
+        logger.info(f"子代理任务等待结束: finished={finished_count}, pending={len(pending_tasks) - finished_count}")
 
     @staticmethod
     async def _cancel_records(records: list[_SubAgentRuntimeTask]) -> None:
         """取消一组尚未完成的任务。"""
-        cancellable_tasks = [
-            record.task for record in records if not record.task.done()
-        ]
+        cancellable_tasks = [record.task for record in records if not record.task.done()]
         if cancellable_tasks:
             logger.info(f"开始取消子代理任务: tasks={len(cancellable_tasks)}")
         for task in cancellable_tasks:
@@ -852,8 +791,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
             )
             truncated_note = "\n[Result truncated]" if result_truncated else ""
             context_parts.append(
-                f"Step {step_index} ({record.subagent_type}) result:\n"
-                f"{clipped_result}{truncated_note}"
+                f"Step {step_index} ({record.subagent_type}) result:\n{clipped_result}{truncated_note}"
             )
         context_text, context_truncated = _clip_text(
             "\n\n".join(context_parts),
@@ -879,10 +817,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         """执行单个管道步骤，保留原始步骤描述用于状态展示。"""
         async with self._semaphore:
             record.started_at = datetime.now()
-            logger.info(
-                f"管道子代理任务开始执行: task_id={record.task_id}, "
-                f"subagent_type={record.subagent_type}"
-            )
+            logger.info(f"管道子代理任务开始执行: task_id={record.task_id}, subagent_type={record.subagent_type}")
             try:
                 result = await self._provider.run_task(
                     description=description,
@@ -895,10 +830,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
                 )
                 return result
             except asyncio.CancelledError:
-                logger.info(
-                    f"管道子代理任务已取消: task_id={record.task_id}, "
-                    f"subagent_type={record.subagent_type}"
-                )
+                logger.info(f"管道子代理任务已取消: task_id={record.task_id}, subagent_type={record.subagent_type}")
                 raise
             except Exception as err:
                 logger.error(f"管道子代理任务执行失败: task_id={record.task_id}, error={err}")
@@ -906,7 +838,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
 
     @staticmethod
     def _create_pipeline_record(
-            spec: _SubAgentTaskSpec,
+        spec: _SubAgentTaskSpec,
     ) -> _SubAgentRuntimeTask:
         """创建一个管道步骤记录。"""
         task_id = f"subagent-{uuid.uuid4().hex[:12]}"
@@ -936,8 +868,8 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
     async def _run_pipeline(
         self,
         specs: list[_SubAgentTaskSpec],
-        timeout_ms: Optional[int],
-    ) -> tuple[list[_SubAgentRuntimeTask], Optional[str]]:
+        timeout_ms: int | None,
+    ) -> tuple[list[_SubAgentRuntimeTask], str | None]:
         """按顺序执行管道任务，并把每一步结果传给下一步。"""
         normalized_timeout_ms = self._normalize_timeout_ms(timeout_ms)
         if normalized_timeout_ms <= 0:
@@ -968,11 +900,9 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
 
             try:
                 result = await asyncio.wait_for(task, timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 error = f"第 {step_index} 个管道子代理任务等待超时。"
-                logger.info(
-                    f"{error} task_id={record.task_id}, timeout_ms={normalized_timeout_ms}"
-                )
+                logger.info(f"{error} task_id={record.task_id}, timeout_ms={normalized_timeout_ms}")
                 return records, error
             except Exception as err:
                 error = f"第 {step_index} 个管道子代理任务执行失败: {err}"
@@ -986,13 +916,13 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
     async def _control_task(
         self,
         action: str = "start",
-        description: Optional[str] = None,
-        subagent_type: Optional[str] = "general-purpose",
-        tasks: Optional[list[_SubAgentTaskSpec]] = None,
-        task_ids: Optional[list[str]] = None,
-        task_id: Optional[str] = None,
+        description: str | None = None,
+        subagent_type: str | None = "general-purpose",
+        tasks: list[_SubAgentTaskSpec] | None = None,
+        task_ids: list[str] | None = None,
+        task_id: str | None = None,
         wait_mode: str = "all",
-        timeout_ms: Optional[int] = SUBAGENT_DEFAULT_WAIT_TIMEOUT_MS,
+        timeout_ms: int | None = SUBAGENT_DEFAULT_WAIT_TIMEOUT_MS,
     ) -> str:
         """管理异步子代理任务。"""
         logger.info(f"收到子代理管控操作: action={action}")
@@ -1045,23 +975,17 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
         )
 
         if action == "wait":
-            logger.info(
-                f"准备等待子代理任务: selected={len(records)}, missing={len(missing_ids)}"
-            )
+            logger.info(f"准备等待子代理任务: selected={len(records)}, missing={len(missing_ids)}")
             await self._wait_records(
                 records=records,
                 wait_mode=wait_mode,
                 timeout_ms=timeout_ms,
             )
         elif action == "cancel":
-            logger.info(
-                f"准备取消子代理任务: selected={len(records)}, missing={len(missing_ids)}"
-            )
+            logger.info(f"准备取消子代理任务: selected={len(records)}, missing={len(missing_ids)}")
             await self._cancel_records(records)
         elif action == "status":
-            logger.info(
-                f"查询子代理任务状态: selected={len(records)}, missing={len(missing_ids)}"
-            )
+            logger.info(f"查询子代理任务状态: selected={len(records)}, missing={len(missing_ids)}")
 
         return self._json_response(
             {
@@ -1075,9 +999,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
 
     async def aafter_agent(self, state: Any, runtime: Any) -> None:
         """Agent 结束时取消未完成的子代理任务，避免后台泄漏。"""
-        unfinished_records = [
-            record for record in self._tasks.values() if not record.task.done()
-        ]
+        unfinished_records = [record for record in self._tasks.values() if not record.task.done()]
         if unfinished_records:
             logger.info(f"Agent 结束，取消未完成子代理任务: tasks={len(unfinished_records)}")
         await self._cancel_records(unfinished_records)
@@ -1118,7 +1040,7 @@ def create_subagent_middlewares(
     *,
     model: BaseChatModel,
     tools: list[BaseTool],
-    server_tools: Optional[list[dict[str, Any]]] = None,
+    server_tools: list[dict[str, Any]] | None = None,
     stream_handler: Any = None,
 ) -> tuple[list[AgentMiddleware], list[BaseTool]]:
     """创建子代理中间件列表和任务工具列表。"""

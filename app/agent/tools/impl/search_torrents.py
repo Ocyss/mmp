@@ -12,6 +12,7 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.sites import SitesHelper  # noqa
 from app.log import logger
 from app.schemas.types import MediaType, SystemConfigKey
+
 from ._torrent_search_utils import (
     SEARCH_RESULT_CACHE_FILE,
     build_filter_options,
@@ -20,16 +21,19 @@ from ._torrent_search_utils import (
 
 class SearchTorrentsInput(BaseModel):
     """搜索种子工具的输入参数模型"""
-    tmdb_id: Optional[int] = Field(None, description="TMDB media ID")
-    douban_id: Optional[str] = Field(None, description="Douban media ID")
-    bangumi_id: Optional[int] = Field(None, description="Bangumi media ID")
-    anilist_id: Optional[int] = Field(None, description="AniList media ID")
-    media_source: Optional[str] = Field(None, description="Media metadata source")
-    media_id: Optional[str] = Field(None, description="Native ID for media_source")
-    media_type: Optional[str] = Field(None, description="Allowed values: movie, tv")
-    area: Optional[str] = Field(None, description="Search scope: 'title' (default) or 'imdbid'")
-    sites: Optional[List[int]] = Field(None,
-                                       description="Array of specific site IDs to search on (optional, if not provided searches all configured sites)")
+
+    tmdb_id: int | None = Field(None, description="TMDB media ID")
+    douban_id: str | None = Field(None, description="Douban media ID")
+    bangumi_id: int | None = Field(None, description="Bangumi media ID")
+    anilist_id: int | None = Field(None, description="AniList media ID")
+    media_source: str | None = Field(None, description="Media metadata source")
+    media_id: str | None = Field(None, description="Native ID for media_source")
+    media_type: str | None = Field(None, description="Allowed values: movie, tv")
+    area: str | None = Field(None, description="Search scope: 'title' (default) or 'imdbid'")
+    sites: list[int] | None = Field(
+        None,
+        description="Array of specific site IDs to search on (optional, if not provided searches all configured sites)",
+    )
 
 
 class SearchTorrentsTool(MoviePilotTool):
@@ -43,10 +47,11 @@ class SearchTorrentsTool(MoviePilotTool):
     description: str = (
         "Search for torrent files by media ID across configured indexer sites, cache the matched results, "
         "and return available filter options for follow-up selection. "
-        "Accepts a TMDB, Douban, Bangumi, AniList, or source-native media ID for accurate matching.")
-    args_schema: Type[BaseModel] = SearchTorrentsInput
+        "Accepts a TMDB, Douban, Bangumi, AniList, or source-native media ID for accurate matching."
+    )
+    args_schema: type[BaseModel] = SearchTorrentsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         media_type = kwargs.get("media_type")
         identities = (
@@ -66,17 +71,26 @@ class SearchTorrentsTool(MoviePilotTool):
         return message
 
     @staticmethod
-    def _load_configured_sites() -> List[int]:
+    def _load_configured_sites() -> list[int]:
         """同步读取默认搜索站点列表。"""
         return SystemConfigOper().get(SystemConfigKey.IndexerSites) or []
 
-    async def run(self, tmdb_id: Optional[int] = None, douban_id: Optional[str] = None,
-                  bangumi_id: Optional[int] = None, anilist_id: Optional[int] = None,
-                  media_source: Optional[str] = None, media_id: Optional[str] = None,
-                  media_type: Optional[str] = None, area: Optional[str] = None,
-                  sites: Optional[List[int]] = None, **kwargs) -> str:
+    async def run(
+        self,
+        tmdb_id: int | None = None,
+        douban_id: str | None = None,
+        bangumi_id: int | None = None,
+        anilist_id: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        media_type: str | None = None,
+        area: str | None = None,
+        sites: list[int] | None = None,
+        **kwargs,
+    ) -> str:
         logger.info(
-            f"执行工具: {self.name}, 参数: tmdb_id={tmdb_id}, douban_id={douban_id}, media_type={media_type}, area={area}, sites={sites}")
+            f"执行工具: {self.name}, 参数: tmdb_id={tmdb_id}, douban_id={douban_id}, media_type={media_type}, area={area}, sites={sites}"
+        )
 
         if not any((tmdb_id, douban_id, bangumi_id, anilist_id, media_id)):
             return "参数错误：至少需要提供一个媒体 ID，请先使用 search_media 工具获取媒体信息。"
@@ -113,21 +127,29 @@ class SearchTorrentsTool(MoviePilotTool):
 
             if filtered_torrents:
                 await search_chain.async_save_cache(filtered_torrents, SEARCH_RESULT_CACHE_FILE)
-                result_json = json.dumps({
-                    "total_count": len(filtered_torrents),
-                    "message": "搜索完成。请使用 get_search_results 工具获取搜索结果。",
-                    "all_sites": all_sites,
-                    "search_site_ids": search_site_ids,
-                    "filter_options": build_filter_options(filtered_torrents),
-                }, ensure_ascii=False, indent=2)
+                result_json = json.dumps(
+                    {
+                        "total_count": len(filtered_torrents),
+                        "message": "搜索完成。请使用 get_search_results 工具获取搜索结果。",
+                        "all_sites": all_sites,
+                        "search_site_ids": search_site_ids,
+                        "filter_options": build_filter_options(filtered_torrents),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
                 return result_json
             else:
                 identity = media_id or tmdb_id or douban_id or bangumi_id or anilist_id
-                result_json = json.dumps({
-                    "message": f"未找到相关种子资源: {identity}",
-                    "all_sites": all_sites,
-                    "search_site_ids": search_site_ids,
-                }, ensure_ascii=False, indent=2)
+                result_json = json.dumps(
+                    {
+                        "message": f"未找到相关种子资源: {identity}",
+                        "all_sites": all_sites,
+                        "search_site_ids": search_site_ids,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
                 return result_json
         except Exception as e:
             error_message = f"搜索种子时发生错误: {str(e)}"

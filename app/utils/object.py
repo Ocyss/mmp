@@ -2,23 +2,23 @@ import ast
 import dis
 import inspect
 import textwrap
+from collections.abc import Callable
 from types import FunctionType
-from typing import Any, Callable, get_type_hints
+from typing import Any, get_type_hints
 
 
 class ObjectUtils:
-
     @staticmethod
     def is_obj(obj: Any):
-        if isinstance(obj, list) \
-                or isinstance(obj, dict) \
-                or isinstance(obj, tuple):
+        if isinstance(obj, list) or isinstance(obj, dict) or isinstance(obj, tuple):
             return True
-        elif isinstance(obj, int) \
-                or isinstance(obj, float) \
-                or isinstance(obj, bool) \
-                or isinstance(obj, bytes) \
-                or isinstance(obj, str):
+        elif (
+            isinstance(obj, int)
+            or isinstance(obj, float)
+            or isinstance(obj, bool)
+            or isinstance(obj, bytes)
+            or isinstance(obj, str)
+        ):
             return False
         return True
 
@@ -26,9 +26,7 @@ class ObjectUtils:
     def is_objstr(obj: Any):
         if not isinstance(obj, str):
             return False
-        return str(obj).startswith("{") \
-            or str(obj).startswith("[") \
-            or str(obj).startswith("(")
+        return str(obj).startswith("{") or str(obj).startswith("[") or str(obj).startswith("(")
 
     @staticmethod
     def arguments(func: Callable) -> int:
@@ -81,12 +79,10 @@ class ObjectUtils:
             # 检查是否为仅返回None的简单结构
             if len(instructions) == 2:
                 first, second = instructions
-                if (first.opname == 'LOAD_CONST' and
-                        second.opname == 'RETURN_VALUE'):
+                if first.opname == "LOAD_CONST" and second.opname == "RETURN_VALUE":
                     # 验证加载的常量是否为None
                     const_index = first.arg
-                    if (const_index < len(code_obj.co_consts) and
-                            code_obj.co_consts[const_index] is None):
+                    if const_index < len(code_obj.co_consts) and code_obj.co_consts[const_index] is None:
                         # 未实现的空函数
                         return False
             # 其他情况认为已实现

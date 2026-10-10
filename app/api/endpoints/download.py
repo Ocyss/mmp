@@ -1,11 +1,11 @@
-from typing import Any, List, Annotated, Literal, Optional
+from typing import Annotated, Any, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Body, Depends
 
 from app import schemas
 from app.chain.download import DownloadChain
 from app.chain.media import MediaChain
-from app.core.context import MediaInfo, Context, SubtitleInfo, TorrentInfo
+from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
 from app.core.metainfo import MetaInfo
 from app.core.security import verify_token
 from app.db.models.user import User
@@ -45,10 +45,8 @@ def _prepare_subtitle_download(subtitle: SubtitleInfo) -> tuple[bool, str]:
     return True, ""
 
 
-@router.get("/", summary="正在下载", response_model=List[schemas.DownloaderTorrent])
-def current(
-    name: Optional[str] = None, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+@router.get("/", summary="正在下载", response_model=list[schemas.DownloaderTorrent])
+def current(name: str | None = None, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询正在下载的任务
     """
@@ -77,9 +75,7 @@ def download(
     # 手动下载始终使用选择的下载器
     torrentinfo.site_downloader = downloader
     # 上下文
-    context = Context(
-        meta_info=metainfo, media_info=mediainfo, torrent_info=torrentinfo
-    )
+    context = Context(meta_info=metainfo, media_info=mediainfo, torrent_info=torrentinfo)
     did = DownloadChain().download_single(
         context=context,
         username=current_user.name,
@@ -91,9 +87,7 @@ def download(
     return schemas.Response(success=True, data={"download_id": did})
 
 
-@router.post(
-    "/add", summary="添加下载（不含媒体信息）", response_model=schemas.Response
-)
+@router.post("/add", summary="添加下载（不含媒体信息）", response_model=schemas.Response)
 def add(
     torrent_in: schemas.TorrentInfo,
     tmdbid: Annotated[int | None, Body()] = None,
@@ -135,9 +129,7 @@ def add(
     torrentinfo = TorrentInfo()
     torrentinfo.from_dict(torrent_in.model_dump())
     # 上下文
-    context = Context(
-        meta_info=metainfo, media_info=mediainfo, torrent_info=torrentinfo
-    )
+    context = Context(meta_info=metainfo, media_info=mediainfo, torrent_info=torrentinfo)
 
     did = DownloadChain().download_single(
         context=context,
@@ -193,7 +185,7 @@ def download_subtitle(
 @router.get("/start/{hashString}", summary="开始任务", response_model=schemas.Response)
 def start(
     hashString: str,
-    name: Optional[str] = None,
+    name: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -206,7 +198,7 @@ def start(
 @router.get("/stop/{hashString}", summary="暂停任务", response_model=schemas.Response)
 def stop(
     hashString: str,
-    name: Optional[str] = None,
+    name: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -216,24 +208,18 @@ def stop(
     return schemas.Response(success=True if ret else False)
 
 
-@router.get("/clients", summary="查询可用下载器", response_model=List[dict])
+@router.get("/clients", summary="查询可用下载器", response_model=list[dict])
 async def clients(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询可用下载器
     """
-    downloaders: List[dict] = SystemConfigOper().get(SystemConfigKey.Downloaders)
+    downloaders: list[dict] = SystemConfigOper().get(SystemConfigKey.Downloaders)
     if downloaders:
-        return [
-            {"name": d.get("name"), "type": d.get("type")}
-            for d in downloaders
-            if d.get("enabled")
-        ]
+        return [{"name": d.get("name"), "type": d.get("type")} for d in downloaders if d.get("enabled")]
     return []
 
 
-@router.get(
-    "/paths", summary="查询可用下载路径", response_model=List[schemas.DownloadDirectory]
-)
+@router.get("/paths", summary="查询可用下载路径", response_model=list[schemas.DownloadDirectory])
 def paths(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询可直接用于下载接口 save_path 参数的下载路径
@@ -259,7 +245,7 @@ def paths(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
 @router.delete("/{hashString}", summary="删除下载任务", response_model=schemas.Response)
 def delete(
     hashString: str,
-    name: Optional[str] = None,
+    name: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """

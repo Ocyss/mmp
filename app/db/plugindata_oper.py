@@ -18,9 +18,7 @@ class PluginDataOper(DbOper):
         """
         plugin = PluginData.get_plugin_data_by_key(self._db, plugin_id, key)
         if plugin:
-            plugin.update(self._db, {
-                "value": value
-            })
+            plugin.update(self._db, {"value": value})
         else:
             PluginData(plugin_id=plugin_id, key=key, value=value).create(self._db)
 
@@ -32,17 +30,13 @@ class PluginDataOper(DbOper):
         :param key: 数据键
         :param value: 数据值
         """
-        plugin = await PluginData.async_get_plugin_data_by_key(
-            self._db, plugin_id, key
-        )
+        plugin = await PluginData.async_get_plugin_data_by_key(self._db, plugin_id, key)
         if plugin:
             await plugin.async_update(self._db, {"value": value})
         else:
-            await PluginData(
-                plugin_id=plugin_id, key=key, value=value
-            ).async_create(self._db)
+            await PluginData(plugin_id=plugin_id, key=key, value=value).async_create(self._db)
 
-    def get_data(self, plugin_id: str, key: Optional[str] = None) -> Any:
+    def get_data(self, plugin_id: str, key: str | None = None) -> Any:
         """
         获取插件数据
         :param plugin_id: 插件id
@@ -56,22 +50,20 @@ class PluginDataOper(DbOper):
         else:
             return PluginData.get_plugin_data(self._db, plugin_id)
 
-    async def async_get_data(self, plugin_id: str, key: Optional[str] = None) -> Any:
+    async def async_get_data(self, plugin_id: str, key: str | None = None) -> Any:
         """
         异步获取插件数据。
         :param plugin_id: 插件id
         :param key: 数据key
         """
         if key:
-            data = await PluginData.async_get_plugin_data_by_key(
-                self._db, plugin_id, key
-            )
+            data = await PluginData.async_get_plugin_data_by_key(self._db, plugin_id, key)
             if not data:
                 return None
             return data.value
         return await PluginData.async_get_plugin_data(self._db, plugin_id)
 
-    def del_data(self, plugin_id: str, key: Optional[str] = None) -> Any:
+    def del_data(self, plugin_id: str, key: str | None = None) -> Any:
         """
         删除插件数据
         :param plugin_id: 插件id

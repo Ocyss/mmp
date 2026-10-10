@@ -1,7 +1,7 @@
-from typing import List, Any, Annotated, Optional
+from typing import Annotated, Any, List, Optional
 
 import cn2an
-from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, Header
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.context import MediaInfo
 from app.core.event import eventmanager
 from app.core.metainfo import MetaInfo
-from app.core.security import verify_token, verify_apitoken
+from app.core.security import verify_apitoken, verify_token
 from app.db import get_async_db, get_db
 from app.db.models.subscribe import Subscribe
 from app.db.models.subscribehistory import SubscribeHistory
@@ -22,15 +22,13 @@ from app.helper.server import MoviePilotServerHelper
 from app.log import logger
 from app.scheduler import Scheduler
 from app.schemas.event import SubscribeModifiedEventData
-from app.schemas.types import MediaType, EventType, SystemConfigKey
+from app.schemas.types import EventType, MediaType, SystemConfigKey
 from app.utils.media import normalize_media_source, parse_media_key
 
 router = APIRouter()
 
 
-def start_subscribe_add(
-    title: str, year: str, mtype: MediaType, tmdbid: int, season: int, username: str
-):
+def start_subscribe_add(title: str, year: str, mtype: MediaType, tmdbid: int, season: int, username: str):
     """
     启动订阅任务
     """
@@ -52,9 +50,7 @@ def build_subscribe_event_payload(subscribe: Subscribe) -> dict:
     return {column.name: values.get(column.name) for column in subscribe.__table__.columns}
 
 
-def can_access_subscribe(
-    subscribe: Subscribe | SubscribeHistory | None, current_user: User
-) -> bool:
+def can_access_subscribe(subscribe: Subscribe | SubscribeHistory | None, current_user: User) -> bool:
     """
     判断当前用户是否可访问订阅及其历史记录。
 
@@ -69,9 +65,7 @@ def can_access_subscribe(
     return bool(username) and username == current_user.name
 
 
-async def get_accessible_subscribe(
-    db: AsyncSession, subscribe_id: int, current_user: User
-) -> Subscribe | None:
+async def get_accessible_subscribe(db: AsyncSession, subscribe_id: int, current_user: User) -> Subscribe | None:
     """
     按订阅 ID 读取当前用户可访问的订阅行。
     """
@@ -81,9 +75,7 @@ async def get_accessible_subscribe(
     return None
 
 
-def get_accessible_subscribe_sync(
-    db: Session, subscribe_id: int, current_user: User
-) -> Subscribe | None:
+def get_accessible_subscribe_sync(db: Session, subscribe_id: int, current_user: User) -> Subscribe | None:
     """
     同步读取当前用户可访问的订阅行。
     """
@@ -93,9 +85,7 @@ def get_accessible_subscribe_sync(
     return None
 
 
-def select_accessible_subscribe(
-    subscribes: List[Subscribe], current_user: User
-) -> Subscribe | None:
+def select_accessible_subscribe(subscribes: list[Subscribe], current_user: User) -> Subscribe | None:
     """
     从候选订阅中选择当前用户可访问的第一条记录。
     """
@@ -106,16 +96,16 @@ def select_accessible_subscribe(
 
 
 async def list_subscribes_by_media_key(
-        db: AsyncSession, media_key: str, season: Optional[int] = None,
-) -> List[Subscribe]:
+    db: AsyncSession,
+    media_key: str,
+    season: int | None = None,
+) -> list[Subscribe]:
     """按统一媒体键查询订阅，并兼容迁移前的专用 ID 字段。"""
     source, media_id = parse_media_key(media_key)
     if not source or not media_id:
         return await Subscribe.async_list_by_mediaid(db, media_key)
 
-    subscribes = list(await Subscribe.async_list_by_media_identity(
-        db, media_source=source, media_id=media_id
-    ))
+    subscribes = list(await Subscribe.async_list_by_media_identity(db, media_source=source, media_id=media_id))
     if source == "themoviedb" and media_id.isdigit():
         subscribes.extend(await Subscribe.async_get_by_tmdbid(db, int(media_id), season))
     elif source == "douban":
@@ -127,14 +117,11 @@ async def list_subscribes_by_media_key(
 
     unique_subscribes = {subscribe.id: subscribe for subscribe in subscribes}
     if season is not None:
-        return [
-            subscribe for subscribe in unique_subscribes.values()
-            if subscribe.season == season
-        ]
+        return [subscribe for subscribe in unique_subscribes.values() if subscribe.season == season]
     return list(unique_subscribes.values())
 
 
-@router.get("/", summary="查询所有订阅", response_model=List[schemas.Subscribe])
+@router.get("/", summary="查询所有订阅", response_model=list[schemas.Subscribe])
 async def read_subscribes(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user_async),
@@ -147,9 +134,7 @@ async def read_subscribes(
     return await Subscribe.async_list(db)
 
 
-@router.get(
-    "/list", summary="查询所有订阅（API_TOKEN）", response_model=List[schemas.Subscribe]
-)
+@router.get("/list", summary="查询所有订阅（API_TOKEN）", response_model=list[schemas.Subscribe])
 async def list_subscribes(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     """
     查询所有订阅 API_TOKEN认证（?token=xxx）
@@ -173,10 +158,10 @@ async def create_subscribe(
         mtype = None
     # 非 TMDB 来源的标题可能自带季标记，入库前统一拆分。
     if (
-            subscribe_in.doubanid
-            or subscribe_in.bangumiid
-            or subscribe_in.anilistid
-            or normalize_media_source(subscribe_in.media_source) not in (None, "themoviedb")
+        subscribe_in.doubanid
+        or subscribe_in.bangumiid
+        or subscribe_in.anilistid
+        or normalize_media_source(subscribe_in.media_source) not in (None, "themoviedb")
     ):
         meta = MetaInfo(subscribe_in.name)
         subscribe_in.name = meta.name
@@ -276,8 +261,8 @@ async def update_subscribe_status(
 @router.get("/media/{mediaid}", summary="查询订阅", response_model=schemas.Subscribe)
 async def subscribe_mediaid(
     mediaid: str,
-    season: Optional[int] = None,
-    title: Optional[str] = None,
+    season: int | None = None,
+    title: str | None = None,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user_async),
 ) -> Any:
@@ -293,9 +278,7 @@ async def subscribe_mediaid(
         meta = MetaInfo(title)
         if season is not None:
             meta.begin_season = season
-        subscribes = await Subscribe.async_list_by_title(
-            db, title=meta.name, season=meta.begin_season
-        )
+        subscribes = await Subscribe.async_list_by_title(db, title=meta.name, season=meta.begin_season)
         result = select_accessible_subscribe(subscribes, current_user)
 
     return result if result else Subscribe()
@@ -348,9 +331,7 @@ async def reset_subscribes(
             SubscribeModifiedEventData(
                 subscribe_id=subid,
                 old_subscribe_info=old_subscribe_dict,
-                subscribe_info=updated_subscribe.to_dict()
-                if updated_subscribe
-                else {},
+                subscribe_info=updated_subscribe.to_dict() if updated_subscribe else {},
                 scene="reset",
             ).to_dict(),
         )
@@ -387,9 +368,7 @@ async def search_subscribes(
             **{"sid": None, "state": "R", "manual": True},
         )
     else:
-        subscribes = await Subscribe.async_list_by_username(
-            db, current_user.name, state="R"
-        )
+        subscribes = await Subscribe.async_list_by_username(db, current_user.name, state="R")
         for subscribe in subscribes:
             background_tasks.add_task(
                 Scheduler().start,
@@ -399,9 +378,7 @@ async def search_subscribes(
     return schemas.Response(success=True)
 
 
-@router.get(
-    "/search/{subscribe_id}", summary="搜索订阅", response_model=schemas.Response
-)
+@router.get("/search/{subscribe_id}", summary="搜索订阅", response_model=schemas.Response)
 async def search_subscribe(
     subscribe_id: int,
     background_tasks: BackgroundTasks,
@@ -425,7 +402,7 @@ async def search_subscribe(
 @router.delete("/media/{mediaid}", summary="删除订阅", response_model=schemas.Response)
 async def delete_subscribe_by_mediaid(
     mediaid: str,
-    season: Optional[int] = None,
+    season: int | None = None,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user_async),
 ) -> Any:
@@ -434,11 +411,7 @@ async def delete_subscribe_by_mediaid(
     """
     delete_subscribes = await list_subscribes_by_media_key(db, mediaid, season)
     delete_events = []
-    for subscribe in [
-        subscribe
-        for subscribe in delete_subscribes
-        if can_access_subscribe(subscribe, current_user)
-    ]:
+    for subscribe in [subscribe for subscribe in delete_subscribes if can_access_subscribe(subscribe, current_user)]:
         subscribe_info = build_subscribe_event_payload(subscribe)
         subscribe_id = subscribe_info.get("id")
         if not subscribe_id:
@@ -461,9 +434,7 @@ async def delete_subscribe_by_mediaid(
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/seerr", summary="OverSeerr/JellySeerr通知订阅", response_model=schemas.Response
-)
+@router.post("/seerr", summary="OverSeerr/JellySeerr通知订阅", response_model=schemas.Response)
 async def seerr_subscribe(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -487,11 +458,7 @@ async def seerr_subscribe(
     if notification_type not in ["MEDIA_APPROVED", "MEDIA_AUTO_APPROVED"]:
         return schemas.Response(success=False, message="不支持的通知类型")
     subject = req_json.get("subject")
-    media_type = (
-        MediaType.MOVIE
-        if req_json.get("media", {}).get("media_type") == "movie"
-        else MediaType.TV
-    )
+    media_type = MediaType.MOVIE if req_json.get("media", {}).get("media_type") == "movie" else MediaType.TV
     tmdbId = req_json.get("media", {}).get("tmdbId")
     if not media_type or not tmdbId or not subject:
         return schemas.Response(success=False, message="请求参数不正确")
@@ -512,11 +479,7 @@ async def seerr_subscribe(
         seasons = []
         for extra in req_json.get("extra", []):
             if extra.get("name") == "Requested Seasons":
-                seasons = [
-                    int(str(sea).strip())
-                    for sea in extra.get("value").split(", ")
-                    if str(sea).isdigit()
-                ]
+                seasons = [int(str(sea).strip()) for sea in extra.get("value").split(", ") if str(sea).isdigit()]
                 break
         for season in seasons:
             background_tasks.add_task(
@@ -532,13 +495,11 @@ async def seerr_subscribe(
     return schemas.Response(success=True)
 
 
-@router.get(
-    "/history/{mtype}", summary="查询订阅历史", response_model=List[schemas.Subscribe]
-)
+@router.get("/history/{mtype}", summary="查询订阅历史", response_model=list[schemas.Subscribe])
 async def subscribe_history(
     mtype: str,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    page: int | None = 1,
+    count: int | None = 30,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user_async),
 ) -> Any:
@@ -546,9 +507,7 @@ async def subscribe_history(
     查询电影/电视剧订阅历史
     """
     if current_user.is_superuser:
-        histories = await SubscribeHistory.async_list_by_type(
-            db, mtype=mtype, page=page, count=count
-        )
+        histories = await SubscribeHistory.async_list_by_type(db, mtype=mtype, page=page, count=count)
     else:
         histories = await SubscribeHistory.async_list_by_type_and_username(
             db, mtype=mtype, username=current_user.name, page=page, count=count
@@ -563,9 +522,7 @@ async def subscribe_history(
     return result
 
 
-@router.delete(
-    "/history/{history_id}", summary="删除订阅历史", response_model=schemas.Response
-)
+@router.delete("/history/{history_id}", summary="删除订阅历史", response_model=schemas.Response)
 async def delete_subscribe_history(
     history_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -583,17 +540,17 @@ async def delete_subscribe_history(
 @router.get(
     "/popular",
     summary="热门订阅（基于用户共享数据）",
-    response_model=List[schemas.MediaInfo],
+    response_model=list[schemas.MediaInfo],
 )
 async def popular_subscribes(
     stype: str,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
-    min_sub: Optional[int] = None,
-    genre_id: Optional[int] = None,
-    min_rating: Optional[float] = None,
-    max_rating: Optional[float] = None,
-    sort_type: Optional[str] = None,
+    page: int | None = 1,
+    count: int | None = 30,
+    min_sub: int | None = None,
+    genre_id: int | None = None,
+    min_rating: float | None = None,
+    max_rating: float | None = None,
+    sort_type: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -645,9 +602,7 @@ async def popular_subscribes(
     return []
 
 
-@router.get(
-    "/user/{username}", summary="用户订阅", response_model=List[schemas.Subscribe]
-)
+@router.get("/user/{username}", summary="用户订阅", response_model=list[schemas.Subscribe])
 async def user_subscribes(
     username: str,
     db: AsyncSession = Depends(get_async_db),
@@ -702,9 +657,7 @@ async def subscribe_share(
 
 
 @router.delete("/share/{share_id}", summary="删除分享", response_model=schemas.Response)
-async def subscribe_share_delete(
-    share_id: int, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def subscribe_share_delete(share_id: int, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     删除分享
     """
@@ -725,15 +678,13 @@ async def subscribe_fork(
     for key in list(sub_dict.keys()):
         if not hasattr(schemas.Subscribe(), key):
             sub_dict.pop(key)
-    result = await create_subscribe(
-        subscribe_in=schemas.Subscribe(**sub_dict), current_user=current_user
-    )
+    result = await create_subscribe(subscribe_in=schemas.Subscribe(**sub_dict), current_user=current_user)
     if result.success:
         await MoviePilotServerHelper.async_sub_fork(share_id=sub.id)
     return result
 
 
-@router.get("/follow", summary="查询已Follow的订阅分享人", response_model=List[str])
+@router.get("/follow", summary="查询已Follow的订阅分享人", response_model=list[str])
 async def followed_subscribers(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询已Follow的订阅分享人
@@ -742,50 +693,38 @@ async def followed_subscribers(_: schemas.TokenPayload = Depends(verify_token)) 
 
 
 @router.post("/follow", summary="Follow订阅分享人", response_model=schemas.Response)
-async def follow_subscriber(
-    share_uid: Optional[str] = None, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def follow_subscriber(share_uid: str | None = None, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     Follow订阅分享人
     """
     subscribers = SystemConfigOper().get(SystemConfigKey.FollowSubscribers) or []
     if share_uid and share_uid not in subscribers:
         subscribers.append(share_uid)
-        await SystemConfigOper().async_set(
-            SystemConfigKey.FollowSubscribers, subscribers
-        )
+        await SystemConfigOper().async_set(SystemConfigKey.FollowSubscribers, subscribers)
     return schemas.Response(success=True)
 
 
-@router.delete(
-    "/follow", summary="取消Follow订阅分享人", response_model=schemas.Response
-)
-async def unfollow_subscriber(
-    share_uid: Optional[str] = None, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+@router.delete("/follow", summary="取消Follow订阅分享人", response_model=schemas.Response)
+async def unfollow_subscriber(share_uid: str | None = None, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     取消Follow订阅分享人
     """
     subscribers = SystemConfigOper().get(SystemConfigKey.FollowSubscribers) or []
     if share_uid and share_uid in subscribers:
         subscribers.remove(share_uid)
-        await SystemConfigOper().async_set(
-            SystemConfigKey.FollowSubscribers, subscribers
-        )
+        await SystemConfigOper().async_set(SystemConfigKey.FollowSubscribers, subscribers)
     return schemas.Response(success=True)
 
 
-@router.get(
-    "/shares", summary="查询分享的订阅", response_model=List[schemas.SubscribeShare]
-)
+@router.get("/shares", summary="查询分享的订阅", response_model=list[schemas.SubscribeShare])
 async def subscribe_shares(
-    name: Optional[str] = None,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
-    genre_id: Optional[int] = None,
-    min_rating: Optional[float] = None,
-    max_rating: Optional[float] = None,
-    sort_type: Optional[str] = None,
+    name: str | None = None,
+    page: int | None = 1,
+    count: int | None = 30,
+    genre_id: int | None = None,
+    min_rating: float | None = None,
+    max_rating: float | None = None,
+    sort_type: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -805,7 +744,7 @@ async def subscribe_shares(
 @router.get(
     "/share/statistics",
     summary="查询订阅分享统计",
-    response_model=List[schemas.SubscribeShareStatistics],
+    response_model=list[schemas.SubscribeShareStatistics],
 )
 async def subscribe_share_statistics(
     _: schemas.TokenPayload = Depends(verify_token),

@@ -5,15 +5,16 @@ from app.core.config import settings
 from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.thetvdb import tvdb_v4_official
-from app.schemas.types import ModuleType, MediaRecognizeType
+from app.schemas.types import MediaRecognizeType, ModuleType
 
 
 class TheTvDbModule(_ModuleBase):
     """
     TVDB媒体信息匹配
     """
+
     __timeout: int = 15
-    tvdb: Optional[tvdb_v4_official.TVDB] = None
+    tvdb: tvdb_v4_official.TVDB | None = None
     __auth_lock = Lock()
 
     def init_module(self) -> None:
@@ -29,10 +30,12 @@ class TheTvDbModule(_ModuleBase):
         try:
             if not settings.TVDB_V4_API_KEY:
                 raise ConnectionError("TVDB API Key 未配置，无法初始化会话。")
-            self.tvdb = tvdb_v4_official.TVDB(apikey=settings.TVDB_V4_API_KEY,
-                                              pin=settings.TVDB_V4_API_PIN,
-                                              proxy=settings.PROXY,
-                                              timeout=self.__timeout)
+            self.tvdb = tvdb_v4_official.TVDB(
+                apikey=settings.TVDB_V4_API_KEY,
+                pin=settings.TVDB_V4_API_PIN,
+                proxy=settings.PROXY,
+                timeout=self.__timeout,
+            )
             if self.tvdb:
                 logger.info(f"TVDB登录会话{action}成功。")
             else:
@@ -117,7 +120,7 @@ class TheTvDbModule(_ModuleBase):
         with self.__auth_lock:
             self.tvdb = None
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -127,10 +130,10 @@ class TheTvDbModule(_ModuleBase):
         except Exception as e:
             return False, str(e)
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
-    def tvdb_info(self, tvdbid: int) -> Optional[dict]:
+    def tvdb_info(self, tvdbid: int) -> dict | None:
         """
         获取TVDB信息
         :param tvdbid: int

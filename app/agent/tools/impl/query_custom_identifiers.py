@@ -16,7 +16,6 @@ class QueryCustomIdentifiersInput(BaseModel):
     """查询自定义识别词工具的输入参数模型"""
 
 
-
 class QueryCustomIdentifiersTool(MoviePilotTool):
     name: str = "query_custom_identifiers"
     tags: list[str] = [
@@ -30,9 +29,9 @@ class QueryCustomIdentifiersTool(MoviePilotTool):
         "Use this tool to check existing rules before adding new ones to avoid duplicates."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryCustomIdentifiersInput
+    args_schema: type[BaseModel] = QueryCustomIdentifiersInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         return "查询自定义识别词"
 

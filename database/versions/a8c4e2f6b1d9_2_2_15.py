@@ -6,9 +6,8 @@ Revises: f7b2d5c9a301
 Create Date: 2026-08-03
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "a8c4e2f6b1d9"
 down_revision = "f7b2d5c9a301"
@@ -21,10 +20,7 @@ def _has_column(table_name: str, column_name: str) -> bool:
     inspector = sa.inspect(op.get_bind())
     if table_name not in inspector.get_table_names():
         return False
-    return any(
-        column["name"] == column_name
-        for column in inspector.get_columns(table_name)
-    )
+    return any(column["name"] == column_name for column in inspector.get_columns(table_name))
 
 
 def upgrade() -> None:

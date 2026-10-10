@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Tuple, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from app.core.config import settings
 from app.log import logger
@@ -25,7 +25,7 @@ class CookieCloudHelper:
         self._enable_local = settings.COOKIECLOUD_ENABLE_LOCAL
         self._local_path = settings.COOKIE_PATH
 
-    def download(self) -> Tuple[Optional[dict], str]:
+    def download(self) -> tuple[dict | None, str]:
         """
         从CookieCloud下载数据
         :return: Cookie数据、错误信息
@@ -33,9 +33,7 @@ class CookieCloudHelper:
         # 更新为最新设置
         self.__sync_setting()
 
-        if ((not self._server and not self._enable_local)
-                or not self._key
-                or not self._password):
+        if (not self._server and not self._enable_local) or not self._key or not self._password:
             return None, "CookieCloud参数不正确"
 
         if self._enable_local:
@@ -101,9 +99,11 @@ class CookieCloudHelper:
                 continue
             # 站点Cookie
             cookie_str = ";".join(
-                [f"{content.get('name')}={content.get('value')}"
-                 for content in content_list
-                 if content.get("name") and content.get("name") not in self._ignore_cookies]
+                [
+                    f"{content.get('name')}={content.get('value')}"
+                    for content in content_list
+                    if content.get("name") and content.get("name") not in self._ignore_cookies
+                ]
             )
             ret_cookies[domain] = cookie_str
         return ret_cookies, ""
@@ -115,7 +115,7 @@ class CookieCloudHelper:
         combined_string = f"{self._key}-{self._password}"
         return HashUtils.md5(combined_string)[:16].encode("utf-8")
 
-    def __load_local_encrypt_data(self, uuid: str) -> Dict[str, Any]:
+    def __load_local_encrypt_data(self, uuid: str) -> dict[str, Any]:
         """
         获取本地CookieCloud数据
         """
@@ -126,7 +126,7 @@ class CookieCloudHelper:
             return {}
 
         # 读取文件
-        with open(file_path, encoding="utf-8", errors="replace", mode="r") as file:
+        with open(file_path, encoding="utf-8", errors="replace") as file:
             read_content = file.read()
         data = json.loads(read_content.encode("utf-8"))
         return data

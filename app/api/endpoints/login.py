@@ -1,17 +1,17 @@
 from datetime import timedelta
-from typing import Any, List, Annotated
+from typing import Annotated, Any, List
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app import schemas
 from app.chain.user import MfaRequired, UserChain
 from app.core import security
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
-from app.helper.sites import SitesHelper  # noqa
 from app.helper.image import WallpaperHelper
+from app.helper.sites import SitesHelper  # noqa
 from app.schemas.types import SystemConfigKey
 
 router = APIRouter()
@@ -47,10 +47,7 @@ def login_access_token(
     # 用户等级
     level = SitesHelper().auth_level
     # 是否显示配置向导
-    show_wizard = (
-        not SystemConfigOper().get(SystemConfigKey.SetupWizardState)
-        and not settings.ADVANCED_MODE
-    )
+    show_wizard = not SystemConfigOper().get(SystemConfigKey.SetupWizardState) and not settings.ADVANCED_MODE
     access_token = security.create_access_token(
         userid=user_or_message.id,
         username=user_or_message.name,
@@ -94,7 +91,7 @@ def wallpaper() -> Any:
     return schemas.Response(success=False)
 
 
-@router.get("/wallpapers", summary="登录页面电影海报列表", response_model=List[str])
+@router.get("/wallpapers", summary="登录页面电影海报列表", response_model=list[str])
 def wallpapers() -> Any:
     """
     获取登录页面电影海报

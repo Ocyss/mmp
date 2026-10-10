@@ -6,8 +6,8 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import get_plugin_snapshot
+from app.agent.tools.tags import ToolTag
 from app.core.plugin import PluginManager
 from app.log import logger
 
@@ -34,9 +34,9 @@ class QueryPluginConfigTool(MoviePilotTool):
         "Use this before update_plugin_config so you only change the intended keys."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryPluginConfigInput
+    args_schema: type[BaseModel] = QueryPluginConfigInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         plugin_id = kwargs.get("plugin_id", "")
         return f"查询插件配置: {plugin_id}"

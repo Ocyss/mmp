@@ -4,13 +4,13 @@ from typing import Optional
 
 # 媒体类型
 class MediaType(Enum):
-    MOVIE = '电影'
-    TV = '电视剧'
-    COLLECTION = '系列'
-    UNKNOWN = '未知'
+    MOVIE = "电影"
+    TV = "电视剧"
+    COLLECTION = "系列"
+    UNKNOWN = "未知"
 
     @staticmethod
-    def from_agent(key: str) -> Optional["MediaType"]:
+    def from_agent(key: str) -> MediaType | None:
         """'movie' -> MediaType.MOVIE, 'tv' -> MediaType.TV, 否则 None"""
         _map = {"movie": MediaType.MOVIE, "tv": MediaType.TV}
         return _map.get(key.strip().lower() if key else "")
@@ -20,7 +20,7 @@ class MediaType(Enum):
         return {MediaType.MOVIE: "movie", MediaType.TV: "tv"}.get(self, self.value)
 
 
-def media_type_to_agent(value) -> Optional[str]:
+def media_type_to_agent(value) -> str | None:
     """将 MediaType 枚举或中文字符串统一转为 'movie'/'tv'"""
     if isinstance(value, MediaType):
         return value.to_agent()
@@ -328,6 +328,7 @@ class ContentType(str, Enum):
     消息内容类型
     操作状态的通知消息类型标识
     """
+
     # 订阅添加成功
     SubscribeAdded = "subscribeAdded"
     # 订阅完成
@@ -343,6 +344,7 @@ class MessageChannel(Enum):
     """
     消息渠道
     """
+
     Wechat = "微信"
     Feishu = "飞书"
     WechatClawBot = "微信ClawBot"

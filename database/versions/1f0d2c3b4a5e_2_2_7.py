@@ -6,8 +6,8 @@ Revises: 9caa49cb3e10
 Create Date: 2026-05-13
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "1f0d2c3b4a5e"
@@ -29,7 +29,9 @@ def upgrade() -> None:
 
     inspector = sa.inspect(op.get_bind())
     if _has_column(inspector, "subscribehistory", "best_version_full") is False:
-        op.add_column("subscribehistory", sa.Column("best_version_full", sa.Integer(), nullable=True, server_default="0"))
+        op.add_column(
+            "subscribehistory", sa.Column("best_version_full", sa.Integer(), nullable=True, server_default="0")
+        )
 
 
 def downgrade() -> None:

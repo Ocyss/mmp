@@ -6,7 +6,7 @@ class Company(TMDb):
         "details": "/company/%s",
         "alternative_names": "/company/%s/alternative_names",
         "images": "/company/%s/images",
-        "movies": "/company/%s/movies"
+        "movies": "/company/%s/movies",
     }
 
     def details(self, company_id):
@@ -40,11 +40,7 @@ class Company(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["movies"] % company_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["movies"] % company_id, params="page=%s" % page, key="results")
 
     # 异步版本方法
     async def async_details(self, company_id):
@@ -78,8 +74,4 @@ class Company(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["movies"] % company_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["movies"] % company_id, params="page=%s" % page, key="results")

@@ -13,12 +13,16 @@ from app.log import logger
 
 class QueryDirectorySettingsInput(BaseModel):
     """查询系统目录设置工具的输入参数模型"""
-    directory_type: Optional[str] = Field("all",
-                                          description="Filter directories by type: 'download' for download directories, 'library' for media library directories, 'all' for all directories")
-    storage_type: Optional[str] = Field("all",
-                                        description="Filter directories by storage type: 'local' for local storage, 'remote' for remote storage, 'all' for all storage types")
-    name: Optional[str] = Field(None,
-                               description="Filter directories by name (partial match, optional)")
+
+    directory_type: str | None = Field(
+        "all",
+        description="Filter directories by type: 'download' for download directories, 'library' for media library directories, 'all' for all directories",
+    )
+    storage_type: str | None = Field(
+        "all",
+        description="Filter directories by storage type: 'local' for local storage, 'remote' for remote storage, 'all' for all storage types",
+    )
+    name: str | None = Field(None, description="Filter directories by name (partial match, optional)")
 
 
 class QueryDirectorySettingsTool(MoviePilotTool):
@@ -31,34 +35,34 @@ class QueryDirectorySettingsTool(MoviePilotTool):
     ]
     description: str = "Query system directory configuration settings (NOT file listings). Returns configured directory paths, storage types, transfer modes, and other directory-related settings. Use 'list_directory' to list actual files and folders in a directory."
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryDirectorySettingsInput
+    args_schema: type[BaseModel] = QueryDirectorySettingsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         directory_type = kwargs.get("directory_type", "all")
         storage_type = kwargs.get("storage_type", "all")
         name = kwargs.get("name")
-        
+
         parts = ["查询目录配置"]
-        
+
         if directory_type != "all":
             type_map = {"download": "下载目录", "library": "媒体库目录"}
             parts.append(f"类型: {type_map.get(directory_type, directory_type)}")
-        
+
         if storage_type != "all":
             storage_map = {"local": "本地存储", "remote": "远程存储"}
             parts.append(f"存储: {storage_map.get(storage_type, storage_type)}")
-        
+
         if name:
             parts.append(f"名称: {name}")
-        
+
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
     @staticmethod
     def _query_directory_settings(
-        directory_type: Optional[str] = "all",
-        storage_type: Optional[str] = "all",
-        name: Optional[str] = None,
+        directory_type: str | None = "all",
+        storage_type: str | None = "all",
+        name: str | None = None,
     ) -> str:
         """
         目录配置完全来自内存配置缓存，这里只做本地过滤和序列化。
@@ -130,10 +134,12 @@ class QueryDirectorySettingsTool(MoviePilotTool):
 
         return json.dumps(simplified_dirs, ensure_ascii=False, indent=2)
 
-    async def run(self, directory_type: Optional[str] = "all",
-                  storage_type: Optional[str] = "all",
-                  name: Optional[str] = None, **kwargs) -> str:
-        logger.info(f"执行工具: {self.name}, 参数: directory_type={directory_type}, storage_type={storage_type}, name={name}")
+    async def run(
+        self, directory_type: str | None = "all", storage_type: str | None = "all", name: str | None = None, **kwargs
+    ) -> str:
+        logger.info(
+            f"执行工具: {self.name}, 参数: directory_type={directory_type}, storage_type={storage_type}, name={name}"
+        )
 
         try:
             return self._query_directory_settings(

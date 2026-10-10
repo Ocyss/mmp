@@ -28,10 +28,10 @@ class QuerySchedulersTool(MoviePilotTool):
         "plugins, and workflows. It excludes user-created autonomous agent tasks; use "
         "query_agent_tasks for reminders, monitoring tasks, and other agent schedules."
     )
-    args_schema: Type[BaseModel] = QuerySchedulersInput
+    args_schema: type[BaseModel] = QuerySchedulersInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成查询运行时定时服务的提示消息。"""
         return "查询系统定时服务"
 

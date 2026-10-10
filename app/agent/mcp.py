@@ -54,7 +54,7 @@ def _normalize_timeout(value: Any) -> int:
     """规范化 MCP 连接和调用超时时间。"""
     try:
         timeout = int(value or DEFAULT_MCP_TIMEOUT)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         timeout = DEFAULT_MCP_TIMEOUT
     return min(max(timeout, 1), 600)
 
@@ -93,7 +93,7 @@ def _build_agent_tool_name(server: AgentMcpServerConfig, tool_name: str) -> str:
     return f"{normalized_prefix}_{normalized_tool_name}"[:128]
 
 
-def _jsonrpc_message(method: str, params: Optional[dict[str, Any]] = None, *, request_id: Optional[str] = None) -> dict:
+def _jsonrpc_message(method: str, params: dict[str, Any] | None = None, *, request_id: str | None = None) -> dict:
     """构造 JSON-RPC 2.0 消息。"""
     payload = {"jsonrpc": "2.0", "method": method}
     if request_id is not None:
@@ -179,13 +179,13 @@ def _parse_sse_text_response(text: str, request_id: str) -> Any:
     raise RuntimeError("MCP SSE 响应中未找到匹配请求")
 
 
-def _load_sse_json_payload(event_name: str, data: str) -> Optional[dict]:
+def _load_sse_json_payload(event_name: str, data: str) -> dict | None:
     """解析 SSE data 中的 JSON-RPC 消息。"""
     if event_name not in {"message", "messages"}:
         return None
     try:
         payload = json.loads(data)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -195,10 +195,10 @@ class _StdioMcpSession:
 
     def __init__(self, server: AgentMcpServerConfig) -> None:
         self.server = server
-        self.process: Optional[asyncio.subprocess.Process] = None
-        self.stderr_task: Optional[asyncio.Task] = None
+        self.process: asyncio.subprocess.Process | None = None
+        self.stderr_task: asyncio.Task | None = None
 
-    async def __aenter__(self) -> "_StdioMcpSession":
+    async def __aenter__(self) -> _StdioMcpSession:
         """启动 stdio MCP 子进程。"""
         if not self.server.command:
             raise RuntimeError("stdio MCP 服务器缺少启动命令")
@@ -225,7 +225,7 @@ class _StdioMcpSession:
             self.process.terminate()
             try:
                 await asyncio.wait_for(self.process.wait(), timeout=2)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.process.kill()
                 await self.process.wait()
 
@@ -242,11 +242,11 @@ class _StdioMcpSession:
         except asyncio.CancelledError:
             return
 
-    async def notify(self, method: str, params: Optional[dict[str, Any]] = None) -> None:
+    async def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
         """发送不需要响应的 JSON-RPC 通知。"""
         await self._write_json(_jsonrpc_message(method, params))
 
-    async def request(self, method: str, params: Optional[dict[str, Any]] = None) -> Any:
+    async def request(self, method: str, params: dict[str, Any] | None = None) -> Any:
         """发送 JSON-RPC 请求并等待响应。"""
         request_id = uuid.uuid4().hex
         await self._write_json(_jsonrpc_message(method, params, request_id=request_id))
@@ -286,9 +286,9 @@ class _HttpMcpSession:
 
     def __init__(self, server: AgentMcpServerConfig) -> None:
         self.server = server
-        self.session_id: Optional[str] = None
+        self.session_id: str | None = None
 
-    async def __aenter__(self) -> "_HttpMcpSession":
+    async def __aenter__(self) -> _HttpMcpSession:
         """进入 HTTP MCP 会话。"""
         return self
 
@@ -296,11 +296,11 @@ class _HttpMcpSession:
         """退出 HTTP MCP 会话。"""
         return None
 
-    async def notify(self, method: str, params: Optional[dict[str, Any]] = None) -> None:
+    async def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
         """发送不需要响应的 JSON-RPC 通知。"""
         await self._post(_jsonrpc_message(method, params), expect_response=False)
 
-    async def request(self, method: str, params: Optional[dict[str, Any]] = None) -> Any:
+    async def request(self, method: str, params: dict[str, Any] | None = None) -> Any:
         """发送 JSON-RPC 请求并等待响应。"""
         request_id = uuid.uuid4().hex
         return await self._post(
@@ -314,7 +314,7 @@ class _HttpMcpSession:
         payload: dict,
         *,
         expect_response: bool,
-        request_id: Optional[str] = None,
+        request_id: str | None = None,
     ) -> Any:
         """向 Streamable HTTP MCP 服务发送一条 JSON-RPC 消息。"""
         if not self.server.url:
@@ -358,11 +358,11 @@ class _SseMcpSession:
     def __init__(self, server: AgentMcpServerConfig) -> None:
         self.server = server
         self.response = None
-        self.endpoint: Optional[str] = None
+        self.endpoint: str | None = None
         self._stream_manager = None
         self._event_iterator = None
 
-    async def __aenter__(self) -> "_SseMcpSession":
+    async def __aenter__(self) -> _SseMcpSession:
         """打开 SSE 流并读取服务端回传的 POST endpoint。"""
         if not self.server.url:
             raise RuntimeError("SSE MCP 服务器缺少 URL")
@@ -385,11 +385,11 @@ class _SseMcpSession:
         if self._stream_manager:
             await self._stream_manager.__aexit__(exc_type, exc, tb)
 
-    async def notify(self, method: str, params: Optional[dict[str, Any]] = None) -> None:
+    async def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
         """发送不需要响应的 JSON-RPC 通知。"""
         await self._post(_jsonrpc_message(method, params))
 
-    async def request(self, method: str, params: Optional[dict[str, Any]] = None) -> Any:
+    async def request(self, method: str, params: dict[str, Any] | None = None) -> Any:
         """发送 JSON-RPC 请求并等待 SSE 流上的响应。"""
         request_id = uuid.uuid4().hex
         await self._post(_jsonrpc_message(method, params, request_id=request_id))
@@ -562,7 +562,7 @@ class AgentMcpManager:
         self,
         server: AgentMcpServerConfig,
         tool_name: str,
-        arguments: Optional[dict[str, Any]] = None,
+        arguments: dict[str, Any] | None = None,
     ) -> Any:
         """调用单个 MCP 服务器上的指定工具。"""
         normalized_server = self.normalize_server(server)

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from typing import Any, Optional
 
-
 WEB_SEARCH_MODES = frozenset({"local", "builtin", "auto", "disabled"})
 
 
@@ -17,8 +16,7 @@ class ServerToolUnavailableError(ValueError):
         self.model = model
         self.tool_id = tool_id
         super().__init__(
-            f"当前模型 {provider}/{model} 或接口地址不支持服务端联网搜索，"
-            "请改用“自动”或“MoviePilot 本地搜索”"
+            f"当前模型 {provider}/{model} 或接口地址不支持服务端联网搜索，请改用“自动”或“MoviePilot 本地搜索”"
         )
 
 
@@ -35,7 +33,7 @@ class ServerToolCapability:
     base_url_patterns: tuple[str, ...] = ()
     match_without_base_url: bool = True
 
-    def matches(self, provider: str, model: str, base_url: Optional[str] = None) -> bool:
+    def matches(self, provider: str, model: str, base_url: str | None = None) -> bool:
         """判断给定 provider/model 是否匹配当前能力。"""
         normalized_provider = str(provider or "").strip().lower()
         normalized_model = str(model or "").strip().lower().removeprefix("models/")
@@ -46,10 +44,7 @@ class ServerToolCapability:
             and (
                 (not normalized_base_url and self.match_without_base_url)
                 or not self.base_url_patterns
-                or any(
-                    pattern in normalized_base_url
-                    for pattern in self.base_url_patterns
-                )
+                or any(pattern in normalized_base_url for pattern in self.base_url_patterns)
             )
         )
 
@@ -69,10 +64,10 @@ class ServerToolResolution:
     mode: str
     use_local_web_search: bool
     server_tools: tuple[dict[str, Any], ...] = ()
-    client_adapter: Optional[str] = None
-    required_api_protocol: Optional[str] = None
+    client_adapter: str | None = None
+    required_api_protocol: str | None = None
     available: bool = False
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class ServerToolRegistry:
@@ -148,7 +143,7 @@ class ServerToolRegistry:
     )
 
     @classmethod
-    def normalize_web_search_mode(cls, mode: Optional[str]) -> str:
+    def normalize_web_search_mode(cls, mode: str | None) -> str:
         """规范化联网搜索模式，未知值回退为本地搜索。"""
         normalized = str(mode or "local").strip().lower()
         return normalized if normalized in WEB_SEARCH_MODES else "local"
@@ -159,33 +154,30 @@ class ServerToolRegistry:
         *,
         provider: str,
         model: str,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         tool_id: str,
-    ) -> Optional[ServerToolCapability]:
+    ) -> ServerToolCapability | None:
         """查找指定模型的服务端工具能力。"""
         return next(
             (
                 capability
                 for capability in cls._CAPABILITIES
-                if capability.tool_id == tool_id
-                and capability.matches(provider, model, base_url)
+                if capability.tool_id == tool_id and capability.matches(provider, model, base_url)
             ),
             None,
         )
 
     @classmethod
     def list_capabilities(
-            cls,
-            *,
-            provider: str,
-            model: str,
-            base_url: Optional[str] = None,
+        cls,
+        *,
+        provider: str,
+        model: str,
+        base_url: str | None = None,
     ) -> list[dict[str, Any]]:
         """列出指定模型可用的服务端工具能力。"""
         return [
-            capability.serialize()
-            for capability in cls._CAPABILITIES
-            if capability.matches(provider, model, base_url)
+            capability.serialize() for capability in cls._CAPABILITIES if capability.matches(provider, model, base_url)
         ]
 
     @classmethod
@@ -194,9 +186,9 @@ class ServerToolRegistry:
         *,
         provider: str,
         model: str,
-        mode: Optional[str],
-        api_protocol: Optional[str],
-        base_url: Optional[str] = None,
+        mode: str | None,
+        api_protocol: str | None,
+        base_url: str | None = None,
     ) -> ServerToolResolution:
         """解析联网搜索应使用本地工具还是模型服务端工具。"""
         normalized_mode = cls.normalize_web_search_mode(mode)

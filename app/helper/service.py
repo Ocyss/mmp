@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Type, TypeVar, Generic, Iterator
+from collections.abc import Iterator
+from typing import Dict, Generic, List, Optional, Type, TypeVar
 
 from pydantic import ValidationError
 
@@ -6,7 +7,7 @@ from app.core.module import ModuleManager
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas import DownloaderConf, MediaServerConf, NotificationConf, NotificationSwitchConf, ServiceInfo
-from app.schemas.types import NotificationType, SystemConfigKey, ModuleType
+from app.schemas.types import ModuleType, NotificationType, SystemConfigKey
 
 TConf = TypeVar("TConf")
 
@@ -17,7 +18,7 @@ class ServiceConfigHelper:
     """
 
     @staticmethod
-    def get_configs(config_key: SystemConfigKey, conf_type: Type) -> List:
+    def get_configs(config_key: SystemConfigKey, conf_type: type) -> list:
         """
         通用获取配置的方法，根据 config_key 获取相应的配置并返回指定类型的配置列表
 
@@ -42,35 +43,35 @@ class ServiceConfigHelper:
         return configs
 
     @staticmethod
-    def get_downloader_configs() -> List[DownloaderConf]:
+    def get_downloader_configs() -> list[DownloaderConf]:
         """
         获取下载器的配置
         """
         return ServiceConfigHelper.get_configs(SystemConfigKey.Downloaders, DownloaderConf)
 
     @staticmethod
-    def get_mediaserver_configs() -> List[MediaServerConf]:
+    def get_mediaserver_configs() -> list[MediaServerConf]:
         """
         获取媒体服务器的配置
         """
         return ServiceConfigHelper.get_configs(SystemConfigKey.MediaServers, MediaServerConf)
 
     @staticmethod
-    def get_notification_configs() -> List[NotificationConf]:
+    def get_notification_configs() -> list[NotificationConf]:
         """
         获取消息通知渠道的配置
         """
         return ServiceConfigHelper.get_configs(SystemConfigKey.Notifications, NotificationConf)
 
     @staticmethod
-    def get_notification_switches() -> List[NotificationSwitchConf]:
+    def get_notification_switches() -> list[NotificationSwitchConf]:
         """
         获取消息通知场景的开关
         """
         return ServiceConfigHelper.get_configs(SystemConfigKey.NotificationSwitchs, NotificationSwitchConf)
 
     @staticmethod
-    def get_notification_switch(mtype: NotificationType) -> Optional[str]:
+    def get_notification_switch(mtype: NotificationType) -> str | None:
         """
         获取指定类型的消息通知场景的开关
         """
@@ -86,27 +87,31 @@ class ServiceBaseHelper(Generic[TConf]):
     通用服务帮助类，抽象获取配置和服务实例的通用逻辑
     """
 
-    def __init__(self, config_key: SystemConfigKey, conf_type: Type[TConf], module_type: ModuleType):
+    def __init__(self, config_key: SystemConfigKey, conf_type: type[TConf], module_type: ModuleType):
         self.modulemanager = ModuleManager()
         self.config_key = config_key
         self.conf_type = conf_type
         self.module_type = module_type
 
-    def get_configs(self, include_disabled: bool = False) -> Dict[str, TConf]:
+    def get_configs(self, include_disabled: bool = False) -> dict[str, TConf]:
         """
         获取配置列表
 
         :param include_disabled: 是否包含禁用的配置，默认 False（仅返回启用的配置）
         :return: 配置字典
         """
-        configs: List[TConf] = ServiceConfigHelper.get_configs(self.config_key, self.conf_type)
-        return {
-            config.name: config
-            for config in configs
-            if (config.name and config.type and config.enabled) or include_disabled
-        } if configs else {}
+        configs: list[TConf] = ServiceConfigHelper.get_configs(self.config_key, self.conf_type)
+        return (
+            {
+                config.name: config
+                for config in configs
+                if (config.name and config.type and config.enabled) or include_disabled
+            }
+            if configs
+            else {}
+        )
 
-    def get_config(self, name: str) -> Optional[TConf]:
+    def get_config(self, name: str) -> TConf | None:
         """
         获取指定名称配置
         """
@@ -131,16 +136,13 @@ class ServiceBaseHelper(Generic[TConf]):
                     continue
                 config = configs.get(name)
                 service_info = ServiceInfo(
-                    name=name,
-                    instance=instance,
-                    module=module,
-                    type=config.type if config else None,
-                    config=config
+                    name=name, instance=instance, module=module, type=config.type if config else None, config=config
                 )
                 yield service_info
 
-    def get_services(self, type_filter: Optional[str] = None, name_filters: Optional[List[str]] = None) \
-            -> Dict[str, ServiceInfo]:
+    def get_services(
+        self, type_filter: str | None = None, name_filters: list[str] | None = None
+    ) -> dict[str, ServiceInfo]:
         """
         获取服务信息列表，并根据类型和名称列表进行过滤
 
@@ -153,13 +155,12 @@ class ServiceBaseHelper(Generic[TConf]):
         return {
             service_info.name: service_info
             for service_info in self.iterate_module_instances()
-            if service_info.config and (
-                    type_filter is None or service_info.type == type_filter
-            ) and (
-                       name_filters_set is None or service_info.name in name_filters_set)
+            if service_info.config
+            and (type_filter is None or service_info.type == type_filter)
+            and (name_filters_set is None or service_info.name in name_filters_set)
         }
 
-    def get_service(self, name: str, type_filter: Optional[str] = None) -> Optional[ServiceInfo]:
+    def get_service(self, name: str, type_filter: str | None = None) -> ServiceInfo | None:
         """
         获取指定名称的服务信息，并根据类型过滤
 

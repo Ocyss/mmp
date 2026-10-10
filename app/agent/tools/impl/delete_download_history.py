@@ -13,9 +13,7 @@ from app.log import logger
 class DeleteDownloadHistoryInput(BaseModel):
     """删除下载历史记录工具的输入参数模型"""
 
-    history_id: int = Field(
-        ..., description="The ID of the download history record to delete"
-    )
+    history_id: int = Field(..., description="The ID of the download history record to delete")
 
 
 class DeleteDownloadHistoryTool(MoviePilotTool):
@@ -26,10 +24,10 @@ class DeleteDownloadHistoryTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Delete a download history record by ID. This only removes the record from the database, does not delete any actual files."
-    args_schema: Type[BaseModel] = DeleteDownloadHistoryInput
+    args_schema: type[BaseModel] = DeleteDownloadHistoryInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         history_id = kwargs.get("history_id")
         return f"删除下载历史记录 ID: {history_id}"
 

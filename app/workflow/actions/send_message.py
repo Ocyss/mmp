@@ -2,17 +2,18 @@ from typing import List, Optional, Union
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction, ActionChain
-from app.schemas import ActionParams, ActionContext, Notification
 from app.core.config import settings
+from app.schemas import ActionContext, ActionParams, Notification
+from app.workflow.actions import ActionChain, BaseAction
 
 
 class SendMessageParams(ActionParams):
     """
     发送消息参数
     """
-    client: Optional[List[str]] = Field(default=[], description="消息渠道")
-    userid: Optional[Union[str, int]] = Field(default=None, description="用户ID")
+
+    client: list[str] | None = Field(default=[], description="消息渠道")
+    userid: str | int | None = Field(default=None, description="用户ID")
 
 
 class SendMessageAction(BaseAction):
@@ -27,17 +28,17 @@ class SendMessageAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "发送消息"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "发送任务执行消息"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return SendMessageParams().model_dump()
 
     @property
@@ -67,7 +68,7 @@ class SendMessageAction(BaseAction):
                         userid=params.userid,
                         title="【工作流执行结果】",
                         text=msg_text,
-                        link=settings.MP_DOMAIN("#/workflow")
+                        link=settings.MP_DOMAIN("#/workflow"),
                     )
                 )
 

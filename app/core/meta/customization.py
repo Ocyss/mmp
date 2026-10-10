@@ -42,9 +42,7 @@ class CustomizationMatcher(metaclass=Singleton):
         if not title:
             return ""
         # 自定义占位符需要跟随系统配置实时生效，避免单例缓存导致保存后仍沿用旧规则。
-        customization = self.normalize_customization(
-            self.systemconfig.get(SystemConfigKey.Customization)
-        )
+        customization = self.normalize_customization(self.systemconfig.get(SystemConfigKey.Customization))
         if not customization:
             self.customization = None
             return ""

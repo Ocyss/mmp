@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from app.core.context import MediaInfo
 from app.db.systemconfig_oper import SystemConfigOper
-from app.schemas import FilterRuleGroup, CustomRule
+from app.schemas import CustomRule, FilterRuleGroup
 from app.schemas.types import SystemConfigKey
 
 
@@ -12,16 +12,16 @@ class RuleHelper:
     """
 
     @staticmethod
-    def get_rule_groups() -> List[FilterRuleGroup]:
+    def get_rule_groups() -> list[FilterRuleGroup]:
         """
         获取用户所有规则组
         """
-        rule_groups: List[dict] = SystemConfigOper().get(SystemConfigKey.UserFilterRuleGroups)
+        rule_groups: list[dict] = SystemConfigOper().get(SystemConfigKey.UserFilterRuleGroups)
         if not rule_groups:
             return []
         return [FilterRuleGroup(**group) for group in rule_groups]
 
-    def get_rule_group(self, group_name: str) -> Optional[FilterRuleGroup]:
+    def get_rule_group(self, group_name: str) -> FilterRuleGroup | None:
         """
         获取规则组
         """
@@ -31,7 +31,7 @@ class RuleHelper:
                 return group
         return None
 
-    def get_rule_group_by_media(self, media: MediaInfo = None, group_names: list = None) -> List[FilterRuleGroup]:
+    def get_rule_group_by_media(self, media: MediaInfo = None, group_names: list = None) -> list[FilterRuleGroup]:
         """
         根据媒体信息获取规则组
         """
@@ -49,16 +49,16 @@ class RuleHelper:
         return ret_groups
 
     @staticmethod
-    def get_custom_rules() -> List[CustomRule]:
+    def get_custom_rules() -> list[CustomRule]:
         """
         获取用户所有自定义规则
         """
-        rules: List[dict] = SystemConfigOper().get(SystemConfigKey.CustomFilterRules)
+        rules: list[dict] = SystemConfigOper().get(SystemConfigKey.CustomFilterRules)
         if not rules:
             return []
         return [CustomRule(**rule) for rule in rules]
 
-    def get_custom_rule(self, rule_id: str) -> Optional[CustomRule]:
+    def get_custom_rule(self, rule_id: str) -> CustomRule | None:
         """
         获取自定义规则
         """

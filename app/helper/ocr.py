@@ -13,11 +13,11 @@ class OcrHelper:
     _ocr_b64_url = f"{settings.OCR_HOST}/captcha/base64"
 
     def get_captcha_text(
-            self,
-            image_url: Optional[str] = None,
-            image_b64: Optional[str] = None,
-            cookie: Optional[str] = None,
-            ua: Optional[str] = None,
+        self,
+        image_url: str | None = None,
+        image_b64: str | None = None,
+        cookie: str | None = None,
+        ua: str | None = None,
     ) -> str:
         """
         根据图片地址，获取验证码图片，并识别内容
@@ -33,8 +33,7 @@ class OcrHelper:
             if data_url_b64:
                 image_b64 = self._normalize_image_base64(data_url_b64)
             else:
-                ret = RequestUtils(ua=ua,
-                                   cookies=cookie).get_res(image_url)
+                ret = RequestUtils(ua=ua, cookies=cookie).get_res(image_url)
                 if ret is not None:
                     image_bin = ret.content
                     if not image_bin:
@@ -43,14 +42,14 @@ class OcrHelper:
         if not image_b64:
             return ""
         ret = RequestUtils(content_type="application/json").post_res(
-            url=self._ocr_b64_url,
-            json={"base64_img": image_b64})
+            url=self._ocr_b64_url, json={"base64_img": image_b64}
+        )
         if ret:
             return ret.json().get("result") or ""
         return ""
 
     @staticmethod
-    def _normalize_image_base64(image_b64: Optional[str]) -> str:
+    def _normalize_image_base64(image_b64: str | None) -> str:
         """规范化外部传入的图片 base64 内容。"""
         if not image_b64:
             return ""
@@ -64,7 +63,7 @@ class OcrHelper:
         return clean_image_b64
 
     @staticmethod
-    def _extract_data_url_base64(image_url: Optional[str]) -> str:
+    def _extract_data_url_base64(image_url: str | None) -> str:
         """从 data:image/...;base64,... 地址中提取纯 base64 内容。"""
         image_url = (image_url or "").strip()
         if not image_url.lower().startswith("data:image/"):

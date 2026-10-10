@@ -10,10 +10,10 @@ class DownloadFailureOper(DbOper):
     """
 
     def get_active_by_fingerprints(
-            self,
-            fingerprints: List[str],
-            now_time: str,
-    ) -> Dict[str, DownloadFailure]:
+        self,
+        fingerprints: list[str],
+        now_time: str,
+    ) -> dict[str, DownloadFailure]:
         """
         批量按指纹查询仍在冷却期的失败记录。
         """
@@ -22,18 +22,14 @@ class DownloadFailureOper(DbOper):
             fingerprints=fingerprints,
             now_time=now_time,
         )
-        return {
-            failure.fingerprint: failure
-            for failure in failures
-            if failure and failure.fingerprint
-        }
+        return {failure.fingerprint: failure for failure in failures if failure and failure.fingerprint}
 
     def record_failure(
-            self,
-            fingerprint: str,
-            now_time: str,
-            next_retry_at: str,
-            **kwargs: object,
+        self,
+        fingerprint: str,
+        now_time: str,
+        next_retry_at: str,
+        **kwargs: object,
     ) -> DownloadFailure:
         """
         新增或更新资源失败记录。
@@ -47,9 +43,9 @@ class DownloadFailureOper(DbOper):
         )
 
     def delete_expired(
-            self,
-            before_time: str,
-            limit: Optional[int] = 500,
+        self,
+        before_time: str,
+        limit: int | None = 500,
     ) -> int:
         """
         删除已过期较久的失败记录。

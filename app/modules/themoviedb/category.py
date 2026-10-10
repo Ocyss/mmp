@@ -44,7 +44,7 @@ class CategoryHelper(metaclass=WeakSingleton):
         try:
             if not self._category_path.exists():
                 shutil.copy(settings.INNER_CONFIG_PATH / "category.yaml", self._category_path)
-            with open(self._category_path, mode='r', encoding='utf-8', errors='replace') as f:
+            with open(self._category_path, encoding="utf-8", errors="replace") as f:
                 try:
                     yaml_loader = ruamel.yaml.YAML()
                     self._categorys = yaml_loader.load(f)
@@ -55,9 +55,9 @@ class CategoryHelper(metaclass=WeakSingleton):
             logger.warn(f"二级分类策略配置文件加载出错：{str(err)}")
 
         if self._categorys:
-            self._movie_categorys = self._categorys.get('movie')
-            self._tv_categorys = self._categorys.get('tv')
-        logger.info(f"已加载二级分类策略 category.yaml")
+            self._movie_categorys = self._categorys.get("movie")
+            self._tv_categorys = self._categorys.get("tv")
+        logger.info("已加载二级分类策略 category.yaml")
 
     def load(self) -> CategoryConfig:
         """
@@ -67,7 +67,7 @@ class CategoryHelper(metaclass=WeakSingleton):
         if not self._category_path.exists():
             return config
         try:
-            with open(self._category_path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(self._category_path, encoding="utf-8", errors="replace") as f:
                 yaml_loader = ruamel.yaml.YAML()
                 data = yaml_loader.load(f)
                 if data:
@@ -82,7 +82,7 @@ class CategoryHelper(metaclass=WeakSingleton):
         """
         data = config.model_dump(exclude_none=True)
         try:
-            with open(self._category_path, 'w', encoding='utf-8') as f:
+            with open(self._category_path, "w", encoding="utf-8") as f:
                 f.write(HEADER_COMMENTS)
                 yaml_dumper = ruamel.yaml.YAML()
                 yaml_dumper.dump(data, f)
@@ -146,7 +146,7 @@ class CategoryHelper(metaclass=WeakSingleton):
         return self.get_category(self._tv_categorys, tmdb_info)
 
     @staticmethod
-    def get_category(categorys: Union[dict, CommentedMap], tmdb_info: dict) -> str:
+    def get_category(categorys: dict | CommentedMap, tmdb_info: dict) -> str:
         """
         根据 TMDB信息与分类配置文件进行比较，确定所属分类
         :param categorys: 分类配置
@@ -200,8 +200,8 @@ class CategoryHelper(metaclass=WeakSingleton):
                     value_begin, value_end = v.split("-", 1)
 
                     prefix = ""
-                    if value_begin.startswith('!'):
-                        prefix = '!'
+                    if value_begin.startswith("!"):
+                        prefix = "!"
                         value_begin = value_begin[1:]
 
                     if value_begin.isdigit() and value_end.isdigit():
@@ -213,8 +213,8 @@ class CategoryHelper(metaclass=WeakSingleton):
 
                 values = list(map(str.upper, expanded_values))
 
-                invert_values = [val[1:] for val in values if val.startswith('!')]
-                values = [val for val in values if not val.startswith('!')]
+                invert_values = [val[1:] for val in values if val.startswith("!")]
+                values = [val for val in values if not val.startswith("!")]
 
                 if values and not set(values).intersection(set(info_values)):
                     match_flag = False

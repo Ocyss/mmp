@@ -1,14 +1,14 @@
 """Agent 内部使用的 LLM 适配层。"""
 
-from app.agent.llm.helper import LLMHelper, LLMTestError, LLMTestTimeout
 from app.agent.llm.capability import (
     AgentCapabilityManager,
     AgentCapabilityProvider,
     AudioCapabilityProvider,
     MiMoAudioProvider,
-    OpenAIChatAudioProvider,
     OpenAIAudioProvider,
+    OpenAIChatAudioProvider,
 )
+from app.agent.llm.helper import LLMHelper, LLMTestError, LLMTestTimeout
 from app.agent.llm.provider import (
     LLMProviderAuthError,
     LLMProviderError,

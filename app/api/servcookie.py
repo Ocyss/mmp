@@ -1,7 +1,8 @@
 import gzip
 import hmac
 import json
-from typing import Annotated, Callable, Any, Dict, Optional
+from collections.abc import Callable
+from typing import Annotated, Any, Dict, Optional
 
 import aiofiles
 from anyio import Path as AsyncPath
@@ -46,9 +47,7 @@ async def verify_server_enabled():
 
 
 async def verify_update_auth(
-    x_cookiecloud_auth: Annotated[
-        Optional[str], Header(alias="X-CookieCloud-Auth")
-    ] = None,
+    x_cookiecloud_auth: Annotated[str | None, Header(alias="X-CookieCloud-Auth")] = None,
 ):
     """
     校验CookieCloud上传接口的可选共享认证头。
@@ -89,7 +88,7 @@ async def update_cookie(req: schemas.CookieData):
     content = json.dumps({"encrypted": req.encrypted})
     async with aiofiles.open(file_path, encoding="utf-8", mode="w") as file:
         await file.write(content)
-    async with aiofiles.open(file_path, encoding="utf-8", errors="replace", mode="r") as file:
+    async with aiofiles.open(file_path, encoding="utf-8", errors="replace") as file:
         read_content = await file.read()
     if read_content == content:
         return {"action": "done"}
@@ -97,7 +96,7 @@ async def update_cookie(req: schemas.CookieData):
         return {"action": "error"}
 
 
-async def load_encrypt_data(uuid: str) -> Dict[str, Any]:
+async def load_encrypt_data(uuid: str) -> dict[str, Any]:
     """
     加载本地加密原始数据
     """
@@ -108,15 +107,13 @@ async def load_encrypt_data(uuid: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail="Item not found")
 
     # 读取文件
-    async with aiofiles.open(file_path, encoding="utf-8", errors="replace", mode="r") as file:
+    async with aiofiles.open(file_path, encoding="utf-8", errors="replace") as file:
         read_content = await file.read()
     data = json.loads(read_content.encode("utf-8"))
     return data
 
 
-def get_decrypted_cookie_data(
-    uuid: str, password: str, encrypted: str
-) -> Optional[Dict[str, Any]]:
+def get_decrypted_cookie_data(uuid: str, password: str, encrypted: str) -> dict[str, Any] | None:
     """
     加载本地加密数据并解密为Cookie
     """
@@ -149,7 +146,7 @@ async def get_cookie(
 @cookie_router.post("/get/{uuid}")
 async def post_cookie(
     uuid: Annotated[str, Path(min_length=5, pattern="^[a-zA-Z0-9]+$")],
-    request: Optional[schemas.CookiePassword] = Body(None),
+    request: schemas.CookiePassword | None = Body(None),
 ):
     """
     POST 下载加密数据

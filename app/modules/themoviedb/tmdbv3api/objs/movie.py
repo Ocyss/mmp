@@ -35,10 +35,7 @@ class Movie(TMDb):
         :param append_to_response: str
         :return:
         """
-        return self._request_obj(
-            self._urls["details"] % movie_id,
-            params="append_to_response=%s" % append_to_response
-        )
+        return self._request_obj(self._urls["details"] % movie_id, params="append_to_response=%s" % append_to_response)
 
     def account_states(self, movie_id):
         """
@@ -47,10 +44,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["account_states"] % movie_id,
-            params="session_id=%s" % self.session_id
-        )
+        return self._request_obj(self._urls["account_states"] % movie_id, params="session_id=%s" % self.session_id)
 
     def alternative_titles(self, movie_id, country=None):
         """
@@ -60,9 +54,7 @@ class Movie(TMDb):
         :return:
         """
         return self._request_obj(
-            self._urls["alternative_titles"] % movie_id,
-            params="country=%s" % country if country else "",
-            key="titles"
+            self._urls["alternative_titles"] % movie_id, params="country=%s" % country if country else "", key="titles"
         )
 
     def changes(self, movie_id, start_date=None, end_date=None, page=1):
@@ -80,11 +72,7 @@ class Movie(TMDb):
             params += "&start_date=%s" % start_date
         if end_date:
             params += "&end_date=%s" % end_date
-        return self._request_obj(
-            self._urls["changes"] % movie_id,
-            params=params,
-            key="changes"
-        )
+        return self._request_obj(self._urls["changes"] % movie_id, params=params, key="changes")
 
     def credits(self, movie_id):
         """
@@ -115,7 +103,7 @@ class Movie(TMDb):
         """
         return self._request_obj(
             self._urls["images"] % movie_id,
-            params="include_image_language=%s" % include_image_language if include_image_language else ""
+            params="include_image_language=%s" % include_image_language if include_image_language else "",
         )
 
     def keywords(self, movie_id):
@@ -124,10 +112,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["keywords"] % movie_id,
-            key="keywords"
-        )
+        return self._request_obj(self._urls["keywords"] % movie_id, key="keywords")
 
     def lists(self, movie_id, page=1):
         """
@@ -136,11 +121,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["lists"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["lists"] % movie_id, params="page=%s" % page, key="results")
 
     def recommendations(self, movie_id, page=1):
         """
@@ -149,11 +130,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["recommendations"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["recommendations"] % movie_id, params="page=%s" % page, key="results")
 
     def release_dates(self, movie_id):
         """
@@ -161,10 +138,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["release_dates"] % movie_id,
-            key="results"
-        )
+        return self._request_obj(self._urls["release_dates"] % movie_id, key="results")
 
     def reviews(self, movie_id, page=1):
         """
@@ -173,11 +147,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["reviews"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["reviews"] % movie_id, params="page=%s" % page, key="results")
 
     def similar(self, movie_id, page=1):
         """
@@ -186,11 +156,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["similar"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["similar"] % movie_id, params="page=%s" % page, key="results")
 
     def translations(self, movie_id):
         """
@@ -198,10 +164,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["translations"] % movie_id,
-            key="translations"
-        )
+        return self._request_obj(self._urls["translations"] % movie_id, key="translations")
 
     def videos(self, movie_id, page=1):
         """
@@ -210,11 +173,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["videos"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return self._request_obj(self._urls["videos"] % movie_id, params="page=%s" % page, key="results")
 
     def watch_providers(self, movie_id):
         """
@@ -222,10 +181,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return self._request_obj(
-            self._urls["watch_providers"] % movie_id,
-            key="results"
-        )
+        return self._request_obj(self._urls["watch_providers"] % movie_id, key="results")
 
     def rate_movie(self, movie_id, rating):
         """
@@ -237,7 +193,7 @@ class Movie(TMDb):
             self._urls["rate_movie"] % movie_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"value": rating}
+            json={"value": rating},
         )
 
     def delete_rating(self, movie_id):
@@ -246,9 +202,7 @@ class Movie(TMDb):
         :param movie_id: int
         """
         self._request_obj(
-            self._urls["delete_rating"] % movie_id,
-            params="session_id=%s" % self.session_id,
-            method="DELETE"
+            self._urls["delete_rating"] % movie_id, params="session_id=%s" % self.session_id, method="DELETE"
         )
 
     def latest(self):
@@ -268,11 +222,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return self._request_obj(
-            self._urls["now_playing"],
-            params=params,
-            key="results"
-        )
+        return self._request_obj(self._urls["now_playing"], params=params, key="results")
 
     def popular(self, region=None, page=1):
         """
@@ -284,11 +234,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return self._request_obj(
-            self._urls["popular"],
-            params=params,
-            key="results"
-        )
+        return self._request_obj(self._urls["popular"], params=params, key="results")
 
     def top_rated(self, region=None, page=1):
         """
@@ -300,11 +246,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return self._request_obj(
-            self._urls["top_rated"],
-            params=params,
-            key="results"
-        )
+        return self._request_obj(self._urls["top_rated"], params=params, key="results")
 
     def upcoming(self, region=None, page=1):
         """
@@ -316,15 +258,12 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return self._request_obj(
-            self._urls["upcoming"],
-            params=params,
-            key="results"
-        )
+        return self._request_obj(self._urls["upcoming"], params=params, key="results")
 
     # 异步版本方法
-    async def async_details(self, movie_id,
-                            append_to_response="videos,trailers,images,casts,translations,keywords,release_dates"):
+    async def async_details(
+        self, movie_id, append_to_response="videos,trailers,images,casts,translations,keywords,release_dates"
+    ):
         """
         Get the primary information about a movie.（异步版本）
         :param movie_id: int
@@ -332,8 +271,7 @@ class Movie(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["details"] % movie_id,
-            params="append_to_response=%s" % append_to_response
+            self._urls["details"] % movie_id, params="append_to_response=%s" % append_to_response
         )
 
     async def async_account_states(self, movie_id):
@@ -344,8 +282,7 @@ class Movie(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["account_states"] % movie_id,
-            params="session_id=%s" % self.session_id
+            self._urls["account_states"] % movie_id, params="session_id=%s" % self.session_id
         )
 
     async def async_alternative_titles(self, movie_id, country=None):
@@ -356,9 +293,7 @@ class Movie(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["alternative_titles"] % movie_id,
-            params="country=%s" % country if country else "",
-            key="titles"
+            self._urls["alternative_titles"] % movie_id, params="country=%s" % country if country else "", key="titles"
         )
 
     async def async_changes(self, movie_id, start_date=None, end_date=None, page=1):
@@ -376,11 +311,7 @@ class Movie(TMDb):
             params += "&start_date=%s" % start_date
         if end_date:
             params += "&end_date=%s" % end_date
-        return await self._async_request_obj(
-            self._urls["changes"] % movie_id,
-            params=params,
-            key="changes"
-        )
+        return await self._async_request_obj(self._urls["changes"] % movie_id, params=params, key="changes")
 
     async def async_credits(self, movie_id):
         """
@@ -411,7 +342,7 @@ class Movie(TMDb):
         """
         return await self._async_request_obj(
             self._urls["images"] % movie_id,
-            params="include_image_language=%s" % include_image_language if include_image_language else ""
+            params="include_image_language=%s" % include_image_language if include_image_language else "",
         )
 
     async def async_keywords(self, movie_id):
@@ -420,10 +351,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["keywords"] % movie_id,
-            key="keywords"
-        )
+        return await self._async_request_obj(self._urls["keywords"] % movie_id, key="keywords")
 
     async def async_lists(self, movie_id, page=1):
         """
@@ -432,11 +360,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["lists"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["lists"] % movie_id, params="page=%s" % page, key="results")
 
     async def async_recommendations(self, movie_id, page=1):
         """
@@ -446,9 +370,7 @@ class Movie(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["recommendations"] % movie_id,
-            params="page=%s" % page,
-            key="results"
+            self._urls["recommendations"] % movie_id, params="page=%s" % page, key="results"
         )
 
     async def async_release_dates(self, movie_id):
@@ -457,10 +379,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["release_dates"] % movie_id,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["release_dates"] % movie_id, key="results")
 
     async def async_reviews(self, movie_id, page=1):
         """
@@ -469,11 +388,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["reviews"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["reviews"] % movie_id, params="page=%s" % page, key="results")
 
     async def async_similar(self, movie_id, page=1):
         """
@@ -482,11 +397,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["similar"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["similar"] % movie_id, params="page=%s" % page, key="results")
 
     async def async_translations(self, movie_id):
         """
@@ -494,10 +405,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["translations"] % movie_id,
-            key="translations"
-        )
+        return await self._async_request_obj(self._urls["translations"] % movie_id, key="translations")
 
     async def async_videos(self, movie_id, page=1):
         """
@@ -506,11 +414,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["videos"] % movie_id,
-            params="page=%s" % page,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["videos"] % movie_id, params="page=%s" % page, key="results")
 
     async def async_watch_providers(self, movie_id):
         """
@@ -518,10 +422,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["watch_providers"] % movie_id,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["watch_providers"] % movie_id, key="results")
 
     async def async_rate_movie(self, movie_id, rating):
         """
@@ -533,7 +434,7 @@ class Movie(TMDb):
             self._urls["rate_movie"] % movie_id,
             params="session_id=%s" % self.session_id,
             method="POST",
-            json={"value": rating}
+            json={"value": rating},
         )
 
     async def async_delete_rating(self, movie_id):
@@ -542,9 +443,7 @@ class Movie(TMDb):
         :param movie_id: int
         """
         await self._async_request_obj(
-            self._urls["delete_rating"] % movie_id,
-            params="session_id=%s" % self.session_id,
-            method="DELETE"
+            self._urls["delete_rating"] % movie_id, params="session_id=%s" % self.session_id, method="DELETE"
         )
 
     async def async_latest(self):
@@ -564,11 +463,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return await self._async_request_obj(
-            self._urls["now_playing"],
-            params=params,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["now_playing"], params=params, key="results")
 
     async def async_popular(self, region=None, page=1):
         """
@@ -580,11 +475,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return await self._async_request_obj(
-            self._urls["popular"],
-            params=params,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["popular"], params=params, key="results")
 
     async def async_top_rated(self, region=None, page=1):
         """
@@ -596,11 +487,7 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return await self._async_request_obj(
-            self._urls["top_rated"],
-            params=params,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["top_rated"], params=params, key="results")
 
     async def async_upcoming(self, region=None, page=1):
         """
@@ -612,8 +499,4 @@ class Movie(TMDb):
         params = "page=%s" % page
         if region:
             params += "&region=%s" % region
-        return await self._async_request_obj(
-            self._urls["upcoming"],
-            params=params,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls["upcoming"], params=params, key="results")

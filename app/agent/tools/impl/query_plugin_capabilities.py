@@ -14,7 +14,7 @@ from app.log import logger
 class QueryPluginCapabilitiesInput(BaseModel):
     """查询插件能力工具的输入参数模型"""
 
-    plugin_id: Optional[str] = Field(
+    plugin_id: str | None = Field(
         None,
         description="Optional plugin ID to query capabilities for a specific plugin. "
         "If not provided, returns capabilities of all running plugins. "
@@ -36,9 +36,9 @@ class QueryPluginCapabilitiesTool(MoviePilotTool):
         "Optionally specify a plugin_id to query a specific plugin, or omit to query all running plugins."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QueryPluginCapabilitiesInput
+    args_schema: type[BaseModel] = QueryPluginCapabilitiesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         plugin_id = kwargs.get("plugin_id")
         if plugin_id:
@@ -46,7 +46,7 @@ class QueryPluginCapabilitiesTool(MoviePilotTool):
         return "查询所有插件的能力"
 
     @staticmethod
-    def _load_plugin_capabilities(plugin_id: Optional[str] = None) -> dict:
+    def _load_plugin_capabilities(plugin_id: str | None = None) -> dict:
         """读取运行中插件实例暴露的内存能力信息。"""
         plugin_manager = PluginManager()
         result = {}
@@ -95,15 +95,13 @@ class QueryPluginCapabilitiesTool(MoviePilotTool):
                     svc_info["trigger"] = str(trigger)
                 svc_kwargs = svc.get("kwargs")
                 if svc_kwargs:
-                    svc_info["trigger_kwargs"] = {
-                        k: str(v) for k, v in svc_kwargs.items()
-                    }
+                    svc_info["trigger_kwargs"] = {k: str(v) for k, v in svc_kwargs.items()}
                 services_list.append(svc_info)
             result["services"] = services_list
 
         return result
 
-    async def run(self, plugin_id: Optional[str] = None, **kwargs) -> str:
+    async def run(self, plugin_id: str | None = None, **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: plugin_id={plugin_id}")
         try:
             result = self._load_plugin_capabilities(plugin_id)

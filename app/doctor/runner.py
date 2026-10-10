@@ -68,7 +68,7 @@ class DoctorRunner:
         fixable: bool = False,
         fixed: bool = False,
         affects_report_status: bool = True,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> DoctorFinding:
         """
         添加诊断发现并返回该对象。

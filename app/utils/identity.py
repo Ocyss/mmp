@@ -6,19 +6,14 @@ from typing import Optional, Union
 SYSTEM_INTERNAL_USER_ID = "system"
 
 
-def is_internal_user_id(userid: Optional[Union[str, int]]) -> bool:
+def is_internal_user_id(userid: str | int | None) -> bool:
     """
     判断是否为系统内部占位用户ID。
     """
-    return (
-        isinstance(userid, str)
-        and userid.strip().lower() == SYSTEM_INTERNAL_USER_ID
-    )
+    return isinstance(userid, str) and userid.strip().lower() == SYSTEM_INTERNAL_USER_ID
 
 
-def normalize_internal_user_id(
-    userid: Optional[Union[str, int]]
-) -> Optional[Union[str, int]]:
+def normalize_internal_user_id(userid: str | int | None) -> str | int | None:
     """
     将系统内部占位用户ID归一化为 None，避免被通知渠道误认为真实接收人。
     """

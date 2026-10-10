@@ -61,14 +61,14 @@ async def anilist_popular_this_season(
 async def anilist_discover(
     page: PageParam = 1,
     count: CountParam = 20,
-    search: Optional[str] = None,
-    genre: Optional[str] = None,
-    media_format: Optional[str] = Query(None, alias="format"),
-    season: Optional[str] = None,
-    season_year: Optional[int] = None,
-    status: Optional[str] = None,
-    country: Optional[str] = None,
-    sort: Optional[str] = None,
+    search: str | None = None,
+    genre: str | None = None,
+    media_format: str | None = Query(None, alias="format"),
+    season: str | None = None,
+    season_year: int | None = None,
+    status: str | None = None,
+    country: str | None = None,
+    sort: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> list[schemas.MediaInfo]:
     """按标题、类型、风格、季度、年份、状态、地区和排序探索 AniList 动画"""
@@ -99,9 +99,7 @@ async def anilist_credits(
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> list[schemas.MediaPerson]:
     """查询 AniList 动画的日语配音演员"""
-    return await AniListChain().async_credits(
-        anilist_id=anilist_id, page=page, count=count
-    )
+    return await AniListChain().async_credits(anilist_id=anilist_id, page=page, count=count)
 
 
 @router.get(
@@ -116,9 +114,7 @@ async def anilist_recommendations(
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> list[schemas.MediaInfo]:
     """查询 AniList 动画相关推荐"""
-    medias = await AniListChain().async_recommendations(
-        anilist_id=anilist_id, page=page, count=count
-    )
+    medias = await AniListChain().async_recommendations(anilist_id=anilist_id, page=page, count=count)
     return _serialize_medias(medias)
 
 
@@ -130,7 +126,7 @@ async def anilist_recommendations(
 async def anilist_person(
     person_id: int,
     _: schemas.TokenPayload = Depends(verify_token),
-) -> Optional[schemas.MediaPerson]:
+) -> schemas.MediaPerson | None:
     """根据 AniList 人物 ID 查询详情"""
     return await AniListChain().async_person_detail(person_id=person_id)
 
@@ -147,9 +143,7 @@ async def anilist_person_credits(
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> list[schemas.MediaInfo]:
     """查询 AniList 人物参与的动画作品"""
-    medias = await AniListChain().async_person_credits(
-        person_id=person_id, page=page, count=count
-    )
+    medias = await AniListChain().async_person_credits(person_id=person_id, page=page, count=count)
     return _serialize_medias(medias)
 
 

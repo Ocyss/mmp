@@ -1,4 +1,5 @@
 import base64
+import builtins
 import hashlib
 import secrets
 import threading
@@ -9,7 +10,7 @@ from typing import List, Optional, Tuple, Union
 import requests
 
 from app import schemas
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.log import logger
 from app.modules.filemanager import StorageBase
 from app.modules.filemanager.storages import transfer_process
@@ -75,17 +76,13 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         获取默认存储桶ID
         """
         conf = self.get_conf()
-        drive_id = (
-            conf.get("resource_drive_id")
-            or conf.get("backup_drive_id")
-            or conf.get("default_drive_id")
-        )
+        drive_id = conf.get("resource_drive_id") or conf.get("backup_drive_id") or conf.get("default_drive_id")
         if not drive_id:
             raise NoCheckInException("【阿里云盘】请先扫码登录！")
         return drive_id
 
     @property
-    def access_token(self) -> Optional[str]:
+    def access_token(self) -> str | None:
         """
         访问token
         """
@@ -103,7 +100,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 self.session.headers.update({"Authorization": f"Bearer {access_token}"})
             return access_token
 
-    def generate_qrcode(self) -> Tuple[dict, str]:
+    def generate_qrcode(self) -> tuple[dict, str]:
         """
         实现PKCE规范的设备授权二维码生成
         """
@@ -135,7 +132,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         # 生成二维码内容
         return {"codeUrl": result.get("qrCodeUrl")}, ""
 
-    def check_login(self) -> Optional[Tuple[dict, str]]:
+    def check_login(self) -> tuple[dict, str] | None:
         """
         改进的带PKCE校验的登录状态检查
         """
@@ -150,9 +147,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         if not self._auth_state:
             return {}, "生成二维码失败"
         try:
-            resp = self.session.get(
-                f"{self.base_url}/oauth/qrcode/{self._auth_state['sid']}/status"
-            )
+            resp = self.session.get(f"{self.base_url}/oauth/qrcode/{self._auth_state['sid']}/status")
             if resp is None:
                 return {}, "网络错误"
             result = resp.json()
@@ -188,12 +183,10 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             raise SessionInvalidException("【阿里云盘】获取 access_token 失败")
         result = resp.json()
         if result.get("code"):
-            raise Exception(
-                f"【阿里云盘】{result.get('code')} - {result.get('message')}！"
-            )
+            raise Exception(f"【阿里云盘】{result.get('code')} - {result.get('message')}！")
         return result
 
-    def __refresh_access_token(self, refresh_token: str) -> Optional[dict]:
+    def __refresh_access_token(self, refresh_token: str) -> dict | None:
         """
         刷新access_token
         """
@@ -208,15 +201,11 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             },
         )
         if resp is None:
-            logger.error(
-                f"【阿里云盘】刷新 access_token 失败：refresh_token={refresh_token}"
-            )
+            logger.error(f"【阿里云盘】刷新 access_token 失败：refresh_token={refresh_token}")
             return None
         result = resp.json()
         if result.get("code"):
-            logger.warn(
-                f"【阿里云盘】刷新 access_token 失败：{result.get('code')} - {result.get('message')}！"
-            )
+            logger.warn(f"【阿里云盘】刷新 access_token 失败：{result.get('code')} - {result.get('message')}！")
         return result
 
     def __get_drive_id(self):
@@ -229,9 +218,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             return None
         result = resp.json()
         if result.get("code"):
-            logger.warn(
-                f"获取默认存储ID失败：{result.get('code')} - {result.get('message')}！"
-            )
+            logger.warn(f"获取默认存储ID失败：{result.get('code')} - {result.get('message')}！")
             return None
         # 保存用户参数
         """
@@ -247,9 +234,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         self.set_config(conf)
         return None
 
-    def _request_api(
-        self, method: str, endpoint: str, result_key: Optional[str] = None, **kwargs
-    ) -> Optional[Union[dict, list]]:
+    def _request_api(self, method: str, endpoint: str, result_key: str | None = None, **kwargs) -> dict | list | None:
         """
         带错误处理和速率限制的API请求
         """
@@ -279,9 +264,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         ret_data = resp.json()
         if ret_data.get("code"):
             if not no_error_log:
-                logger.warn(
-                    f"【阿里云盘】{method} {endpoint} 返回：{ret_data.get('code')} {ret_data.get('message')}"
-                )
+                logger.warn(f"【阿里云盘】{method} {endpoint} 返回：{ret_data.get('code')} {ret_data.get('message')}")
 
         if result_key:
             return ret_data.get(result_key)
@@ -325,7 +308,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             )
 
     @staticmethod
-    def _calc_sha1(filepath: Path, size: Optional[int] = None) -> str:
+    def _calc_sha1(filepath: Path, size: int | None = None) -> str:
         """
         计算文件SHA1（符合阿里云盘规范）
         size: 前多少字节
@@ -343,7 +326,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
     def init_storage(self):
         pass
 
-    def list(self, fileitem: schemas.FileItem) -> List[schemas.FileItem]:
+    def list(self, fileitem: schemas.FileItem) -> builtins.list[schemas.FileItem]:
         """
         目录遍历实现
         """
@@ -386,7 +369,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 break
         return items
 
-    def _delay_get_item(self, path: Path) -> Optional[schemas.FileItem]:
+    def _delay_get_item(self, path: Path) -> schemas.FileItem | None:
         """
         自动延迟重试 get_item 模块
         """
@@ -397,9 +380,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 return fileitem
         return None
 
-    def create_folder(
-        self, parent_item: schemas.FileItem, name: str
-    ) -> Optional[schemas.FileItem]:
+    def create_folder(self, parent_item: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         """
@@ -449,9 +430,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         try:
             tmp_int = int(hex_str, 16)
         except ValueError:
-            raise ValueError(
-                "【阿里云盘】Invalid hex string for proof code calculation"
-            )
+            raise ValueError("【阿里云盘】Invalid hex string for proof code calculation")
 
         # Step 5-7: 计算读取范围
         index = tmp_int % file_size
@@ -534,9 +513,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 raise Exception(resp.get("message"))
         return resp
 
-    def _refresh_upload_urls(
-        self, drive_id: str, file_id: str, upload_id: str, part_numbers: List[int]
-    ):
+    def _refresh_upload_urls(self, drive_id: str, file_id: str, upload_id: str, part_numbers: builtins.list[int]):
         """
         刷新分片上传地址
         """
@@ -546,9 +523,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             "upload_id": upload_id,
             "part_info_list": [{"part_number": num} for num in part_numbers],
         }
-        resp = self._request_api(
-            "POST", "/adrive/v1.0/openFile/getUploadUrl", json=data
-        )
+        resp = self._request_api("POST", "/adrive/v1.0/openFile/getUploadUrl", json=data)
         if not resp:
             raise Exception("【阿里云盘】刷新分片上传地址失败！")
         if resp.get("code"):
@@ -567,9 +542,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         获取已上传分片列表
         """
         data = {"drive_id": drive_id, "file_id": file_id, "upload_id": upload_id}
-        resp = self._request_api(
-            "POST", "/adrive/v1.0/openFile/listUploadedParts", json=data
-        )
+        resp = self._request_api("POST", "/adrive/v1.0/openFile/listUploadedParts", json=data)
         if not resp:
             raise Exception("【阿里云盘】获取已上传分片失败！")
         if resp.get("code"):
@@ -590,8 +563,8 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         self,
         target_dir: schemas.FileItem,
         local_path: Path,
-        new_name: Optional[str] = None,
-    ) -> Optional[schemas.FileItem]:
+        new_name: str | None = None,
+    ) -> schemas.FileItem | None:
         """
         文件上传：分片、支持秒传
         """
@@ -626,16 +599,12 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         uploaded_parts = set()
 
         # 3. 获取已上传分片
-        uploaded_info = self._list_uploaded_parts(
-            drive_id=target_dir.drive_id, file_id=file_id, upload_id=upload_id
-        )
+        uploaded_info = self._list_uploaded_parts(drive_id=target_dir.drive_id, file_id=file_id, upload_id=upload_id)
         for part in uploaded_info.get("uploaded_parts", []):
             uploaded_parts.add(part["part_number"])
 
         # 4. 初始化进度条
-        logger.info(
-            f"【阿里云盘】开始上传: {local_path} -> {target_path}，分片数：{len(part_info_list)}"
-        )
+        logger.info(f"【阿里云盘】开始上传: {local_path} -> {target_path}，分片数：{len(part_info_list)}")
         progress_callback = transfer_process(local_path.as_posix())
 
         # 5. 分片上传循环
@@ -678,9 +647,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                         else:
                             upload_url = part_info["upload_url"]
                         # 执行上传
-                        logger.info(
-                            f"【阿里云盘】开始 第{attempt + 1}次 上传 {target_name} 分片 {part_num} ..."
-                        )
+                        logger.info(f"【阿里云盘】开始 第{attempt + 1}次 上传 {target_name} 分片 {part_num} ...")
                         response = self._upload_part(upload_url=upload_url, data=data)
                         if response is None:
                             continue
@@ -692,9 +659,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                                 f"【阿里云盘】{target_name} 分片 {part_num} 第 {attempt + 1} 次上传失败：{response.text}！"
                             )
                     except Exception as e:
-                        logger.warn(
-                            f"【阿里云盘】{target_name} 分片 {part_num} 上传异常: {str(e)}！"
-                        )
+                        logger.warn(f"【阿里云盘】{target_name} 分片 {part_num} 上传异常: {str(e)}！")
 
                 # 处理上传结果
                 if success:
@@ -702,26 +667,20 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                     uploaded_size += current_chunk_size
                     progress_callback((uploaded_size * 100) / file_size)
                 else:
-                    raise Exception(
-                        f"【阿里云盘】{target_name} 分片 {part_num} 上传失败！"
-                    )
+                    raise Exception(f"【阿里云盘】{target_name} 分片 {part_num} 上传失败！")
 
         # 6. 关闭进度条
         progress_callback(100)
 
         # 7. 完成上传
-        result = self._complete_upload(
-            drive_id=target_dir.drive_id, file_id=file_id, upload_id=upload_id
-        )
+        result = self._complete_upload(drive_id=target_dir.drive_id, file_id=file_id, upload_id=upload_id)
         if not result:
             raise Exception("【阿里云盘】完成上传失败！")
         if result.get("code"):
-            logger.warn(
-                f"【阿里云盘】{target_name} 上传失败：{result.get('message')}！"
-            )
+            logger.warn(f"【阿里云盘】{target_name} 上传失败：{result.get('message')}！")
         return self.__get_fileitem(result, parent=target_dir.path)
 
-    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Optional[Path]:
+    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Path | None:
         """
         带实时进度显示的下载
         """
@@ -835,7 +794,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             return False
         return True
 
-    def __get_by_path_item(self, path: Path, drive_id: str = None) -> Optional[schemas.FileItem]:
+    def __get_by_path_item(self, path: Path, drive_id: str = None) -> schemas.FileItem | None:
         """
         按路径查询文件/目录项，无法确认状态时抛出 StorageQueryError。
         NotFound 系列错误码表示确认不存在，其余错误（网络失败、限流、
@@ -857,11 +816,10 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             if "NotFound" in str(code):
                 # 明确的不存在错误码，确认目标不存在
                 return None
-            raise StorageQueryError(
-                f"【阿里云盘】查询文件信息出错: {path} - {code} {resp.get('message')}")
+            raise StorageQueryError(f"【阿里云盘】查询文件信息出错: {path} - {code} {resp.get('message')}")
         return self.__get_fileitem(resp, parent=str(path.parent))
 
-    def get_item(self, path: Path, drive_id: str = None) -> Optional[schemas.FileItem]:
+    def get_item(self, path: Path, drive_id: str = None) -> schemas.FileItem | None:
         """
         获取指定路径的文件/目录项
         """
@@ -871,7 +829,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             logger.debug(f"【阿里云盘】获取文件信息失败: {str(e)}")
             return None
 
-    def get_item_strict(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item_strict(self, path: Path) -> schemas.FileItem | None:
         """
         获取指定路径的文件/目录项，无法确认状态时抛出 StorageQueryError。
         """
@@ -882,14 +840,12 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         except Exception as e:
             raise StorageQueryError(f"【阿里云盘】查询文件信息失败: {path} - {e}") from e
 
-    def get_folder(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, path: Path) -> schemas.FileItem | None:
         """
         获取指定路径的文件夹，如不存在则创建
         """
 
-        def __find_dir(
-            _fileitem: schemas.FileItem, _name: str
-        ) -> Optional[schemas.FileItem]:
+        def __find_dir(_fileitem: schemas.FileItem, _name: str) -> schemas.FileItem | None:
             """
             查找下级目录中匹配名称的目录
             """
@@ -905,9 +861,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         if folder:
             return folder
         # 逐级查找和创建目录
-        fileitem = schemas.FileItem(
-            storage=self.schema.value, path="/", drive_id=self._default_drive_id
-        )
+        fileitem = schemas.FileItem(storage=self.schema.value, path="/", drive_id=self._default_drive_id)
         for part in path.parts[1:]:
             dir_file = __find_dir(fileitem, part)
             if dir_file:
@@ -920,7 +874,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 fileitem = dir_file
         return fileitem
 
-    def detail(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def detail(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取文件/目录详细信息
         """
@@ -994,7 +948,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
     def softlink(self, fileitem: schemas.FileItem, target_file: Path) -> bool:
         pass
 
-    def usage(self) -> Optional[schemas.StorageUsage]:
+    def usage(self) -> schemas.StorageUsage | None:
         """
         获取带有企业级配额信息的存储使用情况
         """
@@ -1005,9 +959,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
             space = resp.get("personal_space_info") or {}
             total_size = space.get("total_size") or 0
             used_size = space.get("used_size") or 0
-            return schemas.StorageUsage(
-                total=total_size, available=total_size - used_size
-            )
+            return schemas.StorageUsage(total=total_size, available=total_size - used_size)
         except NoCheckInException:
             return None
         except SessionInvalidException:

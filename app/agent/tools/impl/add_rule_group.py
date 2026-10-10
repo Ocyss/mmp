@@ -6,7 +6,6 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     build_custom_rule_map,
     collect_rule_group_usages,
@@ -17,6 +16,7 @@ from app.agent.tools.impl._filter_rule_utils import (
     save_system_config,
     serialize_rule_group,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -33,11 +33,11 @@ class AddRuleGroupInput(BaseModel):
             "Example: 'SPECSUB & CNVOI & 4K & !BLU > CNSUB & CNVOI & 4K & !BLU'."
         ),
     )
-    media_type: Optional[str] = Field(
+    media_type: str | None = Field(
         None,
         description="Optional media type scope: '电影', '电视剧', 'movie', or 'tv'.",
     )
-    category: Optional[str] = Field(
+    category: str | None = Field(
         None,
         description="Optional media category. Only valid when media_type is set.",
     )
@@ -56,27 +56,25 @@ class AddRuleGroupTool(MoviePilotTool):
         "Before calling this tool, first use query_builtin_filter_rules and query_custom_filter_rules to confirm valid rule IDs, "
         "and optionally use query_rule_groups to imitate existing rule_string patterns."
     )
-    args_schema: Type[BaseModel] = AddRuleGroupInput
+    args_schema: type[BaseModel] = AddRuleGroupInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         return f"新增规则组 {kwargs.get('name', '')}"
 
     async def run(
         self,
         name: str,
         rule_string: str,
-        media_type: Optional[str] = None,
-        category: Optional[str] = None,
+        media_type: str | None = None,
+        category: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, name={name}")
 
         try:
             custom_rules = get_custom_rules()
-            available_rule_ids = set(get_builtin_rules().keys()) | set(
-                build_custom_rule_map(custom_rules).keys()
-            )
+            available_rule_ids = set(get_builtin_rules().keys()) | set(build_custom_rule_map(custom_rules).keys())
             rule_groups = get_rule_groups()
             new_group, _ = normalize_rule_group(
                 name=name,
@@ -98,9 +96,7 @@ class AddRuleGroupTool(MoviePilotTool):
                 {
                     "success": True,
                     "message": f"已新增规则组 {new_group.name}",
-                    "rule_group": serialize_rule_group(
-                        new_group, usage.get(new_group.name)
-                    ),
+                    "rule_group": serialize_rule_group(new_group, usage.get(new_group.name)),
                     "count": len(rule_groups),
                 },
                 ensure_ascii=False,

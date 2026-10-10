@@ -1,7 +1,8 @@
 import asyncio
 import json
 import uuid
-from typing import AsyncIterator, List, Optional
+from collections.abc import AsyncIterator
+from typing import List, Optional
 
 from fastapi import APIRouter, Header, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -38,7 +39,7 @@ def _anthropic_error_response(
     )
 
 
-def _check_auth(api_key: Optional[str]) -> Optional[JSONResponse]:
+def _check_auth(api_key: str | None) -> JSONResponse | None:
     """
     Anthropic 兼容接口以 API_TOKEN 认证受信客户端，认证通过即按管理员级 Agent 集成处理。
     """
@@ -54,7 +55,7 @@ def _check_auth(api_key: Optional[str]) -> Optional[JSONResponse]:
 async def _stream_anthropic_response(
     agent: _CollectingMoviePilotAgent,
     prompt: str,
-    images: List[str],
+    images: list[str],
 ) -> AsyncIterator[str]:
     event_queue: asyncio.Queue = asyncio.Queue()
     if hasattr(agent.stream_handler, "bind_queue"):
@@ -103,8 +104,8 @@ async def _stream_anthropic_response(
 )
 async def messages(
     payload: schemas.AnthropicMessagesRequest,
-    x_api_key: Optional[str] = Security(anthropic_api_key_header),
-    anthropic_version: Optional[str] = Header(default=None, alias="anthropic-version"),
+    x_api_key: str | None = Security(anthropic_api_key_header),
+    anthropic_version: str | None = Header(default=None, alias="anthropic-version"),
 ):
     auth_error = _check_auth(x_api_key)
     if auth_error:
@@ -152,9 +153,7 @@ async def messages(
         return _anthropic_error_response(str(exc), 500, error_type="api_error")
 
     content = "\n\n".join(
-        message.strip()
-        for message in agent.collected_messages
-        if message and message.strip()
+        message.strip() for message in agent.collected_messages if message and message.strip()
     ).strip()
     if not content and result:
         content = str(result).strip()

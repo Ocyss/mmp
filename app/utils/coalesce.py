@@ -9,9 +9,10 @@
 
 import asyncio
 import inspect
+from collections.abc import Awaitable, Callable, Hashable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Hashable, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from app.log import logger
 
@@ -44,7 +45,7 @@ class CoalesceSummary:
 
 
 # `on_flush` 回调签名：同步或 async 均可，由 coalescer 内部按需调度
-OnFlushCallback = Callable[[CoalesceSummary], Union[Awaitable[None], None]]
+OnFlushCallback = Callable[[CoalesceSummary], Awaitable[None] | None]
 
 
 @dataclass
@@ -58,7 +59,7 @@ class _BucketState:
     # 窗口内累计命中次数（含首条）
     count: int
     # `loop.call_later` 返回的 handle，用于 close() 时取消
-    flush_handle: Optional[asyncio.TimerHandle]
+    flush_handle: asyncio.TimerHandle | None
 
 
 class EventCoalescer:
@@ -95,7 +96,7 @@ class EventCoalescer:
         self._window_seconds = window_seconds
         self._on_flush = on_flush
         self._source = source
-        self._buckets: Dict[Hashable, _BucketState] = {}
+        self._buckets: dict[Hashable, _BucketState] = {}
         self._is_flush_async = inspect.iscoroutinefunction(on_flush)
 
     @property
@@ -105,9 +106,7 @@ class EventCoalescer:
         """
         return self._window_seconds
 
-    async def record(
-        self, key: Hashable, payload: Any = None
-    ) -> CoalesceDecision:
+    async def record(self, key: Hashable, payload: Any = None) -> CoalesceDecision:
         """
         登记一次事件。
 
@@ -175,9 +174,7 @@ class EventCoalescer:
             return
         await self._emit_summary_if_needed(key, bucket)
 
-    async def _emit_summary_if_needed(
-        self, key: Hashable, bucket: _BucketState
-    ) -> None:
+    async def _emit_summary_if_needed(self, key: Hashable, bucket: _BucketState) -> None:
         """
         仅当窗口内命中次数 > 1 时输出聚合摘要。
 

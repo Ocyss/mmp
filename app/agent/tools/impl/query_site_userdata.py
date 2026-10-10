@@ -26,7 +26,7 @@ class QuerySiteUserdataInput(BaseModel):
         ...,
         description="The ID of the site to query user data for (can be obtained from query_sites tool)",
     )
-    workdate: Optional[str] = Field(
+    workdate: str | None = Field(
         None,
         description="Work date to query (optional, format: 'YYYY-MM-DD', if not specified returns latest data)",
     )
@@ -41,9 +41,9 @@ class QuerySiteUserdataTool(MoviePilotTool):
     ]
     description: str = "Query user data for a specific site including username, user level, upload/download statistics, seeding information, bonus points, and other account details. Supports querying data for a specific date or latest data."
     require_admin: bool = True
-    args_schema: Type[BaseModel] = QuerySiteUserdataInput
+    args_schema: type[BaseModel] = QuerySiteUserdataInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         site_id = kwargs.get("site_id")
         workdate = kwargs.get("workdate")
@@ -56,10 +56,8 @@ class QuerySiteUserdataTool(MoviePilotTool):
 
         return message
 
-    async def run(self, site_id: int, workdate: Optional[str] = None, **kwargs) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: site_id={site_id}, workdate={workdate}"
-        )
+    async def run(self, site_id: int, workdate: str | None = None, **kwargs) -> str:
+        logger.info(f"执行工具: {self.name}, 参数: site_id={site_id}, workdate={workdate}")
 
         try:
             site_oper = SiteOper()
@@ -70,9 +68,7 @@ class QuerySiteUserdataTool(MoviePilotTool):
                     ensure_ascii=False,
                 )
 
-            user_data_list = await site_oper.async_get_userdata_by_domain(
-                domain=site.domain, workdate=workdate
-            )
+            user_data_list = await site_oper.async_get_userdata_by_domain(domain=site.domain, workdate=workdate)
 
             if not user_data_list:
                 return json.dumps(
@@ -101,26 +97,12 @@ class QuerySiteUserdataTool(MoviePilotTool):
             for user_data in user_data_list:
                 # 格式化上传/下载量（转换为可读格式）
                 upload_gb = user_data.upload / (1024**3) if user_data.upload else 0
-                download_gb = (
-                    user_data.download / (1024**3) if user_data.download else 0
-                )
-                seeding_size_gb = (
-                    user_data.seeding_size / (1024**3)
-                    if user_data.seeding_size
-                    else 0
-                )
-                leeching_size_gb = (
-                    user_data.leeching_size / (1024**3)
-                    if user_data.leeching_size
-                    else 0
-                )
+                download_gb = user_data.download / (1024**3) if user_data.download else 0
+                seeding_size_gb = user_data.seeding_size / (1024**3) if user_data.seeding_size else 0
+                leeching_size_gb = user_data.leeching_size / (1024**3) if user_data.leeching_size else 0
 
-                seeding_preview, seeding_count, seeding_truncated = _preview_list(
-                    user_data.seeding_info
-                )
-                unread_preview, unread_count, unread_truncated = _preview_list(
-                    user_data.message_unread_contents
-                )
+                seeding_preview, seeding_count, seeding_truncated = _preview_list(user_data.seeding_info)
+                unread_preview, unread_count, unread_truncated = _preview_list(user_data.message_unread_contents)
 
                 user_data_dict = {
                     "domain": user_data.domain,
@@ -136,9 +118,7 @@ class QuerySiteUserdataTool(MoviePilotTool):
                     "download_gb": round(download_gb, 2),
                     "ratio": round(user_data.ratio, 2) if user_data.ratio else 0,
                     "seeding": int(user_data.seeding) if user_data.seeding else 0,
-                    "leeching": int(user_data.leeching)
-                    if user_data.leeching
-                    else 0,
+                    "leeching": int(user_data.leeching) if user_data.leeching else 0,
                     "seeding_size": user_data.seeding_size,
                     "seeding_size_gb": round(seeding_size_gb, 2),
                     "leeching_size": user_data.leeching_size,
@@ -165,9 +145,7 @@ class QuerySiteUserdataTool(MoviePilotTool):
                     ),
                     reverse=True,
                 )
-                result["message"] = (
-                    f"找到 {len(result['user_data'])} 条数据，显示最新的一条"
-                )
+                result["message"] = f"找到 {len(result['user_data'])} 条数据，显示最新的一条"
                 result["user_data"] = [result["user_data"][0]]
 
             return json.dumps(result, ensure_ascii=False, indent=2)

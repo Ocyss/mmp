@@ -1,11 +1,11 @@
 import multiprocessing
 import os
-import setproctitle
 import signal
 import sys
 import threading
 from pathlib import Path
 
+import setproctitle
 import uvicorn as uvicorn
 from PIL import Image
 from uvicorn import Config
@@ -26,12 +26,12 @@ if stdio_log_file:
         ),
     )
 elif SystemUtils.is_frozen():
-    sys.stdout = open(os.devnull, 'w')
-    sys.stderr = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
 
-from app.factory import app
 from app.core.config import global_vars, settings
 from app.db.init import init_db, update_db
+from app.factory import app
 
 # 设置进程名
 setproctitle.setproctitle(settings.PROJECT_NAME)
@@ -46,9 +46,16 @@ class MoviePilotServer(uvicorn.Server):
 
 
 # uvicorn服务
-Server = MoviePilotServer(Config(app, host=settings.HOST, port=settings.PORT,
-                                 reload=settings.DEV, workers=multiprocessing.cpu_count() * 2 + 1,
-                                 timeout_graceful_shutdown=60))
+Server = MoviePilotServer(
+    Config(
+        app,
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEV,
+        workers=multiprocessing.cpu_count() * 2 + 1,
+        timeout_graceful_shutdown=60,
+    )
+)
 
 
 def request_shutdown() -> None:
@@ -73,6 +80,7 @@ def start_tray():
         调用浏览器打开前端页面
         """
         import webbrowser
+
         webbrowser.open(f"http://localhost:{settings.NGINX_PORT}")
 
     def quit_app():
@@ -87,17 +95,17 @@ def start_tray():
     # 托盘图标
     TrayIcon = pystray.Icon(
         settings.PROJECT_NAME,
-        icon=Image.open(settings.ROOT_PATH / 'app.ico'),
+        icon=Image.open(settings.ROOT_PATH / "app.ico"),
         menu=pystray.Menu(
             pystray.MenuItem(
-                '打开',
+                "打开",
                 open_web,
             ),
             pystray.MenuItem(
-                '退出',
+                "退出",
                 quit_app,
-            )
-        )
+            ),
+        ),
     )
     # 启动托盘图标
     threading.Thread(target=TrayIcon.run, daemon=True).start()
@@ -127,5 +135,5 @@ def run_application() -> None:
     Server.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_application()

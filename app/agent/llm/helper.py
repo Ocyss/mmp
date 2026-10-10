@@ -52,12 +52,13 @@ def _patch_gemini_thought_signature():
         # 检查版本：需要 >= 4.0 才支持 _is_gemini_3_or_later
         try:
             from importlib.metadata import version
+
             _version = version("langchain-google-genai") or ""
         except Exception:
             _version = ""
         try:
             _major = int(_version.split(".")[0]) if _version else 0
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             _major = 0
         if _major < 4:
             logger.error(
@@ -73,8 +74,7 @@ def _patch_gemini_thought_signature():
 
         if not hasattr(_cm, "_is_gemini_3_or_later"):
             logger.error(
-                "langchain-google-genai 缺少 _is_gemini_3_or_later，"
-                "无法修补 thought_signature 兼容性，请检查包版本"
+                "langchain-google-genai 缺少 _is_gemini_3_or_later，无法修补 thought_signature 兼容性，请检查包版本"
             )
             return
 
@@ -169,10 +169,10 @@ def _build_google_client_args(proxy_url: str | None) -> dict[str, Any]:
 
 
 def _build_httpx_client(
-        proxy_url: str | None,
-        *,
-        async_client: bool = False,
-        timeout: float | None = None,
+    proxy_url: str | None,
+    *,
+    async_client: bool = False,
+    timeout: float | None = None,
 ):
     """
     构造显式代理策略的 httpx 客户端。
@@ -229,12 +229,12 @@ def _is_deepseek_thinking_enabled(model_name: str | None, extra_body: Any) -> bo
 
 
 def _patch_interleaved_reasoning_request_support(
-        model_cls: Any,
-        *,
-        patch_marker: str,
-        thinking_filter: Any = None,
-        normalize_deepseek_messages: bool = False,
-        inject_missing_as_empty: bool = False,
+    model_cls: Any,
+    *,
+    patch_marker: str,
+    thinking_filter: Any = None,
+    normalize_deepseek_messages: bool = False,
+    inject_missing_as_empty: bool = False,
 ) -> None:
     """为兼容模型统一补回工具调用历史中的 reasoning_content。"""
     if getattr(model_cls, patch_marker, False):
@@ -242,9 +242,7 @@ def _patch_interleaved_reasoning_request_support(
 
     original_get_request_payload = getattr(model_cls, "_get_request_payload", None)
     if not callable(original_get_request_payload):
-        logger.warning(
-            f"{model_cls.__name__} 缺少 _get_request_payload，无法修补 reasoning_content"
-        )
+        logger.warning(f"{model_cls.__name__} 缺少 _get_request_payload，无法修补 reasoning_content")
         return
 
     @wraps(original_get_request_payload)
@@ -257,21 +255,17 @@ def _patch_interleaved_reasoning_request_support(
         if extra_body is None:
             extra_body = (getattr(self, "model_kwargs", None) or {}).get("extra_body")
         if thinking_filter is not None and not thinking_filter(
-                getattr(self, "model_name", None) or getattr(self, "model", None),
-                extra_body,
+            getattr(self, "model_name", None) or getattr(self, "model", None),
+            extra_body,
         ):
             return payload
 
         messages = self._convert_input(input_).to_messages()
         for index, payload_message in enumerate(payload["messages"]):
             if normalize_deepseek_messages:
-                if payload_message.get("role") == "tool" and isinstance(
-                        payload_message.get("content"), list
-                ):
+                if payload_message.get("role") == "tool" and isinstance(payload_message.get("content"), list):
                     payload_message["content"] = json.dumps(payload_message["content"])
-                elif payload_message.get("role") == "assistant" and isinstance(
-                        payload_message.get("content"), list
-                ):
+                elif payload_message.get("role") == "assistant" and isinstance(payload_message.get("content"), list):
                     payload_message["content"] = "".join(
                         block.get("text", "")
                         for block in payload_message["content"]
@@ -279,16 +273,14 @@ def _patch_interleaved_reasoning_request_support(
                     )
 
             if (
-                    payload_message.get("role") != "assistant"
-                    or index >= len(messages)
-                    or not isinstance(messages[index], AIMessage)
-                    or "reasoning_content" in payload_message
+                payload_message.get("role") != "assistant"
+                or index >= len(messages)
+                or not isinstance(messages[index], AIMessage)
+                or "reasoning_content" in payload_message
             ):
                 continue
 
-            reasoning_content = messages[index].additional_kwargs.get(
-                "reasoning_content"
-            )
+            reasoning_content = messages[index].additional_kwargs.get("reasoning_content")
             if reasoning_content is not None:
                 payload_message["reasoning_content"] = reasoning_content
             elif inject_missing_as_empty:
@@ -320,41 +312,29 @@ def _patch_openai_interleaved_reasoning_content_support():
 
     if not getattr(_openai_base, "_moviepilot_reasoning_response_patched", False):
         original_convert_dict = getattr(_openai_base, "_convert_dict_to_message", None)
-        original_convert_delta = getattr(
-            _openai_base, "_convert_delta_to_message_chunk", None
-        )
+        original_convert_delta = getattr(_openai_base, "_convert_delta_to_message_chunk", None)
 
         if callable(original_convert_dict):
+
             @wraps(original_convert_dict)
             def _patched_convert_dict_to_message(message_dict):
                 message = original_convert_dict(message_dict)
-                if (
-                        isinstance(message, AIMessage)
-                        and "reasoning_content" in message_dict
-                ):
-                    message.additional_kwargs["reasoning_content"] = (
-                        message_dict.get("reasoning_content") or ""
-                    )
+                if isinstance(message, AIMessage) and "reasoning_content" in message_dict:
+                    message.additional_kwargs["reasoning_content"] = message_dict.get("reasoning_content") or ""
                 return message
 
             _openai_base._convert_dict_to_message = _patched_convert_dict_to_message
 
         if callable(original_convert_delta):
+
             @wraps(original_convert_delta)
             def _patched_convert_delta_to_message_chunk(delta, default_class):
                 chunk = original_convert_delta(delta, default_class)
-                if (
-                        isinstance(chunk, AIMessageChunk)
-                        and "reasoning_content" in delta
-                ):
-                    chunk.additional_kwargs["reasoning_content"] = (
-                        delta.get("reasoning_content") or ""
-                    )
+                if isinstance(chunk, AIMessageChunk) and "reasoning_content" in delta:
+                    chunk.additional_kwargs["reasoning_content"] = delta.get("reasoning_content") or ""
                 return chunk
 
-            _openai_base._convert_delta_to_message_chunk = (
-                _patched_convert_delta_to_message_chunk
-            )
+            _openai_base._convert_delta_to_message_chunk = _patched_convert_delta_to_message_chunk
 
         _openai_base._moviepilot_reasoning_response_patched = True
 
@@ -402,7 +382,7 @@ def _patch_openai_responses_instructions_support():
 
         # 处理 ChatGPT 官方 Responses API (Codex) 端点兼容性
         is_codex = "chatgpt.com/backend-api/codex" in base_url
-        
+
         if is_codex and (getattr(self, "use_responses_api", False) or "input" in payload):
             instructions = payload.get("instructions", "")
             inputs = payload.get("input", [])
@@ -422,12 +402,21 @@ def _patch_openai_responses_instructions_support():
             payload["input"] = new_inputs
             payload["instructions"] = instructions or "You are a helpful assistant."
             payload["store"] = False
-            
+
             # Codex 端点不支持的部分常见补全参数，统一清理避免 400 报错
             unsupported_keys = [
-                "presence_penalty", "frequency_penalty", "top_p", "n", "user", 
-                "stop", "metadata", "logit_bias", "logprobs", "top_logprobs",
-                "stream_options", "temperature"
+                "presence_penalty",
+                "frequency_penalty",
+                "top_p",
+                "n",
+                "user",
+                "stop",
+                "metadata",
+                "logit_bias",
+                "logprobs",
+                "top_logprobs",
+                "stream_options",
+                "temperature",
             ]
             for key in unsupported_keys:
                 payload.pop(key, None)
@@ -457,9 +446,7 @@ def _patch_openai_responses_empty_output_support():
     if getattr(_openai_base, "_moviepilot_responses_empty_output_patched", False):
         return
 
-    original_construct = getattr(
-        _openai_base, "_construct_lc_result_from_responses_api", None
-    )
+    original_construct = getattr(_openai_base, "_construct_lc_result_from_responses_api", None)
     if not callable(original_construct):
         logger.warning("langchain-openai 缺少 Responses API 结果构造函数，无法修补 output")
         return
@@ -476,7 +463,7 @@ def _patch_openai_responses_empty_output_support():
                 logger.debug(f"复制 Responses 对象失败，回退原地修补 output：{e}")
 
         try:
-            setattr(response, "output", [])
+            response.output = []
         except Exception as e:
             logger.debug(f"原地修补 Responses output 失败：{e}")
         return response
@@ -490,9 +477,7 @@ def _patch_openai_responses_empty_output_support():
             response = _clone_response_with_empty_output(response)
         return original_construct(response, *args, **kwargs)
 
-    _openai_base._construct_lc_result_from_responses_api = (
-        _patched_construct_lc_result_from_responses_api
-    )
+    _openai_base._construct_lc_result_from_responses_api = _patched_construct_lc_result_from_responses_api
     _openai_base._moviepilot_responses_empty_output_patched = True
     logger.debug("已修补 langchain-openai responses API 空 output 兼容性")
 
@@ -500,9 +485,7 @@ def _patch_openai_responses_empty_output_support():
 class LLMHelper:
     """LLM模型相关辅助功能"""
 
-    _SUPPORTED_THINKING_LEVELS = frozenset(
-        {"off", "auto", "minimal", "low", "medium", "high", "max", "xhigh"}
-    )
+    _SUPPORTED_THINKING_LEVELS = frozenset({"off", "auto", "minimal", "low", "medium", "high", "max", "xhigh"})
 
     @staticmethod
     def _normalize_model_name(model_name: str | None) -> str:
@@ -512,9 +495,7 @@ class LLMHelper:
         return (model_name or "").strip().lower()
 
     @classmethod
-    def _normalize_deepseek_reasoning_effort(
-            cls, thinking_level: str | None = None
-    ) -> str | None:
+    def _normalize_deepseek_reasoning_effort(cls, thinking_level: str | None = None) -> str | None:
         """
         DeepSeek 文档当前建议使用 high/max；兼容常见 effort 别名。
         """
@@ -530,9 +511,7 @@ class LLMHelper:
         return None
 
     @classmethod
-    def _normalize_openai_reasoning_effort(
-            cls, thinking_level: str | None = None
-    ) -> str | None:
+    def _normalize_openai_reasoning_effort(cls, thinking_level: str | None = None) -> str | None:
         """
         OpenAI reasoning_effort 支持更细粒度的 effort，统一做最近似映射。
         """
@@ -545,9 +524,7 @@ class LLMHelper:
         return thinking_level
 
     @classmethod
-    def _build_google_thinking_kwargs(
-            cls, model_name: str, thinking_level: str
-    ) -> dict[str, Any]:
+    def _build_google_thinking_kwargs(cls, model_name: str, thinking_level: str) -> dict[str, Any]:
         """
         Gemini 3 使用 thinking_level；Gemini 2.5 使用 thinking_budget。
         """
@@ -608,9 +585,7 @@ class LLMHelper:
         return {}
 
     @classmethod
-    def _build_kimi_thinking_kwargs(
-            cls, model_name: str, thinking_level: str
-    ) -> dict[str, Any]:
+    def _build_kimi_thinking_kwargs(cls, model_name: str, thinking_level: str) -> dict[str, Any]:
         """
         Kimi 当前公开文档仅支持思考开关，不支持显式深度调节。
         """
@@ -622,10 +597,7 @@ class LLMHelper:
 
     @classmethod
     def _build_thinking_kwargs(
-            cls,
-            provider: str,
-            model: str | None,
-            thinking_level: str | None = None
+        cls, provider: str, model: str | None, thinking_level: str | None = None
     ) -> dict[str, Any]:
         """
         按 provider/model 生成思考模式相关参数。
@@ -643,9 +615,7 @@ class LLMHelper:
                 return {}
 
             kwargs: dict[str, Any] = {"extra_body": {"thinking": {"type": "enabled"}}}
-            deepseek_effort = cls._normalize_deepseek_reasoning_effort(
-                thinking_level
-            )
+            deepseek_effort = cls._normalize_deepseek_reasoning_effort(thinking_level)
             if deepseek_effort:
                 kwargs["reasoning_effort"] = deepseek_effort
             return kwargs
@@ -657,24 +627,18 @@ class LLMHelper:
             return {}
 
         # OpenAI 原生推理模型优先走 LangChain 内置 reasoning_effort。
-        if provider_name in {"openai", "chatgpt"} and model_name.startswith(
-                ("gpt-5", "o1", "o3", "o4")
-        ):
-            openai_effort = cls._normalize_openai_reasoning_effort(
-                thinking_level
-            )
+        if provider_name in {"openai", "chatgpt"} and model_name.startswith(("gpt-5", "o1", "o3", "o4")):
+            openai_effort = cls._normalize_openai_reasoning_effort(thinking_level)
             return {"reasoning_effort": openai_effort} if openai_effort else {}
 
         # Gemini 使用 google-genai / langchain-google-genai 内置思考控制参数。
         if provider_name == "google":
-            return cls._build_google_thinking_kwargs(
-                model_name, thinking_level
-            )
+            return cls._build_google_thinking_kwargs(model_name, thinking_level)
 
         return {}
 
     @staticmethod
-    def _metadata_supports_image_input(metadata: Any) -> Optional[bool]:
+    def _metadata_supports_image_input(metadata: Any) -> bool | None:
         """从模型元数据中读取图片输入能力，未知时返回 None。"""
         if not isinstance(metadata, dict):
             return None
@@ -684,20 +648,18 @@ class LLMHelper:
         if isinstance(input_modalities, str):
             input_modalities = [input_modalities]
         if isinstance(input_modalities, list):
-            normalized_modalities = {
-                str(item or "").strip().lower() for item in input_modalities
-            }
+            normalized_modalities = {str(item or "").strip().lower() for item in input_modalities}
             return "image" in normalized_modalities
         return None
 
     @classmethod
     def _resolve_catalog_image_input_support(
-            cls,
-            provider: Optional[str] = None,
-            model: Optional[str] = None,
-            base_url: Optional[str] = None,
-            base_url_preset: Optional[str] = None,
-    ) -> Optional[bool]:
+        cls,
+        provider: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        base_url_preset: str | None = None,
+    ) -> bool | None:
         """复用 provider 目录缓存解析当前模型是否支持图片输入。"""
         provider_name = str(provider if provider is not None else settings.LLM_PROVIDER).strip()
         model_name = str(model if model is not None else settings.LLM_MODEL).strip()
@@ -711,11 +673,7 @@ class LLMHelper:
                 provider_id=provider_name,
                 model_id=model_name,
                 base_url=base_url if base_url is not None else settings.LLM_BASE_URL,
-                base_url_preset_id=(
-                    base_url_preset
-                    if base_url_preset is not None
-                    else settings.LLM_BASE_URL_PRESET
-                ),
+                base_url_preset_id=(base_url_preset if base_url_preset is not None else settings.LLM_BASE_URL_PRESET),
             )
         except Exception as err:
             logger.debug(f"解析模型图片能力失败: {err}")
@@ -725,11 +683,11 @@ class LLMHelper:
 
     @classmethod
     def supports_image_input(
-            cls,
-            provider: Optional[str] = None,
-            model: Optional[str] = None,
-            base_url: Optional[str] = None,
-            base_url_preset: Optional[str] = None,
+        cls,
+        provider: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        base_url_preset: str | None = None,
     ) -> bool:
         """
         判断当前模型是否启用了图片输入能力。
@@ -756,11 +714,11 @@ class LLMHelper:
 
     @staticmethod
     def _build_legacy_runtime(
-            provider_name: str,
-            model_name: str | None,
-            api_key: str | None = None,
-            base_url: str | None = None,
-            user_agent: str | None = None,
+        provider_name: str,
+        model_name: str | None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        user_agent: str | None = None,
     ) -> dict[str, Any]:
         """
         在 provider 目录不可用时回退到旧的直接构造逻辑。
@@ -773,11 +731,7 @@ class LLMHelper:
         if not api_key_value:
             raise ValueError("未配置LLM API Key")
 
-        runtime_name = (
-            provider_name
-            if provider_name in {"google", "deepseek"}
-            else "openai_compatible"
-        )
+        runtime_name = provider_name if provider_name in {"google", "deepseek"} else "openai_compatible"
         return {
             "provider_id": provider_name,
             "runtime": runtime_name,
@@ -795,8 +749,8 @@ class LLMHelper:
 
     @staticmethod
     def _build_openai_default_headers(
-            default_headers: dict[str, str] | None = None,
-            user_agent: str | None = None,
+        default_headers: dict[str, str] | None = None,
+        user_agent: str | None = None,
     ) -> dict[str, str] | None:
         """
         合并 OpenAI 兼容接口默认请求头。
@@ -824,14 +778,14 @@ class LLMHelper:
 
     @classmethod
     def _build_openai_prompt_cache_options(
-            cls,
-            *,
-            provider: str,
-            base_url: str | None,
-            use_responses_api: bool | None,
-            prompt_cache_key: str | None,
-            default_headers: dict[str, str] | None,
-            model_kwargs: dict[str, Any],
+        cls,
+        *,
+        provider: str,
+        base_url: str | None,
+        use_responses_api: bool | None,
+        prompt_cache_key: str | None,
+        default_headers: dict[str, str] | None,
+        model_kwargs: dict[str, Any],
     ) -> tuple[dict[str, str] | None, dict[str, Any]]:
         """为 OpenAI 与 xAI 官方端点构造稳定提示词缓存路由参数。"""
         cache_key = str(prompt_cache_key or "").strip()
@@ -863,8 +817,8 @@ class LLMHelper:
 
     @staticmethod
     def _with_prompt_cache_control(
-            model_cls: type,
-            cache_control: dict[str, str],
+        model_cls: type,
+        cache_control: dict[str, str],
     ) -> type:
         """创建在最终模型绑定阶段保留缓存控制参数的适配类。"""
 
@@ -881,18 +835,17 @@ class LLMHelper:
 
     @classmethod
     def _use_anthropic_prompt_cache(
-            cls,
-            *,
-            provider: str,
-            runtime: dict[str, Any],
-            prompt_cache_key: str | None,
+        cls,
+        *,
+        provider: str,
+        runtime: dict[str, Any],
+        prompt_cache_key: str | None,
     ) -> bool:
         """判断当前运行时是否为可安全启用缓存的 Anthropic 官方端点。"""
         return (
             bool(str(prompt_cache_key or "").strip())
             and str(provider or "").strip().lower() == "anthropic"
-            and str(runtime.get("runtime") or "").strip().lower()
-            == "anthropic_compatible"
+            and str(runtime.get("runtime") or "").strip().lower() == "anthropic_compatible"
             and cls._matches_endpoint_host(
                 runtime.get("base_url"),
                 "api.anthropic.com",
@@ -901,11 +854,11 @@ class LLMHelper:
 
     @classmethod
     def _should_use_openai_responses_api(
-            cls,
-            provider: str,
-            model: str | None,
-            runtime: dict[str, Any],
-            api_protocol: str | None = None,
+        cls,
+        provider: str,
+        model: str | None,
+        runtime: dict[str, Any],
+        api_protocol: str | None = None,
     ) -> bool | None:
         """
         判断本次 OpenAI 兼容调用是否应使用 Responses API。
@@ -992,8 +945,8 @@ class LLMHelper:
 
     @staticmethod
     def _attach_server_tool_metadata(
-            model: Any,
-            resolution: "ServerToolResolution",
+        model: Any,
+        resolution: ServerToolResolution,
     ) -> None:
         """把服务端工具解析结果挂到模型实例，供 Agent 组装工具列表。"""
         metadata = {
@@ -1004,7 +957,7 @@ class LLMHelper:
             "reason": resolution.reason,
         }
         try:
-            setattr(model, "_moviepilot_server_tool_metadata", metadata)
+            model._moviepilot_server_tool_metadata = metadata
         except Exception:
             object.__setattr__(model, "_moviepilot_server_tool_metadata", metadata)
 
@@ -1022,8 +975,8 @@ class LLMHelper:
 
     @classmethod
     def _resolve_thinking_level(
-            cls,
-            thinking_level: str | None = None,
+        cls,
+        thinking_level: str | None = None,
     ) -> str | None:
         """
         统一兼容新旧 thinking 参数。
@@ -1056,20 +1009,20 @@ class LLMHelper:
 
     @classmethod
     async def get_llm(
-            cls,
-            streaming: bool = False,
-            provider: str | None = None,
-            model: str | None = None,
-            thinking_level: str | None = None,
-            api_key: str | None = None,
-            base_url: str | None = None,
-            base_url_preset: str | None = None,
-            user_agent: str | None = None,
-            temperature: Optional[float] = None,
-            use_proxy: bool | None = None,
-            api_protocol: str | None = None,
-            web_search_mode: str | None = None,
-            prompt_cache_key: str | None = None,
+        cls,
+        streaming: bool = False,
+        provider: str | None = None,
+        model: str | None = None,
+        thinking_level: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        base_url_preset: str | None = None,
+        user_agent: str | None = None,
+        temperature: float | None = None,
+        use_proxy: bool | None = None,
+        api_protocol: str | None = None,
+        web_search_mode: str | None = None,
+        prompt_cache_key: str | None = None,
     ):
         """
         获取LLM实例
@@ -1100,9 +1053,7 @@ class LLMHelper:
         model_name = model if model is not None else settings.LLM_MODEL
         api_key_value = api_key if api_key is not None else settings.LLM_API_KEY
         base_url_value = base_url if base_url is not None else settings.LLM_BASE_URL
-        base_url_preset_value = (
-            base_url_preset if base_url_preset is not None else settings.LLM_BASE_URL_PRESET
-        )
+        base_url_preset_value = base_url_preset if base_url_preset is not None else settings.LLM_BASE_URL_PRESET
         user_agent_value = user_agent if user_agent is not None else settings.LLM_USER_AGENT
         temperature_value = temperature if temperature is not None else settings.LLM_TEMPERATURE
         normalized_thinking_level = cls._resolve_thinking_level(
@@ -1141,21 +1092,12 @@ class LLMHelper:
             provider=provider_name,
             model=model_name,
             mode=(
-                web_search_mode
-                if web_search_mode is not None
-                else getattr(settings, "LLM_WEB_SEARCH_MODE", "local")
+                web_search_mode if web_search_mode is not None else getattr(settings, "LLM_WEB_SEARCH_MODE", "local")
             ),
-            api_protocol=(
-                api_protocol
-                if api_protocol is not None
-                else settings.LLM_API_PROTOCOL
-            ),
+            api_protocol=(api_protocol if api_protocol is not None else settings.LLM_API_PROTOCOL),
             base_url=runtime.get("base_url"),
         )
-        if (
-                server_tool_resolution.mode == "builtin"
-                and not server_tool_resolution.available
-        ):
+        if server_tool_resolution.mode == "builtin" and not server_tool_resolution.available:
             raise ServerToolUnavailableError(
                 provider=provider_name,
                 model=str(model_name or ""),
@@ -1210,18 +1152,16 @@ class LLMHelper:
                 **thinking_kwargs,
             )
         elif (
-                runtime["runtime"] == "deepseek"
-                and server_tool_resolution.client_adapter != "openai_responses"
-                and use_responses_api is not True
+            runtime["runtime"] == "deepseek"
+            and server_tool_resolution.client_adapter != "openai_responses"
+            and use_responses_api is not True
         ):
             from langchain_deepseek import ChatDeepSeek
 
             _patch_interleaved_reasoning_request_support(
                 ChatDeepSeek,
                 patch_marker="_moviepilot_reasoning_content_patched",
-                thinking_filter=lambda model_name, extra_body: (
-                    _is_deepseek_thinking_enabled(model_name, extra_body)
-                ),
+                thinking_filter=lambda model_name, extra_body: _is_deepseek_thinking_enabled(model_name, extra_body),
                 normalize_deepseek_messages=True,
                 inject_missing_as_empty=True,
             )
@@ -1243,10 +1183,7 @@ class LLMHelper:
             from app.agent.llm.provider import LLMProviderManager
 
             bedrock_model_cls = ChatBedrockConverse
-            if (
-                    str(prompt_cache_key or "").strip()
-                    and runtime.get("supports_prompt_cache")
-            ):
+            if str(prompt_cache_key or "").strip() and runtime.get("supports_prompt_cache"):
                 bedrock_model_cls = cls._with_prompt_cache_control(
                     ChatBedrockConverse,
                     {"type": "default"},
@@ -1275,9 +1212,9 @@ class LLMHelper:
 
             anthropic_model_cls = ChatAnthropic
             if cls._use_anthropic_prompt_cache(
-                    provider=provider_name,
-                    runtime=runtime,
-                    prompt_cache_key=prompt_cache_key,
+                provider=provider_name,
+                runtime=runtime,
+                prompt_cache_key=prompt_cache_key,
             ):
                 anthropic_model_cls = cls._with_prompt_cache_control(
                     ChatAnthropic,
@@ -1300,9 +1237,11 @@ class LLMHelper:
             from langchain_openai import ChatOpenAI
 
             _patch_openai_responses_instructions_support()
-            
+
             # ChatGPT Codex 端点强制要求 stream: True
-            if runtime.get("use_responses_api") and "chatgpt.com/backend-api/codex" in str(runtime.get("base_url") or ""):
+            if runtime.get("use_responses_api") and "chatgpt.com/backend-api/codex" in str(
+                runtime.get("base_url") or ""
+            ):
                 streaming = True
 
             model = ChatOpenAI(
@@ -1332,20 +1271,18 @@ class LLMHelper:
         model_profile = getattr(model, "profile", None)
         if model_profile:
             # ChatBedrockConverse 等模型类没有 model 属性，模型名存放在 model_id。
-            logged_model_name = getattr(model, "model", None) or getattr(
-                model, "model_id", model_name
-            )
+            logged_model_name = getattr(model, "model", None) or getattr(model, "model_id", model_name)
             logger.debug(f"使用LLM模型: {logged_model_name}，Profile: {model_profile}")
         else:
             model_record = runtime.get("model_record") or {}
             model_metadata = runtime.get("model_metadata") or {}
             metadata_limit = model_metadata.get("limit") or {}
             max_input_tokens = (
-                    model_record.get("input_tokens")
-                    or model_record.get("context_tokens")
-                    or metadata_limit.get("input")
-                    or metadata_limit.get("context")
-                    or settings.LLM_MAX_CONTEXT_TOKENS * 1000
+                model_record.get("input_tokens")
+                or model_record.get("context_tokens")
+                or metadata_limit.get("input")
+                or metadata_limit.get("context")
+                or settings.LLM_MAX_CONTEXT_TOKENS * 1000
             )
             model.profile = {
                 "max_input_tokens": int(max_input_tokens),
@@ -1378,10 +1315,10 @@ class LLMHelper:
                 if isinstance(block, dict) or hasattr(block, "get"):
                     block_type = block.get("type")
                     if block.get("thought") or block_type in (
-                            "thinking",
-                            "reasoning_content",
-                            "reasoning",
-                            "thought",
+                        "thinking",
+                        "reasoning_content",
+                        "reasoning",
+                        "thought",
                     ):
                         continue
                     if block_type == "text":
@@ -1401,19 +1338,19 @@ class LLMHelper:
 
     @staticmethod
     async def test_current_settings(
-            prompt: str = "请只回复 OK",
-            timeout: int = 20,
-            provider: str | None = None,
-            model: str | None = None,
-            thinking_level: str | None = None,
-            api_key: str | None = None,
-            base_url: str | None = None,
-            base_url_preset: str | None = None,
-            user_agent: str | None = None,
-            temperature: Optional[float] = None,
-            use_proxy: bool | None = None,
-            api_protocol: str | None = None,
-            web_search_mode: str | None = None,
+        prompt: str = "请只回复 OK",
+        timeout: int = 20,
+        provider: str | None = None,
+        model: str | None = None,
+        thinking_level: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        base_url_preset: str | None = None,
+        user_agent: str | None = None,
+        temperature: float | None = None,
+        use_proxy: bool | None = None,
+        api_protocol: str | None = None,
+        web_search_mode: str | None = None,
     ) -> dict:
         """
         使用当前配置或显式传入的临时配置执行一次最小 LLM 调用。
@@ -1451,9 +1388,7 @@ class LLMHelper:
             duration_ms = round((time.perf_counter() - start) * 1000)
             raise LLMTestError(str(err), duration_ms=duration_ms) from err
 
-        reply_text = LLMHelper.extract_text_content(
-            getattr(response, "content", response)
-        ).strip()
+        reply_text = LLMHelper.extract_text_content(getattr(response, "content", response)).strip()
         duration_ms = round((time.perf_counter() - start) * 1000)
 
         data = {
@@ -1466,15 +1401,15 @@ class LLMHelper:
         return data
 
     async def get_models(
-            self,
-            provider: str,
-            api_key: str | None = None,
-            base_url: str | None = None,
-            base_url_preset: str | None = None,
-            user_agent: str | None = None,
-            use_proxy: bool | None = None,
-            force_refresh: bool = False,
-    ) -> List[dict[str, Any]]:
+        self,
+        provider: str,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        base_url_preset: str | None = None,
+        user_agent: str | None = None,
+        use_proxy: bool | None = None,
+        force_refresh: bool = False,
+    ) -> list[dict[str, Any]]:
         """
         获取模型列表。
 
@@ -1543,10 +1478,10 @@ class LLMHelper:
 
     @staticmethod
     def _attach_server_tool_capabilities(
-            provider: str,
-            models: List[dict[str, Any]],
-            base_url: Optional[str] = None,
-    ) -> List[dict[str, Any]]:
+        provider: str,
+        models: list[dict[str, Any]],
+        base_url: str | None = None,
+    ) -> list[dict[str, Any]]:
         """为模型目录附加通用服务端工具能力元数据。"""
         from app.agent.llm.server_tools import ServerToolRegistry
 
@@ -1562,7 +1497,7 @@ class LLMHelper:
         return result
 
     @staticmethod
-    async def _get_google_models(api_key: str, use_proxy: bool | None = None) -> List[str]:
+    async def _get_google_models(api_key: str, use_proxy: bool | None = None) -> list[str]:
         """获取Google模型列表（使用 google-genai SDK v1）"""
         try:
             from google import genai
@@ -1577,11 +1512,7 @@ class LLMHelper:
 
             client = genai.Client(api_key=api_key, http_options=http_options)
             models = await client.aio.models.list()
-            result = [
-                m.name
-                for m in models.page
-                if m.supported_actions and "generateContent" in m.supported_actions
-            ]
+            result = [m.name for m in models.page if m.supported_actions and "generateContent" in m.supported_actions]
             await client.aio.aclose()
             return result
         except Exception as e:
@@ -1590,12 +1521,12 @@ class LLMHelper:
 
     @staticmethod
     async def _get_openai_compatible_models(
-            provider: str,
-            api_key: str,
-            base_url: str = None,
-            user_agent: str | None = None,
-            use_proxy: bool | None = None,
-    ) -> List[str]:
+        provider: str,
+        api_key: str,
+        base_url: str = None,
+        user_agent: str | None = None,
+        use_proxy: bool | None = None,
+    ) -> list[str]:
         """获取OpenAI兼容模型列表"""
         try:
             from openai import AsyncOpenAI

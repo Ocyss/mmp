@@ -1,6 +1,6 @@
 import base64
 import time
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from lxml import etree
 
@@ -60,11 +60,11 @@ class CookieHelper:
             '//input[@name="two_step_code"]',
             '//input[@name="2fa_secret"]',
             '//input[@name="otp"]',
-        ]
+        ],
     }
 
     @staticmethod
-    def get_page_content(page: BrowserPage, retries: int = 3, interval: float = 1.0) -> Optional[str]:
+    def get_page_content(page: BrowserPage, retries: int = 3, interval: float = 1.0) -> str | None:
         """
         获取页面源码，页面跳转中（如登录前后的重定向）会导致 page.content() 抛出
         "Unable to retrieve content because the page is navigating" 异常，等待加载完成后重试
@@ -105,13 +105,15 @@ class CookieHelper:
             cookie_str += f"{cookie['name']}={cookie['value']}; "
         return cookie_str
 
-    def get_site_cookie_ua(self,
-                           url: str,
-                           username: str,
-                           password: str,
-                           two_step_code: Optional[str] = None,
-                           proxies: Optional[dict] = None,
-                           timeout: int = None) -> Tuple[Optional[str], Optional[str], str]:
+    def get_site_cookie_ua(
+        self,
+        url: str,
+        username: str,
+        password: str,
+        two_step_code: str | None = None,
+        proxies: dict | None = None,
+        timeout: int = None,
+    ) -> tuple[str | None, str | None, str]:
         """
         获取站点cookie和ua
         :param url: 站点地址
@@ -123,7 +125,7 @@ class CookieHelper:
         :return: cookie、ua、message
         """
 
-        def __page_handler(page: BrowserPage) -> Tuple[Optional[str], Optional[str], str]:
+        def __page_handler(page: BrowserPage) -> tuple[str | None, str | None, str]:
             """
             页面处理
             :return: Cookie和UA
@@ -287,15 +289,19 @@ class CookieHelper:
                     if not latest_text:
                         continue
                     if SiteUtils.is_logged_in(latest_text):
-                        return self.parse_cookies(page.context.cookies()), \
-                            page.evaluate("() => window.navigator.userAgent"), ""
+                        return (
+                            self.parse_cookies(page.context.cookies()),
+                            page.evaluate("() => window.navigator.userAgent"),
+                            "",
+                        )
                     # 保留首个快照用于失败时解析错误信息，避免提示被后续跳转或自动消失覆盖
                     if html_text is None:
                         html_text = latest_text
                     # 页面已出现明确的登录错误信息时，以该快照为准并提前结束重试
                     latest_html = etree.HTML(latest_text)
-                    if latest_html is not None and \
-                            any(latest_html.xpath(x) for x in self._SITE_LOGIN_XPATH.get("error")):
+                    if latest_html is not None and any(
+                        latest_html.xpath(x) for x in self._SITE_LOGIN_XPATH.get("error")
+                    ):
                         html_text = latest_text
                         break
                 if not html_text:
@@ -322,10 +328,7 @@ class CookieHelper:
         if not url or not username or not password:
             return None, None, "参数错误"
 
-        return PlaywrightHelper().action(url=url,
-                                         callback=__page_handler,
-                                         proxies=proxies,
-                                         timeout=timeout)
+        return PlaywrightHelper().action(url=url, callback=__page_handler, proxies=proxies, timeout=timeout)
 
     @staticmethod
     def __get_captcha_text(cookie: str, ua: str, code_url: str) -> str:
@@ -338,9 +341,7 @@ class CookieHelper:
         if ret:
             if not ret.content:
                 return ""
-            return OcrHelper().get_captcha_text(
-                image_b64=base64.b64encode(ret.content).decode()
-            )
+            return OcrHelper().get_captcha_text(image_b64=base64.b64encode(ret.content).decode())
         else:
             return ""
 

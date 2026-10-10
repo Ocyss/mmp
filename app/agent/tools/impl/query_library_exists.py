@@ -3,7 +3,7 @@
 import asyncio
 import json
 from collections import OrderedDict
-from typing import Optional, Type, Any
+from typing import Any, Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -15,7 +15,7 @@ from app.log import logger
 from app.schemas.types import MediaType, media_type_to_agent
 
 
-def _sort_seasons(seasons: Optional[dict]) -> dict:
+def _sort_seasons(seasons: dict | None) -> dict:
     """按季号、集号升序整理季集信息，保证输出稳定。"""
     if not seasons:
         return {}
@@ -23,7 +23,7 @@ def _sort_seasons(seasons: Optional[dict]) -> dict:
     def _sort_key(value):
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return str(value)
 
     return OrderedDict(
@@ -32,14 +32,14 @@ def _sort_seasons(seasons: Optional[dict]) -> dict:
     )
 
 
-def _filter_regular_seasons(seasons: Optional[dict]) -> OrderedDict:
+def _filter_regular_seasons(seasons: dict | None) -> OrderedDict:
     """仅保留正片季，忽略 season 0 等特殊季。"""
     sorted_seasons = _sort_seasons(seasons)
     regular_seasons = OrderedDict()
     for season, episodes in sorted_seasons.items():
         try:
             season_number = int(season)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if season_number > 0:
             regular_seasons[season_number] = episodes
@@ -64,26 +64,24 @@ def _build_tv_server_result(existing_seasons: OrderedDict, total_seasons: Ordere
         seasons_result[str(season)] = {
             "existing_episodes": existing_episodes,
             "total_episodes": total_episode_count,
-            "missing_episodes": missing_episodes
+            "missing_episodes": missing_episodes,
         }
         if total_episodes is not None and not existing_episodes:
             missing_seasons.append(season)
 
-    return {
-        "seasons": seasons_result,
-        "missing_seasons": missing_seasons
-    }
+    return {"seasons": seasons_result, "missing_seasons": missing_seasons}
 
 
 class QueryLibraryExistsInput(BaseModel):
     """查询媒体库工具的输入参数模型"""
-    tmdb_id: Optional[int] = Field(None, description="TMDB media ID")
-    douban_id: Optional[str] = Field(None, description="Douban media ID")
-    bangumi_id: Optional[int] = Field(None, description="Bangumi media ID")
-    anilist_id: Optional[int] = Field(None, description="AniList media ID")
-    media_source: Optional[str] = Field(None, description="Media metadata source")
-    media_id: Optional[str] = Field(None, description="Native ID for media_source")
-    media_type: Optional[str] = Field(None, description="Allowed values: movie, tv")
+
+    tmdb_id: int | None = Field(None, description="TMDB media ID")
+    douban_id: str | None = Field(None, description="Douban media ID")
+    bangumi_id: int | None = Field(None, description="Bangumi media ID")
+    anilist_id: int | None = Field(None, description="AniList media ID")
+    media_source: str | None = Field(None, description="Media metadata source")
+    media_id: str | None = Field(None, description="Native ID for media_source")
+    media_type: str | None = Field(None, description="Allowed values: movie, tv")
 
 
 class QueryLibraryExistsTool(MoviePilotTool):
@@ -94,9 +92,9 @@ class QueryLibraryExistsTool(MoviePilotTool):
         ToolTag.Media,
     ]
     description: str = "Check whether media already exists in Plex, Emby, or Jellyfin by a TMDB, Douban, Bangumi, AniList, or source-native media ID. Results are grouped by media server; TV results include existing episodes, total episodes, and missing episodes/seasons."
-    args_schema: Type[BaseModel] = QueryLibraryExistsInput
+    args_schema: type[BaseModel] = QueryLibraryExistsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         media_type = kwargs.get("media_type")
         identities = (
@@ -121,14 +119,21 @@ class QueryLibraryExistsTool(MoviePilotTool):
         return sorted(MediaServerHelper().get_services().keys())
 
     @staticmethod
-    def _query_media_exists(mediainfo, server: Optional[str] = None):
+    def _query_media_exists(mediainfo, server: str | None = None):
         """同步查询单个媒体服务器的存在性信息。"""
         return MediaServerChain().media_exists(mediainfo=mediainfo, server=server)
 
-    async def run(self, tmdb_id: Optional[int] = None, douban_id: Optional[str] = None,
-                  bangumi_id: Optional[int] = None, anilist_id: Optional[int] = None,
-                  media_source: Optional[str] = None, media_id: Optional[str] = None,
-                  media_type: Optional[str] = None, **kwargs) -> str:
+    async def run(
+        self,
+        tmdb_id: int | None = None,
+        douban_id: str | None = None,
+        bangumi_id: int | None = None,
+        anilist_id: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        media_type: str | None = None,
+        **kwargs,
+    ) -> str:
         logger.info(f"执行工具: {self.name}, 参数: tmdb_id={tmdb_id}, douban_id={douban_id}, media_type={media_type}")
         try:
             if not any((tmdb_id, douban_id, bangumi_id, anilist_id, media_id)):
@@ -178,38 +183,30 @@ class QueryLibraryExistsTool(MoviePilotTool):
                 if existsinfo.type == MediaType.TV:
                     existing_seasons = _filter_regular_seasons(existsinfo.seasons)
                     server_results[service_name] = _build_tv_server_result(
-                        existing_seasons=existing_seasons,
-                        total_seasons=total_seasons
+                        existing_seasons=existing_seasons, total_seasons=total_seasons
                     )
                 else:
-                    server_results[service_name] = {
-                        "exists": True
-                    }
+                    server_results[service_name] = {"exists": True}
 
             if not server_results:
-                global_existsinfo = await self.run_blocking(
-                    "mediaserver", self._query_media_exists, mediainfo, None
-                )
+                global_existsinfo = await self.run_blocking("mediaserver", self._query_media_exists, mediainfo, None)
                 if not global_existsinfo:
                     return "媒体库中未找到相关媒体"
 
                 fallback_server_name = global_existsinfo.server or "local"
                 if global_existsinfo.type == MediaType.TV:
                     server_results[fallback_server_name] = _build_tv_server_result(
-                        existing_seasons=_filter_regular_seasons(global_existsinfo.seasons),
-                        total_seasons=total_seasons
+                        existing_seasons=_filter_regular_seasons(global_existsinfo.seasons), total_seasons=total_seasons
                     )
                 else:
-                    server_results[fallback_server_name] = {
-                        "exists": True
-                    }
+                    server_results[fallback_server_name] = {"exists": True}
 
             # 3. 组装统一的存在性结果，不查询媒体服务器详情
             result_dict = {
                 "title": mediainfo.title,
                 "year": mediainfo.year,
                 "type": media_type_to_agent(mediainfo.type),
-                "servers": server_results
+                "servers": server_results,
             }
 
             return json.dumps([result_dict], ensure_ascii=False)

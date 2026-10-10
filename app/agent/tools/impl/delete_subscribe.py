@@ -30,10 +30,10 @@ class DeleteSubscribeTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Delete a media subscription by its ID. This will remove the subscription and stop automatic downloads for that media."
-    args_schema: Type[BaseModel] = DeleteSubscribeInput
+    args_schema: type[BaseModel] = DeleteSubscribeInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据删除参数生成友好的提示消息"""
         subscribe_id = kwargs.get("subscribe_id")
         return f"删除订阅 (ID: {subscribe_id})"

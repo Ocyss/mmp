@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.helper.service import ServiceBaseHelper
 from app.schemas import NotificationConf, ServiceInfo
-from app.schemas.types import SystemConfigKey, ModuleType
+from app.schemas.types import ModuleType, SystemConfigKey
 
 
 class NotificationHelper(ServiceBaseHelper[NotificationConf]):
@@ -12,16 +12,14 @@ class NotificationHelper(ServiceBaseHelper[NotificationConf]):
 
     def __init__(self):
         super().__init__(
-            config_key=SystemConfigKey.Notifications,
-            conf_type=NotificationConf,
-            module_type=ModuleType.Notification
+            config_key=SystemConfigKey.Notifications, conf_type=NotificationConf, module_type=ModuleType.Notification
         )
 
     def is_notification(
-            self,
-            service_type: Optional[str] = None,
-            service: Optional[ServiceInfo] = None,
-            name: Optional[str] = None,
+        self,
+        service_type: str | None = None,
+        service: ServiceInfo | None = None,
+        name: str | None = None,
     ) -> bool:
         """
         通用的消息通知服务类型判断方法

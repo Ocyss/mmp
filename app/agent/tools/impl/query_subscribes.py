@@ -48,28 +48,24 @@ QUERY_SUBSCRIBE_OUTPUT_FIELDS = [
 class QuerySubscribesInput(BaseModel):
     """查询订阅工具的输入参数模型"""
 
-    status: Optional[str] = Field(
+    status: str | None = Field(
         "all",
         description="Filter subscriptions by status: 'R' for enabled subscriptions, 'S' for paused ones, 'all' for all subscriptions",
     )
-    media_type: Optional[str] = Field(
-        "all", description="Allowed values: movie, tv, all"
-    )
-    tmdb_id: Optional[int] = Field(
+    media_type: str | None = Field("all", description="Allowed values: movie, tv, all")
+    tmdb_id: int | None = Field(
         None,
         description="Filter by TMDB ID to check if a specific media is already subscribed",
     )
-    douban_id: Optional[str] = Field(
+    douban_id: str | None = Field(
         None,
         description="Filter by Douban ID to check if a specific media is already subscribed",
     )
-    bangumi_id: Optional[int] = Field(None, description="Filter by Bangumi ID")
-    anilist_id: Optional[int] = Field(None, description="Filter by AniList ID")
-    media_source: Optional[str] = Field(None, description="Filter by media source")
-    media_id: Optional[str] = Field(None, description="Filter by source-native media ID")
-    page: Optional[int] = Field(
-        1, description="Page number for pagination (default: 1, 100 items per page)"
-    )
+    bangumi_id: int | None = Field(None, description="Filter by Bangumi ID")
+    anilist_id: int | None = Field(None, description="Filter by AniList ID")
+    media_source: str | None = Field(None, description="Filter by media source")
+    media_id: str | None = Field(None, description="Filter by source-native media ID")
+    page: int | None = Field(1, description="Page number for pagination (default: 1, 100 items per page)")
 
 
 class QuerySubscribesTool(MoviePilotTool):
@@ -79,9 +75,9 @@ class QuerySubscribesTool(MoviePilotTool):
         ToolTag.Subscription,
     ]
     description: str = "Query subscription status and list user subscriptions. Returns full subscription parameters for each matched subscription. Supports pagination with 100 items per page."
-    args_schema: Type[BaseModel] = QuerySubscribesInput
+    args_schema: type[BaseModel] = QuerySubscribesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         status = kwargs.get("status", "all")
         media_type = kwargs.get("media_type", "all")
@@ -104,15 +100,15 @@ class QuerySubscribesTool(MoviePilotTool):
 
     async def run(
         self,
-        status: Optional[str] = "all",
-        media_type: Optional[str] = "all",
-        tmdb_id: Optional[int] = None,
-        douban_id: Optional[str] = None,
-        bangumi_id: Optional[int] = None,
-        anilist_id: Optional[int] = None,
-        media_source: Optional[str] = None,
-        media_id: Optional[str] = None,
-        page: Optional[int] = 1,
+        status: str | None = "all",
+        media_type: str | None = "all",
+        tmdb_id: int | None = None,
+        douban_id: str | None = None,
+        bangumi_id: int | None = None,
+        anilist_id: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        page: int | None = 1,
         **kwargs,
     ) -> str:
         page = max(1, page or 1)
@@ -129,10 +125,7 @@ class QuerySubscribesTool(MoviePilotTool):
             for sub in subscribes:
                 if status != "all" and sub.state != status:
                     continue
-                if (
-                    media_type != "all"
-                    and sub.type != MediaType.from_agent(media_type).value
-                ):
+                if media_type != "all" and sub.type != MediaType.from_agent(media_type).value:
                     continue
                 if tmdb_id is not None and sub.tmdbid != tmdb_id:
                     continue

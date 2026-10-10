@@ -1,15 +1,15 @@
 import io
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from PIL import Image
 
 from app.chain.mediaserver import MediaServerChain
 from app.chain.tmdb import TmdbChain
-from app.core.cache import cached, FileCache, AsyncFileCache
+from app.core.cache import AsyncFileCache, FileCache, cached
 from app.core.config import settings
 from app.log import logger
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.ip import IpUtils
 from app.utils.security import SecurityUtils
 from app.utils.singleton import Singleton
@@ -20,7 +20,7 @@ class WallpaperHelper(metaclass=Singleton):
     壁纸帮助类
     """
 
-    def get_wallpaper(self) -> Optional[str]:
+    def get_wallpaper(self) -> str | None:
         """
         获取登录页面壁纸
         """
@@ -32,9 +32,9 @@ class WallpaperHelper(metaclass=Singleton):
             return self.get_customize_wallpaper()
         elif settings.WALLPAPER == "tmdb":
             return self.get_tmdb_wallpaper()
-        return ''
+        return ""
 
-    def get_wallpapers(self, num: int = 10) -> List[str]:
+    def get_wallpapers(self, num: int = 10) -> list[str]:
         """
         获取登录页面壁纸列表
         """
@@ -49,21 +49,21 @@ class WallpaperHelper(metaclass=Singleton):
         return []
 
     @cached(maxsize=1, ttl=3600)
-    def get_tmdb_wallpaper(self) -> Optional[str]:
+    def get_tmdb_wallpaper(self) -> str | None:
         """
         获取TMDB每日壁纸
         """
         return TmdbChain().get_random_wallpager()
 
     @cached(maxsize=1, ttl=3600, skip_empty=True)
-    def get_tmdb_wallpapers(self, num: int = 10) -> List[str]:
+    def get_tmdb_wallpapers(self, num: int = 10) -> list[str]:
         """
         获取7天的TMDB每日壁纸
         """
         return TmdbChain().get_trending_wallpapers(num)
 
     @cached(maxsize=1, ttl=3600)
-    def get_bing_wallpaper(self) -> Optional[str]:
+    def get_bing_wallpaper(self) -> str | None:
         """
         获取Bing每日壁纸
         """
@@ -73,14 +73,14 @@ class WallpaperHelper(metaclass=Singleton):
             try:
                 result = resp.json()
                 if isinstance(result, dict):
-                    for image in result.get('images') or []:
-                        return f"https://cn.bing.com{image.get('url')}" if 'url' in image else ''
+                    for image in result.get("images") or []:
+                        return f"https://cn.bing.com{image.get('url')}" if "url" in image else ""
             except Exception as err:
                 print(str(err))
         return None
 
     @cached(maxsize=1, ttl=3600, skip_empty=True)
-    def get_bing_wallpapers(self, num: int = 7) -> List[str]:
+    def get_bing_wallpapers(self, num: int = 7) -> list[str]:
         """
         获取7天的Bing每日壁纸
         """
@@ -90,27 +90,27 @@ class WallpaperHelper(metaclass=Singleton):
             try:
                 result = resp.json()
                 if isinstance(result, dict):
-                    return [f"https://cn.bing.com{image.get('url')}" for image in result.get('images') or []]
+                    return [f"https://cn.bing.com{image.get('url')}" for image in result.get("images") or []]
             except Exception as err:
                 print(str(err))
         return []
 
     @cached(maxsize=1, ttl=3600)
-    def get_mediaserver_wallpaper(self) -> Optional[str]:
+    def get_mediaserver_wallpaper(self) -> str | None:
         """
         获取媒体服务器壁纸
         """
         return MediaServerChain().get_latest_wallpaper()
 
     @cached(maxsize=1, ttl=3600, skip_empty=True)
-    def get_mediaserver_wallpapers(self, num: int = 10) -> List[str]:
+    def get_mediaserver_wallpapers(self, num: int = 10) -> list[str]:
         """
         获取媒体服务器壁纸列表
         """
         return MediaServerChain().get_latest_wallpapers(count=num)
 
     @cached(maxsize=1, ttl=3600)
-    def get_customize_wallpaper(self) -> Optional[str]:
+    def get_customize_wallpaper(self) -> str | None:
         """
         获取自定义壁纸api壁纸
         """
@@ -120,12 +120,12 @@ class WallpaperHelper(metaclass=Singleton):
         return None
 
     @cached(maxsize=1, ttl=3600, skip_empty=True)
-    def get_customize_wallpapers(self) -> List[str]:
+    def get_customize_wallpapers(self) -> list[str]:
         """
         获取自定义壁纸api壁纸
         """
 
-        def find_files_with_suffixes(obj, suffixes: List[str]) -> List[str]:
+        def find_files_with_suffixes(obj, suffixes: list[str]) -> list[str]:
             """
             递归查找对象中所有包含特定后缀的文件，返回匹配的字符串列表
             支持输入：字典、列表、字符串
@@ -155,8 +155,8 @@ class WallpaperHelper(metaclass=Singleton):
             resp = RequestUtils(timeout=15).get_res(settings.CUSTOMIZE_WALLPAPER_API_URL)
             if resp and resp.status_code == 200:
                 # 如果返回的是图片格式
-                content_type = resp.headers.get('Content-Type')
-                if content_type and content_type.lower().startswith('image/'):
+                content_type = resp.headers.get("Content-Type")
+                if content_type and content_type.lower().startswith("image/"):
                     wallpaper_list.append(settings.CUSTOMIZE_WALLPAPER_API_URL)
                 else:
                     try:
@@ -171,7 +171,6 @@ class WallpaperHelper(metaclass=Singleton):
 
 
 class ImageHelper(metaclass=Singleton):
-
     def __init__(self):
         _base_path = settings.CACHE_PATH
         _ttl = settings.GLOBAL_IMAGE_CACHE_DAYS * 24 * 3600
@@ -188,7 +187,7 @@ class ImageHelper(metaclass=Singleton):
         return cache_path.as_posix()
 
     @staticmethod
-    def get_image_mime_type(content: bytes, verify: bool = True) -> Optional[str]:
+    def get_image_mime_type(content: bytes, verify: bool = True) -> str | None:
         """
         根据图片内容返回 Pillow 识别的图片 MIME 类型。
 
@@ -203,11 +202,7 @@ class ImageHelper(metaclass=Singleton):
                 if verify:
                     image.verify()
             mime_type = Image.MIME.get(image_format)
-            if (
-                not mime_type
-                or not mime_type.startswith("image/")
-                or mime_type == "image/svg+xml"
-            ):
+            if not mime_type or not mime_type.startswith("image/") or mime_type == "image/svg+xml":
                 return None
             return mime_type
         except Exception as err:
@@ -215,7 +210,7 @@ class ImageHelper(metaclass=Singleton):
             return None
 
     @staticmethod
-    def _get_request_params(url: str, proxy: Optional[bool], cookies: Optional[str | dict]) -> dict:
+    def _get_request_params(url: str, proxy: bool | None, cookies: str | dict | None) -> dict:
         """获取参数"""
         referer = "https://movie.douban.com/" if "doubanio.com" in url else None
         if proxy is None:
@@ -231,11 +226,8 @@ class ImageHelper(metaclass=Singleton):
         }
 
     def fetch_image(
-        self,
-        url: str,
-        proxy: Optional[bool] = None,
-        use_cache: bool = True,
-        cookies: Optional[str | dict] = None) -> Optional[bytes]:
+        self, url: str, proxy: bool | None = None, use_cache: bool = True, cookies: str | dict | None = None
+    ) -> bytes | None:
         """
         获取图片（同步版本）
         """
@@ -250,10 +242,10 @@ class ImageHelper(metaclass=Singleton):
     def fetch_image_with_mime_type(
         self,
         url: str,
-        proxy: Optional[bool] = None,
+        proxy: bool | None = None,
         use_cache: bool = True,
-        cookies: Optional[str | dict] = None,
-    ) -> Optional[tuple[bytes, str]]:
+        cookies: str | dict | None = None,
+    ) -> tuple[bytes, str] | None:
         """
         同步获取图片及其内容识别 MIME 类型。
 
@@ -289,11 +281,8 @@ class ImageHelper(metaclass=Singleton):
         return content, mime_type
 
     async def async_fetch_image(
-        self,
-        url: str,
-        proxy: Optional[bool] = None,
-        use_cache: bool = True,
-        cookies: Optional[str | dict] = None) -> Optional[bytes]:
+        self, url: str, proxy: bool | None = None, use_cache: bool = True, cookies: str | dict | None = None
+    ) -> bytes | None:
         """
         获取图片（异步版本）
         """
@@ -308,10 +297,10 @@ class ImageHelper(metaclass=Singleton):
     async def async_fetch_image_with_mime_type(
         self,
         url: str,
-        proxy: Optional[bool] = None,
+        proxy: bool | None = None,
         use_cache: bool = True,
-        cookies: Optional[str | dict] = None,
-    ) -> Optional[tuple[bytes, str]]:
+        cookies: str | dict | None = None,
+    ) -> tuple[bytes, str] | None:
         """
         异步获取图片及其内容识别 MIME 类型。
 

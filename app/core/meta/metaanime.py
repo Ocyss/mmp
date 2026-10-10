@@ -2,18 +2,18 @@ import re
 import traceback
 
 import anitopy
+
 from app.core.meta.customization import CustomizationMatcher
 from app.core.meta.metabase import MetaBase
 from app.core.meta.releasegroup import ReleaseGroupsMatcher
 from app.log import logger
+from app.schemas.types import MediaType
 from app.utils.string import StringUtils
 from app.utils.zhconv import convert as zhconv_convert
-from app.schemas.types import MediaType
 
-
-BRACKET_TITLE_RE = re.compile(r'\[(.+?)]')
-RESOURCE_PIX_X_RE = re.compile(r'x', re.IGNORECASE)
-RESOURCE_PIX_SPLIT_RE = re.compile(r'[Xx]')
+BRACKET_TITLE_RE = re.compile(r"\[(.+?)]")
+RESOURCE_PIX_X_RE = re.compile(r"x", re.IGNORECASE)
+RESOURCE_PIX_SPLIT_RE = re.compile(r"[Xx]")
 ANIME_MARK_RE = re.compile(r"新番|月?番|[日美国][漫剧]")
 ANIME_PREFIX_RE = re.compile(r".*番.|.*[日美国][漫剧].")
 CATEGORY_TAG_RE = re.compile(
@@ -21,19 +21,22 @@ CATEGORY_TAG_RE = re.compile(
     re.IGNORECASE,
 )
 LEADING_BRACKET_BLOCK_RE = re.compile(r"^[^]]*]")
-FILE_SIZE_RE = re.compile(r'[0-9.]+\s*[MGT]i?B(?![A-Z]+)', re.IGNORECASE)
+FILE_SIZE_RE = re.compile(r"[0-9.]+\s*[MGT]i?B(?![A-Z]+)", re.IGNORECASE)
 TV_EPISODE_BRACKET_RE = re.compile(r"\[TV\s+(\d{1,4})", re.IGNORECASE)
-FOUR_K_BRACKET_RE = re.compile(r'\[4k]', re.IGNORECASE)
+FOUR_K_BRACKET_RE = re.compile(r"\[4k]", re.IGNORECASE)
 NUMERIC_BRACKET_RE = re.compile(r"\[\d+", re.IGNORECASE)
-MIXED_CHINESE_TOKEN_RE = re.compile(r'[\d|#:：\-()（）\u4e00-\u9fff]')
+MIXED_CHINESE_TOKEN_RE = re.compile(r"[\d|#:：\-()（）\u4e00-\u9fff]")
 
 
 class MetaAnime(MetaBase):
     """
     识别动漫
     """
-    _anime_no_words = ['CHS&CHT', 'MP4', 'GB MP4', 'WEB-DL']
-    _name_nostring_re = r"S\d{2}\s*-\s*S\d{2}|S\d{2}|\s+S\d{1,2}|EP?\d{2,4}\s*-\s*EP?\d{2,4}|EP?\d{2,4}|\s+EP?\d{1,4}|\s+GB"
+
+    _anime_no_words = ["CHS&CHT", "MP4", "GB MP4", "WEB-DL"]
+    _name_nostring_re = (
+        r"S\d{2}\s*-\s*S\d{2}|S\d{2}|\s+S\d{1,2}|EP?\d{2,4}\s*-\s*EP?\d{2,4}|EP?\d{2,4}|\s+EP?\d{1,4}|\s+GB"
+    )
     _fps_re = r"(\d{2,3})(?=FPS)"
     _name_nostring_pattern = re.compile(_name_nostring_re, re.IGNORECASE)
     _fps_pattern = re.compile(r"(%s)" % _fps_re, re.IGNORECASE)
@@ -92,7 +95,7 @@ class MetaAnime(MetaBase):
                         for word in name.split():
                             if not word:
                                 continue
-                            if word.endswith(']'):
+                            if word.endswith("]"):
                                 word = word[:-1]
                             if word.isdigit():
                                 if lastword_type == "cn":
@@ -108,9 +111,9 @@ class MetaAnime(MetaBase):
                 if self.cn_name:
                     _, self.cn_name, _, _, _, _ = StringUtils.get_keyword(self.cn_name)
                     if self.cn_name:
-                        self.cn_name = self._name_nostring_pattern.sub('', self.cn_name).strip()
+                        self.cn_name = self._name_nostring_pattern.sub("", self.cn_name).strip()
                 if self.en_name:
-                    self.en_name = self._name_nostring_pattern.sub('', self.en_name).strip().title()
+                    self.en_name = self._name_nostring_pattern.sub("", self.en_name).strip().title()
                     self._name = StringUtils.str_title(self.en_name)
                 # 年份
                 year = anitopy_info.get("anime_year")
@@ -120,8 +123,7 @@ class MetaAnime(MetaBase):
                 anime_season = anitopy_info.get("anime_season")
                 if isinstance(anime_season, list):
                     seasons = [
-                        season for item in anime_season
-                        if (season := self._parse_season_number(item)) is not None
+                        season for item in anime_season if (season := self._parse_season_number(item)) is not None
                     ]
                     begin_season = seasons[0] if seasons else None
                     end_season = seasons[-1] if len(seasons) > 1 else None
@@ -166,7 +168,7 @@ class MetaAnime(MetaBase):
                     self.type = MediaType.TV
                 # 类型
                 if not self.type:
-                    anime_type = anitopy_info.get('anime_type')
+                    anime_type = anitopy_info.get("anime_type")
                     if isinstance(anime_type, list):
                         anime_type = anime_type[0]
                     if anime_type and anime_type.upper() == "TV":
@@ -185,9 +187,11 @@ class MetaAnime(MetaBase):
                     if str(self.resource_pix).isdigit():
                         self.resource_pix = str(self.resource_pix) + "p"
                 # 制作组/字幕组
-                self.resource_team = \
-                    ReleaseGroupsMatcher().match(title=original_title) or \
-                    anitopy_info_origin.get("release_group") or None
+                self.resource_team = (
+                    ReleaseGroupsMatcher().match(title=original_title)
+                    or anitopy_info_origin.get("release_group")
+                    or None
+                )
                 # 自定义占位符
                 self.customization = CustomizationMatcher().match(title=original_title) or None
                 # 视频编码
@@ -220,7 +224,7 @@ class MetaAnime(MetaBase):
             fps_value = None
             if re_res.group(1):  # FPS格式
                 fps_value = re_res.group(1)
-                    
+
             if fps_value and fps_value.isdigit():
                 # 只存储纯数值
                 self.fps = int(fps_value)
@@ -239,9 +243,9 @@ class MetaAnime(MetaBase):
         if match and match.span()[1] < len(title) - 1:
             title = ANIME_PREFIX_RE.sub("", title)
         elif match:
-            title = title[:title.rfind('[')]
+            title = title[: title.rfind("[")]
         # 截掉分类
-        first_item = title.split(']')[0]
+        first_item = title.split("]")[0]
         if first_item and CATEGORY_TAG_RE.search(zhconv_convert(first_item, "zh-hans")):
             title = LEADING_BRACKET_BLOCK_RE.sub("", title).strip()
         # 去掉大小
@@ -249,7 +253,7 @@ class MetaAnime(MetaBase):
         # 将TVxx改为xx
         title = TV_EPISODE_BRACKET_RE.sub(r"[\1", title)
         # 将4K转为2160p
-        title = FOUR_K_BRACKET_RE.sub('2160p', title)
+        title = FOUR_K_BRACKET_RE.sub("2160p", title)
         # 处理/分隔的中英文标题
         names = title.split("]")
         if len(names) > 1 and title.find("- ") == -1:
@@ -257,9 +261,9 @@ class MetaAnime(MetaBase):
             for name in names:
                 if not name:
                     continue
-                left_char = ''
-                if name.startswith('['):
-                    left_char = '['
+                left_char = ""
+                if name.startswith("["):
+                    left_char = "["
                     name = name[1:]
                 if name and name.find("/") != -1:
                     if name.split("/")[-1].strip():
@@ -269,10 +273,10 @@ class MetaAnime(MetaBase):
                 elif name:
                     if StringUtils.is_chinese(name) and not StringUtils.is_all_chinese(name):
                         if not NUMERIC_BRACKET_RE.search(name):
-                            name = MIXED_CHINESE_TOKEN_RE.sub('', name).strip()
+                            name = MIXED_CHINESE_TOKEN_RE.sub("", name).strip()
                         if not name or name.strip().isdigit():
                             continue
-                    if name == '[':
+                    if name == "[":
                         titles.append("")
                     else:
                         titles.append("%s%s" % (left_char, name.strip()))

@@ -89,41 +89,41 @@ ACTIVITY_ENTRY_PATTERN = re.compile(r"^-\s+\*\*(?P<time>\d{2}:\d{2})\*\*\s+(?P<s
 class QueryActivityLogInput(BaseModel):
     """查询活动日志工具的输入参数模型。"""
 
-    keyword: Optional[str] = Field(
+    keyword: str | None = Field(
         None,
         description=(
             "Optional plain-text keyword to filter activity summaries. Use short title, path, site, task, "
             "or status fragments; omit it to inspect latest entries."
         ),
     )
-    use_regex: Optional[bool] = Field(
+    use_regex: bool | None = Field(
         False,
         description=(
             "Whether to treat keyword as a regular expression. Defaults to false; enable only for "
             "alternative or pattern matching."
         ),
     )
-    date: Optional[str] = Field(
+    date: str | None = Field(
         None,
         description="Optional exact date in YYYY-MM-DD format. If omitted, recent days are searched.",
     )
-    days: Optional[int] = Field(
+    days: int | None = Field(
         DEFAULT_QUERY_DAYS,
         description="Number of recent days to search when date is not specified.",
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         DEFAULT_QUERY_LIMIT,
         description="Maximum number of activity entries to return.",
     )
 
 
-def _coerce_query_limit(limit: Optional[int]) -> int:
+def _coerce_query_limit(limit: int | None) -> int:
     """规范化活动日志查询条数。"""
     if limit is None:
         return DEFAULT_QUERY_LIMIT
     try:
         value = int(limit)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return DEFAULT_QUERY_LIMIT
     return min(max(value, 1), MAX_QUERY_LIMIT)
 
@@ -137,10 +137,7 @@ def _iter_recent_dates(days: int) -> list[str]:
     """返回从今天开始向前的日期字符串列表。"""
     normalized_days = max(1, int(days or 1))
     today = datetime.now().date()
-    return [
-        (today - timedelta(days=index)).strftime("%Y-%m-%d")
-        for index in range(normalized_days)
-    ]
+    return [(today - timedelta(days=index)).strftime("%Y-%m-%d") for index in range(normalized_days)]
 
 
 def _parse_activity_entries(date_str: str, content: str) -> list[dict[str, str]]:
@@ -163,7 +160,7 @@ def _parse_activity_entries(date_str: str, content: str) -> list[dict[str, str]]
 def _activity_summary_matches_keyword(
     summary: str,
     keyword: str,
-    regex_pattern: Optional[re.Pattern[str]],
+    regex_pattern: re.Pattern[str] | None,
 ) -> bool:
     """判断活动摘要是否命中普通关键词或正则表达式。"""
     if regex_pattern:
@@ -192,11 +189,11 @@ def load_activity_log_index(activity_dir: str, days: int = PROMPT_LOAD_DAYS) -> 
 def query_activity_logs(
     activity_dir: str,
     *,
-    keyword: Optional[str] = None,
+    keyword: str | None = None,
     use_regex: bool = False,
-    date: Optional[str] = None,
+    date: str | None = None,
     days: int = DEFAULT_QUERY_DAYS,
-    limit: Optional[int] = DEFAULT_QUERY_LIMIT,
+    limit: int | None = DEFAULT_QUERY_LIMIT,
 ) -> dict[str, Any]:
     """
     查询活动日志条目。
@@ -212,7 +209,7 @@ def query_activity_logs(
     normalized_limit = _coerce_query_limit(limit)
     normalized_keyword = str(keyword or "").strip()
     normalized_use_regex = bool(use_regex)
-    regex_pattern: Optional[re.Pattern[str]] = None
+    regex_pattern: re.Pattern[str] | None = None
     if normalized_keyword and normalized_use_regex:
         try:
             regex_pattern = re.compile(normalized_keyword, re.IGNORECASE)
@@ -280,11 +277,11 @@ class _ActivityLogToolProvider:
 
     async def query_activity_log(
         self,
-        keyword: Optional[str] = None,
-        use_regex: Optional[bool] = False,
-        date: Optional[str] = None,
-        days: Optional[int] = DEFAULT_QUERY_DAYS,
-        limit: Optional[int] = DEFAULT_QUERY_LIMIT,
+        keyword: str | None = None,
+        use_regex: bool | None = False,
+        date: str | None = None,
+        days: int | None = DEFAULT_QUERY_DAYS,
+        limit: int | None = DEFAULT_QUERY_LIMIT,
     ) -> str:
         """查询活动日志并返回 JSON 字符串。"""
         logger.info(
@@ -329,7 +326,7 @@ class ActivityLogStateUpdate(TypedDict):
     activity_log_contents: dict[str, str]
 
 
-def _extract_last_round(messages: list) -> Optional[list]:
+def _extract_last_round(messages: list) -> list | None:
     """从完整消息列表中提取最后一轮交互。
 
     从最后一条 HumanMessage 到消息末尾即为本轮交互。
@@ -357,9 +354,7 @@ def _extract_last_round(messages: list) -> Optional[list]:
 
     # 检查是否为系统心跳消息
     user_msg = round_messages[0]
-    user_content = (
-        user_msg.content if isinstance(user_msg.content, str) else str(user_msg.content)
-    )
+    user_content = user_msg.content if isinstance(user_msg.content, str) else str(user_msg.content)
     if user_content.strip().startswith("[System Heartbeat]"):
         return None
 
@@ -384,16 +379,10 @@ def _format_conversation_for_summary(round_messages: list) -> str:
             line = f"用户: {content}"
         elif isinstance(msg, AIMessage):
             if hasattr(msg, "tool_calls") and msg.tool_calls:
-                tool_names = [
-                    tc["name"]
-                    for tc in msg.tool_calls
-                    if isinstance(tc, dict) and "name" in tc
-                ]
+                tool_names = [tc["name"] for tc in msg.tool_calls if isinstance(tc, dict) and "name" in tc]
                 line = f"助手调用工具: {', '.join(tool_names)}"
             elif msg.content:
-                content = (
-                    msg.content if isinstance(msg.content, str) else str(msg.content)
-                )
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
                 line = f"助手: {content}"
             else:
                 continue
@@ -422,8 +411,7 @@ def _should_skip_activity_summary(round_messages: list) -> bool:
         return True
 
     has_tool_activity = any(
-        isinstance(msg, ToolMessage)
-        or (isinstance(msg, AIMessage) and bool(getattr(msg, "tool_calls", None)))
+        isinstance(msg, ToolMessage) or (isinstance(msg, AIMessage) and bool(getattr(msg, "tool_calls", None)))
         for msg in round_messages
     )
     if has_tool_activity:
@@ -432,7 +420,7 @@ def _should_skip_activity_summary(round_messages: list) -> bool:
     return True
 
 
-async def _summarize_with_llm(conversation_text: str) -> Optional[str]:
+async def _summarize_with_llm(conversation_text: str) -> str | None:
     """调用 LLM 对对话文本生成活动摘要。
 
     参数：
@@ -489,7 +477,7 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         activity_dir: str,
         retention_days: int = DEFAULT_RETENTION_DAYS,
         prompt_load_days: int = PROMPT_LOAD_DAYS,
-        stream_handler: Optional[Any] = None,
+        stream_handler: Any | None = None,
     ) -> None:
         """初始化活动日志中间件。"""
         self.activity_dir = activity_dir
@@ -639,9 +627,7 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         except Exception as e:
             logger.warning(f"Failed to record activity: {e}")
 
-    async def abefore_agent(
-        self, state: ActivityLogState, runtime: Runtime
-    ) -> Optional[ActivityLogStateUpdate]:
+    async def abefore_agent(self, state: ActivityLogState, runtime: Runtime) -> ActivityLogStateUpdate | None:
         """在 Agent 执行前加载近期活动日志。"""
         contents = await self._load_recent_logs()
 
@@ -655,17 +641,13 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         contents = request.state.get("activity_log_contents", {})  # noqa
         activity_log_prompt = self._format_activity_log(contents)
 
-        new_system_message = append_to_system_message(
-            request.system_message, activity_log_prompt
-        )
+        new_system_message = append_to_system_message(request.system_message, activity_log_prompt)
         return request.override(system_message=new_system_message)
 
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """异步包装模型调用，注入活动日志到系统提示词。"""
         modified_request = self.modify_request(request)
@@ -687,8 +669,7 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         if not isinstance(tool_args, dict):
             tool_args = {}
         logger.info(
-            f"开始执行活动日志查询工具: keyword={tool_args.get('keyword') or '-'}, "
-            f"date={tool_args.get('date') or '-'}"
+            f"开始执行活动日志查询工具: keyword={tool_args.get('keyword') or '-'}, date={tool_args.get('date') or '-'}"
         )
         if self.stream_handler and getattr(self.stream_handler, "is_streaming", False):
             self.stream_handler.record_tool_call(
@@ -704,9 +685,7 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         logger.info("活动日志查询工具执行完成")
         return result
 
-    async def aafter_agent(
-        self, state: ActivityLogState, runtime: Runtime
-    ) -> Optional[dict[str, Any]]:
+    async def aafter_agent(self, state: ActivityLogState, runtime: Runtime) -> dict[str, Any] | None:
         """Agent 执行完毕后，异步提交活动日志记录任务。"""
         try:
             messages = state.get("messages", [])

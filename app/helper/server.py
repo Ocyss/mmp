@@ -45,11 +45,11 @@ class MoviePilotServerHelper:
     _RECOGNIZE_SHARE_PATH = "/recognize/share"
     _USER_PERMISSIONS_PATH = "/user/permissions"
     _LOCAL_REPO_PREFIX = "local://"
-    _user_uid: Optional[str] = None
-    _github_user: Optional[str] = None
+    _user_uid: str | None = None
+    _github_user: str | None = None
 
     @classmethod
-    def get_user_uid(cls) -> Optional[str]:
+    def get_user_uid(cls) -> str | None:
         """
         获取当前安装实例用于服务端统计识别的稳定用户 ID。
         """
@@ -83,19 +83,15 @@ class MoviePilotServerHelper:
 
     @classmethod
     def build_headers(
-            cls,
-            url: str,
-            headers: Optional[dict] = None,
-            content_type: Optional[str] = None,
+        cls,
+        url: str,
+        headers: dict | None = None,
+        content_type: str | None = None,
     ) -> dict:
         """
         构建访问 MoviePilot 服务端需要的请求头。
         """
-        request_headers = {
-            key: value
-            for key, value in (headers or {}).items()
-            if value is not None
-        }
+        request_headers = {key: value for key, value in (headers or {}).items() if value is not None}
         if content_type and not cls._has_header(request_headers, "Content-Type"):
             request_headers["Content-Type"] = content_type
         if not cls.is_server_url(url) or cls._has_header(request_headers, cls.USER_UID_HEADER):
@@ -174,7 +170,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def get_user_permissions(cls) -> Dict[str, Any]:
+    def get_user_permissions(cls) -> dict[str, Any]:
         """
         获取当前用户在服务端配置中的权限。
         """
@@ -190,7 +186,7 @@ class MoviePilotServerHelper:
         return {}
 
     @classmethod
-    async def async_get_user_permissions(cls) -> Dict[str, Any]:
+    async def async_get_user_permissions(cls) -> dict[str, Any]:
         """
         异步获取当前用户在服务端配置中的权限。
         """
@@ -240,7 +236,7 @@ class MoviePilotServerHelper:
             version_file = Path(settings.FRONTEND_PATH) / "version.txt"
         if version_file.exists():
             try:
-                with open(version_file, "r", encoding="utf-8", errors="replace") as file:
+                with open(version_file, encoding="utf-8", errors="replace") as file:
                     version = str(file.read()).strip()
                 return version or FRONTEND_VERSION
             except Exception as err:
@@ -248,7 +244,7 @@ class MoviePilotServerHelper:
         return FRONTEND_VERSION
 
     @classmethod
-    def build_usage_payload(cls) -> Dict[str, Any]:
+    def build_usage_payload(cls) -> dict[str, Any]:
         """
         构建安装版本统计上报载荷。
         """
@@ -296,7 +292,7 @@ class MoviePilotServerHelper:
             return False
 
     @classmethod
-    async def async_get_usage_statistic(cls) -> Dict[str, Any]:
+    async def async_get_usage_statistic(cls) -> dict[str, Any]:
         """
         异步获取安装版本统计报表。
         """
@@ -333,7 +329,7 @@ class MoviePilotServerHelper:
                     systemconfig.set(SystemConfigKey.PluginInstallReport, "1")
 
     @staticmethod
-    def _handle_list_response(res) -> List[dict]:
+    def _handle_list_response(res) -> list[dict]:
         """
         处理服务端返回的列表响应。
         """
@@ -342,7 +338,7 @@ class MoviePilotServerHelper:
         return []
 
     @staticmethod
-    def _handle_response(res, clear_cache=None) -> Tuple[bool, str]:
+    def _handle_response(res, clear_cache=None) -> tuple[bool, str]:
         """
         处理服务端写入类接口响应。
         """
@@ -354,18 +350,18 @@ class MoviePilotServerHelper:
             return True, ""
         try:
             return False, res.json().get("message", "未知错误")
-        except (json.JSONDecodeError, ValueError, AttributeError):
+        except json.JSONDecodeError, ValueError, AttributeError:
             return False, f"响应解析失败: {getattr(res, 'text', '')[:100]}..."
 
     @classmethod
-    def usage_report(cls, payload: Dict[str, Any]):
+    def usage_report(cls, payload: dict[str, Any]):
         """
         上报安装版本统计。
         """
         return cls._post_json(cls._server_url(cls._USAGE_REPORT_PATH), payload, timeout=5)
 
     @classmethod
-    async def async_usage_report(cls, payload: Dict[str, Any]):
+    async def async_usage_report(cls, payload: dict[str, Any]):
         """
         异步上报安装版本统计。
         """
@@ -400,7 +396,7 @@ class MoviePilotServerHelper:
         return await cls._async_get(cls._server_url(cls._PLUGIN_STATISTIC_PATH), timeout=10)
 
     @classmethod
-    async def async_plugin_ratings(cls, plugin_ids: Optional[List[str]] = None):
+    async def async_plugin_ratings(cls, plugin_ids: list[str] | None = None):
         """
         异步批量查询中心端插件评分。
         """
@@ -433,14 +429,14 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def plugin_install(cls, plugin_id: str, payload: Dict[str, Any]):
+    def plugin_install(cls, plugin_id: str, payload: dict[str, Any]):
         """
         上报单个插件安装统计。
         """
         return cls._post_json(f"{cls._server_url(cls._PLUGIN_INSTALL_PATH)}/{plugin_id}", payload, timeout=5)
 
     @classmethod
-    async def async_plugin_install(cls, plugin_id: str, payload: Dict[str, Any]):
+    async def async_plugin_install(cls, plugin_id: str, payload: dict[str, Any]):
         """
         异步上报单个插件安装统计。
         """
@@ -451,14 +447,14 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def plugin_install_report(cls, plugins: List[Dict[str, Any]]):
+    def plugin_install_report(cls, plugins: list[dict[str, Any]]):
         """
         批量上报插件安装统计。
         """
         return cls._post_json(cls._server_url(cls._PLUGIN_INSTALL_PATH), {"plugins": plugins}, timeout=5)
 
     @classmethod
-    async def async_plugin_install_report(cls, plugins: List[Dict[str, Any]]):
+    async def async_plugin_install_report(cls, plugins: list[dict[str, Any]]):
         """
         异步批量上报插件安装统计。
         """
@@ -470,7 +466,7 @@ class MoviePilotServerHelper:
 
     @classmethod
     @cached(maxsize=1, ttl=1800)
-    def get_plugin_statistic(cls) -> Dict:
+    def get_plugin_statistic(cls) -> dict:
         """
         获取插件安装统计。
         """
@@ -482,7 +478,7 @@ class MoviePilotServerHelper:
         return {}
 
     @classmethod
-    async def async_get_plugin_statistic(cls) -> Dict:
+    async def async_get_plugin_statistic(cls) -> dict:
         """
         异步获取插件安装统计。
         """
@@ -495,9 +491,9 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_get_plugin_ratings(
-            cls,
-            plugin_ids: Optional[List[str]] = None,
-    ) -> Dict[str, Dict[str, Any]]:
+        cls,
+        plugin_ids: list[str] | None = None,
+    ) -> dict[str, dict[str, Any]]:
         """
         批量获取插件评分，中心端不可用时返回空结果。
         """
@@ -510,7 +506,7 @@ class MoviePilotServerHelper:
         return {}
 
     @classmethod
-    async def async_get_plugin_rating(cls, plugin_id: str) -> Dict[str, Any]:
+    async def async_get_plugin_rating(cls, plugin_id: str) -> dict[str, Any]:
         """
         获取单个插件评分，中心端不可用时返回零评分。
         """
@@ -530,10 +526,10 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_submit_plugin_rating(
-            cls,
-            plugin_id: str,
-            rating: float,
-    ) -> Optional[Dict[str, Any]]:
+        cls,
+        plugin_id: str,
+        rating: float,
+    ) -> dict[str, Any] | None:
         """
         提交插件评分，成功时返回最新评分结果。
         """
@@ -546,7 +542,7 @@ class MoviePilotServerHelper:
         return None
 
     @classmethod
-    def install_plugin_reg(cls, plugin_id: str, repo_url: Optional[str] = None) -> bool:
+    def install_plugin_reg(cls, plugin_id: str, repo_url: str | None = None) -> bool:
         """
         上报单个插件安装统计。
         """
@@ -554,14 +550,17 @@ class MoviePilotServerHelper:
             return False
         if not plugin_id:
             return False
-        res = cls.plugin_install(plugin_id, {
-            "plugin_id": plugin_id,
-            "repo_url": cls.sanitize_plugin_repo_url(repo_url),
-        })
+        res = cls.plugin_install(
+            plugin_id,
+            {
+                "plugin_id": plugin_id,
+                "repo_url": cls.sanitize_plugin_repo_url(repo_url),
+            },
+        )
         return bool(res is not None and res.status_code == 200)
 
     @classmethod
-    async def async_install_plugin_reg(cls, plugin_id: str, repo_url: Optional[str] = None) -> bool:
+    async def async_install_plugin_reg(cls, plugin_id: str, repo_url: str | None = None) -> bool:
         """
         异步上报单个插件安装统计。
         """
@@ -569,14 +568,17 @@ class MoviePilotServerHelper:
             return False
         if not plugin_id:
             return False
-        res = await cls.async_plugin_install(plugin_id, {
-            "plugin_id": plugin_id,
-            "repo_url": cls.sanitize_plugin_repo_url(repo_url),
-        })
+        res = await cls.async_plugin_install(
+            plugin_id,
+            {
+                "plugin_id": plugin_id,
+                "repo_url": cls.sanitize_plugin_repo_url(repo_url),
+            },
+        )
         return bool(res is not None and res.status_code == 200)
 
     @classmethod
-    def install_plugin_report(cls, items: Optional[List[Tuple[str, Optional[str]]]] = None) -> bool:
+    def install_plugin_report(cls, items: list[tuple[str, str | None]] | None = None) -> bool:
         """
         批量上报存量插件安装统计。
         """
@@ -589,7 +591,7 @@ class MoviePilotServerHelper:
         return bool(res is not None and res.status_code == 200)
 
     @classmethod
-    async def async_install_plugin_report(cls, items: Optional[List[Tuple[str, Optional[str]]]] = None) -> bool:
+    async def async_install_plugin_report(cls, items: list[tuple[str, str | None]] | None = None) -> bool:
         """
         异步批量上报存量插件安装统计。
         """
@@ -602,42 +604,42 @@ class MoviePilotServerHelper:
         return bool(res is not None and res.status_code == 200)
 
     @classmethod
-    def subscribe_statistic(cls, params: Dict[str, Any]):
+    def subscribe_statistic(cls, params: dict[str, Any]):
         """
         获取订阅统计数据。
         """
         return cls._get(cls._server_url(cls._SUBSCRIBE_STATISTIC_PATH), params=params, timeout=15)
 
     @classmethod
-    async def async_subscribe_statistic(cls, params: Dict[str, Any]):
+    async def async_subscribe_statistic(cls, params: dict[str, Any]):
         """
         异步获取订阅统计数据。
         """
         return await cls._async_get(cls._server_url(cls._SUBSCRIBE_STATISTIC_PATH), params=params, timeout=15)
 
     @classmethod
-    def subscribe_add(cls, payload: Dict[str, Any]):
+    def subscribe_add(cls, payload: dict[str, Any]):
         """
         新增订阅统计。
         """
         return cls._post_json(cls._server_url(cls._SUBSCRIBE_ADD_PATH), payload, timeout=5)
 
     @classmethod
-    async def async_subscribe_add(cls, payload: Dict[str, Any]):
+    async def async_subscribe_add(cls, payload: dict[str, Any]):
         """
         异步新增订阅统计。
         """
         return await cls._async_post_json(cls._server_url(cls._SUBSCRIBE_ADD_PATH), payload, timeout=5)
 
     @classmethod
-    def subscribe_done(cls, payload: Dict[str, Any]):
+    def subscribe_done(cls, payload: dict[str, Any]):
         """
         完成订阅统计。
         """
         return cls._post_json(cls._server_url(cls._SUBSCRIBE_DONE_PATH), payload, timeout=5)
 
     @classmethod
-    def subscribe_report(cls, subscribes: List[Dict[str, Any]]):
+    def subscribe_report(cls, subscribes: list[dict[str, Any]]):
         """
         批量上报存量订阅统计。
         """
@@ -648,14 +650,14 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def subscribe_share(cls, payload: Dict[str, Any]):
+    def subscribe_share(cls, payload: dict[str, Any]):
         """
         分享订阅数据。
         """
         return cls._post_json(cls._server_url(cls._SUBSCRIBE_SHARE_PATH), payload, timeout=10)
 
     @classmethod
-    async def async_subscribe_share(cls, payload: Dict[str, Any]):
+    async def async_subscribe_share(cls, payload: dict[str, Any]):
         """
         异步分享订阅数据。
         """
@@ -698,14 +700,14 @@ class MoviePilotServerHelper:
         return await cls._async_get(f"{cls._server_url(cls._SUBSCRIBE_FORK_PATH)}/{share_id}", timeout=5)
 
     @classmethod
-    def subscribe_shares(cls, params: Dict[str, Any]):
+    def subscribe_shares(cls, params: dict[str, Any]):
         """
         获取订阅分享数据。
         """
         return cls._get(cls._server_url(cls._SUBSCRIBE_SHARES_PATH), params=params, timeout=15)
 
     @classmethod
-    async def async_subscribe_shares(cls, params: Dict[str, Any]):
+    async def async_subscribe_shares(cls, params: dict[str, Any]):
         """
         异步获取订阅分享数据。
         """
@@ -727,14 +729,14 @@ class MoviePilotServerHelper:
 
     @staticmethod
     def _build_subscribe_query_params(
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            genre_id: Optional[int] = None,
-            min_rating: Optional[float] = None,
-            max_rating: Optional[float] = None,
-            sort_type: Optional[str] = None,
-            **extra,
-    ) -> Dict[str, Any]:
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+        **extra,
+    ) -> dict[str, Any]:
         """
         构建订阅统计与分享查询参数。
         """
@@ -756,15 +758,15 @@ class MoviePilotServerHelper:
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
     def get_subscribe_statistic(
-            cls,
-            stype: str,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            genre_id: Optional[int] = None,
-            min_rating: Optional[float] = None,
-            max_rating: Optional[float] = None,
-            sort_type: Optional[str] = None,
-    ) -> List[dict]:
+        cls,
+        stype: str,
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+    ) -> list[dict]:
         """
         获取订阅统计数据。
         """
@@ -784,15 +786,15 @@ class MoviePilotServerHelper:
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
     async def async_get_subscribe_statistic(
-            cls,
-            stype: str,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            genre_id: Optional[int] = None,
-            min_rating: Optional[float] = None,
-            max_rating: Optional[float] = None,
-            sort_type: Optional[str] = None,
-    ) -> List[dict]:
+        cls,
+        stype: str,
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+    ) -> list[dict]:
         """
         异步获取订阅统计数据。
         """
@@ -870,12 +872,12 @@ class MoviePilotServerHelper:
 
     @classmethod
     def sub_share(
-            cls,
-            subscribe_id: int,
-            share_title: str,
-            share_comment: str,
-            share_user: str,
-    ) -> Tuple[bool, str]:
+        cls,
+        subscribe_id: int,
+        share_title: str,
+        share_comment: str,
+        share_user: str,
+    ) -> tuple[bool, str]:
         """
         分享订阅。
         """
@@ -897,12 +899,12 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_sub_share(
-            cls,
-            subscribe_id: int,
-            share_title: str,
-            share_comment: str,
-            share_user: str,
-    ) -> Tuple[bool, str]:
+        cls,
+        subscribe_id: int,
+        share_title: str,
+        share_comment: str,
+        share_user: str,
+    ) -> tuple[bool, str]:
         """
         异步分享订阅。
         """
@@ -926,7 +928,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def share_delete(cls, share_id: int) -> Tuple[bool, str]:
+    def share_delete(cls, share_id: int) -> tuple[bool, str]:
         """
         删除订阅分享。
         """
@@ -938,7 +940,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    async def async_share_delete(cls, share_id: int) -> Tuple[bool, str]:
+    async def async_share_delete(cls, share_id: int) -> tuple[bool, str]:
         """
         异步删除订阅分享。
         """
@@ -950,7 +952,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def sub_fork(cls, share_id: int) -> Tuple[bool, str]:
+    def sub_fork(cls, share_id: int) -> tuple[bool, str]:
         """
         复用订阅分享。
         """
@@ -959,7 +961,7 @@ class MoviePilotServerHelper:
         return cls._handle_response(cls.subscribe_fork(share_id))
 
     @classmethod
-    async def async_sub_fork(cls, share_id: int) -> Tuple[bool, str]:
+    async def async_sub_fork(cls, share_id: int) -> tuple[bool, str]:
         """
         异步复用订阅分享。
         """
@@ -970,15 +972,15 @@ class MoviePilotServerHelper:
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
     def get_subscribe_shares(
-            cls,
-            name: Optional[str] = None,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            genre_id: Optional[int] = None,
-            min_rating: Optional[float] = None,
-            max_rating: Optional[float] = None,
-            sort_type: Optional[str] = None,
-    ) -> List[dict]:
+        cls,
+        name: str | None = None,
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+    ) -> list[dict]:
         """
         获取订阅分享数据。
         """
@@ -998,15 +1000,15 @@ class MoviePilotServerHelper:
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
     async def async_get_subscribe_shares(
-            cls,
-            name: Optional[str] = None,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-            genre_id: Optional[int] = None,
-            min_rating: Optional[float] = None,
-            max_rating: Optional[float] = None,
-            sort_type: Optional[str] = None,
-    ) -> List[dict]:
+        cls,
+        name: str | None = None,
+        page: int | None = 1,
+        count: int | None = 30,
+        genre_id: int | None = None,
+        min_rating: float | None = None,
+        max_rating: float | None = None,
+        sort_type: str | None = None,
+    ) -> list[dict]:
         """
         异步获取订阅分享数据。
         """
@@ -1025,7 +1027,7 @@ class MoviePilotServerHelper:
 
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
-    def get_subscribe_share_statistics(cls) -> List[dict]:
+    def get_subscribe_share_statistics(cls) -> list[dict]:
         """
         获取订阅分享统计数据。
         """
@@ -1035,7 +1037,7 @@ class MoviePilotServerHelper:
 
     @classmethod
     @cached(region="subscribe_share", maxsize=32, ttl=1800, skip_empty=True)
-    async def async_get_subscribe_share_statistics(cls) -> List[dict]:
+    async def async_get_subscribe_share_statistics(cls) -> list[dict]:
         """
         异步获取订阅分享统计数据。
         """
@@ -1044,14 +1046,14 @@ class MoviePilotServerHelper:
         return cls._handle_list_response(await cls.async_subscribe_share_statistics())
 
     @classmethod
-    def workflow_share(cls, payload: Dict[str, Any]):
+    def workflow_share(cls, payload: dict[str, Any]):
         """
         分享工作流数据。
         """
         return cls._post_json(cls._server_url(cls._WORKFLOW_SHARE_PATH), payload, timeout=10)
 
     @classmethod
-    async def async_workflow_share(cls, payload: Dict[str, Any]):
+    async def async_workflow_share(cls, payload: dict[str, Any]):
         """
         异步分享工作流数据。
         """
@@ -1094,14 +1096,14 @@ class MoviePilotServerHelper:
         return await cls._async_get(f"{cls._server_url(cls._WORKFLOW_FORK_PATH)}/{share_id}", timeout=5)
 
     @classmethod
-    def workflow_shares(cls, params: Dict[str, Any]):
+    def workflow_shares(cls, params: dict[str, Any]):
         """
         获取工作流分享数据。
         """
         return cls._get(cls._server_url(cls._WORKFLOW_SHARES_PATH), params=params, timeout=15)
 
     @classmethod
-    async def async_workflow_shares(cls, params: Dict[str, Any]):
+    async def async_workflow_shares(cls, params: dict[str, Any]):
         """
         异步获取工作流分享数据。
         """
@@ -1121,12 +1123,12 @@ class MoviePilotServerHelper:
 
     @classmethod
     def workflow_share_by_id(
-            cls,
-            workflow_id: int,
-            share_title: str,
-            share_comment: str,
-            share_user: str,
-    ) -> Tuple[bool, str]:
+        cls,
+        workflow_id: int,
+        share_title: str,
+        share_comment: str,
+        share_user: str,
+    ) -> tuple[bool, str]:
         """
         分享工作流。
         """
@@ -1147,12 +1149,12 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_workflow_share_by_id(
-            cls,
-            workflow_id: int,
-            share_title: str,
-            share_comment: str,
-            share_user: str,
-    ) -> Tuple[bool, str]:
+        cls,
+        workflow_id: int,
+        share_title: str,
+        share_comment: str,
+        share_user: str,
+    ) -> tuple[bool, str]:
         """
         异步分享工作流。
         """
@@ -1175,7 +1177,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def workflow_share_delete_by_id(cls, share_id: int) -> Tuple[bool, str]:
+    def workflow_share_delete_by_id(cls, share_id: int) -> tuple[bool, str]:
         """
         删除工作流分享。
         """
@@ -1187,7 +1189,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    async def async_workflow_share_delete_by_id(cls, share_id: int) -> Tuple[bool, str]:
+    async def async_workflow_share_delete_by_id(cls, share_id: int) -> tuple[bool, str]:
         """
         异步删除工作流分享。
         """
@@ -1199,7 +1201,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def workflow_fork_by_id(cls, share_id: int) -> Tuple[bool, str]:
+    def workflow_fork_by_id(cls, share_id: int) -> tuple[bool, str]:
         """
         复用工作流分享。
         """
@@ -1208,7 +1210,7 @@ class MoviePilotServerHelper:
         return cls._handle_response(cls.workflow_fork(share_id))
 
     @classmethod
-    async def async_workflow_fork_by_id(cls, share_id: int) -> Tuple[bool, str]:
+    async def async_workflow_fork_by_id(cls, share_id: int) -> tuple[bool, str]:
         """
         异步复用工作流分享。
         """
@@ -1219,43 +1221,51 @@ class MoviePilotServerHelper:
     @classmethod
     @cached(region="workflow_share", maxsize=1, skip_empty=True)
     def get_workflow_shares(
-            cls,
-            name: Optional[str] = None,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-    ) -> List[dict]:
+        cls,
+        name: str | None = None,
+        page: int | None = 1,
+        count: int | None = 30,
+    ) -> list[dict]:
         """
         获取工作流分享数据。
         """
         if not settings.WORKFLOW_STATISTIC_SHARE:
             return []
-        return cls._handle_list_response(cls.workflow_shares({
-            "name": name,
-            "page": page,
-            "count": count,
-        }))
+        return cls._handle_list_response(
+            cls.workflow_shares(
+                {
+                    "name": name,
+                    "page": page,
+                    "count": count,
+                }
+            )
+        )
 
     @classmethod
     @cached(region="workflow_share", maxsize=1, skip_empty=True)
     async def async_get_workflow_shares(
-            cls,
-            name: Optional[str] = None,
-            page: Optional[int] = 1,
-            count: Optional[int] = 30,
-    ) -> List[dict]:
+        cls,
+        name: str | None = None,
+        page: int | None = 1,
+        count: int | None = 30,
+    ) -> list[dict]:
         """
         异步获取工作流分享数据。
         """
         if not settings.WORKFLOW_STATISTIC_SHARE:
             return []
-        return cls._handle_list_response(await cls.async_workflow_shares({
-            "name": name,
-            "page": page,
-            "count": count,
-        }))
+        return cls._handle_list_response(
+            await cls.async_workflow_shares(
+                {
+                    "name": name,
+                    "page": page,
+                    "count": count,
+                }
+            )
+        )
 
     @staticmethod
-    def _validate_workflow(workflow) -> Tuple[bool, str]:
+    def _validate_workflow(workflow) -> tuple[bool, str]:
         """
         验证工作流是否可以分享。
         """
@@ -1266,7 +1276,7 @@ class MoviePilotServerHelper:
         return True, ""
 
     @classmethod
-    def recognize_share_url(cls) -> Optional[str]:
+    def recognize_share_url(cls) -> str | None:
         """
         获取共享识别服务端地址。
         """
@@ -1279,7 +1289,7 @@ class MoviePilotServerHelper:
         return f"{server_host}{cls._RECOGNIZE_SHARE_PATH}"
 
     @classmethod
-    def recognize_query(cls, params: Dict[str, Any]):
+    def recognize_query(cls, params: dict[str, Any]):
         """
         查询共享识别结果。
         """
@@ -1289,7 +1299,7 @@ class MoviePilotServerHelper:
         return cls._get(api_url, params=params, timeout=5)
 
     @classmethod
-    async def async_recognize_query(cls, params: Dict[str, Any]):
+    async def async_recognize_query(cls, params: dict[str, Any]):
         """
         异步查询共享识别结果。
         """
@@ -1299,7 +1309,7 @@ class MoviePilotServerHelper:
         return await cls._async_get(api_url, params=params, timeout=5)
 
     @classmethod
-    def recognize_report(cls, payload: Dict[str, Any]):
+    def recognize_report(cls, payload: dict[str, Any]):
         """
         上报共享识别结果。
         """
@@ -1309,7 +1319,7 @@ class MoviePilotServerHelper:
         return cls._post_json(api_url, payload, timeout=5)
 
     @classmethod
-    async def async_recognize_report(cls, payload: Dict[str, Any]):
+    async def async_recognize_report(cls, payload: dict[str, Any]):
         """
         异步上报共享识别结果。
         """
@@ -1320,11 +1330,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def query_recognize_share(
-            cls,
-            meta: Optional[MetaBase],
-            mtype: Optional[MediaType] = None,
-            keyword_meta: Optional[MetaBase] = None,
-    ) -> Optional[dict]:
+        cls,
+        meta: MetaBase | None,
+        mtype: MediaType | None = None,
+        keyword_meta: MetaBase | None = None,
+    ) -> dict | None:
         """
         查询共享识别结果。
         """
@@ -1342,11 +1352,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_query_recognize_share(
-            cls,
-            meta: Optional[MetaBase],
-            mtype: Optional[MediaType] = None,
-            keyword_meta: Optional[MetaBase] = None,
-    ) -> Optional[dict]:
+        cls,
+        meta: MetaBase | None,
+        mtype: MediaType | None = None,
+        keyword_meta: MetaBase | None = None,
+    ) -> dict | None:
         """
         异步查询共享识别结果。
         """
@@ -1364,10 +1374,10 @@ class MoviePilotServerHelper:
 
     @classmethod
     def report_recognize_share(
-            cls,
-            meta: Optional[MetaBase],
-            mediainfo: Optional[MediaInfo],
-            keyword_meta: Optional[MetaBase] = None,
+        cls,
+        meta: MetaBase | None,
+        mediainfo: MediaInfo | None,
+        keyword_meta: MetaBase | None = None,
     ) -> bool:
         """
         上报共享识别结果。
@@ -1386,10 +1396,10 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def async_report_recognize_share(
-            cls,
-            meta: Optional[MetaBase],
-            mediainfo: Optional[MediaInfo],
-            keyword_meta: Optional[MetaBase] = None,
+        cls,
+        meta: MetaBase | None,
+        mediainfo: MediaInfo | None,
+        keyword_meta: MetaBase | None = None,
     ) -> bool:
         """
         异步上报共享识别结果。
@@ -1407,7 +1417,7 @@ class MoviePilotServerHelper:
         return cls._parse_recognize_report_response(response)
 
     @classmethod
-    def to_recognize_params(cls, item: Optional[dict]) -> Optional[dict]:
+    def to_recognize_params(cls, item: dict | None) -> dict | None:
         """
         将服务端返回的共享识别结果转成本地识别参数。
         """
@@ -1437,7 +1447,7 @@ class MoviePilotServerHelper:
         }
 
     @classmethod
-    def sanitize_plugin_repo_url(cls, repo_url: Optional[str]) -> Optional[str]:
+    def sanitize_plugin_repo_url(cls, repo_url: str | None) -> str | None:
         """
         统计上报前脱敏插件仓库地址。
         """
@@ -1456,7 +1466,7 @@ class MoviePilotServerHelper:
         )
 
     @classmethod
-    def _normalize_media_type(cls, media_type: Optional[object]) -> Optional[str]:
+    def _normalize_media_type(cls, media_type: object | None) -> str | None:
         """
         统一媒体类型，兼容枚举、中文值和 agent 风格字符串。
         """
@@ -1471,7 +1481,7 @@ class MoviePilotServerHelper:
         return None
 
     @staticmethod
-    def _extract_keyword(meta: Optional[MetaBase]) -> Optional[str]:
+    def _extract_keyword(meta: MetaBase | None) -> str | None:
         """
         提取识别关键字。
         """
@@ -1484,11 +1494,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _extract_media_type(
-            cls,
-            meta: Optional[MetaBase] = None,
-            mtype: Optional[MediaType] = None,
-            mediainfo: Optional[MediaInfo] = None,
-    ) -> Optional[str]:
+        cls,
+        meta: MetaBase | None = None,
+        mtype: MediaType | None = None,
+        mediainfo: MediaInfo | None = None,
+    ) -> str | None:
         """
         提取媒体类型。
         """
@@ -1505,11 +1515,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _extract_season(
-            cls,
-            media_type: Optional[str],
-            meta: Optional[MetaBase] = None,
-            mediainfo: Optional[MediaInfo] = None,
-    ) -> Optional[int]:
+        cls,
+        media_type: str | None,
+        meta: MetaBase | None = None,
+        mediainfo: MediaInfo | None = None,
+    ) -> int | None:
         """
         提取季信息，仅电视剧使用。
         """
@@ -1520,14 +1530,14 @@ class MoviePilotServerHelper:
             season = mediainfo.season
         try:
             return int(season) if season is not None else None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     @staticmethod
     def _extract_year(
-            meta: Optional[MetaBase] = None,
-            mediainfo: Optional[MediaInfo] = None,
-    ) -> Optional[str]:
+        meta: MetaBase | None = None,
+        mediainfo: MediaInfo | None = None,
+    ) -> str | None:
         """
         提取年份。
         """
@@ -1539,11 +1549,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _build_recognize_query_params(
-            cls,
-            meta: Optional[MetaBase],
-            mtype: Optional[MediaType] = None,
-            keyword_meta: Optional[MetaBase] = None,
-    ) -> Optional[dict]:
+        cls,
+        meta: MetaBase | None,
+        mtype: MediaType | None = None,
+        keyword_meta: MetaBase | None = None,
+    ) -> dict | None:
         """
         组装共享识别查询参数。
         """
@@ -1564,11 +1574,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _build_recognize_report_payload(
-            cls,
-            meta: Optional[MetaBase],
-            mediainfo: Optional[MediaInfo],
-            keyword_meta: Optional[MetaBase] = None,
-    ) -> Optional[dict]:
+        cls,
+        meta: MetaBase | None,
+        mediainfo: MediaInfo | None,
+        keyword_meta: MetaBase | None = None,
+    ) -> dict | None:
         """
         组装共享识别上报载荷。
         """
@@ -1602,15 +1612,14 @@ class MoviePilotServerHelper:
         }
 
     @classmethod
-    def _parse_recognize_response(cls, response, keyword: Optional[str]) -> Optional[dict]:
+    def _parse_recognize_response(cls, response, keyword: str | None) -> dict | None:
         """
         解析共享识别查询响应。
         """
         if not response or response.status_code != 200:
             if response is not None:
                 logger.warn(
-                    f"查询共享媒体识别失败：status={response.status_code} "
-                    f"message={cls._response_message(response)}"
+                    f"查询共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}"
                 )
             return None
         try:
@@ -1633,8 +1642,7 @@ class MoviePilotServerHelper:
         if not response or response.status_code != 200:
             if response is not None:
                 logger.warn(
-                    f"上报共享媒体识别失败：status={response.status_code} "
-                    f"message={cls._response_message(response)}"
+                    f"上报共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}"
                 )
             return False
         try:
@@ -1645,7 +1653,7 @@ class MoviePilotServerHelper:
         return result.get("code") == 0
 
     @staticmethod
-    def _parse_response_item(data: Optional[dict]) -> Optional[dict]:
+    def _parse_response_item(data: dict | None) -> dict | None:
         """
         解析服务端返回的共享识别数据。
         """
@@ -1664,14 +1672,14 @@ class MoviePilotServerHelper:
         try:
             payload = response.json()
             return str(payload.get("message") or "")
-        except (json.JSONDecodeError, ValueError, AttributeError):
+        except json.JSONDecodeError, ValueError, AttributeError:
             return ""
 
     @classmethod
     def _build_plugin_report_payload(
-            cls,
-            items: Optional[List[Tuple[str, Optional[str]]]] = None,
-    ) -> List[Dict[str, Any]]:
+        cls,
+        items: list[tuple[str, str | None]] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         构建批量插件安装统计载荷。
         """
@@ -1691,7 +1699,7 @@ class MoviePilotServerHelper:
         return [{"plugin_id": plugin, "repo_url": None} for plugin in plugins]
 
     @classmethod
-    def _parse_local_repo_plugin_id(cls, repo_url: str) -> Optional[str]:
+    def _parse_local_repo_plugin_id(cls, repo_url: str) -> str | None:
         """
         从本地插件来源标识中解析插件 ID。
         """
@@ -1699,11 +1707,11 @@ class MoviePilotServerHelper:
             parts = urlsplit(repo_url)
             plugin_id = parts.netloc or parts.path.strip("/")
         except Exception:
-            plugin_id = repo_url[len(cls._LOCAL_REPO_PREFIX):].split("?", 1)[0].strip("/")
+            plugin_id = repo_url[len(cls._LOCAL_REPO_PREFIX) :].split("?", 1)[0].strip("/")
         return plugin_id or None
 
     @staticmethod
-    def _parse_local_repo_package_version(repo_url: str) -> Optional[str]:
+    def _parse_local_repo_package_version(repo_url: str) -> str | None:
         """
         从本地插件来源标识中解析 package 版本。
         """
@@ -1717,9 +1725,9 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _make_local_repo_url(
-            cls,
-            plugin_id: str,
-            package_version: Optional[str] = None,
+        cls,
+        plugin_id: str,
+        package_version: str | None = None,
     ) -> str:
         """
         生成脱敏后的本地插件来源标识。
@@ -1766,11 +1774,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     def _get(
-            cls,
-            url: str,
-            params: Optional[dict] = None,
-            timeout: int = 10,
-            include_user_uid: bool = True,
+        cls,
+        url: str,
+        params: dict | None = None,
+        timeout: int = 10,
+        include_user_uid: bool = True,
     ):
         """
         发送服务端 GET 请求，默认携带安装用户 ID。
@@ -1783,11 +1791,11 @@ class MoviePilotServerHelper:
 
     @classmethod
     async def _async_get(
-            cls,
-            url: str,
-            params: Optional[dict] = None,
-            timeout: int = 10,
-            include_user_uid: bool = True,
+        cls,
+        url: str,
+        params: dict | None = None,
+        timeout: int = 10,
+        include_user_uid: bool = True,
     ):
         """
         异步发送服务端 GET 请求，默认携带安装用户 ID。
@@ -1799,7 +1807,7 @@ class MoviePilotServerHelper:
         ).get_res(url, params=params)
 
     @classmethod
-    def _post_json(cls, url: str, payload: Dict[str, Any], timeout: int = 10):
+    def _post_json(cls, url: str, payload: dict[str, Any], timeout: int = 10):
         """
         发送携带安装用户 ID 的服务端 JSON POST 请求。
         """
@@ -1810,7 +1818,7 @@ class MoviePilotServerHelper:
         ).post(url, json=payload)
 
     @classmethod
-    async def _async_post_json(cls, url: str, payload: Dict[str, Any], timeout: int = 10):
+    async def _async_post_json(cls, url: str, payload: dict[str, Any], timeout: int = 10):
         """
         异步发送携带安装用户 ID 的服务端 JSON POST 请求。
         """
@@ -1821,7 +1829,7 @@ class MoviePilotServerHelper:
         ).post(url, json=payload)
 
     @classmethod
-    def _delete(cls, url: str, params: Optional[dict] = None, timeout: int = 10):
+    def _delete(cls, url: str, params: dict | None = None, timeout: int = 10):
         """
         发送携带安装用户 ID 的服务端 DELETE 请求。
         """
@@ -1832,7 +1840,7 @@ class MoviePilotServerHelper:
         ).delete_res(url, params=params)
 
     @classmethod
-    async def _async_delete(cls, url: str, params: Optional[dict] = None, timeout: int = 10):
+    async def _async_delete(cls, url: str, params: dict | None = None, timeout: int = 10):
         """
         异步发送携带安装用户 ID 的服务端 DELETE 请求。
         """

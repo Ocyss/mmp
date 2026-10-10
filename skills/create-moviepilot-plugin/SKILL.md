@@ -289,40 +289,17 @@ class MyNotifier(_PluginBase):
             {
                 "component": "VForm",
                 "content": [
-                    {
-                        "component": "VSwitch",
-                        "props": {
-                            "model": "enabled",
-                            "label": "启用插件"
-                        }
-                    },
-                    {
-                        "component": "VTextField",
-                        "props": {
-                            "model": "message",
-                            "label": "通知内容"
-                        }
-                    }
-                ]
+                    {"component": "VSwitch", "props": {"model": "enabled", "label": "启用插件"}},
+                    {"component": "VTextField", "props": {"model": "message", "label": "通知内容"}},
+                ],
             }
-        ], {
-            "enabled": False,
-            "message": ""
-        }
+        ], {"enabled": False, "message": ""}
 
     def get_page(self) -> Optional[List[dict]]:
         """返回插件详情页面。"""
         if not self._enabled:
             return None
-        return [
-            {
-                "component": "VAlert",
-                "props": {
-                    "type": "info",
-                    "text": self._message or "插件已启用"
-                }
-            }
-        ]
+        return [{"component": "VAlert", "props": {"type": "info", "text": self._message or "插件已启用"}}]
 
     def stop_service(self) -> None:
         """停止插件后台服务并释放资源。"""

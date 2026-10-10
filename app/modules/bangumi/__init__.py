@@ -16,6 +16,7 @@ class BangumiModule(_ModuleBase):
     """
     Bangumi媒体信息匹配
     """
+
     CONFIG_WATCH = {"PROXY_HOST"}
 
     bangumiapi: BangumiApi = None
@@ -35,7 +36,7 @@ class BangumiModule(_ModuleBase):
         if self.bangumiapi:
             self.bangumiapi.close()
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -46,7 +47,7 @@ class BangumiModule(_ModuleBase):
             return False, f"无法连接Bangumi，错误码：{ret.status_code}"
         return False, "Bangumi网络连接失败"
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         """Bangumi模块无需独立开关"""
         return None
 
@@ -82,9 +83,9 @@ class BangumiModule(_ModuleBase):
         self,
         meta: MetaBase = None,
         bangumiid: int = None,
-        source: Optional[str] = None,
+        source: str | None = None,
         **kwargs,
-    ) -> Optional[MediaInfo]:
+    ) -> MediaInfo | None:
         """
         识别媒体信息
         :param meta: 识别的元数据
@@ -92,23 +93,16 @@ class BangumiModule(_ModuleBase):
         :param source: 请求级识别数据源
         :return: 识别的媒体信息，包括剧集信息
         """
-        if not bangumiid and (
-            not meta or (source or settings.RECOGNIZE_SOURCE) != "bangumi"
-        ):
+        if not bangumiid and (not meta or (source or settings.RECOGNIZE_SOURCE) != "bangumi"):
             return None
 
-        info = (
-            self.bangumi_info(bangumiid=bangumiid)
-            if bangumiid
-            else self._match_by_meta(meta)
-        )
+        info = self.bangumi_info(bangumiid=bangumiid) if bangumiid else self._match_by_meta(meta)
         if info:
             info["actors"] = self.bangumiapi.credits(info.get("id"))
             mediainfo = MediaInfo(bangumi_info=info)
             if meta and meta.begin_season is not None:
                 mediainfo.season = meta.begin_season
-            logger.info(f"{bangumiid or meta.name} Bangumi识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year}")
+            logger.info(f"{bangumiid or meta.name} Bangumi识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
         logger.info(f"{bangumiid or meta.name} 未匹配到Bangumi媒体信息")
 
@@ -118,9 +112,9 @@ class BangumiModule(_ModuleBase):
         self,
         meta: MetaBase = None,
         bangumiid: int = None,
-        source: Optional[str] = None,
+        source: str | None = None,
         **kwargs,
-    ) -> Optional[MediaInfo]:
+    ) -> MediaInfo | None:
         """
         识别媒体信息（异步版本）
         :param meta: 识别的元数据
@@ -128,23 +122,18 @@ class BangumiModule(_ModuleBase):
         :param source: 请求级识别数据源
         :return: 识别的媒体信息，包括剧集信息
         """
-        if not bangumiid and (
-            not meta or (source or settings.RECOGNIZE_SOURCE) != "bangumi"
-        ):
+        if not bangumiid and (not meta or (source or settings.RECOGNIZE_SOURCE) != "bangumi"):
             return None
 
         info = (
-            await self.async_bangumi_info(bangumiid=bangumiid)
-            if bangumiid
-            else await self._async_match_by_meta(meta)
+            await self.async_bangumi_info(bangumiid=bangumiid) if bangumiid else await self._async_match_by_meta(meta)
         )
         if info:
             info["actors"] = await self.bangumiapi.async_credits(info.get("id"))
             mediainfo = MediaInfo(bangumi_info=info)
             if meta and meta.begin_season is not None:
                 mediainfo.season = meta.begin_season
-            logger.info(f"{bangumiid or meta.name} Bangumi识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year}")
+            logger.info(f"{bangumiid or meta.name} Bangumi识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
         logger.info(f"{bangumiid or meta.name} 未匹配到Bangumi媒体信息")
 
@@ -159,15 +148,12 @@ class BangumiModule(_ModuleBase):
         :param info: Bangumi候选项详情
         :return: 是否符合筛选条件
         """
-        if (
-            meta.type in {MediaType.MOVIE, MediaType.TV}
-            and MediaInfo.get_bangumi_media_type(info) != meta.type
-        ):
+        if meta.type in {MediaType.MOVIE, MediaType.TV} and MediaInfo.get_bangumi_media_type(info) != meta.type:
             return False
         release_date = info.get("date") or info.get("air_date") or ""
         return not meta.year or not release_date or release_date[:4] == str(meta.year)
 
-    def _match_by_meta(self, meta: MetaBase) -> Optional[dict]:
+    def _match_by_meta(self, meta: MetaBase) -> dict | None:
         """
         搜索并获取最符合标题解析结果的Bangumi详情。
 
@@ -180,7 +166,7 @@ class BangumiModule(_ModuleBase):
                 return info
         return None
 
-    async def _async_match_by_meta(self, meta: MetaBase) -> Optional[dict]:
+    async def _async_match_by_meta(self, meta: MetaBase) -> dict | None:
         """
         异步搜索并获取最符合标题解析结果的Bangumi详情。
 
@@ -193,9 +179,7 @@ class BangumiModule(_ModuleBase):
                 return info
         return None
 
-    def search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息
         :param meta:  识别的元数据
@@ -210,14 +194,15 @@ class BangumiModule(_ModuleBase):
             return []
         infos = self.bangumiapi.search(meta.name)
         if infos:
-            return [MediaInfo(bangumi_info=info) for info in infos
-                    if meta.name.lower() in str(info.get("name")).lower()
-                    or meta.name.lower() in str(info.get("name_cn")).lower()]
+            return [
+                MediaInfo(bangumi_info=info)
+                for info in infos
+                if meta.name.lower() in str(info.get("name")).lower()
+                or meta.name.lower() in str(info.get("name_cn")).lower()
+            ]
         return []
 
-    async def async_search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息（异步版本）
         :param meta:  识别的元数据
@@ -232,12 +217,15 @@ class BangumiModule(_ModuleBase):
             return []
         infos = await self.bangumiapi.async_search(meta.name)
         if infos:
-            return [MediaInfo(bangumi_info=info) for info in infos
-                    if meta.name.lower() in str(info.get("name")).lower()
-                    or meta.name.lower() in str(info.get("name_cn")).lower()]
+            return [
+                MediaInfo(bangumi_info=info)
+                for info in infos
+                if meta.name.lower() in str(info.get("name")).lower()
+                or meta.name.lower() in str(info.get("name_cn")).lower()
+            ]
         return []
 
-    def bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    def bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息
         :param bangumiid: BangumiID
@@ -248,7 +236,7 @@ class BangumiModule(_ModuleBase):
         logger.info(f"开始获取Bangumi信息：{bangumiid} ...")
         return self.bangumiapi.detail(bangumiid)
 
-    async def async_bangumi_info(self, bangumiid: int) -> Optional[dict]:
+    async def async_bangumi_info(self, bangumiid: int) -> dict | None:
         """
         获取Bangumi信息（异步版本）
         :param bangumiid: BangumiID
@@ -262,10 +250,10 @@ class BangumiModule(_ModuleBase):
     def metadata_nfo(
         self,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-        episode: Optional[int] = None,
+        season: int | None = None,
+        episode: int | None = None,
         **kwargs,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         生成Bangumi来源的NFO内容。
 
@@ -282,9 +270,9 @@ class BangumiModule(_ModuleBase):
     def metadata_img(
         self,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-        episode: Optional[int] = None,
-    ) -> Optional[dict]:
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> dict | None:
         """
         获取Bangumi来源的刮削图片清单。
 
@@ -298,7 +286,7 @@ class BangumiModule(_ModuleBase):
             return None
         return self.scraper.get_metadata_img(mediainfo, season=season, episode=episode)
 
-    def bangumi_calendar(self) -> Optional[List[MediaInfo]]:
+    def bangumi_calendar(self) -> list[MediaInfo] | None:
         """
         获取Bangumi每日放送
         """
@@ -307,7 +295,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=info) for info in infos]
         return []
 
-    async def async_bangumi_calendar(self) -> Optional[List[MediaInfo]]:
+    async def async_bangumi_calendar(self) -> list[MediaInfo] | None:
         """
         获取Bangumi每日放送（异步版本）
         """
@@ -316,27 +304,27 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=info) for info in infos]
         return []
 
-    def bangumi_credits(self, bangumiid: int) -> List[schemas.MediaPerson]:
+    def bangumi_credits(self, bangumiid: int) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电影演职员表
         :param bangumiid:  BangumiID
         """
         persons = self.bangumiapi.credits(bangumiid)
         if persons:
-            return [schemas.MediaPerson(source='bangumi', **person) for person in persons]
+            return [schemas.MediaPerson(source="bangumi", **person) for person in persons]
         return []
 
-    async def async_bangumi_credits(self, bangumiid: int) -> List[schemas.MediaPerson]:
+    async def async_bangumi_credits(self, bangumiid: int) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电影演职员表（异步版本）
         :param bangumiid:  BangumiID
         """
         persons = await self.bangumiapi.async_credits(bangumiid)
         if persons:
-            return [schemas.MediaPerson(source='bangumi', **person) for person in persons]
+            return [schemas.MediaPerson(source="bangumi", **person) for person in persons]
         return []
 
-    def bangumi_recommend(self, bangumiid: int) -> List[MediaInfo]:
+    def bangumi_recommend(self, bangumiid: int) -> list[MediaInfo]:
         """
         根据BangumiID查询推荐电影
         :param bangumiid:  BangumiID
@@ -346,7 +334,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=subject) for subject in subjects]
         return []
 
-    async def async_bangumi_recommend(self, bangumiid: int) -> List[MediaInfo]:
+    async def async_bangumi_recommend(self, bangumiid: int) -> list[MediaInfo]:
         """
         根据BangumiID查询推荐电影（异步版本）
         :param bangumiid:  BangumiID
@@ -356,7 +344,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=subject) for subject in subjects]
         return []
 
-    def bangumi_person_detail(self, person_id: int) -> Optional[schemas.MediaPerson]:
+    def bangumi_person_detail(self, person_id: int) -> schemas.MediaPerson | None:
         """
         获取人物详细信息
         :param person_id:  豆瓣人物ID
@@ -366,7 +354,7 @@ class BangumiModule(_ModuleBase):
             return self._build_person_detail(personinfo)
         return None
 
-    async def async_bangumi_person_detail(self, person_id: int) -> Optional[schemas.MediaPerson]:
+    async def async_bangumi_person_detail(self, person_id: int) -> schemas.MediaPerson | None:
         """
         获取人物详细信息（异步版本）
         :param person_id:  豆瓣人物ID
@@ -383,17 +371,20 @@ class BangumiModule(_ModuleBase):
         :param personinfo: Bangumi人物详情接口返回数据
         :return: 媒体人物信息
         """
-        return schemas.MediaPerson(source='bangumi', **{
-            "id": personinfo.get("id"),
-            "name": personinfo.get("name"),
-            "images": personinfo.get("images"),
-            "biography": personinfo.get("summary"),
-            "birthday": cls._normalize_optional_string(personinfo.get("birth_day")),
-            "gender": personinfo.get("gender")
-        })
+        return schemas.MediaPerson(
+            source="bangumi",
+            **{
+                "id": personinfo.get("id"),
+                "name": personinfo.get("name"),
+                "images": personinfo.get("images"),
+                "biography": personinfo.get("summary"),
+                "birthday": cls._normalize_optional_string(personinfo.get("birth_day")),
+                "gender": personinfo.get("gender"),
+            },
+        )
 
     @staticmethod
-    def _normalize_optional_string(value: object) -> Optional[str]:
+    def _normalize_optional_string(value: object) -> str | None:
         """
         规范化Bangumi接口中可能返回非字符串的可选文本字段。
         :param value: 原始字段值
@@ -403,7 +394,7 @@ class BangumiModule(_ModuleBase):
             return None
         return str(value)
 
-    def bangumi_person_credits(self, person_id: int) -> List[MediaInfo]:
+    def bangumi_person_credits(self, person_id: int) -> list[MediaInfo]:
         """
         根据TMDBID查询人物参演作品
         :param person_id:  人物ID
@@ -413,7 +404,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=credit) for credit in credits_info]
         return []
 
-    async def async_bangumi_person_credits(self, person_id: int) -> List[MediaInfo]:
+    async def async_bangumi_person_credits(self, person_id: int) -> list[MediaInfo]:
         """
         根据TMDBID查询人物参演作品（异步版本）
         :param person_id:  人物ID
@@ -423,7 +414,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=credit) for credit in credits_info]
         return []
 
-    def bangumi_discover(self, **kwargs) -> Optional[List[MediaInfo]]:
+    def bangumi_discover(self, **kwargs) -> list[MediaInfo] | None:
         """
         发现Bangumi番剧
         """
@@ -432,7 +423,7 @@ class BangumiModule(_ModuleBase):
             return [MediaInfo(bangumi_info=info) for info in infos]
         return []
 
-    async def async_bangumi_discover(self, **kwargs) -> Optional[List[MediaInfo]]:
+    async def async_bangumi_discover(self, **kwargs) -> list[MediaInfo] | None:
         """
         发现Bangumi番剧（异步版本）
         """

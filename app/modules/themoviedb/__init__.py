@@ -1,5 +1,5 @@
 import re
-from typing import Optional, List, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import cn2an
 
@@ -14,10 +14,9 @@ from app.modules.themoviedb.scraper import TmdbScraper
 from app.modules.themoviedb.tmdb_cache import TmdbCache
 from app.modules.themoviedb.tmdbapi import TmdbApi
 from app.schemas.category import CategoryConfig
-from app.schemas.types import MediaType, MediaImageType, ModuleType, MediaRecognizeType
+from app.schemas.types import MediaImageType, MediaRecognizeType, MediaType, ModuleType
 from app.utils.http import RequestUtils
 from app.utils.zhconv import convert as zhconv_convert
-
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -26,6 +25,7 @@ class TheMovieDbModule(_ModuleBase):
     """
     TMDB媒体信息匹配
     """
+
     CONFIG_WATCH = {"PROXY_HOST", "TMDB_API_DOMAIN", "TMDB_API_KEY", "TMDB_LOCALE"}
 
     # 元数据缓存
@@ -76,26 +76,27 @@ class TheMovieDbModule(_ModuleBase):
         finally:
             self.tmdb.close()
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
         ret = RequestUtils(ua=settings.NORMAL_USER_AGENT, proxies=settings.PROXY).get_res(
-            f"https://{settings.TMDB_API_DOMAIN}/3/movie/550?api_key={settings.TMDB_API_KEY}")
+            f"https://{settings.TMDB_API_DOMAIN}/3/movie/550?api_key={settings.TMDB_API_KEY}"
+        )
         if ret and ret.status_code == 200:
             return True, ""
         elif ret:
             return False, f"无法连接 {settings.TMDB_API_DOMAIN}，错误码：{ret.status_code}"
         return False, f"{settings.TMDB_API_DOMAIN} 网络连接失败"
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
     def _validate_recognize_params(
         meta: MetaBase,
-        tmdbid: Optional[int],
-        source: Optional[str] = None,
+        tmdbid: int | None,
+        source: str | None = None,
     ) -> bool:
         """
         验证识别参数
@@ -118,7 +119,7 @@ class TheMovieDbModule(_ModuleBase):
         return True
 
     @staticmethod
-    def _prepare_search_names(meta: MetaBase) -> List[str]:
+    def _prepare_search_names(meta: MetaBase) -> list[str]:
         """
         准备搜索名称列表
         """
@@ -128,8 +129,7 @@ class TheMovieDbModule(_ModuleBase):
         return list(dict.fromkeys([k for k in [meta.cn_name, zh_name, meta.en_name] if k]))
 
     @staticmethod
-    def _fill_group_season_info(mediainfo: MediaInfo, episode_group: Optional[str],
-                                group_seasons: List[dict]) -> None:
+    def _fill_group_season_info(mediainfo: MediaInfo, episode_group: str | None, group_seasons: list[dict]) -> None:
         """
         将指定剧集组的季、集、年份信息写入 MediaInfo。
         """
@@ -164,7 +164,7 @@ class TheMovieDbModule(_ModuleBase):
         mediainfo.episode_groups = group_seasons
 
     @staticmethod
-    def _build_search_medias_result(meta: MetaBase, results: Optional[List[dict]]) -> List[MediaInfo]:
+    def _build_search_medias_result(meta: MetaBase, results: list[dict] | None) -> list[MediaInfo]:
         """
         构建搜索结果，并沿用原有逻辑把搜索词中的季写入电视剧标题中。
         """
@@ -180,8 +180,7 @@ class TheMovieDbModule(_ModuleBase):
                     media.season = meta.begin_season
         return medias
 
-    def _get_info_by_tmdbid(self, tmdbid: int, mtype: Optional[MediaType],
-                             meta: Optional[MetaBase]) -> Optional[dict]:
+    def _get_info_by_tmdbid(self, tmdbid: int, mtype: MediaType | None, meta: MetaBase | None) -> dict | None:
         """
         根据tmdbid查询媒体信息，当类型未知且同时存在电影和电视剧时，通过元数据消歧
         """
@@ -199,8 +198,9 @@ class TheMovieDbModule(_ModuleBase):
             return None
         return info_tv or info_movie or None
 
-    async def _async_get_info_by_tmdbid(self, tmdbid: int, mtype: Optional[MediaType],
-                                         meta: Optional[MetaBase]) -> Optional[dict]:
+    async def _async_get_info_by_tmdbid(
+        self, tmdbid: int, mtype: MediaType | None, meta: MetaBase | None
+    ) -> dict | None:
         """
         根据tmdbid查询媒体信息，当类型未知且同时存在电影和电视剧时，通过元数据消歧（异步版本）
         """
@@ -219,8 +219,7 @@ class TheMovieDbModule(_ModuleBase):
         return info_tv or info_movie or None
 
     @staticmethod
-    def _disambiguate_by_meta(info_tv: dict, info_movie: dict,
-                               meta: Optional[MetaBase]) -> Optional[dict]:
+    def _disambiguate_by_meta(info_tv: dict, info_movie: dict, meta: MetaBase | None) -> dict | None:
         """
         通过元数据（标题、年份、类型）对同tmdbid的电影和电视剧进行消歧
         """
@@ -229,10 +228,10 @@ class TheMovieDbModule(_ModuleBase):
 
         def _collect_titles(info: dict) -> set:
             titles = set()
-            for key in ('title', 'name', 'original_title', 'original_name'):
+            for key in ("title", "name", "original_title", "original_name"):
                 if info.get(key):
                     titles.add(info[key])
-            for name in (info.get('names') or []):
+            for name in info.get("names") or []:
                 titles.add(name)
             return titles
 
@@ -247,7 +246,7 @@ class TheMovieDbModule(_ModuleBase):
                     break
             # 年份匹配
             if meta.year:
-                release_date = info.get('release_date') or info.get('first_air_date') or ''
+                release_date = info.get("release_date") or info.get("first_air_date") or ""
                 if release_date and release_date[:4] == meta.year:
                     score += 1
             return score
@@ -272,7 +271,7 @@ class TheMovieDbModule(_ModuleBase):
 
         return None
 
-    def _search_by_name(self, name: str, meta: MetaBase, group_seasons: List[dict]) -> dict:
+    def _search_by_name(self, name: str, meta: MetaBase, group_seasons: list[dict]) -> dict:
         """
         根据名称搜索媒体信息
         """
@@ -286,12 +285,14 @@ class TheMovieDbModule(_ModuleBase):
         else:
             if meta.type == MediaType.TV:
                 # 确定是电视
-                info = self.tmdb.match(name=name,
-                                       year=meta.year,
-                                       mtype=meta.type,
-                                       season_year=meta.year,
-                                       season_number=meta.begin_season,
-                                       group_seasons=group_seasons)
+                info = self.tmdb.match(
+                    name=name,
+                    year=meta.year,
+                    mtype=meta.type,
+                    season_year=meta.year,
+                    season_number=meta.begin_season,
+                    group_seasons=group_seasons,
+                )
                 if not info:
                     # 去掉年份再查一次
                     info = self.tmdb.match(name=name, mtype=meta.type)
@@ -301,14 +302,13 @@ class TheMovieDbModule(_ModuleBase):
                 info = self.tmdb.match(name=name, year=meta.year, mtype=MediaType.MOVIE)
                 # 没有再按电视剧查
                 if not info:
-                    info = self.tmdb.match(name=name, year=meta.year, mtype=MediaType.TV,
-                                           group_seasons=group_seasons)
+                    info = self.tmdb.match(name=name, year=meta.year, mtype=MediaType.TV, group_seasons=group_seasons)
                 if not info:
                     # 去掉年份和类型再查一次
                     info = self.tmdb.match_multi(name=name)
                 return info
 
-    async def _async_search_by_name(self, name: str, meta: MetaBase, group_seasons: List[dict]) -> dict:
+    async def _async_search_by_name(self, name: str, meta: MetaBase, group_seasons: list[dict]) -> dict:
         """
         根据名称搜索媒体信息（异步版本）
         """
@@ -322,12 +322,14 @@ class TheMovieDbModule(_ModuleBase):
         else:
             if meta.type == MediaType.TV:
                 # 确定是电视
-                info = await self.tmdb.async_match(name=name,
-                                                   year=meta.year,
-                                                   mtype=meta.type,
-                                                   season_year=meta.year,
-                                                   season_number=meta.begin_season,
-                                                   group_seasons=group_seasons)
+                info = await self.tmdb.async_match(
+                    name=name,
+                    year=meta.year,
+                    mtype=meta.type,
+                    season_year=meta.year,
+                    season_number=meta.begin_season,
+                    group_seasons=group_seasons,
+                )
                 if not info:
                     # 去掉年份再查一次
                     info = await self.tmdb.async_match(name=name, mtype=meta.type)
@@ -337,15 +339,17 @@ class TheMovieDbModule(_ModuleBase):
                 info = await self.tmdb.async_match(name=name, year=meta.year, mtype=MediaType.MOVIE)
                 # 没有再按电视剧查
                 if not info:
-                    info = await self.tmdb.async_match(name=name, year=meta.year, mtype=MediaType.TV,
-                                                       group_seasons=group_seasons)
+                    info = await self.tmdb.async_match(
+                        name=name, year=meta.year, mtype=MediaType.TV, group_seasons=group_seasons
+                    )
                 if not info:
                     # 去掉年份和类型再查一次
                     info = await self.tmdb.async_match_multi(name=name)
                 return info
 
-    def _process_episode_groups(self, mediainfo: MediaInfo, episode_group: Optional[str],
-                                group_seasons: List[dict]) -> MediaInfo:
+    def _process_episode_groups(
+        self, mediainfo: MediaInfo, episode_group: str | None, group_seasons: list[dict]
+    ) -> MediaInfo:
         """
         处理剧集组信息
         """
@@ -356,15 +360,15 @@ class TheMovieDbModule(_ModuleBase):
                 # 每季年份
                 season_years = {}
                 for group in mediainfo.episode_groups:
-                    if group.get('type') != 6:
+                    if group.get("type") != 6:
                         # 只处理剧集部分
                         continue
-                    group_episodes = self.tmdb.get_tv_group_seasons(group.get('id'))
+                    group_episodes = self.tmdb.get_tv_group_seasons(group.get("id"))
                     if not group_episodes:
                         continue
                     for group_episode in group_episodes:
-                        season = group_episode.get('order')
-                        episodes = group_episode.get('episodes')
+                        season = group_episode.get("order")
+                        episodes = group_episode.get("episodes")
                         if not episodes:
                             continue
                         # 当前季第一季时间
@@ -376,8 +380,9 @@ class TheMovieDbModule(_ModuleBase):
                     mediainfo.season_years = season_years
         return mediainfo
 
-    async def _async_process_episode_groups(self, mediainfo: MediaInfo, episode_group: Optional[str],
-                                            group_seasons: List[dict]) -> MediaInfo:
+    async def _async_process_episode_groups(
+        self, mediainfo: MediaInfo, episode_group: str | None, group_seasons: list[dict]
+    ) -> MediaInfo:
         """
         处理剧集组信息（异步版本）
         """
@@ -388,15 +393,15 @@ class TheMovieDbModule(_ModuleBase):
                 # 每季年份
                 season_years = {}
                 for group in mediainfo.episode_groups:
-                    if group.get('type') != 6:
+                    if group.get("type") != 6:
                         # 只处理剧集部分
                         continue
-                    group_episodes = await self.tmdb.async_get_tv_group_seasons(group.get('id'))
+                    group_episodes = await self.tmdb.async_get_tv_group_seasons(group.get("id"))
                     if not group_episodes:
                         continue
                     for group_episode in group_episodes:
-                        season = group_episode.get('order')
-                        episodes = group_episode.get('episodes')
+                        season = group_episode.get("order")
+                        episodes = group_episode.get("episodes")
                         if not episodes:
                             continue
                         # 当前季第一季时间
@@ -408,13 +413,14 @@ class TheMovieDbModule(_ModuleBase):
                     mediainfo.season_years = season_years
         return mediainfo
 
-    def _build_media_info_result(self, info: dict, meta: MetaBase, tmdbid: Optional[int],
-                                 episode_group: Optional[str], group_seasons: List[dict]) -> MediaInfo:
+    def _build_media_info_result(
+        self, info: dict, meta: MetaBase, tmdbid: int | None, episode_group: str | None, group_seasons: list[dict]
+    ) -> MediaInfo:
         """
         构建MediaInfo结果
         """
         # 确定二级分类
-        if info.get('media_type') == MediaType.TV:
+        if info.get("media_type") == MediaType.TV:
             cat = self.category.get_tv_category(info)
         else:
             cat = self.category.get_movie_category(info)
@@ -424,23 +430,21 @@ class TheMovieDbModule(_ModuleBase):
         mediainfo.set_category(cat)
 
         if meta:
-            logger.info(f"{meta.name} TMDB识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year} "
-                        f"{mediainfo.tmdb_id}")
+            logger.info(f"{meta.name} TMDB识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.tmdb_id}")
         else:
-            logger.info(f"{tmdbid} TMDB识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year}")
+            logger.info(f"{tmdbid} TMDB识别结果：{mediainfo.type.value} {mediainfo.title_year}")
 
         # 处理剧集组信息
         return self._process_episode_groups(mediainfo, episode_group, group_seasons)
 
-    async def _async_build_media_info_result(self, info: dict, meta: MetaBase, tmdbid: Optional[int],
-                                             episode_group: Optional[str], group_seasons: List[dict]) -> MediaInfo:
+    async def _async_build_media_info_result(
+        self, info: dict, meta: MetaBase, tmdbid: int | None, episode_group: str | None, group_seasons: list[dict]
+    ) -> MediaInfo:
         """
         构建MediaInfo结果（异步版本）
         """
         # 确定二级分类
-        if info.get('media_type') == MediaType.TV:
+        if info.get("media_type") == MediaType.TV:
             cat = self.category.get_tv_category(info)
         else:
             cat = self.category.get_movie_category(info)
@@ -450,22 +454,22 @@ class TheMovieDbModule(_ModuleBase):
         mediainfo.set_category(cat)
 
         if meta:
-            logger.info(f"{meta.name} TMDB识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year} "
-                        f"{mediainfo.tmdb_id}")
+            logger.info(f"{meta.name} TMDB识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.tmdb_id}")
         else:
-            logger.info(f"{tmdbid} TMDB识别结果：{mediainfo.type.value} "
-                        f"{mediainfo.title_year}")
+            logger.info(f"{tmdbid} TMDB识别结果：{mediainfo.type.value} {mediainfo.title_year}")
 
         # 处理剧集组信息
         return await self._async_process_episode_groups(mediainfo, episode_group, group_seasons)
 
-    def recognize_media(self, meta: MetaBase = None,
-                        mtype: MediaType = None,
-                        tmdbid: Optional[int] = None,
-                        episode_group: Optional[str] = None,
-                        cache: Optional[bool] = True,
-                        **kwargs) -> Optional[MediaInfo]:
+    def recognize_media(
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType = None,
+        tmdbid: int | None = None,
+        episode_group: str | None = None,
+        cache: bool | None = True,
+        **kwargs,
+    ) -> MediaInfo | None:
         """
         识别媒体信息
         :param meta:     识别的元数据
@@ -513,8 +517,7 @@ class TheMovieDbModule(_ModuleBase):
                         break
                 # 补充全量信息
                 if info and not info.get("genres"):
-                    info = self.tmdb.get_info(mtype=info.get("media_type"),
-                                              tmdbid=info.get("id"))
+                    info = self.tmdb.get_info(mtype=info.get("media_type"), tmdbid=info.get("id"))
             elif not info:
                 if tmdbid:
                     logger.warn(f"tmdb_id:{tmdbid} 无法确定媒体类型，识别失败")
@@ -530,8 +533,7 @@ class TheMovieDbModule(_ModuleBase):
             cache_hit = True
             if cache_info.get("title"):
                 logger.info(f"{meta.name} 使用TMDB识别缓存：{cache_info.get('title')}")
-                info = self.tmdb.get_info(mtype=cache_info.get("type"),
-                                          tmdbid=cache_info.get("id"))
+                info = self.tmdb.get_info(mtype=cache_info.get("type"), tmdbid=cache_info.get("id"))
             else:
                 logger.info(f"{meta.name} 使用TMDB识别缓存：无法识别")
                 info = None
@@ -546,12 +548,15 @@ class TheMovieDbModule(_ModuleBase):
 
         return None
 
-    async def async_recognize_media(self, meta: MetaBase = None,
-                                    mtype: MediaType = None,
-                                    tmdbid: Optional[int] = None,
-                                    episode_group: Optional[str] = None,
-                                    cache: Optional[bool] = True,
-                                    **kwargs) -> Optional[MediaInfo]:
+    async def async_recognize_media(
+        self,
+        meta: MetaBase = None,
+        mtype: MediaType = None,
+        tmdbid: int | None = None,
+        episode_group: str | None = None,
+        cache: bool | None = True,
+        **kwargs,
+    ) -> MediaInfo | None:
         """
         识别媒体信息（异步版本）
         :param meta:     识别的元数据
@@ -599,8 +604,7 @@ class TheMovieDbModule(_ModuleBase):
                         break
                 # 补充全量信息
                 if info and not info.get("genres"):
-                    info = await self.tmdb.async_get_info(mtype=info.get("media_type"),
-                                                          tmdbid=info.get("id"))
+                    info = await self.tmdb.async_get_info(mtype=info.get("media_type"), tmdbid=info.get("id"))
             elif not info:
                 if tmdbid:
                     logger.warn(f"tmdb_id:{tmdbid} 无法确定媒体类型，识别失败")
@@ -616,8 +620,7 @@ class TheMovieDbModule(_ModuleBase):
             cache_hit = True
             if cache_info.get("title"):
                 logger.info(f"{meta.name} 使用TMDB识别缓存：{cache_info.get('title')}")
-                info = await self.tmdb.async_get_info(mtype=cache_info.get("type"),
-                                                      tmdbid=cache_info.get("id"))
+                info = await self.tmdb.async_get_info(mtype=cache_info.get("type"), tmdbid=cache_info.get("id"))
             else:
                 logger.info(f"{meta.name} 使用TMDB识别缓存：无法识别")
                 info = None
@@ -632,8 +635,9 @@ class TheMovieDbModule(_ModuleBase):
 
         return None
 
-    def match_tmdbinfo(self, name: str, mtype: MediaType = None,
-                       year: Optional[str] = None, season: Optional[int] = None) -> dict:
+    def match_tmdbinfo(
+        self, name: str, mtype: MediaType = None, year: str | None = None, season: int | None = None
+    ) -> dict:
         """
         搜索和匹配TMDB信息
         :param name:  名称
@@ -643,18 +647,14 @@ class TheMovieDbModule(_ModuleBase):
         """
         # 搜索
         logger.info(f"开始使用 名称：{name} 年份：{year} 匹配TMDB信息 ...")
-        info = self.tmdb.match(name=name,
-                               year=year,
-                               mtype=mtype,
-                               season_year=year,
-                               season_number=season)
+        info = self.tmdb.match(name=name, year=year, mtype=mtype, season_year=year, season_number=season)
         if info and not info.get("genres"):
-            info = self.tmdb.get_info(mtype=info.get("media_type"),
-                                      tmdbid=info.get("id"))
+            info = self.tmdb.get_info(mtype=info.get("media_type"), tmdbid=info.get("id"))
         return info
 
-    async def async_match_tmdbinfo(self, name: str, mtype: MediaType = None,
-                                   year: Optional[str] = None, season: Optional[int] = None) -> dict:
+    async def async_match_tmdbinfo(
+        self, name: str, mtype: MediaType = None, year: str | None = None, season: int | None = None
+    ) -> dict:
         """
         异步搜索和匹配TMDB信息
         :param name:  名称
@@ -664,17 +664,12 @@ class TheMovieDbModule(_ModuleBase):
         """
         # 搜索
         logger.info(f"开始使用 名称：{name} 年份：{year} 匹配TMDB信息 ...")
-        info = await self.tmdb.async_match(name=name,
-                                           year=year,
-                                           mtype=mtype,
-                                           season_year=year,
-                                           season_number=season)
+        info = await self.tmdb.async_match(name=name, year=year, mtype=mtype, season_year=year, season_number=season)
         if info and not info.get("genres"):
-            info = await self.tmdb.async_get_info(mtype=info.get("media_type"),
-                                                  tmdbid=info.get("id"))
+            info = await self.tmdb.async_get_info(mtype=info.get("media_type"), tmdbid=info.get("id"))
         return info
 
-    def tmdb_info(self, tmdbid: int, mtype: MediaType, season: Optional[int] = None) -> Optional[dict]:
+    def tmdb_info(self, tmdbid: int, mtype: MediaType, season: int | None = None) -> dict | None:
         """
         获取TMDB信息
         :param tmdbid: int
@@ -687,7 +682,7 @@ class TheMovieDbModule(_ModuleBase):
         else:
             return self.tmdb.get_tv_season_detail(tmdbid=tmdbid, season=season)
 
-    async def async_tmdb_info(self, tmdbid: int, mtype: MediaType, season: Optional[int] = None) -> Optional[dict]:
+    async def async_tmdb_info(self, tmdbid: int, mtype: MediaType, season: int | None = None) -> dict | None:
         """
         异步获取TMDB信息
         :param tmdbid: int
@@ -701,10 +696,10 @@ class TheMovieDbModule(_ModuleBase):
             return await self.tmdb.async_get_tv_season_detail(tmdbid=tmdbid, season=season)
 
     def update_recognize_cache(
-            self,
-            meta: MetaBase,
-            mediainfo: MediaInfo,
-    ) -> Optional[bool]:
+        self,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+    ) -> bool | None:
         """
         回填TMDB本地识别缓存，覆盖名称负缓存，避免共享识别后重复回查。
         """
@@ -716,28 +711,26 @@ class TheMovieDbModule(_ModuleBase):
         return True
 
     async def async_update_recognize_cache(
-            self,
-            meta: MetaBase,
-            mediainfo: MediaInfo,
-    ) -> Optional[bool]:
+        self,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+    ) -> bool | None:
         """
         异步回填TMDB本地识别缓存。
         """
         return self.update_recognize_cache(meta=meta, mediainfo=mediainfo)
 
-    def media_category(self) -> Optional[Dict[str, list]]:
+    def media_category(self) -> dict[str, list] | None:
         """
         获取媒体分类
         :return: 获取二级分类配置字典项，需包括电影、电视剧
         """
         return {
             MediaType.MOVIE.value: list(self.category.movie_categorys),
-            MediaType.TV.value: list(self.category.tv_categorys)
+            MediaType.TV.value: list(self.category.tv_categorys),
         }
 
-    def search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息
         :param meta:  识别的元数据
@@ -760,7 +753,7 @@ class TheMovieDbModule(_ModuleBase):
                 results = sorted(
                     results,
                     key=lambda x: x.get("release_date") or x.get("first_air_date") or "0000-00-00",
-                    reverse=True
+                    reverse=True,
                 )
             elif meta.type == MediaType.MOVIE:
                 results = self.tmdb.search_movies(meta.name, meta.year)
@@ -769,9 +762,7 @@ class TheMovieDbModule(_ModuleBase):
         # 将搜索词中的季写入标题中
         return self._build_search_medias_result(meta, results)
 
-    def search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[schemas.MediaPerson]]:
+    def search_persons(self, name: str, source: str | None = None) -> list[schemas.MediaPerson] | None:
         """
         搜索人物信息
         :param name: 人物名称
@@ -786,12 +777,10 @@ class TheMovieDbModule(_ModuleBase):
             return []
         results = self.tmdb.search_persons(name)
         if results:
-            return [schemas.MediaPerson(source='themoviedb', **person) for person in results]
+            return [schemas.MediaPerson(source="themoviedb", **person) for person in results]
         return []
 
-    async def async_search_persons(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[schemas.MediaPerson]]:
+    async def async_search_persons(self, name: str, source: str | None = None) -> list[schemas.MediaPerson] | None:
         """
         异步搜索人物信息
         :param name: 人物名称
@@ -806,12 +795,10 @@ class TheMovieDbModule(_ModuleBase):
             return []
         results = await self.tmdb.async_search_persons(name)
         if results:
-            return [schemas.MediaPerson(source='themoviedb', **person) for person in results]
+            return [schemas.MediaPerson(source="themoviedb", **person) for person in results]
         return []
 
-    def search_collections(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    def search_collections(self, name: str, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索集合信息
         :param name: 合集名称
@@ -827,9 +814,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in results]
         return []
 
-    async def async_search_collections(
-        self, name: str, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_collections(self, name: str, source: str | None = None) -> list[MediaInfo] | None:
         """
         异步搜索集合信息
         :param name: 合集名称
@@ -845,7 +830,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in results]
         return []
 
-    def tmdb_collection(self, collection_id: int) -> Optional[List[MediaInfo]]:
+    def tmdb_collection(self, collection_id: int) -> list[MediaInfo] | None:
         """
         根据合集ID查询集合
         :param collection_id:  合集ID
@@ -855,8 +840,9 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in results]
         return []
 
-    def metadata_nfo(self, meta: MetaBase, mediainfo: MediaInfo,
-                     season: Optional[int] = None, episode: Optional[int] = None) -> Optional[str]:
+    def metadata_nfo(
+        self, meta: MetaBase, mediainfo: MediaInfo, season: int | None = None, episode: int | None = None
+    ) -> str | None:
         """
         获取NFO文件内容文本
         :param meta: 元数据
@@ -868,8 +854,7 @@ class TheMovieDbModule(_ModuleBase):
             return None
         return self.scraper.get_metadata_nfo(meta=meta, mediainfo=mediainfo, season=season, episode=episode)
 
-    def metadata_img(self, mediainfo: MediaInfo, season: Optional[int] = None,
-                     episode: Optional[int] = None) -> Optional[dict]:
+    def metadata_img(self, mediainfo: MediaInfo, season: int | None = None, episode: int | None = None) -> dict | None:
         """
         获取图片名称和url
         :param mediainfo: 媒体信息
@@ -880,15 +865,19 @@ class TheMovieDbModule(_ModuleBase):
             return None
         return self.scraper.get_metadata_img(mediainfo=mediainfo, season=season, episode=episode)
 
-    def tmdb_discover(self, mtype: MediaType, sort_by: str,
-                      with_genres: str,
-                      with_original_language: str,
-                      with_keywords: str,
-                      with_watch_providers: str,
-                      vote_average: float,
-                      vote_count: int,
-                      release_date: str,
-                      page: Optional[int] = 1) -> Optional[List[MediaInfo]]:
+    def tmdb_discover(
+        self,
+        mtype: MediaType,
+        sort_by: str,
+        with_genres: str,
+        with_original_language: str,
+        with_keywords: str,
+        with_watch_providers: str,
+        vote_average: float,
+        vote_count: int,
+        release_date: str,
+        page: int | None = 1,
+    ) -> list[MediaInfo] | None:
         """
         :param mtype:  媒体类型
         :param sort_by:  排序方式
@@ -903,36 +892,40 @@ class TheMovieDbModule(_ModuleBase):
         :return: 媒体信息列表
         """
         if mtype == MediaType.MOVIE:
-            infos = self.tmdb.discover_movies({
-                "sort_by": sort_by,
-                "with_genres": with_genres,
-                "with_original_language": with_original_language,
-                "with_keywords": with_keywords,
-                "with_watch_providers": with_watch_providers,
-                "vote_average.gte": vote_average,
-                "vote_count.gte": vote_count,
-                "release_date.gte": release_date,
-                "page": page
-            })
+            infos = self.tmdb.discover_movies(
+                {
+                    "sort_by": sort_by,
+                    "with_genres": with_genres,
+                    "with_original_language": with_original_language,
+                    "with_keywords": with_keywords,
+                    "with_watch_providers": with_watch_providers,
+                    "vote_average.gte": vote_average,
+                    "vote_count.gte": vote_count,
+                    "release_date.gte": release_date,
+                    "page": page,
+                }
+            )
         elif mtype == MediaType.TV:
-            infos = self.tmdb.discover_tvs({
-                "sort_by": sort_by,
-                "with_genres": with_genres,
-                "with_original_language": with_original_language,
-                "with_keywords": with_keywords,
-                "with_watch_providers": with_watch_providers,
-                "vote_average.gte": vote_average,
-                "vote_count.gte": vote_count,
-                "first_air_date.gte": release_date,
-                "page": page
-            })
+            infos = self.tmdb.discover_tvs(
+                {
+                    "sort_by": sort_by,
+                    "with_genres": with_genres,
+                    "with_original_language": with_original_language,
+                    "with_keywords": with_keywords,
+                    "with_watch_providers": with_watch_providers,
+                    "vote_average.gte": vote_average,
+                    "vote_count.gte": vote_count,
+                    "first_air_date.gte": release_date,
+                    "page": page,
+                }
+            )
         else:
             return []
         if infos:
             return [MediaInfo(tmdb_info=info) for info in infos]
         return []
 
-    def tmdb_trending(self, page: Optional[int] = 1) -> List[MediaInfo]:
+    def tmdb_trending(self, page: int | None = 1) -> list[MediaInfo]:
         """
         TMDB流行趋势
         :param page: 第几页
@@ -943,7 +936,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in trending]
         return []
 
-    def tmdb_seasons(self, tmdbid: int) -> List[schemas.TmdbSeason]:
+    def tmdb_seasons(self, tmdbid: int) -> list[schemas.TmdbSeason]:
         """
         根据TMDBID查询themoviedb所有季信息
         :param tmdbid:  TMDBID
@@ -951,10 +944,11 @@ class TheMovieDbModule(_ModuleBase):
         tmdb_info = self.tmdb.get_info(tmdbid=tmdbid, mtype=MediaType.TV)
         if not tmdb_info:
             return []
-        return [schemas.TmdbSeason(**sea)
-                for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None]
+        return [
+            schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None
+        ]
 
-    def tmdb_group_seasons(self, group_id: str) -> List[schemas.TmdbSeason]:
+    def tmdb_group_seasons(self, group_id: str) -> list[schemas.TmdbSeason]:
         """
         根据剧集组ID查询themoviedb所有季集信息
         :param group_id: 剧集组ID
@@ -962,14 +956,17 @@ class TheMovieDbModule(_ModuleBase):
         group_seasons = self.tmdb.get_tv_group_seasons(group_id)
         if not group_seasons:
             return []
-        return [schemas.TmdbSeason(
-            season_number=sea.get("order"),
-            name=sea.get("name"),
-            episode_count=len(sea.get("episodes") or []),
-            air_date=sea.get("episodes")[0].get("air_date") if sea.get("episodes") else None,
-        ) for sea in group_seasons]
+        return [
+            schemas.TmdbSeason(
+                season_number=sea.get("order"),
+                name=sea.get("name"),
+                episode_count=len(sea.get("episodes") or []),
+                air_date=sea.get("episodes")[0].get("air_date") if sea.get("episodes") else None,
+            )
+            for sea in group_seasons
+        ]
 
-    def tmdb_episodes(self, tmdbid: int, season: int, episode_group: Optional[str] = None) -> List[schemas.TmdbEpisode]:
+    def tmdb_episodes(self, tmdbid: int, season: int, episode_group: str | None = None) -> list[schemas.TmdbEpisode]:
         """
         根据TMDBID查询某季的所有集信息
         :param tmdbid:  TMDBID
@@ -991,7 +988,7 @@ class TheMovieDbModule(_ModuleBase):
         self.cache.save()
 
     @staticmethod
-    def _validate_obtain_images_params(mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def _validate_obtain_images_params(mediainfo: MediaInfo) -> MediaInfo | None:
         """
         验证 obtain_images 参数
         :param mediainfo: 媒体信息
@@ -1001,15 +998,13 @@ class TheMovieDbModule(_ModuleBase):
             return None
         if not mediainfo.tmdb_id:
             return mediainfo
-        if mediainfo.logo_path \
-                and mediainfo.poster_path \
-                and mediainfo.backdrop_path:
+        if mediainfo.logo_path and mediainfo.poster_path and mediainfo.backdrop_path:
             # 没有图片缺失
             return mediainfo
         return None
 
     @staticmethod
-    def _pick_best_tmdb_image(images: list) -> Optional[str]:
+    def _pick_best_tmdb_image(images: list) -> str | None:
         """
         从 TMDB 图片候选中选出评分最高的文件路径。
         """
@@ -1049,7 +1044,7 @@ class TheMovieDbModule(_ModuleBase):
                 mediainfo.poster_path = settings.TMDB_IMAGE_URL(image_path)
         return mediainfo
 
-    def obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片
         :param mediainfo:  识别的媒体信息
@@ -1077,7 +1072,7 @@ class TheMovieDbModule(_ModuleBase):
         # 处理图片数据
         return self._process_tmdb_images(mediainfo, images)
 
-    async def async_obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    async def async_obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         补充抓取媒体信息图片（异步版本）
         :param mediainfo:  识别的媒体信息
@@ -1105,9 +1100,15 @@ class TheMovieDbModule(_ModuleBase):
         # 处理图片数据
         return self._process_tmdb_images(mediainfo, images)
 
-    def obtain_specific_image(self, mediaid: Union[str, int], mtype: MediaType,
-                              image_type: MediaImageType, image_prefix: Optional[str] = "w500",
-                              season: Optional[int] = None, episode: Optional[int] = None) -> Optional[str]:
+    def obtain_specific_image(
+        self,
+        mediaid: str | int,
+        mtype: MediaType,
+        image_type: MediaImageType,
+        image_prefix: str | None = "w500",
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> str | None:
         """
         获取指定媒体信息图片，返回图片地址
         :param mediaid:     媒体ID
@@ -1139,7 +1140,7 @@ class TheMovieDbModule(_ModuleBase):
             return settings.TMDB_IMAGE_URL(image_path, image_prefix)
         return None
 
-    def tmdb_movie_similar(self, tmdbid: int) -> List[MediaInfo]:
+    def tmdb_movie_similar(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询类似电影
         :param tmdbid:  TMDBID
@@ -1149,7 +1150,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in similar]
         return []
 
-    def tmdb_tv_similar(self, tmdbid: int) -> List[MediaInfo]:
+    def tmdb_tv_similar(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询类似电视剧
         :param tmdbid:  TMDBID
@@ -1159,7 +1160,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in similar]
         return []
 
-    def tmdb_movie_recommend(self, tmdbid: int) -> List[MediaInfo]:
+    def tmdb_movie_recommend(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询推荐电影
         :param tmdbid:  TMDBID
@@ -1169,7 +1170,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in recommend]
         return []
 
-    def tmdb_tv_recommend(self, tmdbid: int) -> List[MediaInfo]:
+    def tmdb_tv_recommend(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询推荐电视剧
         :param tmdbid:  TMDBID
@@ -1179,7 +1180,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in recommend]
         return []
 
-    def tmdb_movie_credits(self, tmdbid: int, page: Optional[int] = 1) -> List[schemas.MediaPerson]:
+    def tmdb_movie_credits(self, tmdbid: int, page: int | None = 1) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电影演职员表
         :param tmdbid:  TMDBID
@@ -1190,7 +1191,7 @@ class TheMovieDbModule(_ModuleBase):
             return [schemas.MediaPerson(source="themoviedb", **info) for info in credit_infos]
         return []
 
-    def tmdb_tv_credits(self, tmdbid: int, page: Optional[int] = 1) -> List[schemas.MediaPerson]:
+    def tmdb_tv_credits(self, tmdbid: int, page: int | None = 1) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电视剧演职员表
         :param tmdbid:  TMDBID
@@ -1211,7 +1212,7 @@ class TheMovieDbModule(_ModuleBase):
             return schemas.MediaPerson(source="themoviedb", **detail)
         return schemas.MediaPerson()
 
-    def tmdb_person_credits(self, person_id: int, page: Optional[int] = 1) -> List[MediaInfo]:
+    def tmdb_person_credits(self, person_id: int, page: int | None = 1) -> list[MediaInfo]:
         """
         根据TMDBID查询人物参演作品
         :param person_id:  人物ID
@@ -1223,9 +1224,7 @@ class TheMovieDbModule(_ModuleBase):
         return []
 
     # 异步方法
-    async def async_search_medias(
-        self, meta: MetaBase, source: Optional[str] = None
-    ) -> Optional[List[MediaInfo]]:
+    async def async_search_medias(self, meta: MetaBase, source: str | None = None) -> list[MediaInfo] | None:
         """
         搜索媒体信息（异步版本）
         :param meta:  识别的元数据
@@ -1248,7 +1247,7 @@ class TheMovieDbModule(_ModuleBase):
                 results = sorted(
                     results,
                     key=lambda x: x.get("release_date") or x.get("first_air_date") or "0000-00-00",
-                    reverse=True
+                    reverse=True,
                 )
             elif meta.type == MediaType.MOVIE:
                 results = await self.tmdb.async_search_movies(meta.name, meta.year)
@@ -1257,16 +1256,20 @@ class TheMovieDbModule(_ModuleBase):
         # 将搜索词中的季写入标题中
         return self._build_search_medias_result(meta, results)
 
-    async def async_tmdb_discover(self, mtype: MediaType, sort_by: str,
-                                  with_genres: str,
-                                  with_original_language: str,
-                                  with_keywords: str,
-                                  with_watch_providers: str,
-                                  vote_average: float,
-                                  vote_count: int,
-                                  release_date: str,
-                                  page: Optional[int] = 1,
-                                  raise_exception: bool = False) -> Optional[List[MediaInfo]]:
+    async def async_tmdb_discover(
+        self,
+        mtype: MediaType,
+        sort_by: str,
+        with_genres: str,
+        with_original_language: str,
+        with_keywords: str,
+        with_watch_providers: str,
+        vote_average: float,
+        vote_count: int,
+        release_date: str,
+        page: int | None = 1,
+        raise_exception: bool = False,
+    ) -> list[MediaInfo] | None:
         """
         TMDB发现功能（异步版本）
         :param mtype:  媒体类型
@@ -1282,38 +1285,42 @@ class TheMovieDbModule(_ModuleBase):
         :return: 媒体信息列表
         """
         if mtype == MediaType.MOVIE:
-            infos = await self.tmdb.async_discover_movies({
-                "sort_by": sort_by,
-                "with_genres": with_genres,
-                "with_original_language": with_original_language,
-                "with_keywords": with_keywords,
-                "with_watch_providers": with_watch_providers,
-                "vote_average.gte": vote_average,
-                "vote_count.gte": vote_count,
-                "release_date.gte": release_date,
-                "page": page
-            }, raise_exception=raise_exception)
+            infos = await self.tmdb.async_discover_movies(
+                {
+                    "sort_by": sort_by,
+                    "with_genres": with_genres,
+                    "with_original_language": with_original_language,
+                    "with_keywords": with_keywords,
+                    "with_watch_providers": with_watch_providers,
+                    "vote_average.gte": vote_average,
+                    "vote_count.gte": vote_count,
+                    "release_date.gte": release_date,
+                    "page": page,
+                },
+                raise_exception=raise_exception,
+            )
         elif mtype == MediaType.TV:
-            infos = await self.tmdb.async_discover_tvs({
-                "sort_by": sort_by,
-                "with_genres": with_genres,
-                "with_original_language": with_original_language,
-                "with_keywords": with_keywords,
-                "with_watch_providers": with_watch_providers,
-                "vote_average.gte": vote_average,
-                "vote_count.gte": vote_count,
-                "first_air_date.gte": release_date,
-                "page": page
-            }, raise_exception=raise_exception)
+            infos = await self.tmdb.async_discover_tvs(
+                {
+                    "sort_by": sort_by,
+                    "with_genres": with_genres,
+                    "with_original_language": with_original_language,
+                    "with_keywords": with_keywords,
+                    "with_watch_providers": with_watch_providers,
+                    "vote_average.gte": vote_average,
+                    "vote_count.gte": vote_count,
+                    "first_air_date.gte": release_date,
+                    "page": page,
+                },
+                raise_exception=raise_exception,
+            )
         else:
             return []
         if infos:
             return [MediaInfo(tmdb_info=info) for info in infos]
         return []
 
-    async def async_tmdb_trending(
-            self, page: Optional[int] = 1, raise_exception: bool = False
-    ) -> List[MediaInfo]:
+    async def async_tmdb_trending(self, page: int | None = 1, raise_exception: bool = False) -> list[MediaInfo]:
         """
         TMDB流行趋势（异步版本）
         :param page: 第几页
@@ -1327,7 +1334,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in trending]
         return []
 
-    async def async_tmdb_collection(self, collection_id: int) -> Optional[List[MediaInfo]]:
+    async def async_tmdb_collection(self, collection_id: int) -> list[MediaInfo] | None:
         """
         根据合集ID查询集合（异步版本）
         :param collection_id:  合集ID
@@ -1337,7 +1344,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in results]
         return []
 
-    async def async_tmdb_seasons(self, tmdbid: int) -> List[schemas.TmdbSeason]:
+    async def async_tmdb_seasons(self, tmdbid: int) -> list[schemas.TmdbSeason]:
         """
         根据TMDBID查询themoviedb所有季信息（异步版本）
         :param tmdbid:  TMDBID
@@ -1345,10 +1352,11 @@ class TheMovieDbModule(_ModuleBase):
         tmdb_info = await self.tmdb.async_get_info(tmdbid=tmdbid, mtype=MediaType.TV)
         if not tmdb_info:
             return []
-        return [schemas.TmdbSeason(**sea)
-                for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None]
+        return [
+            schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None
+        ]
 
-    async def async_tmdb_group_seasons(self, group_id: str) -> List[schemas.TmdbSeason]:
+    async def async_tmdb_group_seasons(self, group_id: str) -> list[schemas.TmdbSeason]:
         """
         根据剧集组ID查询themoviedb所有季集信息（异步版本）
         :param group_id: 剧集组ID
@@ -1356,15 +1364,19 @@ class TheMovieDbModule(_ModuleBase):
         group_seasons = await self.tmdb.async_get_tv_group_seasons(group_id)
         if not group_seasons:
             return []
-        return [schemas.TmdbSeason(
-            season_number=sea.get("order"),
-            name=sea.get("name"),
-            episode_count=len(sea.get("episodes") or []),
-            air_date=sea.get("episodes")[0].get("air_date") if sea.get("episodes") else None,
-        ) for sea in group_seasons]
+        return [
+            schemas.TmdbSeason(
+                season_number=sea.get("order"),
+                name=sea.get("name"),
+                episode_count=len(sea.get("episodes") or []),
+                air_date=sea.get("episodes")[0].get("air_date") if sea.get("episodes") else None,
+            )
+            for sea in group_seasons
+        ]
 
-    async def async_tmdb_episodes(self, tmdbid: int, season: int,
-                                  episode_group: Optional[str] = None) -> List[schemas.TmdbEpisode]:
+    async def async_tmdb_episodes(
+        self, tmdbid: int, season: int, episode_group: str | None = None
+    ) -> list[schemas.TmdbEpisode]:
         """
         根据TMDBID查询某季的所有集信息（异步版本）
         :param tmdbid:  TMDBID
@@ -1379,7 +1391,7 @@ class TheMovieDbModule(_ModuleBase):
             return []
         return [schemas.TmdbEpisode(**episode) for episode in season_info.get("episodes")]
 
-    async def async_tmdb_movie_similar(self, tmdbid: int) -> List[MediaInfo]:
+    async def async_tmdb_movie_similar(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询类似电影（异步版本）
         :param tmdbid:  TMDBID
@@ -1389,7 +1401,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in similar]
         return []
 
-    async def async_tmdb_tv_similar(self, tmdbid: int) -> List[MediaInfo]:
+    async def async_tmdb_tv_similar(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询类似电视剧（异步版本）
         :param tmdbid:  TMDBID
@@ -1399,7 +1411,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in similar]
         return []
 
-    async def async_tmdb_movie_recommend(self, tmdbid: int) -> List[MediaInfo]:
+    async def async_tmdb_movie_recommend(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询推荐电影（异步版本）
         :param tmdbid:  TMDBID
@@ -1409,7 +1421,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in recommend]
         return []
 
-    async def async_tmdb_tv_recommend(self, tmdbid: int) -> List[MediaInfo]:
+    async def async_tmdb_tv_recommend(self, tmdbid: int) -> list[MediaInfo]:
         """
         根据TMDBID查询推荐电视剧（异步版本）
         :param tmdbid:  TMDBID
@@ -1419,7 +1431,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in recommend]
         return []
 
-    async def async_tmdb_movie_credits(self, tmdbid: int, page: Optional[int] = 1) -> List[schemas.MediaPerson]:
+    async def async_tmdb_movie_credits(self, tmdbid: int, page: int | None = 1) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电影演职员表（异步版本）
         :param tmdbid:  TMDBID
@@ -1430,7 +1442,7 @@ class TheMovieDbModule(_ModuleBase):
             return [schemas.MediaPerson(source="themoviedb", **info) for info in credit_infos]
         return []
 
-    async def async_tmdb_tv_credits(self, tmdbid: int, page: Optional[int] = 1) -> List[schemas.MediaPerson]:
+    async def async_tmdb_tv_credits(self, tmdbid: int, page: int | None = 1) -> list[schemas.MediaPerson]:
         """
         根据TMDBID查询电视剧演职员表（异步版本）
         :param tmdbid:  TMDBID
@@ -1451,7 +1463,7 @@ class TheMovieDbModule(_ModuleBase):
             return schemas.MediaPerson(source="themoviedb", **detail)
         return schemas.MediaPerson()
 
-    async def async_tmdb_person_credits(self, person_id: int, page: Optional[int] = 1) -> List[MediaInfo]:
+    async def async_tmdb_person_credits(self, person_id: int, page: int | None = 1) -> list[MediaInfo]:
         """
         根据TMDBID查询人物参演作品（异步版本）
         :param person_id:  人物ID

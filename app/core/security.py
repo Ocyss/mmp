@@ -6,14 +6,14 @@ import json
 import os
 import traceback
 from datetime import timedelta
-from typing import Any, Union, Annotated, Optional
+from typing import Annotated, Any, Optional, Union
 
 import jwt
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from cryptography.fernet import Fernet
-from fastapi import HTTPException, status, Security, Request, Response
-from fastapi.security import OAuth2PasswordBearer, APIKeyHeader, APIKeyQuery, APIKeyCookie, HTTPBearer
+from fastapi import HTTPException, Request, Response, Security, status
+from fastapi.security import APIKeyCookie, APIKeyHeader, APIKeyQuery, HTTPBearer, OAuth2PasswordBearer
 from passlib.context import CryptContext
 
 from app import schemas
@@ -27,7 +27,7 @@ ALGORITHM = "HS256"
 # OAuth2PasswordBearer 用于 JWT Token 认证
 oauth2_scheme_manual_error = OAuth2PasswordBearer(
     auto_error=False,  # 禁用自动错误处理，用以支持API令牌鉴权
-    tokenUrl=f"{settings.API_V1_STR}/login/access-token"
+    tokenUrl=f"{settings.API_V1_STR}/login/access-token",
 )
 
 # RESOURCE TOKEN 通过 Cookie 认证
@@ -49,9 +49,7 @@ openai_bearer_scheme = HTTPBearer(auto_error=False)
 anthropic_api_key_header = APIKeyHeader(name="x-api-key", auto_error=False, scheme_name="anthropic_api_key_header")
 
 
-def __get_api_token(
-        token_query: Annotated[str | None, Security(api_token_query)] = None
-) -> str | None:
+def __get_api_token(token_query: Annotated[str | None, Security(api_token_query)] = None) -> str | None:
     """
     从 URL 查询参数中获取 API Token
     :param token_query: 从 URL 中的 `token` 查询参数获取 API Token
@@ -61,8 +59,8 @@ def __get_api_token(
 
 
 def __get_api_key(
-        key_query: Annotated[str | None, Security(api_key_query)] = None,
-        key_header: Annotated[str | None, Security(api_key_header)] = None
+    key_query: Annotated[str | None, Security(api_key_query)] = None,
+    key_header: Annotated[str | None, Security(api_key_header)] = None,
 ) -> str | None:
     """
     从 URL 查询参数或请求头部获取 API Key，优先使用请求头
@@ -70,7 +68,7 @@ def __get_api_key(
     :param key_header: 请求头中的 `X-API-KEY` 参数
     :return: 返回从 URL 或请求头中获取的 API Key，若无则返回 None
     """
-    return key_header or key_query # 首选请求头
+    return key_header or key_query  # 首选请求头
 
 
 @cached(maxsize=1, ttl=600)
@@ -102,12 +100,12 @@ def __create_superuser_token_payload() -> schemas.TokenPayload:
 
 
 def create_access_token(
-        userid: Union[str, Any],
-        username: str,
-        super_user: Optional[bool] = False,
-        expires_delta: Optional[timedelta] = None,
-        level: Optional[int] = 1,
-        purpose: Optional[str] = "authentication"
+    userid: str | Any,
+    username: str,
+    super_user: bool | None = False,
+    expires_delta: timedelta | None = None,
+    level: int | None = 1,
+    purpose: str | None = "authentication",
 ) -> str:
     """
     创建 JWT 访问令牌，包含用户 ID、用户名、是否为超级用户以及权限等级
@@ -141,16 +139,14 @@ def create_access_token(
         "username": username,
         "super_user": super_user,
         "level": level,
-        "purpose": purpose
+        "purpose": purpose,
     }
 
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-def set_or_refresh_resource_token_cookie(
-        request: Request, response: Response, payload: schemas.TokenPayload
-) -> None:
+def set_or_refresh_resource_token_cookie(request: Request, response: Response, payload: schemas.TokenPayload) -> None:
     """
     设置资源令牌 Cookie
     :param request: 包含请求相关的上下文数据
@@ -165,7 +161,9 @@ def set_or_refresh_resource_token_cookie(
             decoded_token = jwt.decode(resource_token, settings.RESOURCE_SECRET_KEY, algorithms=[ALGORITHM])
             exp = decoded_token.get("exp")
             if exp:
-                remaining_time = datetime.datetime.fromtimestamp(exp, tz=datetime.UTC) - datetime.datetime.now(datetime.UTC)
+                remaining_time = datetime.datetime.fromtimestamp(exp, tz=datetime.UTC) - datetime.datetime.now(
+                    datetime.UTC
+                )
                 # 根据剩余时长提前刷新令牌
                 if remaining_time < timedelta(seconds=(settings.RESOURCE_ACCESS_TOKEN_EXPIRE_SECONDS / 3)):
                     raise jwt.ExpiredSignatureError
@@ -179,7 +177,7 @@ def set_or_refresh_resource_token_cookie(
             if any(decoded_token.get(claim) != value for claim, value in expected_claims.items()):
                 raise jwt.InvalidTokenError("资源令牌身份或权限上下文不匹配")
         except jwt.PyJWTError:
-            logger.debug(f"Token error occurred. refreshing token")
+            logger.debug("Token error occurred. refreshing token")
         except Exception as e:
             logger.debug(f"Unexpected error occurred while decoding token: {e}")
         else:
@@ -194,15 +192,12 @@ def set_or_refresh_resource_token_cookie(
         super_user=payload.super_user,
         expires_delta=resource_token_expires,
         level=payload.level,
-        purpose="resource"
+        purpose="resource",
     )
 
     # 判断请求是否为 HTTPS：直连协议为 https，或经反向代理转发时携带 X-Forwarded-Proto: https。
     # 无法确认为明文 HTTP 时按 fail-safe 默认设置 secure=True，避免代理终止 HTTPS 后以 HTTP 转发导致 Cookie 明文传输。
-    is_https = (
-        request.url.scheme == "https"
-        or request.headers.get("x-forwarded-proto", "").lower() == "https"
-    )
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").lower() == "https"
 
     # 设置会话级别的 HttpOnly Cookie
     response.set_cookie(
@@ -210,11 +205,11 @@ def set_or_refresh_resource_token_cookie(
         value=resource_token,
         httponly=True,
         secure=is_https,  # 根据当前请求协议（含反向代理转发标识）设置 secure 属性
-        samesite="lax"  # 不同浏览器对 "Strict" 的处理可能不同，设置 SameSite 为 "Lax"，以平衡安全性和兼容性
+        samesite="lax",  # 不同浏览器对 "Strict" 的处理可能不同，设置 SameSite 为 "Lax"，以平衡安全性和兼容性
     )
 
 
-def __verify_token(token: str, purpose: Optional[str] = "authentication") -> schemas.TokenPayload:
+def __verify_token(token: str, purpose: str | None = "authentication") -> schemas.TokenPayload:
     """
     使用 JWT Token 进行身份认证并解析 Token 的内容
     :param token: JWT 令牌
@@ -229,14 +224,9 @@ def __verify_token(token: str, purpose: Optional[str] = "authentication") -> sch
             secret_key = settings.SECRET_KEY
 
         if not token:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"{purpose} token not found"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"{purpose} token not found")
 
-        payload = jwt.decode(
-            token, secret_key, algorithms=[ALGORITHM]
-        )
+        payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
 
         token_payload = schemas.TokenPayload(**payload)
 
@@ -244,7 +234,7 @@ def __verify_token(token: str, purpose: Optional[str] = "authentication") -> sch
             raise jwt.InvalidTokenError("令牌用途不匹配")
 
         return schemas.TokenPayload(**payload)
-    except (jwt.DecodeError, jwt.InvalidTokenError, jwt.ImmatureSignatureError):
+    except jwt.DecodeError, jwt.InvalidTokenError, jwt.ImmatureSignatureError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="token校验不通过",
@@ -252,11 +242,11 @@ def __verify_token(token: str, purpose: Optional[str] = "authentication") -> sch
 
 
 def verify_token(
-        request: Request,
-        response: Response,
-        jwt_token: Annotated[str | None, Security(oauth2_scheme_manual_error)],
-        api_key: Annotated[str | None, Security(__get_api_key)],
-        api_token: Annotated[str | None, Security(__get_api_token)],
+    request: Request,
+    response: Response,
+    jwt_token: Annotated[str | None, Security(oauth2_scheme_manual_error)],
+    api_key: Annotated[str | None, Security(__get_api_key)],
+    api_token: Annotated[str | None, Security(__get_api_token)],
 ) -> schemas.TokenPayload:
     """
     验证 JWT 令牌并自动处理 resource_token 写入
@@ -293,9 +283,7 @@ def verify_token(
         )
 
 
-def verify_resource_token(
-        resource_token: Annotated[str, Security(resource_token_cookie)]
-) -> schemas.TokenPayload:
+def verify_resource_token(resource_token: Annotated[str, Security(resource_token_cookie)]) -> schemas.TokenPayload:
     """
     验证资源访问令牌（从 Cookie 中获取）
     :param resource_token: 从 Cookie 中获取的资源访问令牌
@@ -316,10 +304,7 @@ def __verify_key(key: str | None, expected_key: str, key_type: str) -> str:
     :raises HTTPException: 如果校验不通过，抛出 401 错误
     """
     if not key or key != expected_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"{key_type} 校验不通过"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"{key_type} 校验不通过")
     return key
 
 
@@ -353,7 +338,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def decrypt(data: bytes, key: bytes) -> Optional[bytes]:
+def decrypt(data: bytes, key: bytes) -> bytes | None:
     """
     解密二进制数据
     """
@@ -391,14 +376,14 @@ def aes_decrypt(data: str, key: str) -> str:
     iv = data[:16]
     encrypted = data[16:]
     # 使用AES-256-CBC解密
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    cipher = AES.new(key.encode("utf-8"), AES.MODE_CBC, iv)
     result = cipher.decrypt(encrypted)
     # 去除填充
     padding = result[-1]
     if padding < 1 or padding > AES.block_size:
         return ""
     result = result[:-padding]
-    return result.decode('utf-8')
+    return result.decode("utf-8")
 
 
 def aes_encrypt(data: str, key: str) -> str:
@@ -408,13 +393,13 @@ def aes_encrypt(data: str, key: str) -> str:
     if not data:
         return ""
     # 使用AES-256-CBC加密
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC)
+    cipher = AES.new(key.encode("utf-8"), AES.MODE_CBC)
     # 填充
     padding = AES.block_size - len(data) % AES.block_size
     data += chr(padding) * padding
-    result = cipher.encrypt(data.encode('utf-8'))
+    result = cipher.encrypt(data.encode("utf-8"))
     # 使用base64编码
-    return base64.b64encode(cipher.iv + result).decode('utf-8')
+    return base64.b64encode(cipher.iv + result).decode("utf-8")
 
 
 def nexusphp_encrypt(data_str: str, key: bytes) -> str:
@@ -432,12 +417,7 @@ def nexusphp_encrypt(data_str: str, key: bytes) -> str:
     # 对向量的字符串表示进行签名
     mac = hmac.new(key, msg=iv_base64 + ciphertext_base64, digestmod=hashlib.sha256).hexdigest()
     # 构造 JSON 字符串
-    json_str = json.dumps({
-        'iv': iv_base64.decode(),
-        'value': ciphertext_base64.decode(),
-        'mac': mac,
-        'tag': ''
-    })
+    json_str = json.dumps({"iv": iv_base64.decode(), "value": ciphertext_base64.decode(), "mac": mac, "tag": ""})
 
     # 对 JSON 字符串进行 Base64 编码
     return base64.b64encode(json_str.encode()).decode()

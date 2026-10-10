@@ -24,7 +24,6 @@ import psutil
 from app import schemas
 from version import APP_VERSION
 
-
 # Linux amd64/arm64 UAPI: _IOR(BTRFS_IOCTL_MAGIC, 31, struct btrfs_ioctl_fs_info_args)
 _BTRFS_IOC_FS_INFO = 0x8400941F
 _BTRFS_FS_INFO_SIZE = 1024
@@ -56,6 +55,7 @@ class SystemUtils:
         """
         脱敏 URL 中的 userinfo，避免命令输出泄露镜像源或代理凭据。
         """
+
         def replace(match: re.Match[str]) -> str:
             candidate = match.group(1)
             trailing = ""
@@ -66,19 +66,21 @@ class SystemUtils:
             if not parsed.username and not parsed.password:
                 return match.group(1)
             host = parsed.netloc.rsplit("@", 1)[-1]
-            redacted = urllib.parse.urlunsplit((
-                parsed.scheme,
-                host,
-                parsed.path,
-                parsed.query,
-                parsed.fragment,
-            ))
+            redacted = urllib.parse.urlunsplit(
+                (
+                    parsed.scheme,
+                    host,
+                    parsed.path,
+                    parsed.query,
+                    parsed.fragment,
+                )
+            )
             return f"{redacted}{trailing}"
 
         return SystemUtils._URL_WITH_USERINFO_PATTERN.sub(replace, value or "")
 
     @staticmethod
-    def redact_command_url_userinfo(command: list[str]) -> List[str]:
+    def redact_command_url_userinfo(command: list[str]) -> list[str]:
         """
         脱敏命令参数中的 URL userinfo，供错误信息展示。
         """
@@ -86,10 +88,10 @@ class SystemUtils:
 
     @staticmethod
     def execute_with_subprocess(
-            pip_command: list,
-            env: Optional[dict[str, str]] = None,
-            safe_command: Optional[list[str]] = None,
-    ) -> Tuple[bool, str]:
+        pip_command: list,
+        env: dict[str, str] | None = None,
+        safe_command: list[str] | None = None,
+    ) -> tuple[bool, str]:
         """
         执行命令并捕获标准输出和错误输出，记录日志。
 
@@ -149,7 +151,7 @@ class SystemUtils:
         """
         if SystemUtils.is_windows():
             return False
-        return "synology" in SystemUtils.execute('uname -a')
+        return "synology" in SystemUtils.execute("uname -a")
 
     @staticmethod
     def is_windows() -> bool:
@@ -163,21 +165,21 @@ class SystemUtils:
         """
         判断是否为冻结的二进制文件
         """
-        return getattr(sys, 'frozen', False)
+        return getattr(sys, "frozen", False)
 
     @staticmethod
     def is_macos() -> bool:
         """
         判断是否为MacOS系统
         """
-        return platform.system() == 'Darwin'
+        return platform.system() == "Darwin"
 
     @staticmethod
     def is_aarch64() -> bool:
         """
         判断是否为ARM64架构
         """
-        return platform.machine().lower() in ('aarch64', 'arm64')
+        return platform.machine().lower() in ("aarch64", "arm64")
 
     @staticmethod
     def is_aarch() -> bool:
@@ -185,21 +187,21 @@ class SystemUtils:
         判断是否为ARM32架构
         """
         arch_name = platform.machine().lower()
-        return arch_name.startswith(('arm', 'aarch')) and arch_name not in ('aarch64', 'arm64')
+        return arch_name.startswith(("arm", "aarch")) and arch_name not in ("aarch64", "arm64")
 
     @staticmethod
     def is_x86_64() -> bool:
         """
         判断是否为AMD64架构
         """
-        return platform.machine().lower() in ('amd64', 'x86_64')
+        return platform.machine().lower() in ("amd64", "x86_64")
 
     @staticmethod
     def is_x86_32() -> bool:
         """
         判断是否为AMD32架构
         """
-        return platform.machine().lower() in ('i386', 'i686', 'x86', '386', 'x86_32')
+        return platform.machine().lower() in ("i386", "i686", "x86", "386", "x86_32")
 
     @staticmethod
     def platform() -> str:
@@ -232,7 +234,7 @@ class SystemUtils:
             return platform.machine()
 
     @staticmethod
-    def copy(src: Path, dest: Path) -> Tuple[int, str]:
+    def copy(src: Path, dest: Path) -> tuple[int, str]:
         """
         复制
         """
@@ -243,7 +245,7 @@ class SystemUtils:
             return -1, str(err)
 
     @staticmethod
-    def move(src: Path, dest: Path) -> Tuple[int, str]:
+    def move(src: Path, dest: Path) -> tuple[int, str]:
         """
         移动
         """
@@ -255,7 +257,7 @@ class SystemUtils:
             return -1, str(err)
 
     @staticmethod
-    def link(src: Path, dest: Path) -> Tuple[int, str]:
+    def link(src: Path, dest: Path) -> tuple[int, str]:
         """
         硬链接
         """
@@ -273,7 +275,7 @@ class SystemUtils:
             return -1, str(err)
 
     @staticmethod
-    def softlink(src: Path, dest: Path) -> Tuple[int, str]:
+    def softlink(src: Path, dest: Path) -> tuple[int, str]:
         """
         软链接
         """
@@ -284,8 +286,9 @@ class SystemUtils:
             return -1, str(err)
 
     @staticmethod
-    def list_files(directory: Path, extensions: list = None,
-                   min_filesize: int = 0, recursive: bool = True) -> List[Path]:
+    def list_files(
+        directory: Path, extensions: list = None, min_filesize: int = 0, recursive: bool = True
+    ) -> list[Path]:
         """
         获取目录下所有指定扩展名的文件（包括子目录）
         :param directory: 指定的父目录
@@ -318,21 +321,22 @@ class SystemUtils:
                         try:
                             if entry.is_file(follow_symlinks=False):
                                 entry_path = Path(entry.path)
-                                if (pattern.match(entry.name) and
-                                    (min_filesize <= 0 or entry.stat().st_size >= min_filesize * 1024 * 1024)):
+                                if pattern.match(entry.name) and (
+                                    min_filesize <= 0 or entry.stat().st_size >= min_filesize * 1024 * 1024
+                                ):
                                     files.append(entry_path)
                             elif entry.is_dir() and is_recursive:
                                 _scan_directory(Path(entry.path), is_recursive)
-                        except (OSError, PermissionError):
+                        except OSError, PermissionError:
                             continue
-            except (OSError, PermissionError):
+            except OSError, PermissionError:
                 pass
 
         _scan_directory(directory, recursive)
         return files
 
     @staticmethod
-    def unpack_archive(archive_file: Path, extract_dir: Path, archive_format: Optional[str] = None) -> None:
+    def unpack_archive(archive_file: Path, extract_dir: Path, archive_format: str | None = None) -> None:
         """
         解压压缩包，并补充标准库未覆盖的 RAR 格式支持。
 
@@ -353,39 +357,47 @@ class SystemUtils:
         extract_dir.mkdir(parents=True, exist_ok=True)
         commands = []
         if shutil.which("unar"):
-            commands.append([
-                "unar",
-                "-quiet",
-                "-force-overwrite",
-                "-output-directory",
-                extract_dir.as_posix(),
-                archive_file.as_posix(),
-            ])
+            commands.append(
+                [
+                    "unar",
+                    "-quiet",
+                    "-force-overwrite",
+                    "-output-directory",
+                    extract_dir.as_posix(),
+                    archive_file.as_posix(),
+                ]
+            )
         if shutil.which("unrar"):
-            commands.append([
-                "unrar",
-                "x",
-                "-o+",
-                "-idq",
-                archive_file.as_posix(),
-                f"{extract_dir.as_posix()}/",
-            ])
+            commands.append(
+                [
+                    "unrar",
+                    "x",
+                    "-o+",
+                    "-idq",
+                    archive_file.as_posix(),
+                    f"{extract_dir.as_posix()}/",
+                ]
+            )
         if shutil.which("7z"):
-            commands.append([
-                "7z",
-                "x",
-                "-y",
-                f"-o{extract_dir.as_posix()}",
-                archive_file.as_posix(),
-            ])
+            commands.append(
+                [
+                    "7z",
+                    "x",
+                    "-y",
+                    f"-o{extract_dir.as_posix()}",
+                    archive_file.as_posix(),
+                ]
+            )
         if shutil.which("bsdtar"):
-            commands.append([
-                "bsdtar",
-                "-xf",
-                archive_file.as_posix(),
-                "-C",
-                extract_dir.as_posix(),
-            ])
+            commands.append(
+                [
+                    "bsdtar",
+                    "-xf",
+                    archive_file.as_posix(),
+                    "-C",
+                    extract_dir.as_posix(),
+                ]
+            )
         if not commands:
             raise RuntimeError("未找到可用的 RAR 解压工具，请安装 unar、unrar、7z 或 bsdtar")
 
@@ -445,23 +457,24 @@ class SystemUtils:
                         try:
                             if entry.is_file(follow_symlinks=False):
                                 # 检查文件是否符合条件
-                                if (pattern.match(entry.name) and
-                                    (min_filesize <= 0 or entry.stat().st_size >= min_filesize * 1024 * 1024)):
+                                if pattern.match(entry.name) and (
+                                    min_filesize <= 0 or entry.stat().st_size >= min_filesize * 1024 * 1024
+                                ):
                                     return True
                             elif entry.is_dir() and is_recursive:
                                 # 递归搜索子目录
                                 if _search_files(Path(entry.path), is_recursive):
                                     return True
-                        except (OSError, PermissionError):
+                        except OSError, PermissionError:
                             continue
-            except (OSError, PermissionError):
+            except OSError, PermissionError:
                 pass
             return False
 
         return _search_files(directory, recursive)
 
     @staticmethod
-    def list_sub_files(directory: Path, extensions: list) -> List[Path]:
+    def list_sub_files(directory: Path, extensions: list) -> list[Path]:
         """
         列出当前目录下的所有指定扩展名的文件(不包括子目录)
         """
@@ -490,7 +503,7 @@ class SystemUtils:
         return files
 
     @staticmethod
-    def list_sub_directory(directory: Path) -> List[Path]:
+    def list_sub_directory(directory: Path) -> list[Path]:
         """
         列出当前目录下的所有子目录（不递归）
         """
@@ -514,7 +527,7 @@ class SystemUtils:
         return dirs
 
     @staticmethod
-    def list_sub_file(directory: Path) -> List[Path]:
+    def list_sub_file(directory: Path) -> list[Path]:
         """
         列出当前目录下的所有子目录和文件（不递归）
         """
@@ -563,10 +576,13 @@ class SystemUtils:
         return _calc_dir_size(path) if path.is_dir() else path.stat().st_size
 
     @staticmethod
-    def _get_btrfs_fsid(dir_path: Path) -> Optional[bytes]:
+    def _get_btrfs_fsid(dir_path: Path) -> bytes | None:
         """读取目录所属 Btrfs 文件系统的 FSID，无法确认时返回 None。"""
-        if not sys.platform.startswith("linux") or fcntl is None \
-                or not (SystemUtils.is_x86_64() or SystemUtils.is_aarch64()):
+        if (
+            not sys.platform.startswith("linux")
+            or fcntl is None
+            or not (SystemUtils.is_x86_64() or SystemUtils.is_aarch64())
+        ):
             return None
 
         fd = None
@@ -578,11 +594,11 @@ class SystemUtils:
             if len(fs_info) != _BTRFS_FS_INFO_SIZE:
                 return None
             num_devices = struct.unpack_from("=Q", fs_info, 8)[0]
-            fsid = bytes(fs_info[_BTRFS_FSID_OFFSET:_BTRFS_FSID_OFFSET + _BTRFS_FSID_SIZE])
+            fsid = bytes(fs_info[_BTRFS_FSID_OFFSET : _BTRFS_FSID_OFFSET + _BTRFS_FSID_SIZE])
             if num_devices == 0 or fsid == bytes(_BTRFS_FSID_SIZE):
                 return None
             return fsid
-        except (OSError, OverflowError, ValueError, struct.error):
+        except OSError, OverflowError, ValueError, struct.error:
             return None
         finally:
             if fd is not None:
@@ -592,7 +608,7 @@ class SystemUtils:
                     pass
 
     @staticmethod
-    def space_usage(dir_list: Union[Path, List[Path]], btrfs_fsid_dedup: bool = False) -> Tuple[float, float]:
+    def space_usage(dir_list: Path | list[Path], btrfs_fsid_dedup: bool = False) -> tuple[float, float]:
         """
         计算多个目录的总可用空间/剩余空间（单位：Byte），并去除重复磁盘
 
@@ -608,8 +624,11 @@ class SystemUtils:
         if not isinstance(dir_list, list):
             dir_list = [dir_list]
 
-        use_btrfs_fsid = btrfs_fsid_dedup and sys.platform.startswith("linux") \
+        use_btrfs_fsid = (
+            btrfs_fsid_dedup
+            and sys.platform.startswith("linux")
             and (SystemUtils.is_x86_64() or SystemUtils.is_aarch64())
+        )
         if not use_btrfs_fsid:
             # 默认分支保留原有行为，不打开目录或调用 ioctl。
             disk_set = set()
@@ -674,23 +693,24 @@ class SystemUtils:
         return psutil.disk_usage(str(path)).total
 
     @staticmethod
-    def processes() -> List[schemas.ProcessInfo]:
+    def processes() -> list[schemas.ProcessInfo]:
         """
         获取所有进程
         """
         processes = []
-        for proc in psutil.process_iter(['pid', 'name', 'create_time', 'memory_info', 'status']):
+        for proc in psutil.process_iter(["pid", "name", "create_time", "memory_info", "status"]):
             try:
                 if proc.status() != psutil.STATUS_ZOMBIE:
                     runtime = datetime.datetime.now() - datetime.datetime.fromtimestamp(
-                        int(getattr(proc, 'create_time', 0)()))
-                    mem_info = getattr(proc, 'memory_info', None)()
+                        int(getattr(proc, "create_time", 0)())
+                    )
+                    mem_info = getattr(proc, "memory_info", None)()
                     if mem_info is not None:
                         mem_mb = round(mem_info.rss / (1024 * 1024), 1)
-                        processes.append(schemas.ProcessInfo(
-                            pid=proc.pid, name=proc.name(), run_time=runtime.seconds, memory=mem_mb
-                        ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        processes.append(
+                            schemas.ProcessInfo(pid=proc.pid, name=proc.name(), run_time=runtime.seconds, memory=mem_mb)
+                        )
+            except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
                 pass
         return processes
 
@@ -734,7 +754,7 @@ class SystemUtils:
         if not dir_path.is_dir():
             return False
         # 蓝光原盘目录必备的文件或文件夹
-        required_files = ['BDMV', 'CERTIFICATE']
+        required_files = ["BDMV", "CERTIFICATE"]
         # 检查目录下是否存在所需文件或文件夹
         for item in required_files:
             if (dir_path / item).exists():
@@ -748,7 +768,7 @@ class SystemUtils:
         """
         vols = []
         for i in range(65, 91):
-            vol = chr(i) + ':'
+            vol = chr(i) + ":"
             if os.path.isdir(vol):
                 vols.append(vol)
         return vols
@@ -770,8 +790,7 @@ class SystemUtils:
         used = max(0, int(psutil.Process().memory_info().rss))
         cached = max(
             0,
-            int(getattr(memory, "cached", 0) or 0)
-            + int(getattr(memory, "buffers", 0) or 0),
+            int(getattr(memory, "cached", 0) or 0) + int(getattr(memory, "buffers", 0) or 0),
         )
         available = max(0, int(memory.available))
         usage = used / total * 100 if total else 0.0
@@ -784,11 +803,12 @@ class SystemUtils:
         )
 
     @staticmethod
-    def network_usage() -> List[int]:
+    def network_usage() -> list[int]:
         """
         获取当前网络流量（上行和下行流量，单位：bytes/s）
         """
         import time
+
         # 获取初始网络统计
         net_io_1 = psutil.net_io_counters()
         time.sleep(1)  # 等待1秒
@@ -828,9 +848,7 @@ class SystemUtils:
             return False
 
     @staticmethod
-    def is_network_filesystem(
-            directory: Path, include_local_fuse: bool = False
-    ) -> bool:
+    def is_network_filesystem(directory: Path, include_local_fuse: bool = False) -> bool:
         """
         检测是否为网络文件系统
         :param directory: 目录路径
@@ -839,10 +857,9 @@ class SystemUtils:
         """
         try:
             system = platform.system()
-            if system == 'Linux':
+            if system == "Linux":
                 # 检查挂载信息
-                result = subprocess.run(['df', '-T', str(directory)],
-                                        capture_output=True, text=True, timeout=5)
+                result = subprocess.run(["df", "-T", str(directory)], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0:
                     output = result.stdout.lower()
                     # 以下本地文件系统含有fuse关键字
@@ -852,27 +869,19 @@ class SystemUtils:
                         "fuseblk",
                         # TBD
                     ]
-                    if (
-                            not include_local_fuse
-                            and any(fs in output for fs in local_fs)
-                    ):
+                    if not include_local_fuse and any(fs in output for fs in local_fs):
                         return False
-                    network_fs = ['nfs', 'cifs', 'smbfs', 'fuse', 'sshfs', 'ftpfs']
+                    network_fs = ["nfs", "cifs", "smbfs", "fuse", "sshfs", "ftpfs"]
                     return any(fs in output for fs in network_fs)
-            elif system == 'Darwin':
+            elif system == "Darwin":
                 # macOS 检查
-                result = subprocess.run(['df', '-T', str(directory)],
-                                        capture_output=True, text=True, timeout=5)
+                result = subprocess.run(["df", "-T", str(directory)], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0:
                     output = result.stdout.lower()
-                    return (
-                            'nfs' in output
-                            or 'smbfs' in output
-                            or (include_local_fuse and 'fuse' in output)
-                    )
-            elif system == 'Windows':
+                    return "nfs" in output or "smbfs" in output or (include_local_fuse and "fuse" in output)
+            elif system == "Windows":
                 # Windows 检查网络驱动器
-                return str(directory).startswith('\\\\')
+                return str(directory).startswith("\\\\")
         except Exception as e:
             print(f"Error occurred: {e}")
         return False
@@ -889,7 +898,7 @@ class SystemUtils:
         return os.stat(src).st_dev == os.stat(dest).st_dev
 
     @staticmethod
-    def get_config_path(config_dir: Optional[str] = None) -> Path:
+    def get_config_path(config_dir: str | None = None) -> Path:
         """
         获取配置路径
         """
@@ -919,13 +928,15 @@ class SystemUtils:
         if not temp_path.exists():
             return
         # 遍历目录及子目录中的所有文件和文件夹
-        for file in temp_path.rglob('*'):
+        for file in temp_path.rglob("*"):
             # 如果是文件并且符合时间条件，则删除
-            if file.is_file() and (
-                    datetime.datetime.now() - datetime.datetime.fromtimestamp(file.stat().st_mtime)).days > days:
+            if (
+                file.is_file()
+                and (datetime.datetime.now() - datetime.datetime.fromtimestamp(file.stat().st_mtime)).days > days
+            ):
                 file.unlink()
         # 删除空的文件夹
-        for folder in sorted(temp_path.rglob('*'), reverse=True):
+        for folder in sorted(temp_path.rglob("*"), reverse=True):
             # 确保是空文件夹
             if folder.is_dir() and not any(folder.iterdir()):
                 folder.rmdir()

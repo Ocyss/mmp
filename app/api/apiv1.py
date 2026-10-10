@@ -1,8 +1,39 @@
 from fastapi import APIRouter
 
-from app.api.endpoints import anilist, auth, login, user, webhook, message, agent, site, subscribe, \
-    media, douban, search, plugin, tmdb, history, system, download, dashboard, \
-    transfer, mediaserver, bangumi, storage, discover, recommend, workflow, torrent, mcp, mfa, openai, anthropic, llm, notification
+from app.api.endpoints import (
+    agent,
+    anilist,
+    anthropic,
+    auth,
+    bangumi,
+    dashboard,
+    discover,
+    douban,
+    download,
+    history,
+    llm,
+    login,
+    mcp,
+    media,
+    mediaserver,
+    message,
+    mfa,
+    notification,
+    openai,
+    plugin,
+    recommend,
+    search,
+    site,
+    storage,
+    subscribe,
+    system,
+    tmdb,
+    torrent,
+    transfer,
+    user,
+    webhook,
+    workflow,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])

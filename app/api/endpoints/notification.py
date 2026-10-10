@@ -12,11 +12,11 @@ router = APIRouter()
 
 
 def _build_wechatclawbot_temp_client(
-    source: Optional[str] = None,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    source: str | None = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
 ):
     """基于当前表单配置创建一个临时客户端，用于未保存时的扫码状态预览。"""
     source_name = str(source or "").strip()
@@ -33,12 +33,12 @@ def _build_wechatclawbot_temp_client(
 
 
 def _get_wechatclawbot_client(
-    source: Optional[str] = None,
-    fallback_source: Optional[str] = None,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    source: str | None = None,
+    fallback_source: str | None = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
     allow_temporary: bool = False,
 ):
     """获取已加载的微信 ClawBot 客户端，必要时退回到临时客户端。"""
@@ -87,14 +87,14 @@ def _get_wechatclawbot_client(
     response_model=schemas.Response,
 )
 def wechatclawbot_status(
-    source: Optional[str] = None,
-    fallback_source: Optional[str] = None,
+    source: str | None = None,
+    fallback_source: str | None = None,
     refresh_remote: bool = True,
     auto_generate_qrcode: bool = True,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
     _: User = Depends(get_current_active_superuser),
 ):
     """查询微信 ClawBot 登录状态和二维码。"""
@@ -124,12 +124,12 @@ def wechatclawbot_status(
     response_model=schemas.Response,
 )
 def refresh_wechatclawbot_qrcode(
-    source: Optional[str] = None,
-    fallback_source: Optional[str] = None,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    source: str | None = None,
+    fallback_source: str | None = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
     _: User = Depends(get_current_active_superuser),
 ):
     """刷新微信 ClawBot 二维码。"""
@@ -158,12 +158,12 @@ def refresh_wechatclawbot_qrcode(
     response_model=schemas.Response,
 )
 def logout_wechatclawbot(
-    source: Optional[str] = None,
-    fallback_source: Optional[str] = None,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    source: str | None = None,
+    fallback_source: str | None = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
     _: User = Depends(get_current_active_superuser),
 ):
     """退出微信 ClawBot 登录。"""
@@ -192,12 +192,12 @@ def logout_wechatclawbot(
     response_model=schemas.Response,
 )
 def test_wechatclawbot(
-    source: Optional[str] = None,
-    fallback_source: Optional[str] = None,
-    WECHATCLAWBOT_BASE_URL: Optional[str] = None,
-    WECHATCLAWBOT_DEFAULT_TARGET: Optional[str] = None,
-    WECHATCLAWBOT_ADMINS: Optional[str] = None,
-    WECHATCLAWBOT_POLL_TIMEOUT: Optional[int] = None,
+    source: str | None = None,
+    fallback_source: str | None = None,
+    WECHATCLAWBOT_BASE_URL: str | None = None,
+    WECHATCLAWBOT_DEFAULT_TARGET: str | None = None,
+    WECHATCLAWBOT_ADMINS: str | None = None,
+    WECHATCLAWBOT_POLL_TIMEOUT: int | None = None,
     _: User = Depends(get_current_active_superuser),
 ):
     """测试微信 ClawBot 当前登录态是否可用。"""

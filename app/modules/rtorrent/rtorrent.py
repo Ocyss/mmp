@@ -2,7 +2,7 @@ import socket
 import traceback
 import xmlrpc.client
 from pathlib import Path
-from typing import Optional, Union, Tuple, List, Dict
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from app.log import logger
@@ -16,9 +16,7 @@ class SCGITransport(xmlrpc.client.Transport):
     def single_request(self, host, handler, request_body, verbose=False):
         # 建立socket连接
         parsed = urlparse(f"scgi://{host}")
-        sock = socket.create_connection(
-            (parsed.hostname, parsed.port or 5000), timeout=60
-        )
+        sock = socket.create_connection((parsed.hostname, parsed.port or 5000), timeout=60)
         try:
             # 构造SCGI请求头
             headers = (
@@ -54,8 +52,8 @@ class SCGITransport(xmlrpc.client.Transport):
         """
         构造类文件对象用于parse_response
         """
-        import io
         import http.client
+        import io
 
         class _FakeSocket(io.BytesIO):
             def makefile(self, *args, **kwargs):
@@ -74,10 +72,10 @@ class Rtorrent:
 
     def __init__(
         self,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
         **kwargs,
     ):
         self._proxy = None
@@ -92,7 +90,7 @@ class Rtorrent:
         self._password = password
         self._proxy = self.__login_rtorrent()
 
-    def __login_rtorrent(self) -> Optional[xmlrpc.client.ServerProxy]:
+    def __login_rtorrent(self) -> xmlrpc.client.ServerProxy | None:
         """
         连接rTorrent
         """
@@ -115,18 +113,14 @@ class Rtorrent:
                     if parsed.port:
                         url += f":{parsed.port}"
                     url += parsed.path or "/RPC2"
-                logger.info(
-                    f"正在通过HTTP连接 rTorrent：{url.split('@')[-1] if '@' in url else url}"
-                )
+                logger.info(f"正在通过HTTP连接 rTorrent：{url.split('@')[-1] if '@' in url else url}")
                 proxy = xmlrpc.client.ServerProxy(url)
 
             # 测试连接
             proxy.system.client_version()
             return proxy
         except Exception as err:
-            stack_trace = "".join(
-                traceback.format_exception(None, err, err.__traceback__)
-            )[:2000]
+            stack_trace = "".join(traceback.format_exception(None, err, err.__traceback__))[:2000]
             logger.error(f"rTorrent 连接出错：{str(err)}\n{stack_trace}")
             return None
 
@@ -146,10 +140,10 @@ class Rtorrent:
 
     def get_torrents(
         self,
-        ids: Optional[Union[str, list]] = None,
-        status: Optional[str] = None,
-        tags: Optional[Union[str, list]] = None,
-    ) -> Tuple[List[Dict], bool]:
+        ids: str | list | None = None,
+        status: str | None = None,
+        tags: str | list | None = None,
+    ) -> tuple[list[dict], bool]:
         """
         获取种子列表
         :return: 种子列表, 是否发生异常
@@ -196,9 +190,7 @@ class Rtorrent:
                 }
                 # 计算进度
                 if torrent["total_size"] > 0:
-                    torrent["progress"] = (
-                        torrent["completed"] / torrent["total_size"] * 100
-                    )
+                    torrent["progress"] = torrent["completed"] / torrent["total_size"] * 100
                 else:
                     torrent["progress"] = 0
 
@@ -213,9 +205,7 @@ class Rtorrent:
 
                 # 标签过滤
                 if tags:
-                    torrent_tags = [
-                        t.strip() for t in torrent["tags"].split(",") if t.strip()
-                    ]
+                    torrent_tags = [t.strip() for t in torrent["tags"].split(",") if t.strip()]
                     if isinstance(tags, str):
                         tags_list = [t.strip() for t in tags.split(",")]
                     else:
@@ -229,9 +219,7 @@ class Rtorrent:
             logger.error(f"获取种子列表出错：{str(err)}")
             return [], True
 
-    def get_completed_torrents(
-        self, ids: Union[str, list] = None, tags: Union[str, list] = None
-    ) -> Optional[List[Dict]]:
+    def get_completed_torrents(self, ids: str | list = None, tags: str | list = None) -> list[dict] | None:
         """
         获取已完成的种子
         """
@@ -242,9 +230,7 @@ class Rtorrent:
             return None
         return [t for t in torrents if t.get("complete") == 1]
 
-    def get_downloading_torrents(
-        self, ids: Union[str, list] = None, tags: Union[str, list] = None
-    ) -> Optional[List[Dict]]:
+    def get_downloading_torrents(self, ids: str | list = None, tags: str | list = None) -> list[dict] | None:
         """
         获取正在下载的种子
         """
@@ -257,11 +243,11 @@ class Rtorrent:
 
     def add_torrent(
         self,
-        content: Union[str, bytes],
-        is_paused: Optional[bool] = False,
-        download_dir: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        cookie: Optional[str] = None,
+        content: str | bytes,
+        is_paused: bool | None = False,
+        download_dir: str | None = None,
+        tags: list[str] | None = None,
+        cookie: str | None = None,
         **kwargs,
     ) -> bool:
         """
@@ -307,7 +293,7 @@ class Rtorrent:
             logger.error(f"添加种子出错：{str(err)}")
             return False
 
-    def start_torrents(self, ids: Union[str, list]) -> bool:
+    def start_torrents(self, ids: str | list) -> bool:
         """
         启动种子
         """
@@ -323,7 +309,7 @@ class Rtorrent:
             logger.error(f"启动种子出错：{str(err)}")
             return False
 
-    def stop_torrents(self, ids: Union[str, list]) -> bool:
+    def stop_torrents(self, ids: str | list) -> bool:
         """
         停止种子
         """
@@ -339,7 +325,7 @@ class Rtorrent:
             logger.error(f"停止种子出错：{str(err)}")
             return False
 
-    def delete_torrents(self, delete_file: bool, ids: Union[str, list]) -> bool:
+    def delete_torrents(self, delete_file: bool, ids: str | list) -> bool:
         """
         删除种子
         """
@@ -374,7 +360,7 @@ class Rtorrent:
             logger.error(f"删除种子出错：{str(err)}")
             return False
 
-    def get_files(self, tid: str) -> Optional[List[Dict]]:
+    def get_files(self, tid: str) -> list[dict] | None:
         """
         获取种子文件列表
         """
@@ -408,9 +394,7 @@ class Rtorrent:
             logger.error(f"获取种子文件列表出错：{str(err)}")
             return None
 
-    def set_files(
-        self, torrent_hash: str = None, file_ids: list = None, priority: int = 0
-    ) -> bool:
+    def set_files(self, torrent_hash: str = None, file_ids: list = None, priority: int = 0) -> bool:
         """
         设置下载文件的优先级，priority为0为不下载，priority为1为普通
         """
@@ -428,9 +412,7 @@ class Rtorrent:
             logger.error(f"设置种子文件状态出错：{str(err)}")
             return False
 
-    def set_torrents_tag(
-        self, ids: Union[str, list], tags: List[str], overwrite: bool = False
-    ) -> bool:
+    def set_torrents_tag(self, ids: str | list, tags: list[str], overwrite: bool = False) -> bool:
         """
         设置种子标签（使用d.custom1）
         :param ids: 种子Hash
@@ -451,11 +433,7 @@ class Rtorrent:
                 else:
                     # 获取现有标签
                     existing = self._proxy.d.custom1(tid)
-                    existing_tags = (
-                        [t.strip() for t in existing.split(",") if t.strip()]
-                        if existing
-                        else []
-                    )
+                    existing_tags = [t.strip() for t in existing.split(",") if t.strip()] if existing else []
                     # 合并标签
                     merged = list(set(existing_tags + tags))
                     self._proxy.d.custom1.set(tid, ",".join(merged))
@@ -464,7 +442,7 @@ class Rtorrent:
             logger.error(f"设置种子Tag出错：{str(err)}")
             return False
 
-    def remove_torrents_tag(self, ids: Union[str, list], tag: Union[str, list]) -> bool:
+    def remove_torrents_tag(self, ids: str | list, tag: str | list) -> bool:
         """
         移除种子标签
         """
@@ -479,11 +457,7 @@ class Rtorrent:
                 tag = [tag]
             for tid in ids:
                 existing = self._proxy.d.custom1(tid)
-                existing_tags = (
-                    [t.strip() for t in existing.split(",") if t.strip()]
-                    if existing
-                    else []
-                )
+                existing_tags = [t.strip() for t in existing.split(",") if t.strip()] if existing else []
                 new_tags = [t for t in existing_tags if t not in tag]
                 self._proxy.d.custom1.set(tid, ",".join(new_tags))
             return True
@@ -491,7 +465,7 @@ class Rtorrent:
             logger.error(f"移除种子Tag出错：{str(err)}")
             return False
 
-    def get_torrent_tags(self, ids: str) -> List[str]:
+    def get_torrent_tags(self, ids: str) -> list[str]:
         """
         获取种子标签
         """
@@ -499,18 +473,12 @@ class Rtorrent:
             return []
         try:
             existing = self._proxy.d.custom1(ids)
-            return (
-                [t.strip() for t in existing.split(",") if t.strip()]
-                if existing
-                else []
-            )
+            return [t.strip() for t in existing.split(",") if t.strip()] if existing else []
         except Exception as err:
             logger.error(f"获取种子标签出错：{str(err)}")
             return []
 
-    def get_torrent_id_by_tag(
-        self, tags: Union[str, list], status: Optional[str] = None
-    ) -> Optional[str]:
+    def get_torrent_id_by_tag(self, tags: str | list, status: str | None = None) -> str | None:
         """
         通过标签多次尝试获取刚添加的种子ID，并移除标签
         """
@@ -538,10 +506,10 @@ class Rtorrent:
         return f"mp_{torrent_hash.lower()[:16]}"
 
     def change_torrent(
-            self,
-            hash_string: str,
-            upload_limit: Optional[float] = None,
-            download_limit: Optional[float] = None,
+        self,
+        hash_string: str,
+        upload_limit: float | None = None,
+        download_limit: float | None = None,
     ) -> bool:
         """
         修改单个种子的上传和下载限速。
@@ -586,7 +554,7 @@ class Rtorrent:
             logger.error(f"设置种子保存目录出错：{str(err)}")
             return False
 
-    def transfer_info(self) -> Optional[Dict]:
+    def transfer_info(self) -> dict | None:
         """
         获取传输信息
         """

@@ -1,6 +1,8 @@
+import builtins
 from abc import ABCMeta, abstractmethod
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
-from typing import Optional, List, Dict, Tuple, Callable, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
@@ -19,7 +21,7 @@ def transfer_process(path: str) -> Callable[[int | float], None]:
     progress = ProgressHelper(HashUtils.md5(path))
     progress.start()
 
-    def update_progress(percent: Union[int, float]) -> None:
+    def update_progress(percent: int | float) -> None:
         """
         更新进度百分比
         """
@@ -40,6 +42,7 @@ class StorageBase(metaclass=ABCMeta):
     """
     存储基类
     """
+
     schema = None
     transtype = {}
     snapshot_check_folder_modtime = True
@@ -54,19 +57,19 @@ class StorageBase(metaclass=ABCMeta):
         """
         pass
 
-    def generate_qrcode(self, *args, **kwargs) -> Optional[Tuple[dict, str]]:
+    def generate_qrcode(self, *args, **kwargs) -> tuple[dict, str] | None:
         pass
 
-    def generate_auth_url(self, *args, **kwargs) -> Optional[Tuple[dict, str]]:
+    def generate_auth_url(self, *args, **kwargs) -> tuple[dict, str] | None:
         """
         生成 OAuth2 授权 URL
         """
         return {}, "此存储不支持 OAuth2 授权"
 
-    def check_login(self, *args, **kwargs) -> Optional[Dict[str, str]]:
+    def check_login(self, *args, **kwargs) -> dict[str, str] | None:
         pass
 
-    def get_config(self) -> Optional[schemas.StorageConf]:
+    def get_config(self) -> schemas.StorageConf | None:
         """
         获取配置
         """
@@ -106,7 +109,7 @@ class StorageBase(metaclass=ABCMeta):
         self.init_storage()
 
     @staticmethod
-    def _safe_download_name(name: Optional[str]) -> Optional[str]:
+    def _safe_download_name(name: str | None) -> str | None:
         """
         提取可安全落盘的文件名。
         """
@@ -118,9 +121,7 @@ class StorageBase(metaclass=ABCMeta):
             return None
         return safe_name
 
-    def _build_download_path(
-        self, fileitem: schemas.FileItem, path: Path
-    ) -> Optional[Path]:
+    def _build_download_path(self, fileitem: schemas.FileItem, path: Path) -> Path | None:
         """
         构造本地下载路径，避免远端文件名携带目录片段时越过目标目录。
         """
@@ -145,14 +146,14 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def list(self, fileitem: schemas.FileItem) -> List[schemas.FileItem]:
+    def list(self, fileitem: schemas.FileItem) -> builtins.list[schemas.FileItem]:
         """
         浏览文件
         """
         pass
 
     @abstractmethod
-    def create_folder(self, fileitem: schemas.FileItem, name: str) -> Optional[schemas.FileItem]:
+    def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         :param fileitem: 父目录
@@ -161,27 +162,27 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_folder(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, path: Path) -> schemas.FileItem | None:
         """
         获取目录，如目录不存在则创建
         """
         pass
 
     @abstractmethod
-    def get_item(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item(self, path: Path) -> schemas.FileItem | None:
         """
         获取文件或目录，不存在返回None
         """
         pass
 
-    def get_item_strict(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item_strict(self, path: Path) -> schemas.FileItem | None:
         """
         获取文件或目录，确认不存在返回None；无法确认状态时抛出 StorageQueryError。
         默认实现不区分「不存在」与「查询失败」，由具体存储按需覆写。
         """
         return self.get_item(path)
 
-    def get_parent(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def get_parent(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取父目录
         """
@@ -211,8 +212,7 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def upload(self, fileitem: schemas.FileItem, path: Path,
-               new_name: Optional[str] = None) -> Optional[schemas.FileItem]:
+    def upload(self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None) -> schemas.FileItem | None:
         """
         上传文件
         :param fileitem: 上传目录项
@@ -222,7 +222,7 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def detail(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def detail(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取文件详情
         """
@@ -263,13 +263,13 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def usage(self) -> Optional[schemas.StorageUsage]:
+    def usage(self) -> schemas.StorageUsage | None:
         """
         存储使用情况
         """
         pass
 
-    def snapshot(self, path: Path, last_snapshot_time: float = None, max_depth: int = 5) -> Dict[str, Dict]:
+    def snapshot(self, path: Path, last_snapshot_time: float = None, max_depth: int = 5) -> dict[str, dict]:
         """
         快照文件系统，输出所有层级文件信息（不含目录）
         :param path: 路径
@@ -289,10 +289,12 @@ class StorageBase(metaclass=ABCMeta):
                         return
 
                     # 增量检查：如果目录修改时间早于上次快照，跳过
-                    if (self.snapshot_check_folder_modtime and
-                            last_snapshot_time and
-                            _fileitm.modify_time and
-                            _fileitm.modify_time <= last_snapshot_time):
+                    if (
+                        self.snapshot_check_folder_modtime
+                        and last_snapshot_time
+                        and _fileitm.modify_time
+                        and _fileitm.modify_time <= last_snapshot_time
+                    ):
                         return
 
                     # 遍历子文件
@@ -302,9 +304,9 @@ class StorageBase(metaclass=ABCMeta):
                 else:
                     # 记录文件的完整信息用于比对（始终包含所有文件，由 compare_snapshots 负责检测变化）
                     files_info[_fileitm.path] = {
-                        'size': _fileitm.size or 0,
-                        'modify_time': getattr(_fileitm, 'modify_time', 0),
-                        'type': _fileitm.type
+                        "size": _fileitm.size or 0,
+                        "modify_time": getattr(_fileitm, "modify_time", 0),
+                        "type": _fileitm.type,
                     }
 
             except Exception as e:

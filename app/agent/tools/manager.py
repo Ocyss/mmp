@@ -14,7 +14,7 @@ class ToolDefinition:
     工具定义
     """
 
-    def __init__(self, name: str, description: str, input_schema: Dict[str, Any]):
+    def __init__(self, name: str, description: str, input_schema: dict[str, Any]):
         self.name = name
         self.description = description
         self.input_schema = input_schema
@@ -41,7 +41,7 @@ class MoviePilotToolsManager:
         self.user_id = user_id
         self.session_id = session_id
         self.is_admin = is_admin
-        self.tools: List[Any] = []
+        self.tools: list[Any] = []
         self._tools_lock = threading.Lock()
         self._plugin_agent_tools_revision = -1
         self._load_tools()
@@ -53,9 +53,7 @@ class MoviePilotToolsManager:
         try:
             plugin_manager = PluginManager()
             while True:
-                plugin_tools_revision = (
-                    plugin_manager.get_plugin_agent_tools_revision()
-                )
+                plugin_tools_revision = plugin_manager.get_plugin_agent_tools_revision()
                 tools = MoviePilotToolFactory.create_tools(
                     session_id=self.session_id,
                     user_id=self.user_id,
@@ -65,10 +63,7 @@ class MoviePilotToolsManager:
                     stream_handler=None,
                     agent_context={"is_admin": self.is_admin},
                 )
-                if (
-                    plugin_tools_revision
-                    == plugin_manager.get_plugin_agent_tools_revision()
-                ):
+                if plugin_tools_revision == plugin_manager.get_plugin_agent_tools_revision():
                     break
             self.tools = tools
             self._plugin_agent_tools_revision = plugin_tools_revision
@@ -83,20 +78,14 @@ class MoviePilotToolsManager:
         在插件工具注册表变化后惰性刷新工具实例。
         """
         plugin_manager = PluginManager()
-        if (
-            self._plugin_agent_tools_revision
-            == plugin_manager.get_plugin_agent_tools_revision()
-        ):
+        if self._plugin_agent_tools_revision == plugin_manager.get_plugin_agent_tools_revision():
             return
         with self._tools_lock:
-            if (
-                self._plugin_agent_tools_revision
-                == plugin_manager.get_plugin_agent_tools_revision()
-            ):
+            if self._plugin_agent_tools_revision == plugin_manager.get_plugin_agent_tools_revision():
                 return
             self._load_tools()
 
-    def list_tools(self) -> List[ToolDefinition]:
+    def list_tools(self) -> list[ToolDefinition]:
         """
         列出所有可用的工具
 
@@ -127,7 +116,7 @@ class MoviePilotToolsManager:
 
         return tools_list
 
-    def get_tool(self, tool_name: str) -> Optional[Any]:
+    def get_tool(self, tool_name: str) -> Any | None:
         """
         获取指定工具实例
 
@@ -144,7 +133,7 @@ class MoviePilotToolsManager:
         return None
 
     @staticmethod
-    def _resolve_field_schema(field_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _resolve_field_schema(field_info: dict[str, Any]) -> dict[str, Any]:
         """
         解析字段schema，兼容 Optional[T] 生成的 anyOf 结构
         """
@@ -167,20 +156,20 @@ class MoviePilotToolsManager:
         return field_info
 
     @staticmethod
-    def _normalize_scalar_value(field_type: Optional[str], value: Any, key: str) -> Any:
+    def _normalize_scalar_value(field_type: str | None, value: Any, key: str) -> Any:
         """
         根据字段类型规范化单个值
         """
         if field_type == "integer" and isinstance(value, str):
             try:
                 return int(value)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 logger.warning(f"无法将参数 {key}='{value}' 转换为整数，返回 None")
                 return None
         if field_type == "number" and isinstance(value, str):
             try:
                 return float(value)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 logger.warning(f"无法将参数 {key}='{value}' 转换为浮点数，返回 None")
                 return None
         if field_type == "boolean":
@@ -208,9 +197,7 @@ class MoviePilotToolsManager:
         ]
 
     @staticmethod
-    def _normalize_arguments(
-        tool_instance: Any, arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _normalize_arguments(tool_instance: Any, arguments: dict[str, Any]) -> dict[str, Any]:
         """
         根据工具的参数schema规范化参数类型
 
@@ -248,26 +235,22 @@ class MoviePilotToolsManager:
             # 数组类型：将字符串解析为列表
             if field_type == "array" and isinstance(value, str):
                 item_type = field_info.get("items", {}).get("type", "string")
-                normalized[key] = MoviePilotToolsManager._parse_array_string(
-                    value, key, item_type
-                )
+                normalized[key] = MoviePilotToolsManager._parse_array_string(value, key, item_type)
                 continue
 
             # 根据类型进行转换
-            normalized[key] = MoviePilotToolsManager._normalize_scalar_value(
-                field_type, value, key
-            )
+            normalized[key] = MoviePilotToolsManager._normalize_scalar_value(field_type, value, key)
 
         return normalized
 
-    def _check_tool_permission(self, tool_instance: Any) -> Optional[str]:
+    def _check_tool_permission(self, tool_instance: Any) -> str | None:
         """为 HTTP/MCP/CLI 入口补齐 require_admin 门禁。"""
 
         if getattr(tool_instance, "_require_admin", False) and not self.is_admin:
             return "抱歉，您没有执行此工具的权限。只有系统管理员才能执行工具操作。"
         return None
 
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """
         调用工具
 
@@ -281,9 +264,7 @@ class MoviePilotToolsManager:
         tool_instance = self.get_tool(tool_name)
 
         if not tool_instance:
-            error_msg = json.dumps(
-                {"error": f"工具 '{tool_name}' 未找到"}, ensure_ascii=False
-            )
+            error_msg = json.dumps({"error": f"工具 '{tool_name}' 未找到"}, ensure_ascii=False)
             return error_msg
 
         try:
@@ -297,7 +278,7 @@ class MoviePilotToolsManager:
             # 调用工具的run方法。HTTP/MCP 工具调用不会经过 BaseTool._arun，
             # 因此这里也必须复用同一套返回值格式化和兜底截断逻辑。
             result = await tool_instance.run_with_timeout(**normalized_arguments)
-            
+
             # 记录工具执行结果摘要日志
             str_result = format_tool_result_for_agent(
                 result,
@@ -309,7 +290,7 @@ class MoviePilotToolsManager:
             else:
                 summary = str_result
             logger.info(f"Agent工具 {tool_name} 执行完成，结果摘要: {summary}")
-            
+
             return str_result
         except ToolExecutionTimeoutError as e:
             logger.warning(str(e))
@@ -327,7 +308,7 @@ class MoviePilotToolsManager:
             return error_msg
 
     @staticmethod
-    def _convert_to_json_schema(args_schema: Any) -> Dict[str, Any]:
+    def _convert_to_json_schema(args_schema: Any) -> dict[str, Any]:
         """
         将Pydantic模型转换为JSON Schema
 
@@ -346,9 +327,7 @@ class MoviePilotToolsManager:
 
         if "properties" in schema:
             for field_name, field_info in schema["properties"].items():
-                resolved_field_info = MoviePilotToolsManager._resolve_field_schema(
-                    field_info
-                )
+                resolved_field_info = MoviePilotToolsManager._resolve_field_schema(field_info)
                 # 转换字段类型
                 field_type = resolved_field_info.get("type", "string")
                 field_description = resolved_field_info.get("description", "")

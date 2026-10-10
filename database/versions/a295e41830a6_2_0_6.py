@@ -10,8 +10,8 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = 'a295e41830a6'
-down_revision = 'ecf3c693fdf3'
+revision = "a295e41830a6"
+down_revision = "ecf3c693fdf3"
 branch_labels = None
 depends_on = None
 
@@ -23,11 +23,7 @@ def upgrade() -> None:
     _storages = _systemconfig.get(SystemConfigKey.Storages)
     if _storages:
         if "alist" not in [storage["type"] for storage in _storages]:
-            _storages.append({
-                "type": "alist",
-                "name": "AList",
-                "config": {}
-            })
+            _storages.append({"type": "alist", "name": "AList", "config": {}})
             _systemconfig.set(SystemConfigKey.Storages, _storages)
 
     # ### end Alembic commands ###

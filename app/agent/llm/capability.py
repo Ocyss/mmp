@@ -36,11 +36,11 @@ class AudioCapabilityProvider(AgentCapabilityProvider):
         """是否可用于语音合成输出。"""
         return False
 
-    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> Optional[str]:
+    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> str | None:
         """将音频字节转成文字。"""
         raise NotImplementedError
 
-    def synthesize_speech(self, text: str) -> Optional[Path]:
+    def synthesize_speech(self, text: str) -> Path | None:
         """将文字合成为可发送的音频文件。"""
         raise NotImplementedError
 
@@ -51,17 +51,17 @@ class OpenAIAudioProvider(AudioCapabilityProvider):
     name = "openai"
 
     @staticmethod
-    def _build_client(api_key: str, base_url: Optional[str]):
+    def _build_client(api_key: str, base_url: str | None):
         from openai import OpenAI
 
         return OpenAI(api_key=api_key, base_url=base_url, max_retries=3)
 
     @staticmethod
-    def _input_credentials() -> tuple[Optional[str], Optional[str]]:
+    def _input_credentials() -> tuple[str | None, str | None]:
         return settings.AUDIO_INPUT_API_KEY, settings.AUDIO_INPUT_BASE_URL
 
     @staticmethod
-    def _output_credentials() -> tuple[Optional[str], Optional[str]]:
+    def _output_credentials() -> tuple[str | None, str | None]:
         return settings.AUDIO_OUTPUT_API_KEY, settings.AUDIO_OUTPUT_BASE_URL
 
     def is_available_for_audio_input(self) -> bool:
@@ -72,7 +72,7 @@ class OpenAIAudioProvider(AudioCapabilityProvider):
         api_key, _ = self._output_credentials()
         return bool(api_key)
 
-    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> Optional[str]:
+    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> str | None:
         if not content:
             return None
         if len(content) > self.MAX_TRANSCRIBE_BYTES:
@@ -97,7 +97,7 @@ class OpenAIAudioProvider(AudioCapabilityProvider):
             logger.error(f"音频输入转写失败: provider={self.name}, error={err}")
             return None
 
-    def synthesize_speech(self, text: str) -> Optional[Path]:
+    def synthesize_speech(self, text: str) -> Path | None:
         if not text:
             return None
 
@@ -127,16 +127,16 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
 
     name = "openai_chat_audio"
     DISPLAY_NAME = "OpenAI Chat Audio"
-    DEFAULT_BASE_URL: Optional[str] = None
-    DEFAULT_STT_MODEL: Optional[str] = None
-    DEFAULT_TTS_MODEL: Optional[str] = None
+    DEFAULT_BASE_URL: str | None = None
+    DEFAULT_STT_MODEL: str | None = None
+    DEFAULT_TTS_MODEL: str | None = None
     DEFAULT_VOICE = "alloy"
     AUDIO_RESPONSE_FORMAT = "wav"
     AUDIO_INPUT_DATA_URL = False
     INCLUDE_AUDIO_MODALITIES = True
     TTS_MESSAGE_ROLE = "user"
-    SUPPORTED_STT_MODELS: Optional[frozenset[str]] = None
-    SUPPORTED_TTS_MODELS: Optional[frozenset[str]] = None
+    SUPPORTED_STT_MODELS: frozenset[str] | None = None
+    SUPPORTED_TTS_MODELS: frozenset[str] | None = None
     UNSUPPORTED_TTS_MODELS = frozenset()
     SUPPORTED_AUDIO_MIME_TYPES = {
         ".flac": "audio/flac",
@@ -149,7 +149,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
     TRANSCODED_STT_SUFFIX = ".wav"
     TRANSCODED_STT_SAMPLE_RATE = "16000"
 
-    def _build_client(self, api_key: str, base_url: Optional[str]):
+    def _build_client(self, api_key: str, base_url: str | None):
         from openai import OpenAI
 
         return OpenAI(
@@ -159,11 +159,11 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
         )
 
     @staticmethod
-    def _input_credentials() -> tuple[Optional[str], Optional[str]]:
+    def _input_credentials() -> tuple[str | None, str | None]:
         return settings.AUDIO_INPUT_API_KEY, settings.AUDIO_INPUT_BASE_URL
 
     @staticmethod
-    def _output_credentials() -> tuple[Optional[str], Optional[str]]:
+    def _output_credentials() -> tuple[str | None, str | None]:
         return settings.AUDIO_OUTPUT_API_KEY, settings.AUDIO_OUTPUT_BASE_URL
 
     def _normalize_stt_model(self) -> str:
@@ -182,9 +182,9 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
 
     @staticmethod
     def _normalize_model(
-        model: Optional[str],
-        supported_models: Optional[frozenset[str]],
-        default_model: Optional[str],
+        model: str | None,
+        supported_models: frozenset[str] | None,
+        default_model: str | None,
     ) -> str:
         model = (model or "").strip()
         if not model:
@@ -231,9 +231,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
             "format": self._guess_audio_format(filename),
         }
 
-    def _normalize_audio_for_transcription(
-        self, content: bytes, filename: str
-    ) -> Optional[tuple[bytes, str]]:
+    def _normalize_audio_for_transcription(self, content: bytes, filename: str) -> tuple[bytes, str] | None:
         """
         将转写输入归一化为 Chat Audio provider 明确支持的格式。
 
@@ -246,9 +244,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
             return content, filename
         return self._convert_audio_for_transcription(content=content, filename=filename)
 
-    def _convert_audio_for_transcription(
-        self, content: bytes, filename: str
-    ) -> Optional[tuple[bytes, str]]:
+    def _convert_audio_for_transcription(self, content: bytes, filename: str) -> tuple[bytes, str] | None:
         """
         将 AMR 等第三方 STT 不支持的输入转为 WAV。
 
@@ -302,7 +298,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
                     logger.debug(f"清理 STT 临时音频失败: path={temp_path}, error={err}")
 
     @staticmethod
-    def _extract_message_text(message) -> Optional[str]:
+    def _extract_message_text(message) -> str | None:
         """兼容音频理解响应可能放在 content 或 reasoning_content 的情况。"""
         content = getattr(message, "content", None)
         if isinstance(content, str) and content.strip():
@@ -321,7 +317,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
         return None
 
     @staticmethod
-    def _extract_audio_data(message) -> Optional[str]:
+    def _extract_audio_data(message) -> str | None:
         audio = getattr(message, "audio", None)
         if isinstance(audio, dict):
             return audio.get("data")
@@ -333,7 +329,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
             return extra["audio"].get("data")
         return None
 
-    def _convert_wav_to_opus(self, wav_path: Path) -> Optional[Path]:
+    def _convert_wav_to_opus(self, wav_path: Path) -> Path | None:
         """将 Chat Audio 返回的 WAV 转成 OGG/Opus，便于各通知渠道发送语音。"""
         if not shutil.which("ffmpeg"):
             return None
@@ -371,7 +367,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
         api_key, _ = self._output_credentials()
         return bool(api_key) and self._is_supported_tts_model()
 
-    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> Optional[str]:
+    def transcribe_audio(self, content: bytes, filename: str = "input.ogg") -> str | None:
         if not content:
             return None
         if len(content) > self.MAX_TRANSCRIBE_BYTES:
@@ -382,9 +378,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
             if not api_key:
                 raise ValueError("音频输入 provider 未配置 API Key")
             client = self._build_client(api_key=api_key, base_url=base_url)
-            normalized_audio = self._normalize_audio_for_transcription(
-                content=content, filename=filename
-            )
+            normalized_audio = self._normalize_audio_for_transcription(content=content, filename=filename)
             if not normalized_audio:
                 return None
             content, filename = normalized_audio
@@ -401,9 +395,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
                         "content": [
                             {
                                 "type": "input_audio",
-                                "input_audio": self._build_audio_input_payload(
-                                    content=content, filename=filename
-                                ),
+                                "input_audio": self._build_audio_input_payload(content=content, filename=filename),
                             },
                             {"type": "text", "text": prompt},
                         ],
@@ -416,7 +408,7 @@ class OpenAIChatAudioProvider(AudioCapabilityProvider):
             logger.error(f"音频输入转写失败: provider={self.name}, error={err}")
             return None
 
-    def synthesize_speech(self, text: str) -> Optional[Path]:
+    def synthesize_speech(self, text: str) -> Path | None:
         if not text:
             return None
         if not self._is_supported_tts_model():
@@ -513,7 +505,7 @@ class MiniMaxAudioProvider(OpenAIChatAudioProvider):
         }
     )
 
-    def _build_client(self, api_key: str, base_url: Optional[str]):
+    def _build_client(self, api_key: str, base_url: str | None):
         """构建 MiniMax OpenAI 兼容客户端，兼容用户误填 Anthropic 端点的情况。"""
         from openai import OpenAI
 
@@ -524,7 +516,7 @@ class MiniMaxAudioProvider(OpenAIChatAudioProvider):
         )
 
     @classmethod
-    def _normalize_api_base_url(cls, base_url: Optional[str]) -> str:
+    def _normalize_api_base_url(cls, base_url: str | None) -> str:
         """归一化 MiniMax API 基础 URL，确保后续可以拼接 OpenAI/T2A 路径。"""
         normalized = (base_url or cls.DEFAULT_BASE_URL).strip().rstrip("/")
         if normalized.endswith("/t2a_v2"):
@@ -537,7 +529,7 @@ class MiniMaxAudioProvider(OpenAIChatAudioProvider):
         return normalized
 
     @classmethod
-    def _build_t2a_url(cls, base_url: Optional[str]) -> str:
+    def _build_t2a_url(cls, base_url: str | None) -> str:
         """生成 MiniMax 同步 T2A 接口地址。"""
         return f"{cls._normalize_api_base_url(base_url)}/t2a_v2"
 
@@ -572,7 +564,7 @@ class MiniMaxAudioProvider(OpenAIChatAudioProvider):
             return base64.b64decode(audio_data)
 
     @staticmethod
-    def _extract_minimax_error(data: dict[str, Any]) -> Optional[str]:
+    def _extract_minimax_error(data: dict[str, Any]) -> str | None:
         """提取 MiniMax base_resp 错误信息，成功响应返回 None。"""
         base_resp = data.get("base_resp") or {}
         status_code = base_resp.get("status_code")
@@ -581,7 +573,7 @@ class MiniMaxAudioProvider(OpenAIChatAudioProvider):
         status_msg = base_resp.get("status_msg") or "unknown error"
         return f"{status_code}: {status_msg}"
 
-    def synthesize_speech(self, text: str) -> Optional[Path]:
+    def synthesize_speech(self, text: str) -> Path | None:
         """调用 MiniMax T2A HTTP 接口合成语音文件。"""
         if not text:
             return None
@@ -649,7 +641,7 @@ class AgentCapabilityManager:
 
     REPLY_MODE_NATIVE = "native_voice"
     REPLY_MODE_TEXT = "text"
-    _audio_providers: Dict[str, AudioCapabilityProvider] = {
+    _audio_providers: dict[str, AudioCapabilityProvider] = {
         OpenAIAudioProvider.name: OpenAIAudioProvider(),
         OpenAIChatAudioProvider.name: OpenAIChatAudioProvider(),
         MiMoAudioProvider.name: MiMoAudioProvider(),
@@ -667,7 +659,7 @@ class AgentCapabilityManager:
         return sorted(cls._audio_providers.keys())
 
     @staticmethod
-    def _normalize_provider_name(provider: Optional[str]) -> str:
+    def _normalize_provider_name(provider: str | None) -> str:
         return (provider or "openai").strip().lower()
 
     @staticmethod
@@ -676,11 +668,9 @@ class AgentCapabilityManager:
         return provider_name if isinstance(provider_name, str) else provider.__class__.__name__
 
     @classmethod
-    def get_audio_provider(cls, mode: str) -> Optional[AudioCapabilityProvider]:
+    def get_audio_provider(cls, mode: str) -> AudioCapabilityProvider | None:
         provider_name = cls._normalize_provider_name(
-            settings.AUDIO_INPUT_PROVIDER
-            if (mode or "").lower() == "input"
-            else settings.AUDIO_OUTPUT_PROVIDER
+            settings.AUDIO_INPUT_PROVIDER if (mode or "").lower() == "input" else settings.AUDIO_OUTPUT_PROVIDER
         )
         provider = cls._audio_providers.get(provider_name)
         if provider:
@@ -720,7 +710,7 @@ class AgentCapabilityManager:
         return bool(provider and provider.is_available_for_audio_output())
 
     @classmethod
-    def transcribe_audio(cls, content: bytes, filename: str = "input.ogg") -> Optional[str]:
+    def transcribe_audio(cls, content: bytes, filename: str = "input.ogg") -> str | None:
         """将语音文件内容转写为文字，并记录能力调用日志。"""
         provider = cls.get_audio_provider("input")
         if not provider or not cls.is_audio_input_available():
@@ -728,32 +718,24 @@ class AgentCapabilityManager:
             return None
         provider_name = cls._get_provider_log_name(provider)
         logger.info(
-            f"语音转文字开始：provider={provider_name}, filename={filename}, "
-            f"bytes={len(content) if content else 0}"
+            f"语音转文字开始：provider={provider_name}, filename={filename}, bytes={len(content) if content else 0}"
         )
         transcript = provider.transcribe_audio(content=content, filename=filename)
         if transcript:
-            logger.info(
-                f"语音转文字完成：provider={provider_name}, filename={filename}, "
-                f"text_len={len(transcript)}"
-            )
+            logger.info(f"语音转文字完成：provider={provider_name}, filename={filename}, text_len={len(transcript)}")
         else:
-            logger.info(
-                f"语音转文字无结果：provider={provider_name}, filename={filename}"
-            )
+            logger.info(f"语音转文字无结果：provider={provider_name}, filename={filename}")
         return transcript
 
     @classmethod
-    def synthesize_speech(cls, text: str) -> Optional[Path]:
+    def synthesize_speech(cls, text: str) -> Path | None:
         """将文字合成为语音文件，并记录能力调用日志。"""
         provider = cls.get_audio_provider("output")
         if not provider or not cls.is_audio_output_available():
             logger.info("文字转语音跳过：音频输出能力未启用或 provider 不可用")
             return None
         provider_name = cls._get_provider_log_name(provider)
-        logger.info(
-            f"文字转语音开始：provider={provider_name}, text_len={len(text) if text else 0}"
-        )
+        logger.info(f"文字转语音开始：provider={provider_name}, text_len={len(text) if text else 0}")
         output_path = provider.synthesize_speech(text=text)
         if output_path:
             logger.info(f"文字转语音完成：provider={provider_name}, path={output_path}")
@@ -762,14 +744,14 @@ class AgentCapabilityManager:
         return output_path
 
     @classmethod
-    def resolve_reply_mode(cls, channel: Optional[str], source: Optional[str]) -> str:
+    def resolve_reply_mode(cls, channel: str | None, source: str | None) -> str:
         """仅在支持原生语音回复的渠道上发送音频，其余渠道回退文字。"""
         if cls.supports_native_voice_reply(channel=channel, source=source):
             return cls.REPLY_MODE_NATIVE
         return cls.REPLY_MODE_TEXT
 
     @classmethod
-    def _parse_message_channel(cls, channel: Optional[Any]):
+    def _parse_message_channel(cls, channel: Any | None):
         """将渠道入参归一化为消息渠道枚举。"""
         if not channel:
             return None
@@ -794,7 +776,7 @@ class AgentCapabilityManager:
         return None
 
     @staticmethod
-    def _is_wechat_app_mode(source: Optional[str]) -> bool:
+    def _is_wechat_app_mode(source: str | None) -> bool:
         """判断企业微信来源是否为自建应用模式。"""
         if not source:
             return False
@@ -808,9 +790,7 @@ class AgentCapabilityManager:
         return False
 
     @classmethod
-    def supports_native_voice_reply(
-            cls, channel: Optional[str], source: Optional[str]
-    ) -> bool:
+    def supports_native_voice_reply(cls, channel: str | None, source: str | None) -> bool:
         """判断当前渠道是否支持原生语音消息发送。"""
         from app.schemas.message import ChannelCapability, ChannelCapabilityManager
         from app.schemas.types import MessageChannel
@@ -819,9 +799,7 @@ class AgentCapabilityManager:
         if not channel_enum:
             return False
 
-        if not ChannelCapabilityManager.supports_capability(
-                channel_enum, ChannelCapability.AUDIO_OUTPUT
-        ):
+        if not ChannelCapabilityManager.supports_capability(channel_enum, ChannelCapability.AUDIO_OUTPUT):
             return False
 
         if channel_enum == MessageChannel.Wechat:

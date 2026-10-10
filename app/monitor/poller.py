@@ -1,7 +1,8 @@
 import traceback
+from collections.abc import Callable
 from pathlib import Path
 from threading import Lock
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from app.chain.storage import StorageChain
 from app.log import logger
@@ -13,11 +14,13 @@ class RemotePoller:
     """
     远程目录轮询监控：快照、比对并分发变化文件。
     """
+
     # 同一存储连续异常达到该次数后推送告警
     FAILURE_ALERT_THRESHOLD = 3
 
-    def __init__(self, store: SnapshotStore, dispatcher: TransferDispatcher,
-                 alert_cb: Optional[Callable[[str, str], None]] = None):
+    def __init__(
+        self, store: SnapshotStore, dispatcher: TransferDispatcher, alert_cb: Callable[[str, str], None] | None = None
+    ):
         """
         初始化远程轮询监控。
         :param store: 快照存储
@@ -28,10 +31,10 @@ class RemotePoller:
         self._dispatcher = dispatcher
         self._alert_cb = alert_cb
         # 快照锁按存储隔离，避免一个慢存储阻塞其他存储的轮询
-        self._locks: Dict[str, Lock] = {}
+        self._locks: dict[str, Lock] = {}
         self._locks_guard = Lock()
         # 各存储连续异常次数
-        self._failure_counts: Dict[str, int] = {}
+        self._failure_counts: dict[str, int] = {}
 
     def _get_lock(self, storage: str) -> Lock:
         """
@@ -52,8 +55,7 @@ class RemotePoller:
         self._failure_counts[storage] = count
         logger.warn(f"远程目录监控异常（连续第 {count} 次）: {storage} - {reason}")
         if count == self.FAILURE_ALERT_THRESHOLD and self._alert_cb:
-            self._alert_cb(storage,
-                           f"远程目录监控连续 {count} 次异常: {storage}\n原因: {reason}\n将继续按周期重试")
+            self._alert_cb(storage, f"远程目录监控连续 {count} 次异常: {storage}\n原因: {reason}\n将继续按周期重试")
 
     def _note_success(self, storage: str):
         """
@@ -64,7 +66,7 @@ class RemotePoller:
             self._alert_cb(storage, f"远程目录监控已恢复: {storage}")
         self._failure_counts[storage] = 0
 
-    def poll(self, storage: str, mon_paths: List[Path]) -> Optional[int]:
+    def poll(self, storage: str, mon_paths: list[Path]) -> int | None:
         """
         执行一轮轮询监控。
         :param storage: 存储名称
@@ -79,8 +81,8 @@ class RemotePoller:
                 if not load_ok:
                     self._note_failure(storage, "读取快照基线失败，跳过本轮")
                     return None
-                old_snapshot = old_snapshot_data.get('snapshot', {}) if old_snapshot_data else {}
-                last_snapshot_time = old_snapshot_data.get('timestamp', 0) if old_snapshot_data else 0
+                old_snapshot = old_snapshot_data.get("snapshot", {}) if old_snapshot_data else {}
+                last_snapshot_time = old_snapshot_data.get("timestamp", 0) if old_snapshot_data else 0
                 is_first_snapshot = old_snapshot_data is None
 
                 new_snapshot = {}
@@ -90,9 +92,7 @@ class RemotePoller:
 
                     # 生成新快照（增量模式）
                     snapshot = StorageChain().snapshot_storage(
-                        storage=storage,
-                        path=mon_path,
-                        last_snapshot_time=last_snapshot_time
+                        storage=storage, path=mon_path, last_snapshot_time=last_snapshot_time
                     )
 
                     if snapshot is None:
@@ -144,13 +144,11 @@ class RemotePoller:
         """
         changes = SnapshotStore.compare(old_snapshot, new_snapshot)
         added_files = [
-            file_path
-            for file_path in changes['added']
-            if self._dispatcher.is_transfer_candidate_path(Path(file_path))
+            file_path for file_path in changes["added"] if self._dispatcher.is_transfer_candidate_path(Path(file_path))
         ]
         modified_files = [
             file_path
-            for file_path in changes['modified']
+            for file_path in changes["modified"]
             if self._dispatcher.is_transfer_candidate_path(Path(file_path))
         ]
 
@@ -158,7 +156,7 @@ class RemotePoller:
         handled_added_count = 0
         for new_file in added_files:
             file_info = new_snapshot.get(new_file, {})
-            file_size = file_info.get('size', 0) if isinstance(file_info, dict) else file_info
+            file_size = file_info.get("size", 0) if isinstance(file_info, dict) else file_info
             if self._dispatcher.handle_file(storage=storage, event_path=Path(new_file), file_size=file_size):
                 handled_added_count += 1
 
@@ -166,7 +164,7 @@ class RemotePoller:
         handled_modified_count = 0
         for modified_file in modified_files:
             file_info = new_snapshot.get(modified_file, {})
-            file_size = file_info.get('size', 0) if isinstance(file_info, dict) else file_info
+            file_size = file_info.get("size", 0) if isinstance(file_info, dict) else file_info
             if self._dispatcher.handle_file(storage=storage, event_path=Path(modified_file), file_size=file_size):
                 handled_modified_count += 1
 
@@ -189,7 +187,7 @@ class RemotePoller:
             new_snapshot = StorageChain().snapshot_storage(
                 storage=storage,
                 path=mon_path,
-                last_snapshot_time=0  # 全量扫描，不使用增量
+                last_snapshot_time=0,  # 全量扫描，不使用增量
             )
 
             if new_snapshot is None:
@@ -205,9 +203,8 @@ class RemotePoller:
                 try:
                     if not self._dispatcher.is_transfer_candidate_path(Path(file_path)):
                         continue
-                    file_size = file_info.get('size', 0) if isinstance(file_info, dict) else file_info
-                    if self._dispatcher.handle_file(storage=storage, event_path=Path(file_path),
-                                                    file_size=file_size):
+                    file_size = file_info.get("size", 0) if isinstance(file_info, dict) else file_info
+                    if self._dispatcher.handle_file(storage=storage, event_path=Path(file_path), file_size=file_size):
                         processed_count += 1
                 except Exception as e:
                     logger.error(f"处理文件 {file_path} 失败: {e}")
@@ -217,7 +214,7 @@ class RemotePoller:
 
             # 全量扫描覆盖单个路径，与已有基线合并后落盘，避免覆盖其他监控路径的基线
             old_snapshot_data, load_ok = self._store.load_checked(storage)
-            old_snapshot = old_snapshot_data.get('snapshot', {}) if (load_ok and old_snapshot_data) else {}
+            old_snapshot = old_snapshot_data.get("snapshot", {}) if (load_ok and old_snapshot_data) else {}
             merged_snapshot = {**old_snapshot, **new_snapshot}
             self._store.save(storage, merged_snapshot, len(merged_snapshot))
 

@@ -28,18 +28,18 @@ class LlmTestRequest(BaseModel):
     LLM 测试调用请求参数。
     """
 
-    enabled: Optional[bool] = None
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    thinking_level: Optional[str] = None
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
-    base_url_preset: Optional[str] = None
-    user_agent: Optional[str] = None
-    temperature: Optional[float] = None
-    use_proxy: Optional[bool] = None
-    api_protocol: Optional[str] = None
-    web_search_mode: Optional[str] = None
+    enabled: bool | None = None
+    provider: str | None = None
+    model: str | None = None
+    thinking_level: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+    base_url_preset: str | None = None
+    user_agent: str | None = None
+    temperature: float | None = None
+    use_proxy: bool | None = None
+    api_protocol: str | None = None
+    web_search_mode: str | None = None
 
 
 class LlmProviderAuthStartRequest(BaseModel):
@@ -51,7 +51,7 @@ class LlmProviderAuthStartRequest(BaseModel):
     method: str
 
 
-def _sanitize_llm_error(message: str, api_key: Optional[str] = None) -> str:
+def _sanitize_llm_error(message: str, api_key: str | None = None) -> str:
     """
     清理错误信息中的敏感字段，避免回显密钥。
     """
@@ -74,8 +74,7 @@ def _sanitize_llm_error(message: str, api_key: Optional[str] = None) -> str:
 
     normalized_message = sanitized.lower().replace("_", "").replace(" ", "")
     if "str" in normalized_message and (
-        "modeldump" in normalized_message
-        or "setprivateattributes" in normalized_message
+        "modeldump" in normalized_message or "setprivateattributes" in normalized_message
     ):
         return (
             "服务返回内容不是兼容的模型响应，请检查基础地址是否填写为 "
@@ -88,12 +87,12 @@ def _sanitize_llm_error(message: str, api_key: Optional[str] = None) -> str:
 @router.get("/models", summary="获取LLM模型列表", response_model=schemas.Response)
 async def get_llm_models(
     provider: str,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    base_url_preset: Optional[str] = None,
-    user_agent: Optional[str] = None,
-    use_proxy: Optional[bool] = None,
-    force_refresh: Optional[bool] = False,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    base_url_preset: str | None = None,
+    user_agent: str | None = None,
+    use_proxy: bool | None = None,
+    force_refresh: bool | None = False,
     _: User = Depends(get_current_active_user_async),
 ):
     """
@@ -155,11 +154,7 @@ async def start_llm_provider_auth(
     try:
         callback_url = None
         if payload.provider == "chatgpt" and payload.method == "browser_oauth":
-            callback_url = str(
-                request.url_for(
-                    "llm_provider_auth_callback", provider_id=payload.provider
-                )
-            )
+            callback_url = str(request.url_for("llm_provider_auth_callback", provider_id=payload.provider))
         result = await LLMProviderManager().start_auth(
             payload.provider,
             payload.method,
@@ -235,10 +230,10 @@ async def delete_llm_provider_auth(
 )
 async def llm_provider_auth_callback(
     provider_id: str,
-    code: Optional[str] = None,
-    state: Optional[str] = None,
-    error: Optional[str] = None,
-    error_description: Optional[str] = None,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
 ):
     """
     处理需要浏览器回跳的 OAuth provider。
@@ -255,7 +250,7 @@ async def llm_provider_auth_callback(
 
 @router.post("/test", summary="测试LLM调用", response_model=schemas.Response)
 async def llm_test(
-    payload: Annotated[Optional[LlmTestRequest], Body()] = None,
+    payload: Annotated[LlmTestRequest | None, Body()] = None,
     _: User = Depends(get_current_active_superuser_async),
 ):
     """
@@ -287,9 +282,7 @@ async def llm_test(
     if not payload.enabled:
         return schemas.Response(success=False, message="请先启用智能助手", data=data)
 
-    if payload.provider not in {"chatgpt", "github-copilot"} and (
-        not payload.api_key or not payload.api_key.strip()
-    ):
+    if payload.provider not in {"chatgpt", "github-copilot"} and (not payload.api_key or not payload.api_key.strip()):
         return schemas.Response(
             success=False,
             message="请先配置 LLM API Key",

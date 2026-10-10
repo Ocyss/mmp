@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 from typing import Optional
 
@@ -28,12 +27,12 @@ class IptSiteUserInfo(SiteParserBase):
 
             tmps = html.xpath('//div[@class = "stats"]/div/div')
             if tmps:
-                self.upload = StringUtils.num_filesize(str(tmps[0].xpath('span/text()')[1]).strip())
-                self.download = StringUtils.num_filesize(str(tmps[0].xpath('span/text()')[2]).strip())
-                self.seeding = StringUtils.str_int(tmps[0].xpath('a')[2].xpath('text()')[0])
-                self.leeching = StringUtils.str_int(tmps[0].xpath('a')[2].xpath('text()')[1])
-                self.ratio = StringUtils.str_float(str(tmps[0].xpath('span/text()')[0]).strip().replace('-', '0'))
-                self.bonus = StringUtils.str_float(tmps[0].xpath('a')[3].xpath('text()')[0])
+                self.upload = StringUtils.num_filesize(str(tmps[0].xpath("span/text()")[1]).strip())
+                self.download = StringUtils.num_filesize(str(tmps[0].xpath("span/text()")[2]).strip())
+                self.seeding = StringUtils.str_int(tmps[0].xpath("a")[2].xpath("text()")[0])
+                self.leeching = StringUtils.str_int(tmps[0].xpath("a")[2].xpath("text()")[1])
+                self.ratio = StringUtils.str_float(str(tmps[0].xpath("span/text()")[0]).strip().replace("-", "0"))
+                self.bonus = StringUtils.str_float(tmps[0].xpath("a")[3].xpath("text()")[0])
         finally:
             if html is not None:
                 del html
@@ -54,12 +53,12 @@ class IptSiteUserInfo(SiteParserBase):
             # 加入日期
             join_at_text = html.xpath('//tr/th[text()="Join date"]/following-sibling::td[1]/text()')
             if join_at_text:
-                self.join_at = StringUtils.unify_datetime_str(join_at_text[0].split(' (')[0])
+                self.join_at = StringUtils.unify_datetime_str(join_at_text[0].split(" (")[0])
         finally:
             if html is not None:
                 del html
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool = False) -> str | None:
         html = etree.HTML(html_text)
         try:
             if not StringUtils.is_valid_html_element(html):
@@ -72,13 +71,15 @@ class IptSiteUserInfo(SiteParserBase):
 
             page_seeding = 0
             page_seeding_size = 0
-            seeding_torrents = html.xpath('//tr/td[text() = "Seeders"]/../following-sibling::tr/td[position()=6]/text()')
+            seeding_torrents = html.xpath(
+                '//tr/td[text() = "Seeders"]/../following-sibling::tr/td[position()=6]/text()'
+            )
             if seeding_torrents:
                 page_seeding = seeding_end_pos
                 for per_size in seeding_torrents[:seeding_end_pos]:
-                    if '(' in per_size and ')' in per_size:
-                        per_size = per_size.split('(')[-1]
-                        per_size = per_size.split(')')[0]
+                    if "(" in per_size and ")" in per_size:
+                        per_size = per_size.split("(")[-1]
+                        per_size = per_size.split(")")[0]
 
                     page_seeding_size += StringUtils.num_filesize(per_size)
 
@@ -91,7 +92,7 @@ class IptSiteUserInfo(SiteParserBase):
     def _parse_user_traffic_info(self, html_text: str):
         pass
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         return None
 
     def _parse_message_content(self, html_text):

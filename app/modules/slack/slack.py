@@ -1,7 +1,7 @@
 import json
 import re
-from threading import Lock
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
@@ -11,7 +11,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 
 from app.core.config import settings
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.metainfo import MetaInfo
 from app.log import logger
 from app.utils.http import RequestUtils
@@ -31,12 +31,16 @@ class Slack:
     _MAX_SLASH_COMMANDS = 50
     _SLASH_COMMAND_USAGE_HINT = "MoviePilot 可选参数"
 
-    def __init__(self, SLACK_OAUTH_TOKEN: Optional[str] = None, SLACK_APP_TOKEN: Optional[str] = None,
-                 SLACK_CHANNEL: Optional[str] = None,
-                 SLACK_APP_ID: Optional[str] = None,
-                 SLACK_APP_CONFIG_TOKEN: Optional[str] = None,
-                 SLACK_COMMAND_REQUEST_URL: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        SLACK_OAUTH_TOKEN: str | None = None,
+        SLACK_APP_TOKEN: str | None = None,
+        SLACK_CHANNEL: str | None = None,
+        SLACK_APP_ID: str | None = None,
+        SLACK_APP_CONFIG_TOKEN: str | None = None,
+        SLACK_COMMAND_REQUEST_URL: str | None = None,
+        **kwargs,
+    ):
         """
         初始化 Slack 客户端。
 
@@ -53,9 +57,7 @@ class Slack:
             return
 
         try:
-            slack_app = App(token=SLACK_OAUTH_TOKEN,
-                            ssl_check_enabled=False,
-                            url_verification_enabled=False)
+            slack_app = App(token=SLACK_OAUTH_TOKEN, ssl_check_enabled=False, url_verification_enabled=False)
         except Exception as err:
             logger.error(f"Slack初始化失败: {str(err)}")
             return
@@ -66,16 +68,14 @@ class Slack:
         self._app_id = (SLACK_APP_ID or "").strip()
         self._command_request_url = (SLACK_COMMAND_REQUEST_URL or "").strip()
         self._manifest_client = (
-            WebClient(token=SLACK_APP_CONFIG_TOKEN)
-            if SLACK_APP_CONFIG_TOKEN and self._app_id
-            else None
+            WebClient(token=SLACK_APP_CONFIG_TOKEN) if SLACK_APP_CONFIG_TOKEN and self._app_id else None
         )
         self._registered_command_names: set[str] = set()
 
         # 标记消息来源
         if kwargs.get("name"):
             # URL encode the source name to handle special characters
-            encoded_name = quote(kwargs.get('name'), safe='')
+            encoded_name = quote(kwargs.get("name"), safe="")
             self._ds_url = f"{self._ds_url}&source={encoded_name}"
 
         # 注册消息响应
@@ -110,10 +110,7 @@ class Slack:
 
         # 启动服务
         try:
-            self._service = SocketModeHandler(
-                slack_app,
-                SLACK_APP_TOKEN
-            )
+            self._service = SocketModeHandler(slack_app, SLACK_APP_TOKEN)
             self._service.connect()
             logger.info("Slack消息接收服务启动")
         except Exception as err:
@@ -133,7 +130,7 @@ class Slack:
         """
         return True if self._client else False
 
-    def register_commands(self, commands: Dict[str, dict]) -> bool:
+    def register_commands(self, commands: dict[str, dict]) -> bool:
         """
         通过 Slack App Manifest 注册 Slash Commands。
 
@@ -156,7 +153,7 @@ class Slack:
             return False
         return self._update_manifest_commands({})
 
-    def _update_manifest_commands(self, commands: Dict[str, dict]) -> bool:
+    def _update_manifest_commands(self, commands: dict[str, dict]) -> bool:
         """更新 Slack Manifest 中的 Slash Commands，保留非本实例管理的命令。"""
         try:
             manifest = self._export_manifest()
@@ -165,9 +162,7 @@ class Slack:
             features = manifest.setdefault("features", {})
             existing_commands = features.get("slash_commands") or []
             generated_commands = self._build_slash_commands(commands)
-            managed_names = self._registered_command_names | {
-                item["command"] for item in generated_commands
-            }
+            managed_names = self._registered_command_names | {item["command"] for item in generated_commands}
             preserved_commands = [
                 item
                 for item in existing_commands
@@ -179,9 +174,7 @@ class Slack:
             ]
             available = max(self._MAX_SLASH_COMMANDS - len(preserved_commands), 0)
             if len(generated_commands) > available:
-                logger.warning(
-                    f"Slack Slash Commands 超过平台上限，仅注册前 {available} 个"
-                )
+                logger.warning(f"Slack Slash Commands 超过平台上限，仅注册前 {available} 个")
                 generated_commands = generated_commands[:available]
             features["slash_commands"] = preserved_commands + generated_commands
 
@@ -192,16 +185,14 @@ class Slack:
             if result and result.get("ok") is False:
                 logger.error(f"Slack Manifest 更新失败：{result.get('error')}")
                 return False
-            self._registered_command_names = {
-                item["command"] for item in generated_commands
-            }
+            self._registered_command_names = {item["command"] for item in generated_commands}
             logger.info(f"Slack Slash Commands 已同步：{len(generated_commands)} 个")
             return True
         except Exception as err:
             logger.error(f"Slack Slash Commands 自动注册失败：{err}")
             return False
 
-    def _export_manifest(self) -> Optional[Dict[str, Any]]:
+    def _export_manifest(self) -> dict[str, Any] | None:
         """导出 Slack App Manifest。"""
         result = self._manifest_client.apps_manifest_export(app_id=self._app_id)
         if result and result.get("ok") is False:
@@ -212,7 +203,7 @@ class Slack:
             manifest = json.loads(manifest)
         return manifest if isinstance(manifest, dict) else None
 
-    def _build_slash_commands(self, commands: Dict[str, dict]) -> List[Dict[str, Any]]:
+    def _build_slash_commands(self, commands: dict[str, dict]) -> list[dict[str, Any]]:
         """构建 Slack Manifest Slash Commands 配置。"""
         slash_commands = []
         seen_commands = set()
@@ -247,14 +238,14 @@ class Slack:
 
     @staticmethod
     def _normalize_slack_description(
-        description: Optional[str],
+        description: str | None,
         fallback: str,
     ) -> str:
         """整理 Slack Slash Command 描述。"""
         normalized = str(description or fallback or "MoviePilot").strip()
         return normalized[:2000] or "MoviePilot"
 
-    def download_file(self, file_url: str) -> Optional[Tuple[bytes, str]]:
+    def download_file(self, file_url: str) -> tuple[bytes, str] | None:
         """
         下载Slack私有文件
         :param file_url: Slack文件URL
@@ -276,11 +267,17 @@ class Slack:
             logger.error(f"下载Slack文件失败: {e}")
         return None
 
-    def send_msg(self, title: str, text: Optional[str] = None,
-                 image: Optional[str] = None, link: Optional[str] = None,
-                 userid: Optional[str] = None, buttons: Optional[List[List[dict]]] = None,
-                 original_message_id: Optional[str] = None,
-                 original_chat_id: Optional[str] = None):
+    def send_msg(
+        self,
+        title: str,
+        text: str | None = None,
+        image: str | None = None,
+        link: str | None = None,
+        userid: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: str | None = None,
+        original_chat_id: str | None = None,
+    ):
         """
         发送Slack消息
         :param title: 消息标题
@@ -312,14 +309,13 @@ class Slack:
                 # 消息图片
                 if image:
                     # 拼装消息内容
-                    blocks.append({"type": "section", "text": {
-                        "type": "mrkdwn",
-                        "text": f"*{title}*\n{text or ''}"
-                    }, 'accessory': {
-                        "type": "image",
-                        "image_url": f"{image}",
-                        "alt_text": f"{title}"
-                    }})
+                    blocks.append(
+                        {
+                            "type": "section",
+                            "text": {"type": "mrkdwn", "text": f"*{title}*\n{text or ''}"},
+                            "accessory": {"type": "image", "image_url": f"{image}", "alt_text": f"{title}"},
+                        }
+                    )
                 # 自定义按钮
                 if buttons:
                     for button_row in buttons:
@@ -327,68 +323,53 @@ class Slack:
                         for button in button_row:
                             if "url" in button:
                                 # URL按钮
-                                elements.append({
-                                    "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": button["text"],
-                                        "emoji": True
-                                    },
-                                    "url": button["url"],
-                                    "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}"
-                                })
+                                elements.append(
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                        "url": button["url"],
+                                        "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}",
+                                    }
+                                )
                             else:
                                 # 回调按钮
-                                elements.append({
-                                    "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": button["text"],
-                                        "emoji": True
-                                    },
-                                    "value": button["callback_data"],
-                                    "action_id": f"actionId-{button['callback_data']}"
-                                })
+                                elements.append(
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                        "value": button["callback_data"],
+                                        "action_id": f"actionId-{button['callback_data']}",
+                                    }
+                                )
                         if elements:
-                            blocks.append({
-                                "type": "actions",
-                                "elements": elements
-                            })
+                            blocks.append({"type": "actions", "elements": elements})
                 elif link:
                     # 默认链接按钮
-                    blocks.append({
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "查看详情",
-                                    "emoji": True
-                                },
-                                "value": "click_me_url",
-                                "url": f"{link}",
-                                "action_id": "actionId-url"
-                            }
-                        ]
-                    })
+                    blocks.append(
+                        {
+                            "type": "actions",
+                            "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {"type": "plain_text", "text": "查看详情", "emoji": True},
+                                    "value": "click_me_url",
+                                    "url": f"{link}",
+                                    "action_id": "actionId-url",
+                                }
+                            ],
+                        }
+                    )
 
             # 判断是编辑消息还是发送新消息
             if original_message_id and original_chat_id:
                 # 编辑消息
                 result = self._client.chat_update(
-                    channel=original_chat_id,
-                    ts=original_message_id,
-                    text=message_text[:1000],
-                    blocks=blocks or []
+                    channel=original_chat_id, ts=original_message_id, text=message_text[:1000], blocks=blocks or []
                 )
             else:
                 # 发送新消息
                 result = self._client.chat_postMessage(
-                    channel=channel,
-                    text=message_text[:1000],
-                    blocks=blocks,
-                    mrkdwn=True
+                    channel=channel, text=message_text[:1000], blocks=blocks, mrkdwn=True
                 )
             return True, result
         except Exception as msg_e:
@@ -398,10 +379,10 @@ class Slack:
     def send_file(
         self,
         file_path: str,
-        title: Optional[str] = None,
-        text: Optional[str] = None,
-        userid: Optional[str] = None,
-        file_name: Optional[str] = None,
+        title: str | None = None,
+        text: str | None = None,
+        userid: str | None = None,
+        file_name: str | None = None,
     ):
         """
         发送本地文件到 Slack。
@@ -471,10 +452,15 @@ class Slack:
             logger.error(f"Slack移除reaction失败: {err}")
             return False
 
-    def send_medias_msg(self, medias: List[MediaInfo], userid: Optional[str] = None, title: Optional[str] = None,
-                        buttons: Optional[List[List[dict]]] = None,
-                        original_message_id: Optional[str] = None,
-                        original_chat_id: Optional[str] = None) -> Optional[bool]:
+    def send_medias_msg(
+        self,
+        medias: list[MediaInfo],
+        userid: str | None = None,
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: str | None = None,
+        original_chat_id: str | None = None,
+    ) -> bool | None:
         """
         发送媒体列表消息
         :param medias: 媒体信息列表
@@ -495,19 +481,11 @@ class Slack:
                 # 消息广播
                 channel = self.__find_public_channel()
             # 消息主体
-            title_section = {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{title}*"
-                }
-            }
+            title_section = {"type": "section", "text": {"type": "mrkdwn", "text": f"*{title}*"}}
             blocks = [title_section]
             # 列表
             if medias:
-                blocks.append({
-                    "type": "divider"
-                })
+                blocks.append({"type": "divider"})
                 index = 1
 
                 # 如果有自定义按钮，先添加所有媒体项，然后添加统一的按钮
@@ -516,26 +494,27 @@ class Slack:
                     for media in medias:
                         if media.get_poster_image():
                             if media.vote_star:
-                                text = f"{index}. *<{media.detail_link}|{media.title_year}>*" \
-                                       f"\n类型：{media.type.value}" \
-                                       f"\n{media.vote_star}" \
-                                       f"\n{media.get_overview_string(50)}"
+                                text = (
+                                    f"{index}. *<{media.detail_link}|{media.title_year}>*"
+                                    f"\n类型：{media.type.value}"
+                                    f"\n{media.vote_star}"
+                                    f"\n{media.get_overview_string(50)}"
+                                )
                             else:
-                                text = f"{index}. *<{media.detail_link}|{media.title_year}>*" \
-                                       f"\n类型：{media.type.value}" \
-                                       f"\n{media.get_overview_string(50)}"
+                                text = (
+                                    f"{index}. *<{media.detail_link}|{media.title_year}>*"
+                                    f"\n类型：{media.type.value}"
+                                    f"\n{media.get_overview_string(50)}"
+                                )
                             blocks.append(
                                 {
                                     "type": "section",
-                                    "text": {
-                                        "type": "mrkdwn",
-                                        "text": text
-                                    },
+                                    "text": {"type": "mrkdwn", "text": text},
                                     "accessory": {
                                         "type": "image",
                                         "image_url": f"{media.get_poster_image()}",
-                                        "alt_text": f"{media.title_year}"
-                                    }
+                                        "alt_text": f"{media.title_year}",
+                                    },
                                 }
                             )
                             index += 1
@@ -545,57 +524,51 @@ class Slack:
                         elements = []
                         for button in button_row:
                             if "url" in button:
-                                elements.append({
-                                    "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": button["text"],
-                                        "emoji": True
-                                    },
-                                    "url": button["url"],
-                                    "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}"
-                                })
+                                elements.append(
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                        "url": button["url"],
+                                        "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}",
+                                    }
+                                )
                             else:
-                                elements.append({
-                                    "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": button["text"],
-                                        "emoji": True
-                                    },
-                                    "value": button["callback_data"],
-                                    "action_id": f"actionId-{button['callback_data']}"
-                                })
+                                elements.append(
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                        "value": button["callback_data"],
+                                        "action_id": f"actionId-{button['callback_data']}",
+                                    }
+                                )
                         if elements:
-                            blocks.append({
-                                "type": "actions",
-                                "elements": elements
-                            })
+                            blocks.append({"type": "actions", "elements": elements})
                 else:
                     # 使用默认的每个媒体项单独按钮
                     for media in medias:
                         if media.get_poster_image():
                             if media.vote_star:
-                                text = f"{index}. *<{media.detail_link}|{media.title_year}>*" \
-                                       f"\n类型：{media.type.value}" \
-                                       f"\n{media.vote_star}" \
-                                       f"\n{media.get_overview_string(50)}"
+                                text = (
+                                    f"{index}. *<{media.detail_link}|{media.title_year}>*"
+                                    f"\n类型：{media.type.value}"
+                                    f"\n{media.vote_star}"
+                                    f"\n{media.get_overview_string(50)}"
+                                )
                             else:
-                                text = f"{index}. *<{media.detail_link}|{media.title_year}>*" \
-                                       f"\n类型：{media.type.value}" \
-                                       f"\n{media.get_overview_string(50)}"
+                                text = (
+                                    f"{index}. *<{media.detail_link}|{media.title_year}>*"
+                                    f"\n类型：{media.type.value}"
+                                    f"\n{media.get_overview_string(50)}"
+                                )
                             blocks.append(
                                 {
                                     "type": "section",
-                                    "text": {
-                                        "type": "mrkdwn",
-                                        "text": text
-                                    },
+                                    "text": {"type": "mrkdwn", "text": text},
                                     "accessory": {
                                         "type": "image",
                                         "image_url": f"{media.get_poster_image()}",
-                                        "alt_text": f"{media.title_year}"
-                                    }
+                                        "alt_text": f"{media.title_year}",
+                                    },
                                 }
                             )
                             # 使用默认选择按钮
@@ -605,15 +578,11 @@ class Slack:
                                     "elements": [
                                         {
                                             "type": "button",
-                                            "text": {
-                                                "type": "plain_text",
-                                                "text": "选择",
-                                                "emoji": True
-                                            },
+                                            "text": {"type": "plain_text", "text": "选择", "emoji": True},
                                             "value": f"{index}",
-                                            "action_id": f"actionId-{index}"
+                                            "action_id": f"actionId-{index}",
                                         }
-                                    ]
+                                    ],
                                 }
                             )
                             index += 1
@@ -622,27 +591,25 @@ class Slack:
             if original_message_id and original_chat_id:
                 # 编辑消息
                 result = self._client.chat_update(
-                    channel=original_chat_id,
-                    ts=original_message_id,
-                    text=title,
-                    blocks=blocks or []
+                    channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or []
                 )
             else:
                 # 发送新消息
-                result = self._client.chat_postMessage(
-                    channel=channel,
-                    text=title,
-                    blocks=blocks
-                )
+                result = self._client.chat_postMessage(channel=channel, text=title, blocks=blocks)
             return True if result else False
         except Exception as msg_e:
             logger.error(f"Slack消息发送失败: {msg_e}")
             return False
 
-    def send_torrents_msg(self, torrents: List[Context], userid: Optional[str] = None, title: Optional[str] = None,
-                          buttons: Optional[List[List[dict]]] = None,
-                          original_message_id: Optional[str] = None,
-                          original_chat_id: Optional[str] = None) -> Optional[bool]:
+    def send_torrents_msg(
+        self,
+        torrents: list[Context],
+        userid: str | None = None,
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        original_message_id: str | None = None,
+        original_chat_id: str | None = None,
+    ) -> bool | None:
         """
         发送种子列表消息
         :param torrents: 种子信息列表
@@ -662,16 +629,8 @@ class Slack:
                 # 消息广播
                 channel = self.__find_public_channel()
             # 消息主体
-            title_section = {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{title}*"
-                }
-            }
-            blocks = [title_section, {
-                "type": "divider"
-            }]
+            title_section = {"type": "section", "text": {"type": "mrkdwn", "text": f"*{title}*"}}
+            blocks = [title_section, {"type": "divider"}]
             # 列表
             index = 1
 
@@ -683,26 +642,17 @@ class Slack:
                     site_name = torrent.site_name
                     meta = MetaInfo(torrent.title, torrent.description)
                     link = torrent.page_url
-                    title_text = f"{meta.season_episode} " \
-                                 f"{meta.resource_term} " \
-                                 f"{meta.video_term} " \
-                                 f"{meta.release_group}"
+                    title_text = f"{meta.season_episode} {meta.resource_term} {meta.video_term} {meta.release_group}"
                     title_text = re.sub(r"\s+", " ", title_text).strip()
                     free = torrent.volume_factor
                     seeder = f"{torrent.seeders}↑"
                     description = torrent.description
-                    text = f"{index}. 【{site_name}】<{link}|{title_text}> " \
-                           f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}\n" \
-                           f"{description}"
-                    blocks.append(
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": text
-                            }
-                        }
+                    text = (
+                        f"{index}. 【{site_name}】<{link}|{title_text}> "
+                        f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}\n"
+                        f"{description}"
                     )
+                    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": text}})
                     index += 1
 
                 # 添加统一的自定义按钮
@@ -710,32 +660,25 @@ class Slack:
                     elements = []
                     for button in button_row:
                         if "url" in button:
-                            elements.append({
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": button["text"],
-                                    "emoji": True
-                                },
-                                "url": button["url"],
-                                "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}"
-                            })
+                            elements.append(
+                                {
+                                    "type": "button",
+                                    "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                    "url": button["url"],
+                                    "action_id": f"actionId-url-{button.get('text', 'url')}-{len(elements)}",
+                                }
+                            )
                         else:
-                            elements.append({
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": button["text"],
-                                    "emoji": True
-                                },
-                                "value": button["callback_data"],
-                                "action_id": f"actionId-{button['callback_data']}"
-                            })
+                            elements.append(
+                                {
+                                    "type": "button",
+                                    "text": {"type": "plain_text", "text": button["text"], "emoji": True},
+                                    "value": button["callback_data"],
+                                    "action_id": f"actionId-{button['callback_data']}",
+                                }
+                            )
                     if elements:
-                        blocks.append({
-                            "type": "actions",
-                            "elements": elements
-                        })
+                        blocks.append({"type": "actions", "elements": elements})
             else:
                 # 使用默认的每个种子单独按钮
                 for context in torrents:
@@ -743,41 +686,28 @@ class Slack:
                     site_name = torrent.site_name
                     meta = MetaInfo(torrent.title, torrent.description)
                     link = torrent.page_url
-                    title_text = f"{meta.season_episode} " \
-                                 f"{meta.resource_term} " \
-                                 f"{meta.video_term} " \
-                                 f"{meta.release_group}"
+                    title_text = f"{meta.season_episode} {meta.resource_term} {meta.video_term} {meta.release_group}"
                     title_text = re.sub(r"\s+", " ", title_text).strip()
                     free = torrent.volume_factor
                     seeder = f"{torrent.seeders}↑"
                     description = torrent.description
-                    text = f"{index}. 【{site_name}】<{link}|{title_text}> " \
-                           f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}\n" \
-                           f"{description}"
-                    blocks.append(
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": text
-                            }
-                        }
+                    text = (
+                        f"{index}. 【{site_name}】<{link}|{title_text}> "
+                        f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}\n"
+                        f"{description}"
                     )
+                    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": text}})
                     blocks.append(
                         {
                             "type": "actions",
                             "elements": [
                                 {
                                     "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": "选择",
-                                        "emoji": True
-                                    },
+                                    "text": {"type": "plain_text", "text": "选择", "emoji": True},
                                     "value": f"{index}",
-                                    "action_id": f"actionId-{index}"
+                                    "action_id": f"actionId-{index}",
                                 }
-                            ]
+                            ],
                         }
                     )
                     index += 1
@@ -786,24 +716,17 @@ class Slack:
             if original_message_id and original_chat_id:
                 # 编辑消息
                 result = self._client.chat_update(
-                    channel=original_chat_id,
-                    ts=original_message_id,
-                    text=title,
-                    blocks=blocks or []
+                    channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or []
                 )
             else:
                 # 发送新消息
-                result = self._client.chat_postMessage(
-                    channel=channel,
-                    text=title,
-                    blocks=blocks
-                )
+                result = self._client.chat_postMessage(channel=channel, text=title, blocks=blocks)
             return True if result else False
         except Exception as msg_e:
             logger.error(f"Slack消息发送失败: {msg_e}")
             return False
 
-    def delete_msg(self, message_id: str, chat_id: Optional[str] = None) -> Optional[bool]:
+    def delete_msg(self, message_id: str, chat_id: str | None = None) -> bool | None:
         """
         删除Slack消息
         :param message_id: 消息时间戳（Slack消息ID）
@@ -825,10 +748,7 @@ class Slack:
                 return False
 
             # 删除消息
-            result = self._client.chat_delete(
-                channel=target_channel,
-                ts=message_id
-            )
+            result = self._client.chat_delete(channel=target_channel, ts=message_id)
 
             if result.get("ok"):
                 logger.info(f"成功删除Slack消息: channel={target_channel}, ts={message_id}")

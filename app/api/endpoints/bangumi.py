@@ -1,4 +1,4 @@
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -13,12 +13,12 @@ router = APIRouter()
 @router.get(
     "/credits/{bangumiid}",
     summary="查询Bangumi演职员表",
-    response_model=List[schemas.MediaPerson],
+    response_model=list[schemas.MediaPerson],
 )
 async def bangumi_credits(
     bangumiid: int,
-    page: Optional[int] = 1,
-    count: Optional[int] = 20,
+    page: int | None = 1,
+    count: int | None = 20,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -33,12 +33,12 @@ async def bangumi_credits(
 @router.get(
     "/recommend/{bangumiid}",
     summary="查询Bangumi推荐",
-    response_model=List[schemas.MediaInfo],
+    response_model=list[schemas.MediaInfo],
 )
 async def bangumi_recommend(
     bangumiid: int,
-    page: Optional[int] = 1,
-    count: Optional[int] = 20,
+    page: int | None = 1,
+    count: int | None = 20,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -50,12 +50,8 @@ async def bangumi_recommend(
     return []
 
 
-@router.get(
-    "/person/{person_id}", summary="人物详情", response_model=schemas.MediaPerson
-)
-async def bangumi_person(
-    person_id: int, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+@router.get("/person/{person_id}", summary="人物详情", response_model=schemas.MediaPerson)
+async def bangumi_person(person_id: int, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     根据人物ID查询人物详情
     """
@@ -65,12 +61,12 @@ async def bangumi_person(
 @router.get(
     "/person/credits/{person_id}",
     summary="人物参演作品",
-    response_model=List[schemas.MediaInfo],
+    response_model=list[schemas.MediaInfo],
 )
 async def bangumi_person_credits(
     person_id: int,
-    page: Optional[int] = 1,
-    count: Optional[int] = 20,
+    page: int | None = 1,
+    count: int | None = 20,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -83,9 +79,7 @@ async def bangumi_person_credits(
 
 
 @router.get("/{bangumiid}", summary="查询Bangumi详情", response_model=schemas.MediaInfo)
-async def bangumi_info(
-    bangumiid: int, _: schemas.TokenPayload = Depends(verify_token)
-) -> Any:
+async def bangumi_info(bangumiid: int, _: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询Bangumi详情
     """

@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -7,80 +7,83 @@ class Plugin(BaseModel):
     """
     插件信息
     """
+
     id: str = None
     # 插件名称
-    plugin_name: Optional[str] = None
+    plugin_name: str | None = None
     # 插件描述
-    plugin_desc: Optional[str] = None
+    plugin_desc: str | None = None
     # 插件图标
-    plugin_icon: Optional[str] = None
+    plugin_icon: str | None = None
     # 插件版本
-    plugin_version: Optional[str] = None
+    plugin_version: str | None = None
     # 插件标签
-    plugin_label: Optional[str] = None
+    plugin_label: str | None = None
     # 插件作者
-    plugin_author: Optional[str] = None
+    plugin_author: str | None = None
     # 作者主页
-    author_url: Optional[str] = None
+    author_url: str | None = None
     # 插件配置项ID前缀
-    plugin_config_prefix: Optional[str] = None
+    plugin_config_prefix: str | None = None
     # 加载顺序
-    plugin_order: Optional[int] = 0
+    plugin_order: int | None = 0
     # 可使用的用户级别
-    auth_level: Optional[int] = 0
+    auth_level: int | None = 0
     # 是否已安装
-    installed: Optional[bool] = False
+    installed: bool | None = False
     # 运行状态
-    state: Optional[bool] = False
+    state: bool | None = False
     # 是否有详情页面
-    has_page: Optional[bool] = False
+    has_page: bool | None = False
     # 是否有新版本
-    has_update: Optional[bool] = False
+    has_update: bool | None = False
     # 主系统版本是否兼容
-    system_version_compatible: Optional[bool] = True
+    system_version_compatible: bool | None = True
     # 主系统版本兼容提示
-    system_version_message: Optional[str] = None
+    system_version_message: str | None = None
     # 主系统版本限定范围
-    system_version: Optional[str] = None
+    system_version: str | None = None
     # 是否声明支持通过 GitHub Release 资产安装
-    release: Optional[bool] = False
+    release: bool | None = False
     # 是否本地
-    is_local: Optional[bool] = False
+    is_local: bool | None = False
     # 仓库地址
-    repo_url: Optional[str] = None
+    repo_url: str | None = None
     # 安装次数
-    install_count: Optional[int] = 0
+    install_count: int | None = 0
     # 更新记录
-    history: Optional[dict] = Field(default_factory=dict)
+    history: dict | None = Field(default_factory=dict)
     # 添加时间，值越小表示越靠后发布
-    add_time: Optional[int] = 0
+    add_time: int | None = 0
     # 插件公钥
-    plugin_public_key: Optional[str] = None
+    plugin_public_key: str | None = None
 
 
 class PluginDashboard(Plugin):
     """
     插件仪表盘
     """
-    id: Optional[str] = None
+
+    id: str | None = None
     # 名称
-    name: Optional[str] = None
+    name: str | None = None
     # 仪表板key
-    key: Optional[str] = None
+    key: str | None = None
     # 演染模式
-    render_mode: Optional[str] = Field(default="vuetify")
+    render_mode: str | None = Field(default="vuetify")
     # 全局配置
-    attrs: Optional[dict] = Field(default_factory=dict)
+    attrs: dict | None = Field(default_factory=dict)
     # col列数
-    cols: Optional[dict] = Field(default_factory=dict)
+    cols: dict | None = Field(default_factory=dict)
     # 页面元素
-    elements: Optional[List[dict]] = Field(default_factory=list)
+    elements: list[dict] | None = Field(default_factory=list)
 
 
 class PluginSidebarNavItem(BaseModel):
     """
     插件侧栏导航项（前端全页路由）
     """
+
     plugin_id: str = Field(description="插件 ID")
     nav_key: str = Field(description="导航键，对应 URL 段")
     title: str = Field(description="侧栏标题")
@@ -88,7 +91,7 @@ class PluginSidebarNavItem(BaseModel):
     section: str = Field(
         description="分组：start / discovery / subscribe / organize / system",
     )
-    permission: Optional[str] = Field(
+    permission: str | None = Field(
         default=None,
         description="权限：subscribe / discovery / search / manage / admin",
     )
@@ -112,11 +115,12 @@ class PluginRating(BaseModel):
     plugin_id: str = Field(description="插件 ID")
     average_rating: float = Field(default=0.0, description="平均评分")
     rating_count: int = Field(default=0, description="评分人数")
-    user_rating: Optional[float] = Field(default=None, description="当前安装实例评分")
+    user_rating: float | None = Field(default=None, description="当前安装实例评分")
 
 
 class PluginMemoryInfo(BaseModel):
     """插件内存信息"""
+
     plugin_id: str = Field(description="插件ID")
     plugin_name: str = Field(description="插件名称")
     plugin_version: str = Field(description="插件版本")
@@ -125,5 +129,5 @@ class PluginMemoryInfo(BaseModel):
     object_count: int = Field(description="对象数量")
     calculation_time_ms: float = Field(description="计算耗时(毫秒)")
     timestamp: float = Field(description="统计时间戳")
-    error: Optional[str] = Field(default=None, description="错误信息")
-    object_details: Optional[List[Dict[str, Any]]] = Field(default=None, description="大对象详情")
+    error: str | None = Field(default=None, description="错误信息")
+    object_details: list[dict[str, Any]] | None = Field(default=None, description="大对象详情")

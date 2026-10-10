@@ -1,6 +1,6 @@
 import re
 import traceback
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from lxml import etree
@@ -32,7 +32,7 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "hares.top": {
             "xpath": "//*[@id='layui-layer100001']/div[2]/div/p[4]/a/@href",
@@ -42,7 +42,7 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "et8.org": {
             "xpath": "//*[@id='outer']/table/tbody/tr/td/table/tbody/tr/td/a[2]/@href",
@@ -52,16 +52,12 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "pttime.org": {
             "xpath": "//*[@id='outer']/table/tbody/tr/td/table/tbody/tr/td/text()[5]",
             "url": "getrss.php",
-            "params": {
-                "showrows": 10,
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1
-            }
+            "params": {"showrows": 10, "inclbookmarked": 0, "itemsmalldescr": 1},
         },
         "ourbits.club": {
             "xpath": "//a[@class='gen_rsslink']/@href",
@@ -71,7 +67,7 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "totheglory.im": {
             "xpath": "//textarea/text()",
@@ -81,7 +77,7 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "monikadesign.uk": {
             "xpath": "//a/@href",
@@ -91,7 +87,7 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "zhuque.in": {
             "xpath": "//a/@href",
@@ -102,18 +98,12 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 1,
-            }
+            },
         },
         "hdchina.org": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 1,
-                "rsscart": 0
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 1, "rsscart": 0},
         },
         "audiences.me": {
             "xpath": "//a[@class='faqlink']/@href",
@@ -124,74 +114,38 @@ class RssHelper:
                 "showrows": 50,
                 "search_mode": 1,
                 "torrent_type": 1,
-                "exp": 180
-            }
+                "exp": 180,
+            },
         },
         "shadowflow.org": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "paid": 0,
-                "search_mode": 0,
-                "showrows": 30
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "paid": 0, "search_mode": 0, "showrows": 30},
         },
         "hddolby.com": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 1,
-                "exp": 180
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 1, "exp": 180},
         },
         "hdhome.org": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 1,
-                "exp": 180
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 1, "exp": 180},
         },
         "pthome.net": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 1,
-                "exp": 180
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 1, "exp": 180},
         },
         "ptsbao.club": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 1,
-                "size": 0
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 1, "size": 0},
         },
         "leaves.red": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "showrows": 50,
-                "search_mode": 0,
-                "paid": 2
-            }
+            "params": {"inclbookmarked": 0, "itemsmalldescr": 1, "showrows": 50, "search_mode": 0, "paid": 2},
         },
         "hdtime.org": {
             "xpath": "//a[@class='faqlink']/@href",
@@ -201,17 +155,12 @@ class RssHelper:
                 "itemsmalldescr": 1,
                 "showrows": 50,
                 "search_mode": 0,
-            }
+            },
         },
         "m-team.io": {
             "xpath": "//a[@class='faqlink']/@href",
             "url": "getrss.php",
-            "params": {
-                "showrows": 50,
-                "inclbookmarked": 0,
-                "itemsmalldescr": 1,
-                "https": 1
-            }
+            "params": {"showrows": 50, "inclbookmarked": 0, "itemsmalldescr": 1, "https": 1},
         },
         "u2.dmhy.org": {
             "xpath": "//a[@class='faqlink']/@href",
@@ -222,29 +171,30 @@ class RssHelper:
                 "showrows": 50,
                 "search_mode": 1,
                 "inclautochecked": 1,
-                "trackerssl": 1
-            }
+                "trackerssl": 1,
+            },
         },
     }
 
-    def __parse_with_rust(self, ret_xml: Optional[str]) -> Optional[list]:
+    def __parse_with_rust(self, ret_xml: str | None) -> list | None:
         """
         调用 Rust RSS 解析器，并统一处理基础 XML 校验和最大条目限制。
         """
         if not ret_xml or not ret_xml.strip():
             return None
         ret_xml_stripped = ret_xml.strip()
-        if not ret_xml_stripped.startswith('<'):
+        if not ret_xml_stripped.startswith("<"):
             return None
         rust_items = rust_accel.parse_rss_items(ret_xml, self.MAX_RSS_ITEMS + 1)
         if rust_items is None:
             return None
         if len(rust_items) > self.MAX_RSS_ITEMS:
             logger.warning(f"RSS条目过多: 超过{self.MAX_RSS_ITEMS}，仅处理前{self.MAX_RSS_ITEMS}个")
-        return rust_items[:self.MAX_RSS_ITEMS]
+        return rust_items[: self.MAX_RSS_ITEMS]
 
-    def parse(self, url, proxy: bool = False,
-              timeout: Optional[int] = 15, headers: dict = None, ua: str = None) -> Union[List[dict], None, bool]:
+    def parse(
+        self, url, proxy: bool = False, timeout: int | None = 15, headers: dict = None, ua: str = None
+    ) -> list[dict] | None | bool:
         """
         解析RSS订阅URL，获取RSS中的种子信息
         :param url: RSS地址
@@ -260,9 +210,9 @@ class RssHelper:
             return False
 
         try:
-            ret = RequestUtils(ua=ua,
-                               proxies=settings.PROXY if proxy else None,
-                               timeout=timeout or 30, headers=headers).get_res(url)
+            ret = RequestUtils(
+                ua=ua, proxies=settings.PROXY if proxy else None, timeout=timeout or 30, headers=headers
+            ).get_res(url)
             if not ret:
                 logger.error(f"获取RSS失败：请求返回空值，URL: {url}")
                 return False
@@ -288,7 +238,7 @@ class RssHelper:
                     ret_xml = RequestUtils.get_decoded_xml_content(
                         ret,
                         performance_mode=settings.ENCODING_DETECTION_PERFORMANCE_MODE,
-                        confidence_threshold=settings.ENCODING_DETECTION_MIN_CONFIDENCE
+                        confidence_threshold=settings.ENCODING_DETECTION_MIN_CONFIDENCE,
                     )
                     rust_items = self.__parse_with_rust(ret_xml)
                     if rust_items is not None:
@@ -303,7 +253,7 @@ class RssHelper:
 
                 # 检查是否包含基本的RSS/XML结构
                 ret_xml_stripped = ret_xml.strip()
-                if not ret_xml_stripped.startswith('<'):
+                if not ret_xml_stripped.startswith("<"):
                     logger.error("RSS内容不是有效的XML格式")
                     return False
 
@@ -320,9 +270,9 @@ class RssHelper:
                         strip_cdata=False,  # 保留CDATA
                         resolve_entities=False,  # 禁用外部实体解析
                         no_network=True,  # 禁用网络访问
-                        huge_tree=False  # 禁用大文档解析，避免内存问题
+                        huge_tree=False,  # 禁用大文档解析，避免内存问题
                     )
-                    root = etree.fromstring(ret_xml.encode('utf-8'), parser=parser)
+                    root = etree.fromstring(ret_xml.encode("utf-8"), parser=parser)
                 except etree.XMLSyntaxError as xml_error:
                     logger.debug(f"XML解析失败：{str(xml_error)}，尝试HTML解析")
                     # 如果XML解析失败，尝试作为HTML解析
@@ -330,7 +280,7 @@ class RssHelper:
                         root = etree.HTML(ret_xml)
                         if root is not None:
                             # 查找RSS根节点
-                            rss_root = root.xpath('//rss | //feed')
+                            rss_root = root.xpath("//rss | //feed")
                             if rss_root:
                                 root = rss_root[0]
                     except Exception as e:
@@ -352,7 +302,7 @@ class RssHelper:
                     return False
 
                 # 查找所有item或entry节点
-                items = root.xpath('.//item | .//entry')
+                items = root.xpath(".//item | .//entry")
 
                 # 限制处理的条目数量
                 items_count = min(len(items), self.MAX_RSS_ITEMS)
@@ -362,25 +312,29 @@ class RssHelper:
                     for item in items[:items_count]:
                         try:
                             # 使用xpath提取信息，更高效
-                            title_nodes = item.xpath('.//title')
+                            title_nodes = item.xpath(".//title")
                             title = title_nodes[0].text if title_nodes and title_nodes[0].text else ""
                             if not title:
                                 continue
 
                             # 描述
-                            desc_nodes = item.xpath('.//description | .//summary')
+                            desc_nodes = item.xpath(".//description | .//summary")
                             description = desc_nodes[0].text if desc_nodes and desc_nodes[0].text else ""
 
                             # 种子页面
-                            link_nodes = item.xpath('.//link')
+                            link_nodes = item.xpath(".//link")
                             if link_nodes:
-                                link = link_nodes[0].text if hasattr(link_nodes[0], 'text') and link_nodes[0].text else link_nodes[0].get('href', '')
+                                link = (
+                                    link_nodes[0].text
+                                    if hasattr(link_nodes[0], "text") and link_nodes[0].text
+                                    else link_nodes[0].get("href", "")
+                                )
                             else:
                                 link = ""
 
                             # 种子链接
-                            enclosure_nodes = item.xpath('.//enclosure')
-                            enclosure = enclosure_nodes[0].get('url', '') if enclosure_nodes else ""
+                            enclosure_nodes = item.xpath(".//enclosure")
+                            enclosure = enclosure_nodes[0].get("url", "") if enclosure_nodes else ""
                             if not enclosure and not link:
                                 continue
                             # 部分RSS只有link没有enclosure
@@ -390,14 +344,16 @@ class RssHelper:
                             # 大小
                             size = 0
                             if enclosure_nodes:
-                                size_attr = enclosure_nodes[0].get('length', '0')
+                                size_attr = enclosure_nodes[0].get("length", "0")
                                 if size_attr and str(size_attr).isdigit():
                                     size = int(size_attr)
 
                             # 发布日期
-                            pubdate_nodes = item.xpath('./pubDate | ./published | ./updated')
+                            pubdate_nodes = item.xpath("./pubDate | ./published | ./updated")
                             if not pubdate_nodes:
-                                pubdate_nodes = item.xpath('.//*[local-name()="pubDate"] | .//*[local-name()="published"] | .//*[local-name()="updated"]')
+                                pubdate_nodes = item.xpath(
+                                    './/*[local-name()="pubDate"] | .//*[local-name()="published"] | .//*[local-name()="updated"]'
+                                )
 
                             pubdate = ""
                             if pubdate_nodes and pubdate_nodes[0].text:
@@ -412,16 +368,16 @@ class RssHelper:
 
                             # 返回对象
                             tmp_dict = {
-                                'title': title,
-                                'enclosure': enclosure,
-                                'size': size,
-                                'description': description,
-                                'link': link,
-                                'pubdate': pubdate
+                                "title": title,
+                                "enclosure": enclosure,
+                                "size": size,
+                                "description": description,
+                                "link": link,
+                                "pubdate": pubdate,
                             }
                             # 如果豆瓣昵称不为空，返回数据增加豆瓣昵称，供doubansync插件获取
                             if nickname:
-                                tmp_dict['nickname'] = nickname
+                                tmp_dict["nickname"] = nickname
                             ret_array.append(tmp_dict)
 
                         except Exception as e1:
@@ -437,7 +393,7 @@ class RssHelper:
                 _rss_expired_msg = [
                     "RSS 链接已过期, 您需要获得一个新的!",
                     "RSS Link has expired, You need to get a new one!",
-                    "RSS Link has expired, You need to get new!"
+                    "RSS Link has expired, You need to get new!",
                 ]
                 if ret_xml in _rss_expired_msg:
                     return None
@@ -450,7 +406,7 @@ class RssHelper:
 
         return ret_array
 
-    def get_rss_link(self, url: str, cookie: str, ua: str, proxy: bool = False, timeout: int = None) -> Tuple[str, str]:
+    def get_rss_link(self, url: str, cookie: str, ua: str, proxy: bool = False, timeout: int = None) -> tuple[str, str]:
         """
         获取站点rss地址
         :param url: 站点地址
@@ -476,14 +432,11 @@ class RssHelper:
                     cookies=cookie,
                     ua=ua,
                     proxies=settings.PROXY_SERVER if proxy else None,
-                    timeout=timeout or 60
+                    timeout=timeout or 60,
                 )
             else:
                 res = RequestUtils(
-                    cookies=cookie,
-                    timeout=timeout or 30,
-                    ua=ua,
-                    proxies=settings.PROXY if proxy else None
+                    cookies=cookie, timeout=timeout or 30, ua=ua, proxies=settings.PROXY if proxy else None
                 ).post_res(url=rss_url, data=rss_params)
                 if res:
                     html_text = res.text

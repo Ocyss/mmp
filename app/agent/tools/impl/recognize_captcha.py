@@ -22,14 +22,14 @@ class RecognizeCaptchaInput(BaseModel):
             "Supports http/https URLs and data:image/...;base64,... URLs."
         ),
     )
-    cookie: Optional[str] = Field(
+    cookie: str | None = Field(
         None,
         description=(
             "Optional Cookie header used to download the captcha image when the image URL "
             "requires the same authenticated browser session."
         ),
     )
-    user_agent: Optional[str] = Field(
+    user_agent: str | None = Field(
         None,
         description="Optional User-Agent used when downloading the captcha image.",
     )
@@ -58,9 +58,9 @@ class RecognizeCaptchaTool(MoviePilotTool):
         "For safety, localhost and private network URLs are blocked by default unless "
         "allow_private_network is true."
     )
-    args_schema: Type[BaseModel] = RecognizeCaptchaInput
+    args_schema: type[BaseModel] = RecognizeCaptchaInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据验证码图片参数生成友好的提示消息。"""
         image_url = str(kwargs.get("image_url") or "")
         if image_url.lower().startswith("data:image/"):
@@ -85,8 +85,8 @@ class RecognizeCaptchaTool(MoviePilotTool):
     @staticmethod
     def _recognize_captcha_sync(
         image_url: str,
-        cookie: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        cookie: str | None = None,
+        user_agent: str | None = None,
         allow_private_network: bool = False,
     ) -> str:
         """
@@ -115,8 +115,8 @@ class RecognizeCaptchaTool(MoviePilotTool):
     async def run(
         self,
         image_url: str,
-        cookie: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        cookie: str | None = None,
+        user_agent: str | None = None,
         allow_private_network: bool = False,
         **kwargs,
     ) -> str:
@@ -129,10 +129,7 @@ class RecognizeCaptchaTool(MoviePilotTool):
         :param allow_private_network: 是否允许访问本机或私网地址
         :return: JSON 格式的识别结果
         """
-        logger.info(
-            f"执行工具: {self.name}, "
-            f"参数: image_url={self._format_image_url_for_log(image_url)}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: image_url={self._format_image_url_for_log(image_url)}")
 
         try:
             captcha_text = await self.run_blocking(

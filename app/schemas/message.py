@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union, List, Dict, Set, Any
+from typing import Any, Dict, List, Optional, Set, Union
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.types import ContentType, NotificationType, MessageChannel
+from app.schemas.types import ContentType, MessageChannel, NotificationType
 
 
 class NotificationClearScope(str, Enum):
@@ -39,15 +39,15 @@ class MessageResponse(BaseModel):
     """
 
     # 消息ID
-    message_id: Optional[Union[str, int]] = None
+    message_id: str | int | None = None
     # 聊天ID
-    chat_id: Optional[Union[str, int]] = None
+    chat_id: str | int | None = None
     # 消息渠道
-    channel: Optional[MessageChannel] = None
+    channel: MessageChannel | None = None
     # 消息来源
-    source: Optional[str] = None
+    source: str | None = None
     # 渠道自定义上下文（如飞书流式卡片 card_id/element_id/sequence）
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
     # 是否发送成功
     success: bool = False
 
@@ -58,29 +58,29 @@ class NotificationHistoryItem(BaseModel):
     """
 
     # 消息ID
-    id: Optional[int] = None
+    id: int | None = None
     # 消息渠道
-    channel: Optional[str] = None
+    channel: str | None = None
     # 消息来源
-    source: Optional[str] = None
+    source: str | None = None
     # 消息类型
-    mtype: Optional[str] = None
+    mtype: str | None = None
     # 标题
-    title: Optional[str] = None
+    title: str | None = None
     # 文本内容
-    text: Optional[str] = None
+    text: str | None = None
     # 图片
-    image: Optional[str] = None
+    image: str | None = None
     # 链接
-    link: Optional[str] = None
+    link: str | None = None
     # 用户ID
-    userid: Optional[str] = None
+    userid: str | None = None
     # 登记时间
-    reg_time: Optional[str] = None
+    reg_time: str | None = None
     # 消息方向：0-接收消息，1-发送消息
-    action: Optional[int] = None
+    action: int | None = None
     # 附件json
-    note: Optional[Union[list, dict]] = None
+    note: list | dict | None = None
 
 
 class CommingMessage(BaseModel):
@@ -94,12 +94,12 @@ class CommingMessage(BaseModel):
         """
 
         ref: str
-        name: Optional[str] = None
-        mime_type: Optional[str] = None
-        size: Optional[int] = None
+        name: str | None = None
+        mime_type: str | None = None
+        size: int | None = None
 
         @classmethod
-        def from_value(cls, value: Any) -> Optional["CommingMessage.MessageImage"]:
+        def from_value(cls, value: Any) -> CommingMessage.MessageImage | None:
             if value is None:
                 return None
             if isinstance(value, cls):
@@ -107,18 +107,13 @@ class CommingMessage(BaseModel):
             if isinstance(value, str):
                 return cls(ref=value)
             if isinstance(value, dict):
-                ref = (
-                    value.get("ref")
-                    or value.get("url")
-                    or value.get("image_url")
-                    or value.get("file_url")
-                )
+                ref = value.get("ref") or value.get("url") or value.get("image_url") or value.get("file_url")
                 if not ref:
                     return None
                 size = value.get("size")
                 try:
                     size = int(size) if size is not None else None
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     size = None
                 return cls(
                     ref=ref,
@@ -129,9 +124,7 @@ class CommingMessage(BaseModel):
             return None
 
         @classmethod
-        def normalize_list(
-            cls, values: Optional[Any]
-        ) -> Optional[List["CommingMessage.MessageImage"]]:
+        def normalize_list(cls, values: Any | None) -> list[CommingMessage.MessageImage] | None:
             if not values:
                 return None
             if not isinstance(values, list):
@@ -149,48 +142,46 @@ class CommingMessage(BaseModel):
         """
 
         ref: str
-        name: Optional[str] = None
-        mime_type: Optional[str] = None
-        size: Optional[int] = None
+        name: str | None = None
+        mime_type: str | None = None
+        size: int | None = None
 
     # 用户ID
-    userid: Optional[Union[str, int]] = None
+    userid: str | int | None = None
     # 用户名称
-    username: Optional[Union[str, int]] = None
+    username: str | int | None = None
     # 消息渠道
-    channel: Optional[MessageChannel] = None
+    channel: MessageChannel | None = None
     # 来源（渠道名称）
-    source: Optional[str] = None
+    source: str | None = None
     # 消息体
-    text: Optional[str] = None
+    text: str | None = None
     # 时间
-    date: Optional[str] = None
+    date: str | None = None
     # 消息方向
-    action: Optional[int] = 0
+    action: int | None = 0
     # 是否为回调消息
-    is_callback: Optional[bool] = False
+    is_callback: bool | None = False
     # 回调数据
-    callback_data: Optional[str] = None
+    callback_data: str | None = None
     # 消息ID（用于回调时定位原消息）
-    message_id: Optional[Union[str, int]] = None
+    message_id: str | int | None = None
     # 聊天ID（用于回调时定位聊天）
-    chat_id: Optional[str] = None
+    chat_id: str | None = None
     # 回复目标消息ID（用于 ForceReply 等回复场景）
-    reply_to_message_id: Optional[Union[str, int]] = None
+    reply_to_message_id: str | int | None = None
     # 完整的回调查询信息（原始数据）
-    callback_query: Optional[Dict] = None
+    callback_query: dict | None = None
     # 图片列表（图片URL或file_id）
-    images: Optional[List[MessageImage]] = None
+    images: list[MessageImage] | None = None
     # 语音/音频引用列表
-    audio_refs: Optional[List[str]] = None
+    audio_refs: list[str] | None = None
     # 文件附件列表
-    files: Optional[List[MessageAttachment]] = None
+    files: list[MessageAttachment] | None = None
 
     @field_validator("images", mode="before")
     @classmethod
-    def _normalize_images(
-        cls, value: Any
-    ) -> Optional[List["CommingMessage.MessageImage"]]:
+    def _normalize_images(cls, value: Any) -> list[CommingMessage.MessageImage] | None:
         return cls.MessageImage.normalize_list(value)
 
     def to_dict(self):
@@ -210,51 +201,51 @@ class Notification(BaseModel):
     """
 
     # 消息渠道
-    channel: Optional[MessageChannel] = None
+    channel: MessageChannel | None = None
     # 消息来源
-    source: Optional[str] = None
+    source: str | None = None
     # 消息类型
-    mtype: Optional[NotificationType] = None
+    mtype: NotificationType | None = None
     # 内容类型
-    ctype: Optional[ContentType] = None
+    ctype: ContentType | None = None
     # 标题
-    title: Optional[str] = None
+    title: str | None = None
     # 文本内容
-    text: Optional[str] = None
+    text: str | None = None
     # 图片
-    image: Optional[str] = None
+    image: str | None = None
     # 语音文件路径
-    voice_path: Optional[str] = None
+    voice_path: str | None = None
     # 本地文件路径
-    file_path: Optional[str] = None
+    file_path: str | None = None
     # 发送时展示的文件名
-    file_name: Optional[str] = None
+    file_name: str | None = None
     # 语音消息附带说明文字
-    voice_caption: Optional[str] = None
+    voice_caption: str | None = None
     # 链接
-    link: Optional[str] = None
+    link: str | None = None
     # 用户ID
-    userid: Optional[Union[str, int]] = None
+    userid: str | int | None = None
     # 用户名称
-    username: Optional[Union[str, int]] = None
+    username: str | int | None = None
     # 时间
-    date: Optional[str] = None
+    date: str | None = None
     # 消息方向
-    action: Optional[int] = 1
+    action: int | None = 1
     # 消息目标用户ID字典，未指定用户ID时使用
-    targets: Optional[dict] = None
+    targets: dict | None = None
     # 按钮列表，格式：[[{"text": "按钮文本", "callback_data": "回调数据", "url": "链接"}]]
-    buttons: Optional[List[List[dict]]] = None
+    buttons: list[list[dict]] | None = None
     # Telegram ForceReply 回复标记
     force_reply: bool = False
     # 原消息ID，用于编辑消息
-    original_message_id: Optional[Union[str, int]] = None
+    original_message_id: str | int | None = None
     # 原消息的聊天ID，用于编辑消息
-    original_chat_id: Optional[str] = None
+    original_chat_id: str | None = None
     # 是否禁用链接预览（仅Telegram支持）
-    disable_web_page_preview: Optional[bool] = None
+    disable_web_page_preview: bool | None = None
     # Telegram 消息格式类型，默认 MarkdownV2，可传 HTML
-    parse_mode: Optional[str] = None
+    parse_mode: str | None = None
     # 是否写入消息历史
     save_history: bool = True
 
@@ -275,23 +266,23 @@ class NotificationSwitch(BaseModel):
     """
 
     # 消息类型
-    mtype: Optional[str] = None
+    mtype: str | None = None
     # 微信开关
-    wechat: Optional[bool] = False
+    wechat: bool | None = False
     # 飞书开关
-    feishu: Optional[bool] = False
+    feishu: bool | None = False
     # TG开关
-    telegram: Optional[bool] = False
+    telegram: bool | None = False
     # Slack开关
-    slack: Optional[bool] = False
+    slack: bool | None = False
     # SynologyChat开关
-    synologychat: Optional[bool] = False
+    synologychat: bool | None = False
     # VoceChat开关
-    vocechat: Optional[bool] = False
+    vocechat: bool | None = False
     # WebPush开关
-    webpush: Optional[bool] = False
+    webpush: bool | None = False
     # QQ开关
-    qq: Optional[bool] = False
+    qq: bool | None = False
 
 
 class Subscription(BaseModel):
@@ -299,8 +290,8 @@ class Subscription(BaseModel):
     客户端消息订阅
     """
 
-    endpoint: Optional[str] = None
-    keys: Optional[dict] = Field(default_factory=dict)
+    endpoint: str | None = None
+    keys: dict | None = Field(default_factory=dict)
 
 
 class SubscriptionMessage(BaseModel):
@@ -308,11 +299,11 @@ class SubscriptionMessage(BaseModel):
     客户端订阅消息体
     """
 
-    title: Optional[str] = None
-    body: Optional[str] = None
-    icon: Optional[str] = None
-    url: Optional[str] = None
-    data: Optional[dict] = Field(default_factory=dict)
+    title: str | None = None
+    body: str | None = None
+    icon: str | None = None
+    url: str | None = None
+    data: dict | None = Field(default_factory=dict)
 
 
 class AgentWebChatRequest(BaseModel):
@@ -326,30 +317,30 @@ class AgentWebChatRequest(BaseModel):
         """
 
         ref: str = Field(..., min_length=1)
-        name: Optional[str] = Field(None)
-        mime_type: Optional[str] = Field(None)
-        size: Optional[int] = Field(None)
-        local_path: Optional[str] = Field(None)
-        status: Optional[str] = Field(None)
+        name: str | None = Field(None)
+        mime_type: str | None = Field(None)
+        size: int | None = Field(None)
+        local_path: str | None = Field(None)
+        status: str | None = Field(None)
 
     # 用户本轮输入
     text: str = Field(default="")
     # 展示历史中记录的用户可读文本；为空时使用 text
-    display_text: Optional[str] = Field(None)
+    display_text: str | None = Field(None)
     # 前端会话标识，相同标识复用同一段 Agent 记忆
-    session_id: Optional[str] = Field(None)
+    session_id: str | None = Field(None)
     # 图片 URL 或 data URL 列表
-    images: Optional[List[str]] = Field(default_factory=list)
+    images: list[str] | None = Field(default_factory=list)
     # 语音/音频引用列表
-    audio_refs: Optional[List[str]] = Field(default_factory=list)
+    audio_refs: list[str] | None = Field(default_factory=list)
     # 文件附件列表
-    files: Optional[List[AgentWebChatFile]] = Field(default_factory=list)
+    files: list[AgentWebChatFile] | None = Field(default_factory=list)
     # 用户通过按钮选择时的完整选择快照
-    choice_selection: Optional[Dict[str, Any]] = Field(default=None)
+    choice_selection: dict[str, Any] | None = Field(default=None)
     # WebAgent 按钮回调关联的原消息 ID，用于传统交互原地编辑卡片
-    original_message_id: Optional[Union[str, int]] = Field(default=None)
+    original_message_id: str | int | None = Field(default=None)
     # WebAgent 按钮回调关联的原聊天 ID，用于传统交互原地编辑卡片
-    original_chat_id: Optional[Union[str, int]] = Field(default=None)
+    original_chat_id: str | int | None = Field(default=None)
     # 是否在展示历史中记录本轮用户消息
     echo_user: bool = Field(default=True)
 
@@ -360,13 +351,13 @@ class AgentWebChoiceRequest(BaseModel):
     """
 
     # 前端会话标识，用于保持与原对话窗口的关联
-    session_id: Optional[str] = Field(None)
+    session_id: str | None = Field(None)
     # Agent 工具生成的按钮回调数据
     callback_data: str = Field(..., min_length=1)
     # WebAgent 原助手消息 ID，用于传统按钮回调原地编辑
-    original_message_id: Optional[Union[str, int]] = Field(default=None)
+    original_message_id: str | int | None = Field(default=None)
     # WebAgent 原聊天 ID，用于传统按钮回调原地编辑
-    original_chat_id: Optional[Union[str, int]] = Field(default=None)
+    original_chat_id: str | int | None = Field(default=None)
 
 
 class ChannelCapability(Enum):
@@ -407,7 +398,7 @@ class ChannelCapabilities:
     """
 
     channel: MessageChannel
-    capabilities: Set[ChannelCapability]
+    capabilities: set[ChannelCapability]
     max_buttons_per_row: int = 5
     max_button_rows: int = 10
     max_button_text_length: int = 30
@@ -421,7 +412,7 @@ class ChannelCapabilityManager:
     渠道能力管理器
     """
 
-    _capabilities: Dict[MessageChannel, ChannelCapabilities] = {
+    _capabilities: dict[MessageChannel, ChannelCapabilities] = {
         MessageChannel.Telegram: ChannelCapabilities(
             channel=MessageChannel.Telegram,
             capabilities={
@@ -595,16 +586,14 @@ class ChannelCapabilityManager:
     }
 
     @classmethod
-    def get_capabilities(cls, channel: MessageChannel) -> Optional[ChannelCapabilities]:
+    def get_capabilities(cls, channel: MessageChannel) -> ChannelCapabilities | None:
         """
         获取渠道能力
         """
         return cls._capabilities.get(channel)
 
     @classmethod
-    def supports_capability(
-        cls, channel: MessageChannel, capability: ChannelCapability
-    ) -> bool:
+    def supports_capability(cls, channel: MessageChannel, capability: ChannelCapability) -> bool:
         """
         检查渠道是否支持某项能力
         """

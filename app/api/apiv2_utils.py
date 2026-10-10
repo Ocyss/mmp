@@ -1,5 +1,6 @@
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -8,7 +9,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from app.schemas.response import Response
-
 
 API_V2_STR = "/api/v2"
 OPENAPI_V2_PATH = f"{API_V2_STR}/openapi.json"
@@ -19,18 +19,14 @@ _JSON_CONTENT_TYPES = ("application/json", "+json")
 def _is_protocol_path(path: str) -> bool:
     """判断路径是否属于需要保留原始协议响应的接口。"""
     relative_path = path.removeprefix(API_V2_STR)
-    return any(
-        relative_path == prefix or relative_path.startswith(f"{prefix}/")
-        for prefix in _PROTOCOL_PREFIXES
-    )
+    return any(relative_path == prefix or relative_path.startswith(f"{prefix}/") for prefix in _PROTOCOL_PREFIXES)
 
 
 def _is_json_response(response: StarletteResponse) -> bool:
     """判断响应是否为可安全解析的 JSON 响应。"""
     content_type = response.headers.get("content-type", "").split(";", 1)[0]
     return any(
-        content_type == accepted_type or content_type.endswith(accepted_type)
-        for accepted_type in _JSON_CONTENT_TYPES
+        content_type == accepted_type or content_type.endswith(accepted_type) for accepted_type in _JSON_CONTENT_TYPES
     )
 
 
@@ -51,9 +47,7 @@ def _get_error_message(payload: Any) -> str:
             return detail
         if isinstance(detail, list):
             messages = [
-                item.get("msg")
-                for item in detail
-                if isinstance(item, dict) and isinstance(item.get("msg"), str)
+                item.get("msg") for item in detail if isinstance(item, dict) and isinstance(item.get("msg"), str)
             ]
             if messages:
                 return "; ".join(messages)
@@ -124,7 +118,7 @@ class V2ResponseMiddleware(BaseHTTPMiddleware):
             return _restore_response_body(response, body)
         try:
             payload = json.loads(body)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return _restore_response_body(response, body)
 
         if _is_response_payload(payload):
@@ -169,9 +163,7 @@ def configure_v2_openapi(app: FastAPI) -> None:
         """生成包含 v2 通用响应模型的 OpenAPI 文档。"""
         schema = original_openapi()
         components = schema.setdefault("components", {}).setdefault("schemas", {})
-        components["Response"] = Response.model_json_schema(
-            ref_template="#/components/schemas/{model}"
-        )
+        components["Response"] = Response.model_json_schema(ref_template="#/components/schemas/{model}")
 
         route_map = {
             (route.path, method.lower()): route
@@ -206,9 +198,7 @@ def configure_v2_openapi(app: FastAPI) -> None:
                 if route.status_code in {204, 304}:
                     continue
                 content_type = getattr(route.response_class, "media_type", None)
-                if content_type and not (
-                    content_type == "application/json" or content_type.endswith("+json")
-                ):
+                if content_type and not (content_type == "application/json" or content_type.endswith("+json")):
                     continue
                 status_code = str(route.status_code or 200)
                 response = operation.get("responses", {}).get(status_code)

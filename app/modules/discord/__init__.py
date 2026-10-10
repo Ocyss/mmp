@@ -3,10 +3,10 @@ import json
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
-from app.core.context import MediaInfo, Context
+from app.core.context import Context, MediaInfo
 from app.core.event import eventmanager
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.schemas import (
     CommandRegisterEventData,
     CommingMessage,
@@ -58,9 +58,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         if not Discord:
             logger.error("Discord 依赖未就绪（需要安装 discord.py==2.6.4），模块未启动")
             return
-        super().init_service(
-            service_name=Discord.__name__.lower(), service_type=Discord
-        )
+        super().init_service(service_name=Discord.__name__.lower(), service_type=Discord)
         self._channel = MessageChannel.Discord
 
     @staticmethod
@@ -96,7 +94,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             except Exception as err:
                 logger.error(f"停止Discord模块实例失败：{err}")
 
-    def test(self) -> Optional[Tuple[bool, str]]:
+    def test(self) -> tuple[bool, str] | None:
         """
         测试模块连接性
         """
@@ -108,25 +106,21 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 return False, f"Discord {name} Bot 未就绪"
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     @staticmethod
-    def _get_admins(config: Optional[dict]) -> List[str]:
+    def _get_admins(config: dict | None) -> list[str]:
         """
         解析 Discord 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip()
-            for admin in str((config or {}).get("DISCORD_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("DISCORD_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
-            cls,
-            config: Optional[dict],
-            *user_ids: Optional[Union[str, int]],
+        cls,
+        config: dict | None,
+        *user_ids: str | int | None,
     ) -> bool:
         """
         判断 Discord 命令或命令型按钮回调是否应因非管理员身份被拒绝。
@@ -134,18 +128,14 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         admins = cls._get_admins(config)
         if not admins:
             return False
-        candidates = [
-            str(user_id).strip()
-            for user_id in user_ids
-            if user_id is not None and str(user_id).strip()
-        ]
+        candidates = [str(user_id).strip() for user_id in user_ids if user_id is not None and str(user_id).strip()]
         return not any(candidate in admins for candidate in candidates)
 
     @staticmethod
     def _send_admin_denied(
-            client: Optional[Discord],
-            userid: Optional[Union[str, int]],
-            chat_id: Optional[Union[str, int]] = None,
+        client: Discord | None,
+        userid: str | int | None,
+        chat_id: str | int | None = None,
     ) -> None:
         """
         向 Discord 非管理员用户发送命令拒绝提示。
@@ -157,9 +147,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 original_chat_id=str(chat_id) if chat_id else None,
             )
 
-    def message_parser(
-        self, source: str, body: Any, form: Any, args: Any
-    ) -> Optional[CommingMessage]:
+    def message_parser(self, source: str, body: Any, form: Any, args: Any) -> CommingMessage | None:
         """
         解析消息内容，返回字典，注意以下约定值：
         userid: 用户ID
@@ -194,7 +182,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             chat_id = msg_json.get("chat_id")
             if callback_data and userid:
                 if str(callback_data).strip().startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid, username
+                    client_config.config, userid, username
                 ):
                     self._send_admin_denied(client, userid, chat_id)
                     return None
@@ -222,8 +210,10 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             audio_refs = self._extract_audio_refs(msg_json)
             files = self._extract_files(msg_json)
             if (text or images or audio_refs or files) and userid:
-                if text and text.startswith("/") and self._should_reject_admin_command(
-                        client_config.config, userid, username
+                if (
+                    text
+                    and text.startswith("/")
+                    and self._should_reject_admin_command(client_config.config, userid, username)
                 ):
                     self._send_admin_denied(client, userid, chat_id)
                     return None
@@ -249,7 +239,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
     @staticmethod
     def _extract_images(
         msg_json: dict,
-    ) -> Optional[List[CommingMessage.MessageImage]]:
+    ) -> list[CommingMessage.MessageImage] | None:
         """
         从Discord消息中提取图片URL
         """
@@ -279,7 +269,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         return images if images else None
 
     @classmethod
-    def _extract_audio_refs(cls, msg_json: dict) -> Optional[List[str]]:
+    def _extract_audio_refs(cls, msg_json: dict) -> list[str] | None:
         """
         从Discord消息中提取音频URL
         """
@@ -298,9 +288,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         return audio_refs if audio_refs else None
 
     @classmethod
-    def _extract_files(
-        cls, msg_json: dict
-    ) -> Optional[List[CommingMessage.MessageAttachment]]:
+    def _extract_files(cls, msg_json: dict) -> list[CommingMessage.MessageAttachment] | None:
         """
         从 Discord 消息中提取非图片/非音频文件。
         """
@@ -320,9 +308,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 or content_type.startswith("image/")
                 or filename.endswith(cls._IMAGE_SUFFIXES)
             )
-            is_audio = content_type.startswith("audio/") or filename.endswith(
-                cls._AUDIO_SUFFIXES
-            )
+            is_audio = content_type.startswith("audio/") or filename.endswith(cls._AUDIO_SUFFIXES)
             if is_image or is_audio:
                 continue
             files.append(
@@ -335,7 +321,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             )
         return files or None
 
-    def download_discord_file_bytes(self, file_ref: str, source: str) -> Optional[bytes]:
+    def download_discord_file_bytes(self, file_ref: str, source: str) -> bytes | None:
         """
         下载Discord附件并返回原始字节
         """
@@ -360,9 +346,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             f"[Discord] post_message 被调用，message.source={message.source}, "
             f"message.userid={message.userid}, message.channel={message.channel}"
         )
-        logger.debug(
-            f"[Discord] 当前配置数量: {len(configs)}, 配置名称: {list(configs.keys())}"
-        )
+        logger.debug(f"[Discord] 当前配置数量: {len(configs)}, 配置名称: {list(configs.keys())}")
         logger.debug(
             f"[Discord] 当前实例数量: {len(self.get_instances())}, 实例名称: {list(self.get_instances().keys())}"
         )
@@ -372,13 +356,9 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             return
 
         for conf in configs.values():
-            logger.debug(
-                f"[Discord] 检查配置: name={conf.name}, type={conf.type}, enabled={conf.enabled}"
-            )
+            logger.debug(f"[Discord] 检查配置: name={conf.name}, type={conf.type}, enabled={conf.enabled}")
             if not self.check_message(message, conf.name):
-                logger.debug(
-                    f"[Discord] check_message 返回 False，跳过配置: {conf.name}"
-                )
+                logger.debug(f"[Discord] check_message 返回 False，跳过配置: {conf.name}")
                 continue
             logger.debug(f"[Discord] check_message 通过，准备发送到: {conf.name}")
             targets = message.targets
@@ -389,9 +369,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                     logger.warn("用户没有指定 Discord 用户ID，消息无法发送")
                     return
             client: Discord = self.get_instance(conf.name)
-            logger.debug(
-                f"[Discord] get_instance('{conf.name}') 返回: {client is not None}"
-            )
+            logger.debug(f"[Discord] get_instance('{conf.name}') 返回: {client is not None}")
             if client:
                 logger.debug(
                     f"[Discord] 调用 client 发送, userid={userid}, title={message.title[:50] if message.title else None}..."
@@ -419,13 +397,9 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                     )
                 logger.debug(f"[Discord] send_msg 返回结果: {result}")
             else:
-                logger.warning(
-                    f"[Discord] 未找到配置 '{conf.name}' 对应的 Discord 客户端实例"
-                )
+                logger.warning(f"[Discord] 未找到配置 '{conf.name}' 对应的 Discord 客户端实例")
 
-    def post_medias_message(
-        self, message: Notification, medias: List[MediaInfo]
-    ) -> None:
+    def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
         发送媒体信息选择列表
         :param message: 消息体
@@ -446,9 +420,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                     original_chat_id=message.original_chat_id,
                 )
 
-    def post_torrents_message(
-        self, message: Notification, torrents: List[Context]
-    ) -> None:
+    def post_torrents_message(self, message: Notification, torrents: list[Context]) -> None:
         """
         发送种子信息选择列表
         :param message: 消息体
@@ -474,8 +446,8 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         channel: MessageChannel,
         source: str,
         message_id: str,
-        chat_id: Optional[str] = None,
-    ) -> Optional[bool]:
+        chat_id: str | None = None,
+    ) -> bool | None:
         """
         删除消息
         :param channel: 消息渠道
@@ -501,13 +473,13 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         self,
         channel: MessageChannel,
         source: str,
-        message_id: Union[str, int],
-        chat_id: Union[str, int],
+        message_id: str | int,
+        chat_id: str | int,
         text: str,
-        title: Optional[str] = None,
-        buttons: Optional[List[List[dict]]] = None,
-        metadata: Optional[dict] = None,
-    ) -> Optional[bool]:
+        title: str | None = None,
+        buttons: list[list[dict]] | None = None,
+        metadata: dict | None = None,
+    ) -> bool | None:
         """
         编辑消息
         :param channel: 消息渠道
@@ -539,7 +511,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                     return True
         return False
 
-    def register_commands(self, commands: Dict[str, dict]) -> None:
+    def register_commands(self, commands: dict[str, dict]) -> None:
         """
         注册命令，实现这个函数接收系统可用的命令菜单。
 
@@ -582,20 +554,18 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 client.delete_commands()
                 continue
             if filtered_scoped_commands != commands:
-                logger.debug(
-                    f"Command set has changed, Updating new commands: {filtered_scoped_commands}"
-                )
+                logger.debug(f"Command set has changed, Updating new commands: {filtered_scoped_commands}")
             client.register_commands(filtered_scoped_commands)
 
     def mark_message_processing_started(
         self,
         channel: MessageChannel,
         source: str,
-        userid: Optional[Union[str, int]] = None,
-        message_id: Optional[Union[str, int]] = None,
-        chat_id: Optional[Union[str, int]] = None,
-        text: Optional[str] = None,
-    ) -> Optional[dict]:
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        text: str | None = None,
+    ) -> dict | None:
         """
         使用 Discord typing 指示标记“正在处理”。
         """
@@ -610,8 +580,8 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         if not client:
             return None
         if not client.start_typing(
-                userid=str(userid) if userid else None,
-                chat_id=str(chat_id) if chat_id else None,
+            userid=str(userid) if userid else None,
+            chat_id=str(chat_id) if chat_id else None,
         ):
             return None
         return {
@@ -627,11 +597,11 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
         self,
         channel: MessageChannel,
         source: str,
-        userid: Optional[Union[str, int]] = None,
-        message_id: Optional[Union[str, int]] = None,
-        chat_id: Optional[Union[str, int]] = None,
-        status: Optional[dict] = None,
-    ) -> Optional[bool]:
+        userid: str | int | None = None,
+        message_id: str | int | None = None,
+        chat_id: str | int | None = None,
+        status: dict | None = None,
+    ) -> bool | None:
         """
         停止 Discord typing 续发任务。
         """
@@ -650,7 +620,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             chat_id=str(target_chat_id) if target_chat_id else None,
         )
 
-    def send_direct_message(self, message: Notification) -> Optional[MessageResponse]:
+    def send_direct_message(self, message: Notification) -> MessageResponse | None:
         """
         直接发送消息并返回消息ID等信息
         :param message: 消息体
@@ -683,11 +653,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                         userid=userid,
                     )
                 if result:
-                    success, response_data = (
-                        (result[0], result[1])
-                        if isinstance(result, tuple)
-                        else (result, None)
-                    )
+                    success, response_data = (result[0], result[1]) if isinstance(result, tuple) else (result, None)
                     if success:
                         message_id = None
                         chat_id = None

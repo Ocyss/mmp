@@ -1,7 +1,7 @@
 """搜索订阅缺失剧集工具"""
 
 import json
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -15,10 +15,16 @@ from app.schemas.types import media_type_to_agent
 
 class SearchSubscribeInput(BaseModel):
     """搜索订阅缺失剧集工具的输入参数模型"""
-    subscribe_id: int = Field(..., description="The ID of the subscription to search for missing episodes (can be obtained from query_subscribes tool)")
-    manual: Optional[bool] = Field(False, description="Whether this is a manual search (default: False)")
-    filter_groups: Optional[List[str]] = Field(None,
-                                               description="List of filter rule group names to apply for this search (optional, can be obtained from query_rule_groups tool. If provided, will temporarily update the subscription's filter groups before searching)")
+
+    subscribe_id: int = Field(
+        ...,
+        description="The ID of the subscription to search for missing episodes (can be obtained from query_subscribes tool)",
+    )
+    manual: bool | None = Field(False, description="Whether this is a manual search (default: False)")
+    filter_groups: list[str] | None = Field(
+        None,
+        description="List of filter rule group names to apply for this search (optional, can be obtained from query_rule_groups tool. If provided, will temporarily update the subscription's filter groups before searching)",
+    )
 
 
 class SearchSubscribeTool(MoviePilotTool):
@@ -30,9 +36,9 @@ class SearchSubscribeTool(MoviePilotTool):
         ToolTag.Resource,
     ]
     description: str = "Search for missing episodes/resources for a specific subscription. This tool will search torrent sites for the missing episodes of the subscription and automatically download matching resources. Use this when a user wants to search for missing episodes of a specific subscription."
-    args_schema: Type[BaseModel] = SearchSubscribeInput
+    args_schema: type[BaseModel] = SearchSubscribeInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据搜索参数生成友好的提示消息"""
         subscribe_id = kwargs.get("subscribe_id")
         manual = kwargs.get("manual", False)
@@ -43,10 +49,12 @@ class SearchSubscribeTool(MoviePilotTool):
 
         return message
 
-    async def run(self, subscribe_id: int, manual: Optional[bool] = False,
-                  filter_groups: Optional[List[str]] = None, **kwargs) -> str:
+    async def run(
+        self, subscribe_id: int, manual: bool | None = False, filter_groups: list[str] | None = None, **kwargs
+    ) -> str:
         logger.info(
-            f"执行工具: {self.name}, 参数: subscribe_id={subscribe_id}, manual={manual}, filter_groups={filter_groups}")
+            f"执行工具: {self.name}, 参数: subscribe_id={subscribe_id}, manual={manual}, filter_groups={filter_groups}"
+        )
 
         try:
             # 先验证订阅是否存在
@@ -54,10 +62,7 @@ class SearchSubscribeTool(MoviePilotTool):
             subscribe = subscribe_oper.get(subscribe_id)
 
             if not subscribe:
-                return json.dumps({
-                    "success": False,
-                    "message": f"订阅不存在: {subscribe_id}"
-                }, ensure_ascii=False)
+                return json.dumps({"success": False, "message": f"订阅不存在: {subscribe_id}"}, ensure_ascii=False)
 
             # 获取订阅信息用于返回
             subscribe_info = {
@@ -79,11 +84,14 @@ class SearchSubscribeTool(MoviePilotTool):
 
             # 检查订阅状态
             if subscribe.state == "S":
-                return json.dumps({
-                    "success": False,
-                    "message": f"订阅 #{subscribe_id} ({subscribe.name}) 已暂停，无法搜索",
-                    "subscribe": subscribe_info
-                }, ensure_ascii=False)
+                return json.dumps(
+                    {
+                        "success": False,
+                        "message": f"订阅 #{subscribe_id} ({subscribe.name}) 已暂停，无法搜索",
+                        "subscribe": subscribe_info,
+                    },
+                    ensure_ascii=False,
+                )
 
             # 如果提供了 filter_groups 参数，先更新订阅的规则组
             if filter_groups is not None:
@@ -102,18 +110,20 @@ class SearchSubscribeTool(MoviePilotTool):
             # 重新获取订阅信息以获取更新后的状态
             updated_subscribe = subscribe_oper.get(subscribe_id)
             if updated_subscribe:
-                subscribe_info.update({
-                    "state": updated_subscribe.state,
-                    "lack_episode": updated_subscribe.lack_episode,
-                    "last_update": updated_subscribe.last_update,
-                    "filter_groups": updated_subscribe.filter_groups
-                })
+                subscribe_info.update(
+                    {
+                        "state": updated_subscribe.state,
+                        "lack_episode": updated_subscribe.lack_episode,
+                        "last_update": updated_subscribe.last_update,
+                        "filter_groups": updated_subscribe.filter_groups,
+                    }
+                )
 
             # 如果提供了规则组，会在返回信息中显示
             result = {
                 "success": True,
                 "message": f"订阅 #{subscribe_id} ({subscribe.name}) 搜索完成",
-                "subscribe": subscribe_info
+                "subscribe": subscribe_info,
             }
 
             if filter_groups is not None:
@@ -124,8 +134,6 @@ class SearchSubscribeTool(MoviePilotTool):
         except Exception as e:
             error_message = f"搜索订阅缺失剧集失败: {str(e)}"
             logger.error(f"搜索订阅缺失剧集失败: {e}", exc_info=True)
-            return json.dumps({
-                "success": False,
-                "message": error_message,
-                "subscribe_id": subscribe_id
-            }, ensure_ascii=False)
+            return json.dumps(
+                {"success": False, "message": error_message, "subscribe_id": subscribe_id}, ensure_ascii=False
+            )

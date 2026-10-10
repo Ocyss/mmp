@@ -1,7 +1,7 @@
 """更新订阅工具"""
 
 import json
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -21,69 +21,45 @@ class UpdateSubscribeInput(BaseModel):
         ...,
         description="The ID of the subscription to update (can be obtained from query_subscribes tool)",
     )
-    name: Optional[str] = Field(None, description="Subscription name/title (optional)")
-    year: Optional[str] = Field(None, description="Release year (optional)")
-    season: Optional[int] = Field(
-        None, description="Season number for TV shows (optional)"
-    )
-    total_episode: Optional[int] = Field(
-        None, description="Total number of episodes (optional)"
-    )
-    lack_episode: Optional[int] = Field(
-        None, description="Number of missing episodes (optional)"
-    )
-    start_episode: Optional[int] = Field(
-        None, description="Starting episode number (optional)"
-    )
-    quality: Optional[str] = Field(
+    name: str | None = Field(None, description="Subscription name/title (optional)")
+    year: str | None = Field(None, description="Release year (optional)")
+    season: int | None = Field(None, description="Season number for TV shows (optional)")
+    total_episode: int | None = Field(None, description="Total number of episodes (optional)")
+    lack_episode: int | None = Field(None, description="Number of missing episodes (optional)")
+    start_episode: int | None = Field(None, description="Starting episode number (optional)")
+    quality: str | None = Field(
         None,
         description="Quality filter as regular expression (optional, e.g., 'BluRay|WEB-DL|HDTV')",
     )
-    resolution: Optional[str] = Field(
+    resolution: str | None = Field(
         None,
         description="Resolution filter as regular expression (optional, e.g., '1080p|720p|2160p')",
     )
-    effect: Optional[str] = Field(
+    effect: str | None = Field(
         None,
         description="Effect filter as regular expression (optional, e.g., 'HDR|DV|SDR')",
     )
-    include: Optional[str] = Field(
-        None, description="Include filter as regular expression (optional)"
-    )
-    exclude: Optional[str] = Field(
-        None, description="Exclude filter as regular expression (optional)"
-    )
-    filter: Optional[str] = Field(
-        None, description="Filter rule as regular expression (optional)"
-    )
-    state: Optional[str] = Field(
+    include: str | None = Field(None, description="Include filter as regular expression (optional)")
+    exclude: str | None = Field(None, description="Exclude filter as regular expression (optional)")
+    filter: str | None = Field(None, description="Filter rule as regular expression (optional)")
+    state: str | None = Field(
         None,
         description="Subscription state: 'R' for enabled, 'P' for pending, 'S' for paused (optional)",
     )
-    sites: Optional[List[int]] = Field(
-        None, description="List of site IDs to search from (optional)"
-    )
-    downloader: Optional[str] = Field(None, description="Downloader name (optional)")
-    save_path: Optional[str] = Field(
-        None, description="Save path for downloaded files (optional)"
-    )
-    best_version: Optional[int] = Field(
+    sites: list[int] | None = Field(None, description="List of site IDs to search from (optional)")
+    downloader: str | None = Field(None, description="Downloader name (optional)")
+    save_path: str | None = Field(None, description="Save path for downloaded files (optional)")
+    best_version: int | None = Field(
         None,
         description="Whether to upgrade to best version: 0 for no, 1 for yes (optional)",
     )
-    best_version_full: Optional[int] = Field(
+    best_version_full: int | None = Field(
         None,
         description="For TV best-version subscriptions, only download full-season packs: 0 for no, 1 for yes (optional)",
     )
-    custom_words: Optional[str] = Field(
-        None, description="Custom recognition words (optional)"
-    )
-    media_category: Optional[str] = Field(
-        None, description="Custom media category (optional)"
-    )
-    episode_group: Optional[str] = Field(
-        None, description="Episode group ID (optional)"
-    )
+    custom_words: str | None = Field(None, description="Custom recognition words (optional)")
+    media_category: str | None = Field(None, description="Custom media category (optional)")
+    episode_group: str | None = Field(None, description="Episode group ID (optional)")
 
 
 class UpdateSubscribeTool(MoviePilotTool):
@@ -94,10 +70,10 @@ class UpdateSubscribeTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Update subscription properties including filters, episode counts, state, and other settings. Supports updating quality/resolution filters, episode tracking, subscription state, and download configuration."
-    args_schema: Type[BaseModel] = UpdateSubscribeInput
+    args_schema: type[BaseModel] = UpdateSubscribeInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据更新参数生成友好的提示消息"""
         subscribe_id = kwargs.get("subscribe_id")
         fields_updated = []
@@ -114,9 +90,7 @@ class UpdateSubscribeTool(MoviePilotTool):
             fields_updated.append("分辨率过滤")
         if kwargs.get("state"):
             state_map = {"R": "启用", "P": "禁用", "S": "暂停"}
-            fields_updated.append(
-                f"状态({state_map.get(kwargs.get('state'), kwargs.get('state'))})"
-            )
+            fields_updated.append(f"状态({state_map.get(kwargs.get('state'), kwargs.get('state'))})")
         if kwargs.get("sites"):
             fields_updated.append("站点")
         if kwargs.get("downloader"):
@@ -129,27 +103,27 @@ class UpdateSubscribeTool(MoviePilotTool):
     async def run(
         self,
         subscribe_id: int,
-        name: Optional[str] = None,
-        year: Optional[str] = None,
-        season: Optional[int] = None,
-        total_episode: Optional[int] = None,
-        lack_episode: Optional[int] = None,
-        start_episode: Optional[int] = None,
-        quality: Optional[str] = None,
-        resolution: Optional[str] = None,
-        effect: Optional[str] = None,
-        include: Optional[str] = None,
-        exclude: Optional[str] = None,
-        filter: Optional[str] = None,
-        state: Optional[str] = None,
-        sites: Optional[List[int]] = None,
-        downloader: Optional[str] = None,
-        save_path: Optional[str] = None,
-        best_version: Optional[int] = None,
-        best_version_full: Optional[int] = None,
-        custom_words: Optional[str] = None,
-        media_category: Optional[str] = None,
-        episode_group: Optional[str] = None,
+        name: str | None = None,
+        year: str | None = None,
+        season: int | None = None,
+        total_episode: int | None = None,
+        lack_episode: int | None = None,
+        start_episode: int | None = None,
+        quality: str | None = None,
+        resolution: str | None = None,
+        effect: str | None = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        filter: str | None = None,
+        state: str | None = None,
+        sites: list[int] | None = None,
+        downloader: str | None = None,
+        save_path: str | None = None,
+        best_version: int | None = None,
+        best_version_full: int | None = None,
+        custom_words: str | None = None,
+        media_category: str | None = None,
+        episode_group: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, 参数: subscribe_id={subscribe_id}")
@@ -183,9 +157,7 @@ class UpdateSubscribeTool(MoviePilotTool):
                 # 如果总集数增加，缺失集数也要相应增加
                 if total_episode > (subscribe.total_episode or 0):
                     old_lack = subscribe.lack_episode or 0
-                    subscribe_dict["lack_episode"] = old_lack + (
-                        total_episode - (subscribe.total_episode or 0)
-                    )
+                    subscribe_dict["lack_episode"] = old_lack + (total_episode - (subscribe.total_episode or 0))
                 # 标记为手动修改过总集数
                 subscribe_dict["manual_total_episode"] = 1
 
@@ -265,9 +237,7 @@ class UpdateSubscribeTool(MoviePilotTool):
                 SubscribeModifiedEventData(
                     subscribe_id=subscribe_id,
                     old_subscribe_info=old_subscribe_dict,
-                    subscribe_info=updated_subscribe.to_dict()
-                    if updated_subscribe
-                    else {},
+                    subscribe_info=updated_subscribe.to_dict() if updated_subscribe else {},
                     scene="agent_update",
                 ).to_dict(),
             )

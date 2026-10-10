@@ -16,19 +16,19 @@ class UpdateAgentTaskInput(BaseModel):
     """更新 Agent 自主定时任务的输入参数。"""
 
     task_id: int = Field(..., ge=1, description="ID of the task to update.")
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    content: Optional[str] = Field(None, min_length=1, max_length=10000)
-    trigger_type: Optional[Literal["date", "cron"]] = Field(
+    name: str | None = Field(None, min_length=1, max_length=100)
+    content: str | None = Field(None, min_length=1, max_length=10000)
+    trigger_type: Literal["date", "cron"] | None = Field(
         None,
         description="New trigger type. Must be provided together with trigger.",
     )
-    trigger: Optional[str] = Field(
+    trigger: str | None = Field(
         None,
         min_length=1,
         max_length=200,
         description="New ISO 8601 date or five-field cron expression.",
     )
-    delay_minutes: Optional[int] = Field(
+    delay_minutes: int | None = Field(
         None,
         ge=1,
         le=525600,
@@ -37,13 +37,13 @@ class UpdateAgentTaskInput(BaseModel):
             "of trigger together with trigger_type='date'."
         ),
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         None,
         description="Set false to pause the task or true to resume it.",
     )
 
     @model_validator(mode="after")
-    def validate_update(self) -> "UpdateAgentTaskInput":
+    def validate_update(self) -> UpdateAgentTaskInput:
         """校验更新内容和触发参数组合。"""
         if self.name is not None:
             self.name = self.name.strip()
@@ -53,10 +53,7 @@ class UpdateAgentTaskInput(BaseModel):
             self.content = self.content.strip()
             if not self.content:
                 raise ValueError("content 不能只包含空白字符")
-        has_schedule_update = any(
-            value is not None
-            for value in (self.trigger_type, self.trigger, self.delay_minutes)
-        )
+        has_schedule_update = any(value is not None for value in (self.trigger_type, self.trigger, self.delay_minutes))
         if has_schedule_update:
             if self.trigger_type is None:
                 raise ValueError("修改触发配置时必须提供 trigger_type")
@@ -91,14 +88,14 @@ class UpdateAgentTaskTool(MoviePilotTool):
         "trigger, relative delay_minutes, or enabled state. Use enabled=false to pause "
         "and enabled=true to resume."
     )
-    args_schema: Type[BaseModel] = UpdateAgentTaskInput
+    args_schema: type[BaseModel] = UpdateAgentTaskInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成更新定时任务的提示消息。"""
         return f"更新自主定时任务：{kwargs.get('task_id', '')}"
 
-    def _update_task(self, payload: UpdateAgentTaskInput) -> Optional[dict]:
+    def _update_task(self, payload: UpdateAgentTaskInput) -> dict | None:
         """更新当前用户的任务并刷新运行时调度。"""
         from app.scheduler import Scheduler
 
@@ -113,13 +110,11 @@ class UpdateAgentTaskTool(MoviePilotTool):
         trigger_value = payload.trigger
         if trigger_type == "date" and payload.delay_minutes is not None:
             timezone = pytz.timezone(settings.TZ)
-            trigger_value = (
-                datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)
-            ).isoformat(timespec="seconds")
-        if trigger_value is None:
-            trigger_value = (
-                task.cron_expression if trigger_type == "cron" else task.run_at
+            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(
+                timespec="seconds"
             )
+        if trigger_value is None:
+            trigger_value = task.cron_expression if trigger_type == "cron" else task.run_at
         enabled = task.enabled if payload.enabled is None else payload.enabled
         normalized_type, normalized_trigger = TimerUtils.normalize_schedule_trigger(
             trigger_type=trigger_type,
@@ -137,9 +132,7 @@ class UpdateAgentTaskTool(MoviePilotTool):
             update_payload.update(
                 {
                     "trigger_type": normalized_type,
-                    "cron_expression": (
-                        normalized_trigger if normalized_type == "cron" else None
-                    ),
+                    "cron_expression": (normalized_trigger if normalized_type == "cron" else None),
                     "run_at": normalized_trigger if normalized_type == "date" else None,
                     "last_status": "waiting",
                     "last_result": None,
@@ -165,15 +158,15 @@ class UpdateAgentTaskTool(MoviePilotTool):
         )
 
     async def run(
-            self,
-            task_id: int,
-            name: Optional[str] = None,
-            content: Optional[str] = None,
-            trigger_type: Optional[str] = None,
-            trigger: Optional[str] = None,
-            delay_minutes: Optional[int] = None,
-            enabled: Optional[bool] = None,
-            **kwargs: object,
+        self,
+        task_id: int,
+        name: str | None = None,
+        content: str | None = None,
+        trigger_type: str | None = None,
+        trigger: str | None = None,
+        delay_minutes: int | None = None,
+        enabled: bool | None = None,
+        **kwargs: object,
     ) -> str:
         """更新 Agent 自主定时任务。"""
         payload = UpdateAgentTaskInput(

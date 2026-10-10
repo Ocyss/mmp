@@ -12,15 +12,14 @@ class SnapshotStore:
     远程目录监控快照的存取与比对。
     """
 
-    def __init__(self, cache: Optional[FileCache] = None):
+    def __init__(self, cache: FileCache | None = None):
         """
         初始化快照存储。
         :param cache: 快照文件缓存，默认使用 CACHE_PATH/snapshots
         """
         self._cache = cache if cache is not None else FileCache(base=settings.CACHE_PATH / "snapshots")
 
-    def save(self, storage: str, snapshot: Dict, file_count: int = 0,
-             last_snapshot_time: Optional[float] = None) -> bool:
+    def save(self, storage: str, snapshot: dict, file_count: int = 0, last_snapshot_time: float | None = None) -> bool:
         """
         保存快照到文件缓存。
         :param storage: 存储名称
@@ -30,24 +29,20 @@ class SnapshotStore:
         :return: 是否保存成功
         """
         try:
-            snapshot_time = max((item.get('modify_time', 0) for item in snapshot.values()), default=None)
+            snapshot_time = max((item.get("modify_time", 0) for item in snapshot.values()), default=None)
             if snapshot_time is None:
                 snapshot_time = last_snapshot_time or time.time()
-            snapshot_data = {
-                'timestamp': snapshot_time,
-                'file_count': file_count,
-                'snapshot': snapshot
-            }
+            snapshot_data = {"timestamp": snapshot_time, "file_count": file_count, "snapshot": snapshot}
             cache_key = f"{storage}_snapshot"
             snapshot_json = json.dumps(snapshot_data, ensure_ascii=False, indent=2)
-            self._cache.set(cache_key, snapshot_json.encode('utf-8'), region="snapshots")
+            self._cache.set(cache_key, snapshot_json.encode("utf-8"), region="snapshots")
             logger.debug(f"快照已保存到缓存: {storage}")
             return True
         except Exception as e:
             logger.error(f"保存快照失败: {e}")
             return False
 
-    def load_checked(self, storage: str) -> Tuple[Optional[Dict], bool]:
+    def load_checked(self, storage: str) -> tuple[dict | None, bool]:
         """
         从文件缓存加载快照，并区分「快照不存在」与「读取失败」。
         读取失败时不能当作首次快照处理，否则会静默丢弃已有基线。
@@ -58,7 +53,7 @@ class SnapshotStore:
             cache_key = f"{storage}_snapshot"
             snapshot_data = self._cache.get(cache_key, region="snapshots")
             if snapshot_data:
-                data = json.loads(snapshot_data.decode('utf-8'))
+                data = json.loads(snapshot_data.decode("utf-8"))
                 logger.debug(f"成功加载快照: {storage}, 包含 {len(data.get('snapshot', {}))} 个文件")
                 return data, True
             logger.debug(f"快照文件不存在: {storage}")
@@ -67,7 +62,7 @@ class SnapshotStore:
             logger.error(f"加载快照失败: {e}")
             return None, False
 
-    def load(self, storage: str) -> Optional[Dict]:
+    def load(self, storage: str) -> dict | None:
         """
         从文件缓存加载快照。
         :param storage: 存储名称
@@ -95,23 +90,20 @@ class SnapshotStore:
             return False
 
     @staticmethod
-    def compare(old_snapshot: Dict, new_snapshot: Dict) -> Dict[str, List]:
+    def compare(old_snapshot: dict, new_snapshot: dict) -> dict[str, list]:
         """
         比对快照，找出变化的文件（只处理新增和修改，不处理删除）。
         :param old_snapshot: 旧快照
         :param new_snapshot: 新快照
         :return: 变化信息
         """
-        changes = {
-            'added': [],
-            'modified': []
-        }
+        changes = {"added": [], "modified": []}
 
         old_files = set(old_snapshot.keys())
         new_files = set(new_snapshot.keys())
 
         # 新增文件
-        changes['added'] = list(new_files - old_files)
+        changes["added"] = list(new_files - old_files)
 
         # 修改文件（大小或时间变化）
         for file_path in old_files & new_files:
@@ -119,15 +111,15 @@ class SnapshotStore:
             new_info = new_snapshot[file_path]
 
             # 检查文件大小变化
-            old_size = old_info.get('size', 0) if isinstance(old_info, dict) else old_info
-            new_size = new_info.get('size', 0) if isinstance(new_info, dict) else new_info
+            old_size = old_info.get("size", 0) if isinstance(old_info, dict) else old_info
+            new_size = new_info.get("size", 0) if isinstance(new_info, dict) else new_info
 
             # 检查修改时间变化（如果有的话）
-            old_time = old_info.get('modify_time', 0) if isinstance(old_info, dict) else 0
-            new_time = new_info.get('modify_time', 0) if isinstance(new_info, dict) else 0
+            old_time = old_info.get("modify_time", 0) if isinstance(old_info, dict) else 0
+            new_time = new_info.get("modify_time", 0) if isinstance(new_info, dict) else 0
 
             if old_size != new_size or (old_time and new_time and old_time != new_time):
-                changes['modified'].append(file_path)
+                changes["modified"].append(file_path)
 
         return changes
 

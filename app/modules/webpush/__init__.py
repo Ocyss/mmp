@@ -1,18 +1,17 @@
 import json
-from typing import Union, Tuple
+from typing import Tuple, Union
 
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
 
 from app.core.config import global_vars, settings
 from app.helper.webpush import is_webpush_subscription_gone, webpush_options_for_endpoint
 from app.log import logger
-from app.modules import _ModuleBase, _MessageBase
+from app.modules import _MessageBase, _ModuleBase
 from app.schemas import Notification
-from app.schemas.types import ModuleType, MessageChannel
+from app.schemas.types import MessageChannel, ModuleType
 
 
 class WebPushModule(_ModuleBase, _MessageBase):
-
     def init_module(self) -> None:
         """
         初始化模块
@@ -48,13 +47,13 @@ class WebPushModule(_ModuleBase, _MessageBase):
     def stop(self):
         pass
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
         return True, ""
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     def post_message(self, message: Notification, **kwargs) -> None:
@@ -86,15 +85,11 @@ class WebPushModule(_ModuleBase, _MessageBase):
                     try:
                         webpush(
                             subscription_info=sub,
-                            data=json.dumps({
-                                "title": caption,
-                                "body": content,
-                                "url": message.link or "/?shotcut=message"
-                            }),
+                            data=json.dumps(
+                                {"title": caption, "body": content, "url": message.link or "/?shotcut=message"}
+                            ),
                             vapid_private_key=settings.VAPID.get("privateKey"),
-                            vapid_claims={
-                                "sub": settings.VAPID.get("subject")
-                            },
+                            vapid_claims={"sub": settings.VAPID.get("subject")},
                             **webpush_options_for_endpoint(sub.get("endpoint")),
                         )
                     except WebPushException as err:

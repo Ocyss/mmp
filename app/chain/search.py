@@ -4,18 +4,17 @@ import json
 import random
 import re
 import time
+from collections.abc import AsyncIterator
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from datetime import datetime
-from typing import AsyncIterator, Any, Dict, Tuple
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi.concurrency import run_in_threadpool
 
 from app.chain import ChainBase
 from app.core.config import global_vars, settings
-from app.core.context import Context
-from app.core.context import MediaInfo, SubtitleInfo, TorrentInfo
-from app.core.event import eventmanager, Event
+from app.core.context import Context, MediaInfo, SubtitleInfo, TorrentInfo
+from app.core.event import Event, eventmanager
 from app.core.metainfo import MetaInfo
 from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.progress import ProgressHelper
@@ -23,7 +22,7 @@ from app.helper.sites import SitesHelper  # noqa
 from app.helper.torrent import TorrentHelper
 from app.log import logger
 from app.schemas import NotExistMediaInfo
-from app.schemas.types import MediaType, ProgressKey, SystemConfigKey, EventType
+from app.schemas.types import EventType, MediaType, ProgressKey, SystemConfigKey
 from app.utils.media import build_media_key, resolve_media_identity
 from app.utils.string import StringUtils
 
@@ -39,10 +38,10 @@ class SearchChain(ChainBase):
     __ai_indices_cache_file = "__ai_recommend_indices__"
 
     _ai_recommend_running = False
-    _ai_recommend_task: Optional[asyncio.Task] = None
-    _current_recommend_request_hash: Optional[str] = None
-    _ai_recommend_result: Optional[List[int]] = None
-    _ai_recommend_error: Optional[str] = None
+    _ai_recommend_task: asyncio.Task | None = None
+    _current_recommend_request_hash: str | None = None
+    _ai_recommend_result: list[int] | None = None
+    _ai_recommend_error: str | None = None
 
     @staticmethod
     def _get_search_resource_pages() -> int:
@@ -54,24 +53,25 @@ class SearchChain(ChainBase):
         pages = settings.SEARCH_RESOURCE_PAGES
         try:
             pages = int(pages)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return 1
         return max(pages, 1)
 
     @classmethod
-    def _build_search_pages(cls, page: Optional[int] = 0) -> List[int]:
+    def _build_search_pages(cls, page: int | None = 0) -> list[int]:
         """
         根据起始页和配置页数生成需要请求的页码列表。
         """
         try:
             start_page = int(page or 0)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             start_page = 0
         start_page = max(start_page, 0)
         return list(range(start_page, start_page + cls._get_search_resource_pages()))
 
-    def _should_continue_search_pages(self, site: dict, page_results: Optional[List[Any]],
-                                      keyword: Optional[str] = None) -> bool:
+    def _should_continue_search_pages(
+        self, site: dict, page_results: list[Any] | None, keyword: str | None = None
+    ) -> bool:
         """
         判断是否继续抓取下一页；少于站点单页容量时视为当前站点已到末页。
         """
@@ -79,14 +79,14 @@ class SearchChain(ChainBase):
         return page_size is not None and len(page_results or []) >= page_size
 
     @staticmethod
-    def _should_continue_subtitle_search_pages(site: dict, page_results: Optional[List[Any]]) -> bool:
+    def _should_continue_subtitle_search_pages(site: dict, page_results: list[Any] | None) -> bool:
         """
         判断字幕搜索是否继续抓取下一页。
         """
         subtitle_conf = (site or {}).get("subtitles") or {}
         try:
             page_size = int(subtitle_conf.get("result_num") or site.get("result_num") or 100)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             page_size = 100
         return page_size > 0 and len(page_results or []) >= page_size
 
@@ -98,9 +98,7 @@ class SearchChain(ChainBase):
         return settings.AI_AGENT_ENABLE and settings.AI_RECOMMEND_ENABLED
 
     @staticmethod
-    def _calculate_recommend_request_hash(
-            filtered_indices: Optional[List[int]], search_results_count: int
-    ) -> str:
+    def _calculate_recommend_request_hash(filtered_indices: list[int] | None, search_results_count: int) -> str:
         """
         计算当前推荐请求哈希，用于识别筛选条件是否变化。
         """
@@ -108,11 +106,9 @@ class SearchChain(ChainBase):
             "filtered_indices": filtered_indices or [],
             "search_results_count": search_results_count,
         }
-        return hashlib.md5(
-            json.dumps(request_data, sort_keys=True).encode()
-        ).hexdigest()
+        return hashlib.md5(json.dumps(request_data, sort_keys=True).encode()).hexdigest()
 
-    def _build_ai_recommend_status(self) -> Dict[str, Any]:
+    def _build_ai_recommend_status(self) -> dict[str, Any]:
         """
         构建AI推荐状态字典。
         """
@@ -136,22 +132,18 @@ class SearchChain(ChainBase):
 
         return {"status": "idle"}
 
-    def get_current_recommend_status_only(self) -> Dict[str, Any]:
+    def get_current_recommend_status_only(self) -> dict[str, Any]:
         """
         获取当前推荐状态，不校验请求是否变化。
         """
         return self._build_ai_recommend_status()
 
-    def get_recommend_status(
-            self, filtered_indices: Optional[List[int]], search_results_count: int
-    ) -> Dict[str, Any]:
+    def get_recommend_status(self, filtered_indices: list[int] | None, search_results_count: int) -> dict[str, Any]:
         """
         获取AI推荐状态，并在筛选条件变化时返回 idle。
         """
         state = type(self)
-        request_hash = self._calculate_recommend_request_hash(
-            filtered_indices, search_results_count
-        )
+        request_hash = self._calculate_recommend_request_hash(filtered_indices, search_results_count)
         if request_hash != state._current_recommend_request_hash:
             return {"status": "idle"} if self.is_ai_recommend_enabled else {"status": "disabled"}
         return self._build_ai_recommend_status()
@@ -172,12 +164,12 @@ class SearchChain(ChainBase):
 
     @staticmethod
     def _build_search_keyword(
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
     ) -> str:
         """
         根据媒体ID生成可重放的搜索关键字。
@@ -206,14 +198,14 @@ class SearchChain(ChainBase):
         }
 
     @staticmethod
-    def _stringify_sites(sites: Optional[List[int]]) -> str:
+    def _stringify_sites(sites: list[int] | None) -> str:
         """
         将站点ID列表转换为前端可直接复用的查询字符串。
         """
         return ",".join(str(site) for site in sites) if sites else ""
 
     @staticmethod
-    def _normalize_search_params(params: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    def _normalize_search_params(params: dict[str, Any] | None) -> dict[str, str] | None:
         """
         规范化上次搜索参数，供前端结果页重新搜索使用。
         """
@@ -234,17 +226,17 @@ class SearchChain(ChainBase):
         return normalized if normalized["keyword"] else None
 
     def save_last_search_params(
-            self,
-            *,
-            keyword: Optional[str],
-            mtype: Optional[MediaType] = None,
-            area: Optional[str] = "title",
-            title: Optional[str] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-            sites: Optional[List[int]] = None,
-            result_type: Optional[str] = "torrent",
+        self,
+        *,
+        keyword: str | None,
+        mtype: MediaType | None = None,
+        area: str | None = "title",
+        title: str | None = None,
+        year: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] | None = None,
+        result_type: str | None = "torrent",
     ) -> None:
         """
         保存最后一次资源搜索参数。
@@ -266,17 +258,17 @@ class SearchChain(ChainBase):
             self.save_cache(params, self.__search_params_temp_file)
 
     async def async_save_last_search_params(
-            self,
-            *,
-            keyword: Optional[str],
-            mtype: Optional[MediaType] = None,
-            area: Optional[str] = "title",
-            title: Optional[str] = None,
-            year: Optional[str] = None,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-            sites: Optional[List[int]] = None,
-            result_type: Optional[str] = "torrent",
+        self,
+        *,
+        keyword: str | None,
+        mtype: MediaType | None = None,
+        area: str | None = "title",
+        title: str | None = None,
+        year: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] | None = None,
+        result_type: str | None = "torrent",
     ) -> None:
         """
         异步保存最后一次资源搜索参数。
@@ -297,22 +289,20 @@ class SearchChain(ChainBase):
         if params:
             await self.async_save_cache(params, self.__search_params_temp_file)
 
-    def last_search_params(self) -> Optional[Dict[str, str]]:
+    def last_search_params(self) -> dict[str, str] | None:
         """
         获取上次搜索使用的参数。
         """
         return self._normalize_search_params(self.load_cache(self.__search_params_temp_file))
 
-    async def async_last_search_params(self) -> Optional[Dict[str, str]]:
+    async def async_last_search_params(self) -> dict[str, str] | None:
         """
         异步获取上次搜索使用的参数。
         """
-        return self._normalize_search_params(
-            await self.async_load_cache(self.__search_params_temp_file)
-        )
+        return self._normalize_search_params(await self.async_load_cache(self.__search_params_temp_file))
 
     @staticmethod
-    def _normalize_ai_indices(ai_indices: List[Any]) -> List[int]:
+    def _normalize_ai_indices(ai_indices: list[Any]) -> list[int]:
         """
         过滤模型返回的非法或重复索引，保留原顺序。
         """
@@ -321,7 +311,7 @@ class SearchChain(ChainBase):
         for index in ai_indices:
             try:
                 value = int(index)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             if value in seen:
                 continue
@@ -330,20 +320,16 @@ class SearchChain(ChainBase):
         return normalized
 
     @staticmethod
-    def _extract_recommend_items(
-            filtered_indices: Optional[List[int]], results: List[Any]
-    ) -> tuple[List[str], List[int]]:
+    def _extract_recommend_items(filtered_indices: list[int] | None, results: list[Any]) -> tuple[list[str], list[int]]:
         """
         构建发送给模型的候选列表和索引映射。
         """
-        items: List[str] = []
-        valid_indices: List[int] = []
+        items: list[str] = []
+        valid_indices: list[int] = []
         max_items = settings.AI_RECOMMEND_MAX_ITEMS or 50
 
         if filtered_indices:
-            results_to_process = [
-                results[index] for index in filtered_indices if 0 <= index < len(results)
-            ]
+            results_to_process = [results[index] for index in filtered_indices if 0 <= index < len(results)]
         else:
             results_to_process = results
 
@@ -357,11 +343,7 @@ class SearchChain(ChainBase):
             item_info = {
                 "index": index,
                 "title": torrent.torrent_info.title or "未知",
-                "size": (
-                    StringUtils.format_size(torrent.torrent_info.size)
-                    if torrent.torrent_info.size
-                    else "0 B"
-                ),
+                "size": (StringUtils.format_size(torrent.torrent_info.size) if torrent.torrent_info.size else "0 B"),
                 "seeders": torrent.torrent_info.seeders or 0,
             }
             items.append(json.dumps(item_info, ensure_ascii=False))
@@ -370,11 +352,11 @@ class SearchChain(ChainBase):
 
     @staticmethod
     def _restore_original_indices(
-            ai_indices: List[int],
-            filtered_indices: Optional[List[int]],
-            valid_indices: List[int],
-            results_count: int,
-    ) -> List[int]:
+        ai_indices: list[int],
+        filtered_indices: list[int] | None,
+        valid_indices: list[int],
+        results_count: int,
+    ) -> list[int]:
         """
         将模型输出的局部索引映射回原始搜索结果索引。
         """
@@ -384,11 +366,7 @@ class SearchChain(ChainBase):
         for index in ai_indices:
             if not 0 <= index < len(valid_indices):
                 continue
-            original_index = (
-                filtered_indices[valid_indices[index]]
-                if filtered_indices
-                else valid_indices[index]
-            )
+            original_index = filtered_indices[valid_indices[index]] if filtered_indices else valid_indices[index]
             if not 0 <= original_index < results_count or original_index in seen:
                 continue
             seen.add(original_index)
@@ -423,10 +401,10 @@ class SearchChain(ChainBase):
         return full_output[0].strip()
 
     def start_recommend_task(
-            self,
-            filtered_indices: Optional[List[int]],
-            search_results_count: int,
-            results: List[Any],
+        self,
+        filtered_indices: list[int] | None,
+        search_results_count: int,
+        results: list[Any],
     ) -> None:
         """
         启动AI推荐任务。
@@ -436,9 +414,7 @@ class SearchChain(ChainBase):
             return
 
         state = type(self)
-        request_hash = self._calculate_recommend_request_hash(
-            filtered_indices, search_results_count
-        )
+        request_hash = self._calculate_recommend_request_hash(filtered_indices, search_results_count)
         if request_hash == state._current_recommend_request_hash:
             return
 
@@ -464,12 +440,10 @@ class SearchChain(ChainBase):
                     return
 
                 user_preference = (
-                        settings.AI_RECOMMEND_USER_PREFERENCE
-                        or "Prefer high-quality resources with more seeders"
+                    settings.AI_RECOMMEND_USER_PREFERENCE or "Prefer high-quality resources with more seeders"
                 )
                 search_results_text = (
-                    f"User Preference: {user_preference}\n\n"
-                    f"Candidate Resources:\n{chr(10).join(items)}"
+                    f"User Preference: {user_preference}\n\nCandidate Resources:\n{chr(10).join(items)}"
                 )
                 ai_response = await self._invoke_recommend_llm(search_results_text)
                 if not ai_response:
@@ -512,13 +486,19 @@ class SearchChain(ChainBase):
         state._ai_recommend_task = asyncio.create_task(run_recommend())
 
     def search_by_id(
-            self, tmdbid: Optional[int] = None, doubanid: Optional[str] = None,
-            mtype: MediaType = None, area: Optional[str] = "title",
-            season: Optional[int] = None, sites: List[int] = None,
-            cache_local: bool = False,
-            bangumiid: Optional[int] = None, anilistid: Optional[int] = None,
-            source: Optional[str] = None, mediaid: Optional[str] = None,
-    ) -> List[Context]:
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        mtype: MediaType = None,
+        area: str | None = "title",
+        season: int | None = None,
+        sites: list[int] = None,
+        cache_local: bool = False,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+    ) -> list[Context]:
         """
         根据数据源媒体 ID 搜索资源，精确匹配，不过滤本地存在的资源
         :param tmdbid: TMDB ID
@@ -536,37 +516,39 @@ class SearchChain(ChainBase):
         if cache_local:
             self.cancel_ai_recommend()
             self.save_last_search_params(
-                keyword=self._build_search_keyword(
-                    source, mediaid, tmdbid, doubanid, bangumiid, anilistid
-                ),
+                keyword=self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid),
                 mtype=mtype,
                 area=area,
                 season=season,
                 sites=sites,
             )
         mediainfo = self.recognize_media(
-            source=source, mediaid=mediaid, tmdbid=tmdbid, doubanid=doubanid,
-            bangumiid=bangumiid, anilistid=anilistid, mtype=mtype,
+            source=source,
+            mediaid=mediaid,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            mtype=mtype,
         )
         if not mediainfo:
-            logger.error(f'{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！')
+            logger.error(
+                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！"
+            )
             return []
         no_exists = None
         if season is not None:
             media_source, media_id = resolve_media_identity(media=mediainfo)
-            no_exists = {
-                build_media_key(media_source, media_id): {
-                    season: NotExistMediaInfo(episodes=[])
-                }
-            }
+            no_exists = {build_media_key(media_source, media_id): {season: NotExistMediaInfo(episodes=[])}}
         results = self.process(mediainfo=mediainfo, sites=sites, area=area, no_exists=no_exists)
         # 保存到本地文件
         if cache_local:
             self.save_cache(results, self.__result_temp_file)
         return results
 
-    def search_by_title(self, title: str, page: Optional[int] = 0,
-                        sites: List[int] = None, cache_local: Optional[bool] = False) -> List[Context]:
+    def search_by_title(
+        self, title: str, page: int | None = 0, sites: list[int] = None, cache_local: bool | None = False
+    ) -> list[Context]:
         """
         根据标题搜索资源，不识别媒体信息，按默认搜索过滤规则返回站点内容
         :param title: 标题，为空时返回所有站点首页内容
@@ -582,17 +564,17 @@ class SearchChain(ChainBase):
                 sites=sites,
             )
         if title:
-            logger.info(f'开始搜索资源，关键词：{title} ...')
+            logger.info(f"开始搜索资源，关键词：{title} ...")
         else:
-            logger.info(f'开始浏览资源，站点：{sites} ...')
+            logger.info(f"开始浏览资源，站点：{sites} ...")
         # 搜索
         torrents = self.__search_all_sites(keyword=title, sites=sites, page=page) or []
         if not torrents:
-            logger.warn(f'{title} 未搜索到资源')
+            logger.warn(f"{title} 未搜索到资源")
             return []
         torrents = self.__filter_title_search_torrents(torrents=torrents)
         if not torrents:
-            logger.warn(f'{title} 没有符合过滤规则的资源')
+            logger.warn(f"{title} 没有符合过滤规则的资源")
             return []
         # 组装上下文
         contexts = [
@@ -600,34 +582,35 @@ class SearchChain(ChainBase):
                 meta_info=MetaInfo(title=torrent.title, subtitle=torrent.description),
                 torrent_info=torrent,
                 resource_source="search",
-            ) for torrent in torrents
+            )
+            for torrent in torrents
         ]
         # 保存到本地文件
         if cache_local:
             self.save_cache(contexts, self.__result_temp_file)
         return contexts
 
-    def last_search_results(self) -> Optional[List[Context]]:
+    def last_search_results(self) -> list[Context] | None:
         """
         获取上次搜索结果
         """
         return self.load_cache(self.__result_temp_file)
 
-    async def async_last_search_results(self) -> Optional[List[Context]]:
+    async def async_last_search_results(self) -> list[Context] | None:
         """
         异步获取上次搜索结果
         """
         return await self.async_load_cache(self.__result_temp_file)
 
-    async def async_last_subtitle_search_results(self) -> Optional[List[SubtitleInfo]]:
+    async def async_last_subtitle_search_results(self) -> list[SubtitleInfo] | None:
         """
         异步获取上次字幕搜索结果。
         """
         return await self.async_load_cache(self.__subtitle_result_temp_file)
 
-    async def async_search_subtitles_by_title(self, title: str, page: Optional[int] = 0,
-                                              sites: List[int] = None,
-                                              cache_local: Optional[bool] = False) -> List[SubtitleInfo]:
+    async def async_search_subtitles_by_title(
+        self, title: str, page: int | None = 0, sites: list[int] = None, cache_local: bool | None = False
+    ) -> list[SubtitleInfo]:
         """
         根据标题异步搜索字幕，不识别不过滤，直接返回站点字幕内容。
         :param title: 标题关键词
@@ -643,20 +626,18 @@ class SearchChain(ChainBase):
                 sites=sites,
                 result_type="subtitle",
             )
-        logger.info(f'开始搜索字幕，关键词：{title} ...')
-        subtitles = await self.__async_search_subtitles_all_sites(
-            keyword=title, sites=sites, page=page
-        ) or []
+        logger.info(f"开始搜索字幕，关键词：{title} ...")
+        subtitles = await self.__async_search_subtitles_all_sites(keyword=title, sites=sites, page=page) or []
         if not subtitles:
-            logger.warn(f'{title} 未搜索到字幕')
+            logger.warn(f"{title} 未搜索到字幕")
             return []
         if cache_local:
             await self.async_save_cache(subtitles, self.__subtitle_result_temp_file)
         return subtitles
 
-    async def async_search_subtitles_by_title_stream(self, title: str, page: Optional[int] = 0,
-                                                     sites: List[int] = None,
-                                                     cache_local: Optional[bool] = False) -> AsyncIterator[dict]:
+    async def async_search_subtitles_by_title_stream(
+        self, title: str, page: int | None = 0, sites: list[int] = None, cache_local: bool | None = False
+    ) -> AsyncIterator[dict]:
         """
         根据标题渐进式搜索字幕，不识别不过滤，按站点完成顺序返回结果。
         """
@@ -668,11 +649,10 @@ class SearchChain(ChainBase):
                 sites=sites,
                 result_type="subtitle",
             )
-        logger.info(f'开始渐进式搜索字幕，关键词：{title} ...')
+        logger.info(f"开始渐进式搜索字幕，关键词：{title} ...")
 
-        subtitles: List[SubtitleInfo] = []
-        async for event in self.__async_search_subtitles_all_sites_stream(
-                keyword=title, sites=sites, page=page):
+        subtitles: list[SubtitleInfo] = []
+        async for event in self.__async_search_subtitles_all_sites_stream(keyword=title, sites=sites, page=page):
             result = event.pop("items", []) or []
             if result:
                 subtitles.extend(result)
@@ -680,30 +660,36 @@ class SearchChain(ChainBase):
                 **event,
                 "type": "append",
                 "items": [subtitle.to_dict() for subtitle in result],
-                "total_items": len(subtitles)
+                "total_items": len(subtitles),
             }
 
         if cache_local:
             await self.async_save_cache(subtitles, self.__subtitle_result_temp_file)
 
         if not subtitles:
-            logger.warn(f'{title} 未搜索到字幕')
+            logger.warn(f"{title} 未搜索到字幕")
         yield {
             "type": "done",
             "stage": "done",
             "text": f"搜索完成，共 {len(subtitles)} 个字幕",
             "items": [subtitle.to_dict() for subtitle in subtitles],
-            "total_items": len(subtitles)
+            "total_items": len(subtitles),
         }
 
     async def async_search_subtitles_by_id(
-            self, tmdbid: Optional[int] = None, doubanid: Optional[str] = None,
-            mtype: MediaType = None, season: Optional[int] = None,
-            episode: Optional[int] = None, sites: List[int] = None,
-            cache_local: bool = False,
-            bangumiid: Optional[int] = None, anilistid: Optional[int] = None,
-            source: Optional[str] = None, mediaid: Optional[str] = None,
-    ) -> List[SubtitleInfo]:
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        mtype: MediaType = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] = None,
+        cache_local: bool = False,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+    ) -> list[SubtitleInfo]:
         """
         根据数据源媒体 ID 异步精确搜索字幕，不应用过滤规则。
         :param tmdbid: TMDB ID
@@ -721,9 +707,7 @@ class SearchChain(ChainBase):
         if cache_local:
             self.cancel_ai_recommend()
             await self.async_save_last_search_params(
-                keyword=self._build_search_keyword(
-                    source, mediaid, tmdbid, doubanid, bangumiid, anilistid
-                ),
+                keyword=self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid),
                 mtype=mtype,
                 area="title",
                 season=season,
@@ -732,13 +716,18 @@ class SearchChain(ChainBase):
                 result_type="subtitle",
             )
         mediainfo = await self.async_recognize_media(
-            source=source, mediaid=mediaid, tmdbid=tmdbid, doubanid=doubanid,
-            bangumiid=bangumiid, anilistid=anilistid, mtype=mtype,
+            source=source,
+            mediaid=mediaid,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            mtype=mtype,
         )
         if not mediainfo:
             logger.error(
-                f'{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} '
-                '媒体信息识别失败！'
+                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
+                "媒体信息识别失败！"
             )
             return []
         subtitles = await self.__async_search_subtitles_for_media(
@@ -758,18 +747,18 @@ class SearchChain(ChainBase):
         return subtitles
 
     async def async_search_subtitles_by_id_stream(
-            self,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            mtype: MediaType = None,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-            sites: List[int] = None,
-            cache_local: bool = False,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        mtype: MediaType = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] = None,
+        cache_local: bool = False,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
     ) -> AsyncIterator[dict]:
         """
         根据数据源媒体 ID 渐进式精确搜索字幕，先返回站点候选，再返回标题和剧集匹配后的结果。
@@ -777,9 +766,7 @@ class SearchChain(ChainBase):
         if cache_local:
             self.cancel_ai_recommend()
             await self.async_save_last_search_params(
-                keyword=self._build_search_keyword(
-                    source, mediaid, tmdbid, doubanid, bangumiid, anilistid
-                ),
+                keyword=self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid),
                 mtype=mtype,
                 area="title",
                 season=season,
@@ -788,53 +775,57 @@ class SearchChain(ChainBase):
                 result_type="subtitle",
             )
         mediainfo = await self.async_recognize_media(
-            source=source, mediaid=mediaid, tmdbid=tmdbid, doubanid=doubanid,
-            bangumiid=bangumiid, anilistid=anilistid, mtype=mtype,
+            source=source,
+            mediaid=mediaid,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            mtype=mtype,
         )
         if not mediainfo:
             logger.error(
-                f'{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} '
-                '媒体信息识别失败！'
+                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
+                "媒体信息识别失败！"
             )
-            yield {
-                "type": "error",
-                "success": False,
-                "message": "媒体信息识别失败"
-            }
+            yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
             return
 
-        subtitles: List[SubtitleInfo] = []
+        subtitles: list[SubtitleInfo] = []
         async for event in self.__async_search_subtitles_for_media_stream(
-                mediainfo=mediainfo,
-                tmdbid=tmdbid,
-                doubanid=doubanid,
-                bangumiid=bangumiid,
-                anilistid=anilistid,
-                source=source,
-                mediaid=mediaid,
-                season=season,
-                episode=episode,
-                sites=sites):
+            mediainfo=mediainfo,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            source=source,
+            mediaid=mediaid,
+            season=season,
+            episode=episode,
+            sites=sites,
+        ):
             if event.get("type") == "done":
                 subtitles = event.get("subtitles") or []
-                event = {
-                    key: value
-                    for key, value in event.items()
-                    if key != "subtitles"
-                }
+                event = {key: value for key, value in event.items() if key != "subtitles"}
             yield event
 
         if cache_local:
             await self.async_save_cache(subtitles, self.__subtitle_result_temp_file)
 
     async def async_search_by_id(
-            self, tmdbid: Optional[int] = None, doubanid: Optional[str] = None,
-            mtype: MediaType = None, area: Optional[str] = "title",
-            season: Optional[int] = None, sites: List[int] = None,
-            cache_local: bool = False,
-            bangumiid: Optional[int] = None, anilistid: Optional[int] = None,
-            source: Optional[str] = None, mediaid: Optional[str] = None,
-    ) -> List[Context]:
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        mtype: MediaType = None,
+        area: str | None = "title",
+        season: int | None = None,
+        sites: list[int] = None,
+        cache_local: bool = False,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+    ) -> list[Context]:
         """
         根据数据源媒体 ID 异步搜索资源，精确匹配，不过滤本地存在的资源
         :param tmdbid: TMDB ID
@@ -852,40 +843,40 @@ class SearchChain(ChainBase):
         if cache_local:
             self.cancel_ai_recommend()
             await self.async_save_last_search_params(
-                keyword=self._build_search_keyword(
-                    source, mediaid, tmdbid, doubanid, bangumiid, anilistid
-                ),
+                keyword=self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid),
                 mtype=mtype,
                 area=area,
                 season=season,
                 sites=sites,
             )
         mediainfo = await self.async_recognize_media(
-            source=source, mediaid=mediaid, tmdbid=tmdbid, doubanid=doubanid,
-            bangumiid=bangumiid, anilistid=anilistid, mtype=mtype,
+            source=source,
+            mediaid=mediaid,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            mtype=mtype,
         )
         if not mediainfo:
             logger.error(
-                f'{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} '
-                '媒体信息识别失败！'
+                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
+                "媒体信息识别失败！"
             )
             return []
         no_exists = None
         if season is not None:
             media_source, media_id = resolve_media_identity(media=mediainfo)
-            no_exists = {
-                build_media_key(media_source, media_id): {
-                    season: NotExistMediaInfo(episodes=[])
-                }
-            }
+            no_exists = {build_media_key(media_source, media_id): {season: NotExistMediaInfo(episodes=[])}}
         results = await self.async_process(mediainfo=mediainfo, sites=sites, area=area, no_exists=no_exists)
         # 保存到本地文件
         if cache_local:
             await self.async_save_cache(results, self.__result_temp_file)
         return results
 
-    async def async_search_by_title(self, title: str, page: Optional[int] = 0,
-                                    sites: List[int] = None, cache_local: Optional[bool] = False) -> List[Context]:
+    async def async_search_by_title(
+        self, title: str, page: int | None = 0, sites: list[int] = None, cache_local: bool | None = False
+    ) -> list[Context]:
         """
         根据标题异步搜索资源，不识别媒体信息，按默认搜索过滤规则返回站点内容
         :param title: 标题，为空时返回所有站点首页内容
@@ -901,17 +892,17 @@ class SearchChain(ChainBase):
                 sites=sites,
             )
         if title:
-            logger.info(f'开始搜索资源，关键词：{title} ...')
+            logger.info(f"开始搜索资源，关键词：{title} ...")
         else:
-            logger.info(f'开始浏览资源，站点：{sites} ...')
+            logger.info(f"开始浏览资源，站点：{sites} ...")
         # 搜索
         torrents = await self.__async_search_all_sites(keyword=title, sites=sites, page=page) or []
         if not torrents:
-            logger.warn(f'{title} 未搜索到资源')
+            logger.warn(f"{title} 未搜索到资源")
             return []
         torrents = await run_in_threadpool(self.__filter_title_search_torrents, torrents=torrents)
         if not torrents:
-            logger.warn(f'{title} 没有符合过滤规则的资源')
+            logger.warn(f"{title} 没有符合过滤规则的资源")
             return []
         # 组装上下文
         contexts = [
@@ -919,16 +910,17 @@ class SearchChain(ChainBase):
                 meta_info=MetaInfo(title=torrent.title, subtitle=torrent.description),
                 torrent_info=torrent,
                 resource_source="search",
-            ) for torrent in torrents
+            )
+            for torrent in torrents
         ]
         # 保存到本地文件
         if cache_local:
             await self.async_save_cache(contexts, self.__result_temp_file)
         return contexts
 
-    async def async_search_by_title_stream(self, title: str, page: Optional[int] = 0,
-                                           sites: List[int] = None,
-                                           cache_local: Optional[bool] = False) -> AsyncIterator[dict]:
+    async def async_search_by_title_stream(
+        self, title: str, page: int | None = 0, sites: list[int] = None, cache_local: bool | None = False
+    ) -> AsyncIterator[dict]:
         """
         根据标题渐进式搜索资源，不识别媒体信息，按默认搜索过滤规则返回结果
         """
@@ -940,12 +932,12 @@ class SearchChain(ChainBase):
                 sites=sites,
             )
         if title:
-            logger.info(f'开始渐进式搜索资源，关键词：{title} ...')
+            logger.info(f"开始渐进式搜索资源，关键词：{title} ...")
         else:
-            logger.info(f'开始渐进式浏览资源，站点：{sites} ...')
+            logger.info(f"开始渐进式浏览资源，站点：{sites} ...")
 
-        contexts: List[Context] = []
-        rule_groups: List[str] = SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups) or []
+        contexts: list[Context] = []
+        rule_groups: list[str] = SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups) or []
         async for event in self.__async_search_all_sites_stream(keyword=title, sites=sites, page=page):
             result = event.pop("items", []) or []
             result = await run_in_threadpool(
@@ -967,24 +959,24 @@ class SearchChain(ChainBase):
                 **event,
                 "type": "append",
                 "items": [context.to_dict() for context in batch_contexts],
-                "total_items": len(contexts)
+                "total_items": len(contexts),
             }
 
         if cache_local:
             await self.async_save_cache(contexts, self.__result_temp_file)
 
         if not contexts:
-            logger.warn(f'{title} 未搜索到资源')
+            logger.warn(f"{title} 未搜索到资源")
         yield {
             "type": "done",
             "text": f"搜索完成，共 {len(contexts)} 个资源",
             "items": [context.to_dict() for context in contexts],
-            "total_items": len(contexts)
+            "total_items": len(contexts),
         }
 
-    def __filter_title_search_torrents(self,
-                                       torrents: List[TorrentInfo],
-                                       rule_groups: Optional[List[str]] = None) -> List[TorrentInfo]:
+    def __filter_title_search_torrents(
+        self, torrents: list[TorrentInfo], rule_groups: list[str] | None = None
+    ) -> list[TorrentInfo]:
         """
         对标题搜索结果应用默认搜索过滤规则，不执行媒体识别和标题精确匹配。
         """
@@ -996,22 +988,31 @@ class SearchChain(ChainBase):
         if not rule_groups:
             return torrents
 
-        logger.info(f'开始过滤标题搜索结果，使用规则组：{rule_groups} ...')
-        filtered_torrents = self.filter_torrents(
-            rule_groups=rule_groups,
-            torrent_list=torrents,
-            mediainfo=None,
-        ) or []
-        logger.info(f'标题搜索过滤完成，剩余 {len(filtered_torrents)} 个资源')
+        logger.info(f"开始过滤标题搜索结果，使用规则组：{rule_groups} ...")
+        filtered_torrents = (
+            self.filter_torrents(
+                rule_groups=rule_groups,
+                torrent_list=torrents,
+                mediainfo=None,
+            )
+            or []
+        )
+        logger.info(f"标题搜索过滤完成，剩余 {len(filtered_torrents)} 个资源")
         return filtered_torrents
 
     async def async_search_by_id_stream(
-            self, tmdbid: Optional[int] = None, doubanid: Optional[str] = None,
-            mtype: MediaType = None, area: Optional[str] = "title",
-            season: Optional[int] = None, sites: List[int] = None,
-            cache_local: bool = False,
-            bangumiid: Optional[int] = None, anilistid: Optional[int] = None,
-            source: Optional[str] = None, mediaid: Optional[str] = None,
+        self,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        mtype: MediaType = None,
+        area: str | None = "title",
+        season: int | None = None,
+        sites: list[int] = None,
+        cache_local: bool = False,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
     ) -> AsyncIterator[dict]:
         """
         根据数据源媒体 ID 渐进式搜索资源，先返回站点原始候选，再返回过滤匹配后的最终结果
@@ -1019,58 +1020,48 @@ class SearchChain(ChainBase):
         if cache_local:
             self.cancel_ai_recommend()
             await self.async_save_last_search_params(
-                keyword=self._build_search_keyword(
-                    source, mediaid, tmdbid, doubanid, bangumiid, anilistid
-                ),
+                keyword=self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid),
                 mtype=mtype,
                 area=area,
                 season=season,
                 sites=sites,
             )
         mediainfo = await self.async_recognize_media(
-            source=source, mediaid=mediaid, tmdbid=tmdbid, doubanid=doubanid,
-            bangumiid=bangumiid, anilistid=anilistid, mtype=mtype,
+            source=source,
+            mediaid=mediaid,
+            tmdbid=tmdbid,
+            doubanid=doubanid,
+            bangumiid=bangumiid,
+            anilistid=anilistid,
+            mtype=mtype,
         )
         if not mediainfo:
             logger.error(
-                f'{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} '
-                '媒体信息识别失败！'
+                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
+                "媒体信息识别失败！"
             )
-            yield {
-                "type": "error",
-                "success": False,
-                "message": "媒体信息识别失败"
-            }
+            yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
             return
 
         no_exists = None
         if season is not None:
             media_source, media_id = resolve_media_identity(media=mediainfo)
-            no_exists = {
-                build_media_key(media_source, media_id): {
-                    season: NotExistMediaInfo(episodes=[])
-                }
-            }
+            no_exists = {build_media_key(media_source, media_id): {season: NotExistMediaInfo(episodes=[])}}
 
-        contexts: List[Context] = []
+        contexts: list[Context] = []
         async for event in self.async_process_stream(mediainfo=mediainfo, sites=sites, area=area, no_exists=no_exists):
             if event.get("type") == "done":
                 contexts = event.get("contexts") or []
-                event = {
-                    key: value
-                    for key, value in event.items()
-                    if key != "contexts"
-                }
+                event = {key: value for key, value in event.items() if key != "contexts"}
             yield event
 
         if cache_local:
             await self.async_save_cache(contexts, self.__result_temp_file)
 
     @staticmethod
-    def __prepare_params(mediainfo: MediaInfo,
-                         keyword: Optional[str] = None,
-                         no_exists: Dict[int, Dict[int, NotExistMediaInfo]] = None
-                         ) -> Tuple[Dict[int, List[int]], List[str]]:
+    def __prepare_params(
+        mediainfo: MediaInfo, keyword: str | None = None, no_exists: dict[int, dict[int, NotExistMediaInfo]] = None
+    ) -> tuple[dict[int, list[int]], list[str]]:
         """
         准备搜索参数
         """
@@ -1079,8 +1070,7 @@ class SearchChain(ChainBase):
         mediakey = build_media_key(media_source, media_id)
         if no_exists and no_exists.get(mediakey):
             # 过滤剧集
-            season_episodes = {sea: info.episodes
-                               for sea, info in no_exists[mediakey].items()}
+            season_episodes = {sea: info.episodes for sea, info in no_exists[mediakey].items()}
         elif mediainfo.season is not None:
             # 豆瓣只搜索当前季
             season_episodes = {mediainfo.season: []}
@@ -1092,38 +1082,49 @@ class SearchChain(ChainBase):
             keywords = [keyword]
         else:
             # 去重去空，但要保持顺序
-            keywords = list(dict.fromkeys([k for k in [mediainfo.title,
-                                                       mediainfo.original_title,
-                                                       mediainfo.en_title,
-                                                       mediainfo.hk_title,
-                                                       mediainfo.tw_title,
-                                                       mediainfo.sg_title] if k]))
+            keywords = list(
+                dict.fromkeys(
+                    [
+                        k
+                        for k in [
+                            mediainfo.title,
+                            mediainfo.original_title,
+                            mediainfo.en_title,
+                            mediainfo.hk_title,
+                            mediainfo.tw_title,
+                            mediainfo.sg_title,
+                        ]
+                        if k
+                    ]
+                )
+            )
             # 限制搜索关键词数量
             if settings.MAX_SEARCH_NAME_LIMIT:
-                keywords = keywords[:settings.MAX_SEARCH_NAME_LIMIT]
+                keywords = keywords[: settings.MAX_SEARCH_NAME_LIMIT]
 
         return season_episodes, keywords
 
-    def __parse_result(self, torrents: List[TorrentInfo],
-                       mediainfo: MediaInfo,
-                       keyword: Optional[str] = None,
-                       rule_groups: List[str] = None,
-                       season_episodes: Dict[int, List[int]] = None,
-                       custom_words: List[str] = None,
-                       filter_params: Dict[str, str] = None) -> List[Context]:
+    def __parse_result(
+        self,
+        torrents: list[TorrentInfo],
+        mediainfo: MediaInfo,
+        keyword: str | None = None,
+        rule_groups: list[str] = None,
+        season_episodes: dict[int, list[int]] = None,
+        custom_words: list[str] = None,
+        filter_params: dict[str, str] = None,
+    ) -> list[Context]:
         """
         处理搜索结果
         """
 
-        def __do_filter(torrent_list: List[TorrentInfo]) -> List[TorrentInfo]:
+        def __do_filter(torrent_list: list[TorrentInfo]) -> list[TorrentInfo]:
             """
             执行优先级过滤
             """
-            return self.filter_torrents(rule_groups=rule_groups,
-                                        torrent_list=torrent_list,
-                                        mediainfo=mediainfo) or []
+            return self.filter_torrents(rule_groups=rule_groups, torrent_list=torrent_list, mediainfo=mediainfo) or []
 
-        def __do_site_filter(torrent_list: List[TorrentInfo]) -> List[TorrentInfo]:
+        def __do_site_filter(torrent_list: list[TorrentInfo]) -> list[TorrentInfo]:
             """
             执行单个站点的过滤流程
             """
@@ -1133,24 +1134,21 @@ class SearchChain(ChainBase):
             filtered_torrents = torrent_list
             if filter_params:
                 handler = TorrentHelper()
-                filtered_torrents = [
-                    t for t in filtered_torrents
-                    if handler.filter_torrent(t, filter_params)
-                ]
+                filtered_torrents = [t for t in filtered_torrents if handler.filter_torrent(t, filter_params)]
 
             if rule_groups and filtered_torrents:
                 filtered_torrents = __do_filter(filtered_torrents)
 
             return filtered_torrents
 
-        def __do_parallel_filter(torrent_list: List[TorrentInfo]) -> List[TorrentInfo]:
+        def __do_parallel_filter(torrent_list: list[TorrentInfo]) -> list[TorrentInfo]:
             """
             按站点并发执行过滤，保持站点内顺序不变
             """
             if not torrent_list or (not filter_params and not rule_groups):
                 return torrent_list
 
-            site_torrents: Dict[Tuple[Optional[int], Optional[str]], List[TorrentInfo]] = {}
+            site_torrents: dict[tuple[int | None, str | None], list[TorrentInfo]] = {}
             for t in torrent_list:
                 site_key = (t.site, t.site_name)
                 if site_key not in site_torrents:
@@ -1161,7 +1159,7 @@ class SearchChain(ChainBase):
                 return __do_site_filter(torrent_list)
 
             finished_count = 0
-            filtered_by_site: Dict[Tuple[Optional[int], Optional[str]], List[TorrentInfo]] = {}
+            filtered_by_site: dict[tuple[int | None, str | None], list[TorrentInfo]] = {}
             max_workers = min(len(site_torrents), settings.CONF.threadpool or len(site_torrents))
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 all_tasks = {
@@ -1173,18 +1171,14 @@ class SearchChain(ChainBase):
                     filtered_by_site[all_tasks[future]] = future.result() or []
                     progress.update(
                         value=finished_count / len(site_torrents) * 50,
-                        text=f'正在过滤，已完成 {finished_count} / {len(site_torrents)} 个站点 ...'
+                        text=f"正在过滤，已完成 {finished_count} / {len(site_torrents)} 个站点 ...",
                     )
 
-            filtered_ids = {
-                id(t)
-                for filtered_torrents in filtered_by_site.values()
-                for t in filtered_torrents
-            }
+            filtered_ids = {id(t) for filtered_torrents in filtered_by_site.values() for t in filtered_torrents}
             return [t for t in torrent_list if id(t) in filtered_ids]
 
         if not torrents:
-            logger.warn(f'{keyword or mediainfo.title} 未搜索到资源')
+            logger.warn(f"{keyword or mediainfo.title} 未搜索到资源")
             return []
 
         # 开始新进度
@@ -1192,25 +1186,25 @@ class SearchChain(ChainBase):
         progress.start()
 
         # 开始过滤
-        progress.update(value=0, text=f'开始过滤，总 {len(torrents)} 个资源，请稍候...')
+        progress.update(value=0, text=f"开始过滤，总 {len(torrents)} 个资源，请稍候...")
         # 匹配订阅附加参数
         if filter_params:
-            logger.info(f'开始附加参数过滤，附加参数：{filter_params} ...')
+            logger.info(f"开始附加参数过滤，附加参数：{filter_params} ...")
         # 开始过滤规则过滤
         if rule_groups is None:
             # 取搜索过滤规则
-            rule_groups: List[str] = SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups)
+            rule_groups: list[str] = SystemConfigOper().get(SystemConfigKey.SearchFilterRuleGroups)
         if rule_groups:
-            logger.info(f'开始过滤规则/剧集过滤，使用规则组：{rule_groups} ...')
+            logger.info(f"开始过滤规则/剧集过滤，使用规则组：{rule_groups} ...")
         torrents = __do_parallel_filter(torrents)
         if rule_groups:
             if not torrents:
-                logger.warn(f'{keyword or mediainfo.title} 没有符合过滤规则的资源')
+                logger.warn(f"{keyword or mediainfo.title} 没有符合过滤规则的资源")
                 return []
             logger.info(f"过滤规则/剧集过滤完成，剩余 {len(torrents)} 个资源")
 
         # 过滤完成
-        progress.update(value=50, text=f'过滤完成，剩余 {len(torrents)} 个资源')
+        progress.update(value=50, text=f"过滤完成，剩余 {len(torrents)} 个资源")
 
         # 总数
         _total = len(torrents)
@@ -1221,47 +1215,43 @@ class SearchChain(ChainBase):
         _match_torrents = []
         try:
             # 英文标题应该在别名/原标题中，不需要再匹配
-            logger.info(f"开始匹配结果 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}")
-            progress.update(value=51, text=f'开始匹配，总 {_total} 个资源 ...')
+            logger.info(
+                f"开始匹配结果 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}"
+            )
+            progress.update(value=51, text=f"开始匹配，总 {_total} 个资源 ...")
             for torrent in torrents:
                 if global_vars.is_system_stopped:
                     break
                 _count += 1
-                progress.update(value=(_count / _total) * 96,
-                                text=f'正在匹配 {torrent.site_name}，已完成 {_count} / {_total} ...')
+                progress.update(
+                    value=(_count / _total) * 96, text=f"正在匹配 {torrent.site_name}，已完成 {_count} / {_total} ..."
+                )
                 if not torrent.title:
                     continue
 
                 # 识别元数据
-                torrent_meta = MetaInfo(title=torrent.title, subtitle=torrent.description,
-                                        custom_words=custom_words)
+                torrent_meta = MetaInfo(title=torrent.title, subtitle=torrent.description, custom_words=custom_words)
                 if torrent.title != torrent_meta.org_string:
                     logger.info(f"种子名称应用识别词后发生改变：{torrent.title} => {torrent_meta.org_string}")
                 # 季集数过滤
-                if season_episodes \
-                        and not TorrentHelper.match_season_episodes(torrent=torrent,
-                                                                    meta=torrent_meta,
-                                                                    season_episodes=season_episodes):
+                if season_episodes and not TorrentHelper.match_season_episodes(
+                    torrent=torrent, meta=torrent_meta, season_episodes=season_episodes
+                ):
                     continue
                 # 比对IMDBID
-                if torrent.imdbid \
-                        and mediainfo.imdb_id \
-                        and torrent.imdbid == mediainfo.imdb_id:
-                    logger.info(f'{mediainfo.title} 通过IMDBID匹配到资源：{torrent.site_name} - {torrent.title}')
+                if torrent.imdbid and mediainfo.imdb_id and torrent.imdbid == mediainfo.imdb_id:
+                    logger.info(f"{mediainfo.title} 通过IMDBID匹配到资源：{torrent.site_name} - {torrent.title}")
                     _match_torrents.append((torrent, torrent_meta, "imdbid"))
                     continue
 
                 # 比对种子
-                if TorrentHelper.match_torrent(mediainfo=mediainfo,
-                                               torrent_meta=torrent_meta,
-                                               torrent=torrent):
+                if TorrentHelper.match_torrent(mediainfo=mediainfo, torrent_meta=torrent_meta, torrent=torrent):
                     # 匹配成功
                     _match_torrents.append((torrent, torrent_meta, "title"))
                     continue
             # 匹配完成
             logger.info(f"匹配完成，共匹配到 {len(_match_torrents)} 个资源")
-            progress.update(value=97,
-                            text=f'匹配完成，共匹配到 {len(_match_torrents)} 个资源')
+            progress.update(value=97, text=f"匹配完成，共匹配到 {len(_match_torrents)} 个资源")
 
             # 去掉mediainfo中多余的数据
             mediainfo.clear()
@@ -1275,7 +1265,8 @@ class SearchChain(ChainBase):
                     match_source=t[2],
                     candidate_recognized=False,
                     media_info_is_target=True,
-                ) for t in _match_torrents
+                )
+                for t in _match_torrents
             ]
         finally:
             torrents.clear()
@@ -1284,37 +1275,41 @@ class SearchChain(ChainBase):
             del _match_torrents
 
         # 排序
-        progress.update(value=99,
-                        text=f'正在对 {len(contexts)} 个资源进行排序，请稍候...')
+        progress.update(value=99, text=f"正在对 {len(contexts)} 个资源进行排序，请稍候...")
         contexts = TorrentHelper.sort_torrents(contexts)
 
         # 结束进度
-        logger.info(f'搜索完成，共 {len(contexts)} 个资源')
-        progress.update(value=100,
-                        text=f'搜索完成，共 {len(contexts)} 个资源')
+        logger.info(f"搜索完成，共 {len(contexts)} 个资源")
+        progress.update(value=100, text=f"搜索完成，共 {len(contexts)} 个资源")
         progress.end()
 
         # 去重后返回
         return self.__remove_duplicate(contexts)
 
     @staticmethod
-    def __remove_duplicate(_torrents: List[Context]) -> List[Context]:
+    def __remove_duplicate(_torrents: list[Context]) -> list[Context]:
         """
         去除重复的种子
         :param _torrents: 种子列表
         :return: 去重后的种子列表
         """
-        return list({f"{t.torrent_info.site_name}_{t.torrent_info.title}_{t.torrent_info.description}": t
-                     for t in _torrents}.values())
+        return list(
+            {
+                f"{t.torrent_info.site_name}_{t.torrent_info.title}_{t.torrent_info.description}": t for t in _torrents
+            }.values()
+        )
 
-    def process(self, mediainfo: MediaInfo,
-                keyword: Optional[str] = None,
-                no_exists: Dict[int, Dict[int, NotExistMediaInfo]] = None,
-                sites: List[int] = None,
-                rule_groups: List[str] = None,
-                area: Optional[str] = "title",
-                custom_words: List[str] = None,
-                filter_params: Dict[str, str] = None) -> List[Context]:
+    def process(
+        self,
+        mediainfo: MediaInfo,
+        keyword: str | None = None,
+        no_exists: dict[int, dict[int, NotExistMediaInfo]] = None,
+        sites: list[int] = None,
+        rule_groups: list[str] = None,
+        area: str | None = "title",
+        custom_words: list[str] = None,
+        filter_params: dict[str, str] = None,
+    ) -> list[Context]:
         """
         根据媒体信息搜索种子资源，精确匹配，应用过滤规则，同时根据no_exists过滤本地已存在的资源
         :param mediainfo: 媒体信息
@@ -1332,7 +1327,7 @@ class SearchChain(ChainBase):
             meta = MetaInfo(title=mediainfo.title)
             mediainfo.title = meta.name
             mediainfo.season = meta.begin_season
-        logger.info(f'开始搜索资源，关键词：{keyword or mediainfo.title} ...')
+        logger.info(f"开始搜索资源，关键词：{keyword or mediainfo.title} ...")
 
         # 补充媒体信息
         if not mediainfo.names:
@@ -1341,18 +1336,14 @@ class SearchChain(ChainBase):
                 **self._media_recognize_kwargs(mediainfo),
             )
             if not mediainfo:
-                logger.error(f'媒体信息识别失败！')
+                logger.error("媒体信息识别失败！")
                 return []
 
         # 准备搜索参数
-        season_episodes, keywords = self.__prepare_params(
-            mediainfo=mediainfo,
-            keyword=keyword,
-            no_exists=no_exists
-        )
+        season_episodes, keywords = self.__prepare_params(mediainfo=mediainfo, keyword=keyword, no_exists=no_exists)
 
         # 站点搜索结果
-        torrents: List[TorrentInfo] = []
+        torrents: list[TorrentInfo] = []
         # 站点搜索次数
         search_count = 0
 
@@ -1364,12 +1355,7 @@ class SearchChain(ChainBase):
                 time.sleep(random.randint(1, 10))
 
             # 搜索站点
-            results = self.__search_all_sites(
-                mediainfo=mediainfo,
-                keyword=search_word,
-                sites=sites,
-                area=area
-            ) or []
+            results = self.__search_all_sites(mediainfo=mediainfo, keyword=search_word, sites=sites, area=area) or []
             # 合并结果
 
             search_count += 1
@@ -1388,17 +1374,20 @@ class SearchChain(ChainBase):
             rule_groups=rule_groups,
             season_episodes=season_episodes,
             custom_words=custom_words,
-            filter_params=filter_params
+            filter_params=filter_params,
         )
 
-    async def async_process(self, mediainfo: MediaInfo,
-                            keyword: Optional[str] = None,
-                            no_exists: Dict[int, Dict[int, NotExistMediaInfo]] = None,
-                            sites: List[int] = None,
-                            rule_groups: List[str] = None,
-                            area: Optional[str] = "title",
-                            custom_words: List[str] = None,
-                            filter_params: Dict[str, str] = None) -> List[Context]:
+    async def async_process(
+        self,
+        mediainfo: MediaInfo,
+        keyword: str | None = None,
+        no_exists: dict[int, dict[int, NotExistMediaInfo]] = None,
+        sites: list[int] = None,
+        rule_groups: list[str] = None,
+        area: str | None = "title",
+        custom_words: list[str] = None,
+        filter_params: dict[str, str] = None,
+    ) -> list[Context]:
         """
         根据媒体信息异步搜索种子资源，精确匹配，应用过滤规则，同时根据no_exists过滤本地已存在的资源
         :param mediainfo: 媒体信息
@@ -1416,7 +1405,7 @@ class SearchChain(ChainBase):
             meta = MetaInfo(title=mediainfo.title)
             mediainfo.title = meta.name
             mediainfo.season = meta.begin_season
-        logger.info(f'开始搜索资源，关键词：{keyword or mediainfo.title} ...')
+        logger.info(f"开始搜索资源，关键词：{keyword or mediainfo.title} ...")
 
         # 补充媒体信息
         if not mediainfo.names:
@@ -1425,18 +1414,14 @@ class SearchChain(ChainBase):
                 **self._media_recognize_kwargs(mediainfo),
             )
             if not mediainfo:
-                logger.error(f'媒体信息识别失败！')
+                logger.error("媒体信息识别失败！")
                 return []
 
         # 准备搜索参数
-        season_episodes, keywords = self.__prepare_params(
-            mediainfo=mediainfo,
-            keyword=keyword,
-            no_exists=no_exists
-        )
+        season_episodes, keywords = self.__prepare_params(mediainfo=mediainfo, keyword=keyword, no_exists=no_exists)
 
         # 站点搜索结果
-        torrents: List[TorrentInfo] = []
+        torrents: list[TorrentInfo] = []
         # 站点搜索次数
         search_count = 0
 
@@ -1448,12 +1433,8 @@ class SearchChain(ChainBase):
                 await asyncio.sleep(random.randint(1, 10))
             # 搜索站点
             torrents.extend(
-                await self.__async_search_all_sites(
-                    mediainfo=mediainfo,
-                    keyword=search_word,
-                    sites=sites,
-                    area=area
-                ) or []
+                await self.__async_search_all_sites(mediainfo=mediainfo, keyword=search_word, sites=sites, area=area)
+                or []
             )
             search_count += 1
             # 未开启多名称搜索时，有结果则停止
@@ -1462,24 +1443,28 @@ class SearchChain(ChainBase):
                 break
 
         # 处理结果
-        return await run_in_threadpool(self.__parse_result,
-                                       torrents=torrents,
-                                       mediainfo=mediainfo,
-                                       keyword=keyword,
-                                       rule_groups=rule_groups,
-                                       season_episodes=season_episodes,
-                                       custom_words=custom_words,
-                                       filter_params=filter_params
-                                       )
+        return await run_in_threadpool(
+            self.__parse_result,
+            torrents=torrents,
+            mediainfo=mediainfo,
+            keyword=keyword,
+            rule_groups=rule_groups,
+            season_episodes=season_episodes,
+            custom_words=custom_words,
+            filter_params=filter_params,
+        )
 
-    async def async_process_stream(self, mediainfo: MediaInfo,
-                                   keyword: Optional[str] = None,
-                                   no_exists: Dict[int, Dict[int, NotExistMediaInfo]] = None,
-                                   sites: List[int] = None,
-                                   rule_groups: List[str] = None,
-                                   area: Optional[str] = "title",
-                                   custom_words: List[str] = None,
-                                   filter_params: Dict[str, str] = None) -> AsyncIterator[dict]:
+    async def async_process_stream(
+        self,
+        mediainfo: MediaInfo,
+        keyword: str | None = None,
+        no_exists: dict[int, dict[int, NotExistMediaInfo]] = None,
+        sites: list[int] = None,
+        rule_groups: list[str] = None,
+        area: str | None = "title",
+        custom_words: list[str] = None,
+        filter_params: dict[str, str] = None,
+    ) -> AsyncIterator[dict]:
         """
         根据媒体信息渐进式搜索种子资源，先返回站点候选，再返回过滤匹配后的最终结果
         """
@@ -1489,7 +1474,7 @@ class SearchChain(ChainBase):
             meta = MetaInfo(title=mediainfo.title)
             mediainfo.title = meta.name
             mediainfo.season = meta.begin_season
-        logger.info(f'开始渐进式搜索资源，关键词：{keyword or mediainfo.title} ...')
+        logger.info(f"开始渐进式搜索资源，关键词：{keyword or mediainfo.title} ...")
 
         # 补充媒体信息
         if not mediainfo.names:
@@ -1498,23 +1483,15 @@ class SearchChain(ChainBase):
                 **self._media_recognize_kwargs(mediainfo),
             )
             if not mediainfo:
-                logger.error(f'媒体信息识别失败！')
-                yield {
-                    "type": "error",
-                    "success": False,
-                    "message": "媒体信息识别失败"
-                }
+                logger.error("媒体信息识别失败！")
+                yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
                 return
 
         # 准备搜索参数
-        season_episodes, keywords = self.__prepare_params(
-            mediainfo=mediainfo,
-            keyword=keyword,
-            no_exists=no_exists
-        )
+        season_episodes, keywords = self.__prepare_params(mediainfo=mediainfo, keyword=keyword, no_exists=no_exists)
 
-        torrents: List[TorrentInfo] = []
-        candidate_contexts: List[Context] = []
+        torrents: list[TorrentInfo] = []
+        candidate_contexts: list[Context] = []
         search_count = 0
 
         for search_word in keywords:
@@ -1523,10 +1500,8 @@ class SearchChain(ChainBase):
                 await asyncio.sleep(random.randint(1, 10))
 
             async for event in self.__async_search_all_sites_stream(
-                    mediainfo=mediainfo,
-                    keyword=search_word,
-                    sites=sites,
-                    area=area):
+                mediainfo=mediainfo, keyword=search_word, sites=sites, area=area
+            ):
                 result = event.pop("items", []) or []
                 torrents.extend(result)
                 batch_contexts = [
@@ -1545,7 +1520,7 @@ class SearchChain(ChainBase):
                     "type": "append",
                     "stage": "searching",
                     "items": [context.to_dict() for context in batch_contexts],
-                    "total_items": len(candidate_contexts)
+                    "total_items": len(candidate_contexts),
                 }
 
             search_count += 1
@@ -1557,17 +1532,19 @@ class SearchChain(ChainBase):
             "type": "progress",
             "stage": "filtering",
             "value": 98,
-            "text": f"正在过滤匹配 {len(torrents)} 个候选资源 ..."
+            "text": f"正在过滤匹配 {len(torrents)} 个候选资源 ...",
         }
 
-        contexts = await run_in_threadpool(self.__parse_result,
-                                           torrents=torrents,
-                                           mediainfo=mediainfo,
-                                           keyword=keyword,
-                                           rule_groups=rule_groups,
-                                           season_episodes=season_episodes,
-                                           custom_words=custom_words,
-                                           filter_params=filter_params)
+        contexts = await run_in_threadpool(
+            self.__parse_result,
+            torrents=torrents,
+            mediainfo=mediainfo,
+            keyword=keyword,
+            rule_groups=rule_groups,
+            season_episodes=season_episodes,
+            custom_words=custom_words,
+            filter_params=filter_params,
+        )
         final_items = [context.to_dict() for context in contexts]
         yield {
             "type": "replace",
@@ -1575,7 +1552,7 @@ class SearchChain(ChainBase):
             "value": 100,
             "text": f"过滤匹配完成，共 {len(contexts)} 个资源",
             "items": final_items,
-            "total_items": len(contexts)
+            "total_items": len(contexts),
         }
         yield {
             "type": "done",
@@ -1583,13 +1560,13 @@ class SearchChain(ChainBase):
             "text": f"搜索完成，共 {len(contexts)} 个资源",
             "items": final_items,
             "total_items": len(contexts),
-            "contexts": contexts
+            "contexts": contexts,
         }
 
     @staticmethod
-    def __build_subtitle_season_episodes(mediainfo: MediaInfo,
-                                          season: Optional[int] = None,
-                                          episode: Optional[int] = None) -> Optional[Dict[int, List[int]]]:
+    def __build_subtitle_season_episodes(
+        mediainfo: MediaInfo, season: int | None = None, episode: int | None = None
+    ) -> dict[int, list[int]] | None:
         """
         构造字幕匹配用季集约束，未指定集数时只约束到同一季。
         """
@@ -1601,7 +1578,7 @@ class SearchChain(ChainBase):
         return {media_season: [episode] if episode is not None else []}
 
     @staticmethod
-    def __build_subtitle_torrent(subtitle: SubtitleInfo, title: Optional[str] = None) -> TorrentInfo:
+    def __build_subtitle_torrent(subtitle: SubtitleInfo, title: str | None = None) -> TorrentInfo:
         """
         将字幕结果转换为轻量资源对象，复用既有标题匹配逻辑。
         """
@@ -1623,20 +1600,20 @@ class SearchChain(ChainBase):
         )
 
     @staticmethod
-    def __build_subtitle_names(subtitle: SubtitleInfo) -> List[str]:
+    def __build_subtitle_names(subtitle: SubtitleInfo) -> list[str]:
         """
         提取字幕标题、下载文件名和描述，作为精确匹配的名称候选。
         """
-        return list(dict.fromkeys(
-            name.strip()
-            for name in (subtitle.title, subtitle.file_name, subtitle.description)
-            if name and name.strip()
-        ))
+        return list(
+            dict.fromkeys(
+                name.strip()
+                for name in (subtitle.title, subtitle.file_name, subtitle.description)
+                if name and name.strip()
+            )
+        )
 
     @staticmethod
-    def __build_subtitle_meta(title: str,
-                              subtitle: SubtitleInfo,
-                              custom_words: Optional[List[str]] = None) -> MetaInfo:
+    def __build_subtitle_meta(title: str, subtitle: SubtitleInfo, custom_words: list[str] | None = None) -> MetaInfo:
         """
         识别字幕名称。
         """
@@ -1647,9 +1624,9 @@ class SearchChain(ChainBase):
         )
 
     @staticmethod
-    def __match_subtitle_episode(meta: MetaInfo,
-                                 season_episodes: Optional[Dict[int, List[int]]],
-                                 episode: Optional[int] = None) -> bool:
+    def __match_subtitle_episode(
+        meta: MetaInfo, season_episodes: dict[int, list[int]] | None, episode: int | None = None
+    ) -> bool:
         """
         判断字幕识别出的季集是否落在目标媒体季集内。
         """
@@ -1657,30 +1634,33 @@ class SearchChain(ChainBase):
             return True
         subtitle_torrent = TorrentInfo(title=meta.org_string)
         if not TorrentHelper.match_season_episodes(
-                torrent=subtitle_torrent,
-                meta=meta,
-                season_episodes=season_episodes):
+            torrent=subtitle_torrent, meta=meta, season_episodes=season_episodes
+        ):
             return False
         if episode is not None:
             return bool(meta.episode_list) and episode in meta.episode_list
         return True
 
-    def __parse_subtitle_result(self,
-                                subtitles: List[SubtitleInfo],
-                                mediainfo: MediaInfo,
-                                keyword: Optional[str] = None,
-                                season_episodes: Optional[Dict[int, List[int]]] = None,
-                                episode: Optional[int] = None,
-                                custom_words: Optional[List[str]] = None) -> List[SubtitleInfo]:
+    def __parse_subtitle_result(
+        self,
+        subtitles: list[SubtitleInfo],
+        mediainfo: MediaInfo,
+        keyword: str | None = None,
+        season_episodes: dict[int, list[int]] | None = None,
+        episode: int | None = None,
+        custom_words: list[str] | None = None,
+    ) -> list[SubtitleInfo]:
         """
         识别并精确匹配字幕搜索结果，不使用任何过滤规则。
         """
         if not subtitles:
-            logger.warn(f'{keyword or mediainfo.title} 未搜索到字幕')
+            logger.warn(f"{keyword or mediainfo.title} 未搜索到字幕")
             return []
 
         match_subtitles = []
-        logger.info(f"开始匹配字幕 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}")
+        logger.info(
+            f"开始匹配字幕 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}"
+        )
         for subtitle in subtitles:
             if global_vars.is_system_stopped:
                 break
@@ -1695,9 +1675,8 @@ class SearchChain(ChainBase):
                     custom_words=custom_words,
                 )
                 if not self.__match_subtitle_episode(
-                        meta=subtitle_meta,
-                        season_episodes=season_episodes,
-                        episode=episode):
+                    meta=subtitle_meta, season_episodes=season_episodes, episode=episode
+                ):
                     continue
 
                 subtitle_torrent = self.__build_subtitle_torrent(
@@ -1705,9 +1684,8 @@ class SearchChain(ChainBase):
                     title=subtitle_name,
                 )
                 if TorrentHelper.match_torrent(
-                        mediainfo=mediainfo,
-                        torrent_meta=subtitle_meta,
-                        torrent=subtitle_torrent):
+                    mediainfo=mediainfo, torrent_meta=subtitle_meta, torrent=subtitle_torrent
+                ):
                     match_subtitles.append(subtitle)
                     break
 
@@ -1715,27 +1693,31 @@ class SearchChain(ChainBase):
         return self.__remove_duplicate_subtitles(match_subtitles)
 
     @staticmethod
-    def __remove_duplicate_subtitles(subtitles: List[SubtitleInfo]) -> List[SubtitleInfo]:
+    def __remove_duplicate_subtitles(subtitles: list[SubtitleInfo]) -> list[SubtitleInfo]:
         """
         去除重复的字幕结果。
         """
-        return list({
-            f"{subtitle.site_name}_{subtitle.torrent_id}_{subtitle.subtitle_id}_{subtitle.title}_{subtitle.enclosure}": subtitle
-            for subtitle in subtitles
-        }.values())
+        return list(
+            {
+                f"{subtitle.site_name}_{subtitle.torrent_id}_{subtitle.subtitle_id}_{subtitle.title}_{subtitle.enclosure}": subtitle
+                for subtitle in subtitles
+            }.values()
+        )
 
-    async def __async_search_subtitles_for_media(self,
-                                                 mediainfo: MediaInfo,
-                                                 tmdbid: Optional[int] = None,
-                                                 doubanid: Optional[str] = None,
-                                                 bangumiid: Optional[int] = None,
-                                                 anilistid: Optional[int] = None,
-                                                 source: Optional[str] = None,
-                                                 mediaid: Optional[str] = None,
-                                                 season: Optional[int] = None,
-                                                 episode: Optional[int] = None,
-                                                 sites: List[int] = None,
-                                                 custom_words: List[str] = None) -> List[SubtitleInfo]:
+    async def __async_search_subtitles_for_media(
+        self,
+        mediainfo: MediaInfo,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] = None,
+        custom_words: list[str] = None,
+    ) -> list[SubtitleInfo]:
         """
         根据媒体信息搜索并精确匹配字幕结果。
         """
@@ -1743,7 +1725,7 @@ class SearchChain(ChainBase):
             meta = MetaInfo(title=mediainfo.title)
             mediainfo.title = meta.name
             mediainfo.season = meta.begin_season
-        logger.info(f'开始精确搜索字幕，关键词：{mediainfo.title} ...')
+        logger.info(f"开始精确搜索字幕，关键词：{mediainfo.title} ...")
 
         if not mediainfo.names:
             mediainfo = await self.async_recognize_media(
@@ -1751,15 +1733,19 @@ class SearchChain(ChainBase):
                 **self._media_recognize_kwargs(mediainfo),
             )
             if not mediainfo:
-                logger.error('媒体信息识别失败！')
+                logger.error("媒体信息识别失败！")
                 return []
 
         no_exists = None
         if season is not None:
             media_source, media_id = resolve_media_identity(
-                media=mediainfo, source=source, media_id=mediaid,
-                tmdbid=tmdbid, doubanid=doubanid,
-                bangumiid=bangumiid, anilistid=anilistid,
+                media=mediainfo,
+                source=source,
+                media_id=mediaid,
+                tmdbid=tmdbid,
+                doubanid=doubanid,
+                bangumiid=bangumiid,
+                anilistid=anilistid,
             )
             no_exists = {
                 build_media_key(media_source, media_id): {
@@ -1770,13 +1756,16 @@ class SearchChain(ChainBase):
             mediainfo=mediainfo,
             no_exists=no_exists,
         )
-        season_episodes = self.__build_subtitle_season_episodes(
-            mediainfo=mediainfo,
-            season=season,
-            episode=episode,
-        ) or season_episodes
+        season_episodes = (
+            self.__build_subtitle_season_episodes(
+                mediainfo=mediainfo,
+                season=season,
+                episode=episode,
+            )
+            or season_episodes
+        )
 
-        subtitles: List[SubtitleInfo] = []
+        subtitles: list[SubtitleInfo] = []
         search_count = 0
         for search_word in keywords:
             if search_count > 0:
@@ -1786,7 +1775,8 @@ class SearchChain(ChainBase):
                 await self.__async_search_subtitles_all_sites(
                     keyword=search_word,
                     sites=sites,
-                ) or []
+                )
+                or []
             )
             search_count += 1
             if not settings.SEARCH_MULTIPLE_NAME and subtitles:
@@ -1804,19 +1794,19 @@ class SearchChain(ChainBase):
         )
 
     async def __async_search_subtitles_for_media_stream(
-            self,
-            mediainfo: MediaInfo,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-            source: Optional[str] = None,
-            mediaid: Optional[str] = None,
-            season: Optional[int] = None,
-            episode: Optional[int] = None,
-            sites: List[int] = None,
-            custom_words: List[str] = None,
-    ) -> AsyncIterator[Dict[str, Any]]:
+        self,
+        mediainfo: MediaInfo,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        source: str | None = None,
+        mediaid: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
+        sites: list[int] = None,
+        custom_words: list[str] = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         根据媒体信息渐进式搜索并精确匹配字幕结果。
         """
@@ -1824,7 +1814,7 @@ class SearchChain(ChainBase):
             meta = MetaInfo(title=mediainfo.title)
             mediainfo.title = meta.name
             mediainfo.season = meta.begin_season
-        logger.info(f'开始渐进式精确搜索字幕，关键词：{mediainfo.title} ...')
+        logger.info(f"开始渐进式精确搜索字幕，关键词：{mediainfo.title} ...")
 
         if not mediainfo.names:
             mediainfo = await self.async_recognize_media(
@@ -1832,20 +1822,20 @@ class SearchChain(ChainBase):
                 **self._media_recognize_kwargs(mediainfo),
             )
             if not mediainfo:
-                logger.error('媒体信息识别失败！')
-                yield {
-                    "type": "error",
-                    "success": False,
-                    "message": "媒体信息识别失败"
-                }
+                logger.error("媒体信息识别失败！")
+                yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
                 return
 
         no_exists = None
         if season is not None:
             media_source, media_id = resolve_media_identity(
-                media=mediainfo, source=source, media_id=mediaid,
-                tmdbid=tmdbid, doubanid=doubanid,
-                bangumiid=bangumiid, anilistid=anilistid,
+                media=mediainfo,
+                source=source,
+                media_id=mediaid,
+                tmdbid=tmdbid,
+                doubanid=doubanid,
+                bangumiid=bangumiid,
+                anilistid=anilistid,
             )
             no_exists = {
                 build_media_key(media_source, media_id): {
@@ -1856,22 +1846,23 @@ class SearchChain(ChainBase):
             mediainfo=mediainfo,
             no_exists=no_exists,
         )
-        season_episodes = self.__build_subtitle_season_episodes(
-            mediainfo=mediainfo,
-            season=season,
-            episode=episode,
-        ) or season_episodes
+        season_episodes = (
+            self.__build_subtitle_season_episodes(
+                mediainfo=mediainfo,
+                season=season,
+                episode=episode,
+            )
+            or season_episodes
+        )
 
-        subtitles: List[SubtitleInfo] = []
+        subtitles: list[SubtitleInfo] = []
         search_count = 0
         for search_word in keywords:
             if search_count > 0:
                 logger.info(f"已搜索 {search_count} 次，强制休眠 1-10 秒 ...")
                 await asyncio.sleep(random.randint(1, 10))
 
-            async for event in self.__async_search_subtitles_all_sites_stream(
-                    keyword=search_word,
-                    sites=sites):
+            async for event in self.__async_search_subtitles_all_sites_stream(keyword=search_word, sites=sites):
                 result = event.pop("items", []) or []
                 subtitles.extend(result)
                 yield {
@@ -1879,7 +1870,7 @@ class SearchChain(ChainBase):
                     "type": "append",
                     "stage": "searching",
                     "items": [subtitle.to_dict() for subtitle in result],
-                    "total_items": len(subtitles)
+                    "total_items": len(subtitles),
                 }
 
             search_count += 1
@@ -1891,7 +1882,7 @@ class SearchChain(ChainBase):
             "type": "progress",
             "stage": "filtering",
             "value": 98,
-            "text": f"正在识别匹配 {len(subtitles)} 个候选字幕 ..."
+            "text": f"正在识别匹配 {len(subtitles)} 个候选字幕 ...",
         }
 
         match_subtitles = await run_in_threadpool(
@@ -1910,7 +1901,7 @@ class SearchChain(ChainBase):
             "value": 100,
             "text": f"识别匹配完成，共 {len(match_subtitles)} 个字幕",
             "items": final_items,
-            "total_items": len(match_subtitles)
+            "total_items": len(match_subtitles),
         }
         yield {
             "type": "done",
@@ -1918,14 +1909,17 @@ class SearchChain(ChainBase):
             "text": f"搜索完成，共 {len(match_subtitles)} 个字幕",
             "items": final_items,
             "total_items": len(match_subtitles),
-            "subtitles": match_subtitles
+            "subtitles": match_subtitles,
         }
 
-    def __search_all_sites(self, keyword: str,
-                           mediainfo: Optional[MediaInfo] = None,
-                           sites: List[int] = None,
-                           page: Optional[int] = 0,
-                           area: Optional[str] = "title") -> Optional[List[TorrentInfo]]:
+    def __search_all_sites(
+        self,
+        keyword: str,
+        mediainfo: MediaInfo | None = None,
+        sites: list[int] = None,
+        page: int | None = 0,
+        area: str | None = "title",
+    ) -> list[TorrentInfo] | None:
         """
         多线程搜索多个站点
         :param mediainfo:  识别的媒体信息
@@ -1947,7 +1941,7 @@ class SearchChain(ChainBase):
             if not sites or indexer.get("id") in sites:
                 indexer_sites.append(indexer)
         if not indexer_sites:
-            logger.warn('未开启任何有效站点，无法搜索资源')
+            logger.warn("未开启任何有效站点，无法搜索资源")
             return []
 
         # 开始进度
@@ -1961,8 +1955,7 @@ class SearchChain(ChainBase):
         # 完成数
         finish_count = 0
         # 更新进度
-        progress.update(value=0,
-                        text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
+        progress.update(value=0, text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
         # 结果集
         results = []
         # 同一站点按页顺序抓取，避免空页后仍继续请求该站点的后续页。
@@ -1978,16 +1971,22 @@ class SearchChain(ChainBase):
                 search_keyword = mediainfo.imdb_id if area == "imdbid" and mediainfo else keyword
                 if area == "imdbid":
                     # 搜索IMDBID
-                    task = executor.submit(self.search_torrents, site=site,
-                                           keyword=search_keyword,
-                                           mtype=mediainfo.type if mediainfo else None,
-                                           page=search_page)
+                    task = executor.submit(
+                        self.search_torrents,
+                        site=site,
+                        keyword=search_keyword,
+                        mtype=mediainfo.type if mediainfo else None,
+                        page=search_page,
+                    )
                 else:
                     # 搜索标题
-                    task = executor.submit(self.search_torrents, site=site,
-                                           keyword=search_keyword,
-                                           mtype=mediainfo.type if mediainfo else None,
-                                           page=search_page)
+                    task = executor.submit(
+                        self.search_torrents,
+                        site=site,
+                        keyword=search_keyword,
+                        mtype=mediainfo.type if mediainfo else None,
+                        page=search_page,
+                    )
                 pending_tasks[task] = (site, page_index, search_page, search_keyword)
 
             for site in indexer_sites:
@@ -2004,28 +2003,28 @@ class SearchChain(ChainBase):
                         result = future.result()
                         if result:
                             results.extend(result)
-                        if (
-                            self._should_continue_search_pages(
-                                site=site, page_results=result, keyword=search_keyword
-                            )
-                            and page_index + 1 < len(search_pages)
-                        ):
+                        if self._should_continue_search_pages(
+                            site=site, page_results=result, keyword=search_keyword
+                        ) and page_index + 1 < len(search_pages):
                             submit_site_page(site=site, page_index=page_index + 1)
                         else:
                             logger.debug(
                                 f"{site.get('name')} 第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页"
                             )
                         logger.info(f"站点搜索进度：{finish_count} / {total_num}")
-                        progress.update(value=finish_count / total_num * 100,
-                                        text=f"正在搜索{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...")
+                        progress.update(
+                            value=finish_count / total_num * 100,
+                            text=f"正在搜索{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...",
+                        )
             finally:
                 for task in pending_tasks:
                     task.cancel()
         # 计算耗时
         end_time = datetime.now()
         # 更新进度
-        progress.update(value=100,
-                        text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
+        progress.update(
+            value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
+        )
         logger.info(f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         # 结束进度
         progress.end()
@@ -2033,11 +2032,14 @@ class SearchChain(ChainBase):
         # 返回
         return results
 
-    async def __async_search_all_sites(self, keyword: str,
-                                       mediainfo: Optional[MediaInfo] = None,
-                                       sites: List[int] = None,
-                                       page: Optional[int] = 0,
-                                       area: Optional[str] = "title") -> Optional[List[TorrentInfo]]:
+    async def __async_search_all_sites(
+        self,
+        keyword: str,
+        mediainfo: MediaInfo | None = None,
+        sites: list[int] = None,
+        page: int | None = 0,
+        area: str | None = "title",
+    ) -> list[TorrentInfo] | None:
         """
         异步搜索多个站点
         :param mediainfo:  识别的媒体信息
@@ -2059,7 +2061,7 @@ class SearchChain(ChainBase):
             if not sites or indexer.get("id") in sites:
                 indexer_sites.append(indexer)
         if not indexer_sites:
-            logger.warn('未开启任何有效站点，无法搜索资源')
+            logger.warn("未开启任何有效站点，无法搜索资源")
             return []
 
         # 开始进度
@@ -2073,28 +2075,28 @@ class SearchChain(ChainBase):
         # 完成数
         finish_count = 0
         # 更新进度
-        progress.update(value=0,
-                        text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
+        progress.update(value=0, text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
         # 结果集
         results = []
         semaphore = asyncio.Semaphore(settings.CONF.threadpool or total_num)
 
-        async def search_site_page(site: dict, search_page: int) -> List[TorrentInfo]:
+        async def search_site_page(site: dict, search_page: int) -> list[TorrentInfo]:
             """
             控制单次站点页请求的并发量，并返回该页的资源列表。
             """
             async with semaphore:
                 if area == "imdbid":
                     # 搜索IMDBID
-                    return await self.async_search_torrents(site=site,
-                                                            keyword=mediainfo.imdb_id if mediainfo else None,
-                                                            mtype=mediainfo.type if mediainfo else None,
-                                                            page=search_page)
+                    return await self.async_search_torrents(
+                        site=site,
+                        keyword=mediainfo.imdb_id if mediainfo else None,
+                        mtype=mediainfo.type if mediainfo else None,
+                        page=search_page,
+                    )
                 # 搜索标题
-                return await self.async_search_torrents(site=site,
-                                                        keyword=keyword,
-                                                        mtype=mediainfo.type if mediainfo else None,
-                                                        page=search_page)
+                return await self.async_search_torrents(
+                    site=site, keyword=keyword, mtype=mediainfo.type if mediainfo else None, page=search_page
+                )
 
         pending_tasks = {}
 
@@ -2124,20 +2126,17 @@ class SearchChain(ChainBase):
                     result = await future
                     if result:
                         results.extend(result)
-                    if (
-                        self._should_continue_search_pages(
-                            site=site, page_results=result, keyword=search_keyword
-                        )
-                        and page_index + 1 < len(search_pages)
-                    ):
+                    if self._should_continue_search_pages(
+                        site=site, page_results=result, keyword=search_keyword
+                    ) and page_index + 1 < len(search_pages):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
-                        logger.debug(
-                            f"{site.get('name')} 第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页"
-                        )
+                        logger.debug(f"{site.get('name')} 第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页")
                     logger.info(f"站点搜索进度：{finish_count} / {total_num}")
-                    progress.update(value=finish_count / total_num * 100,
-                                    text=f"正在搜索{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...")
+                    progress.update(
+                        value=finish_count / total_num * 100,
+                        text=f"正在搜索{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...",
+                    )
         finally:
             for task in pending_tasks:
                 if not task.done():
@@ -2148,8 +2147,9 @@ class SearchChain(ChainBase):
         # 计算耗时
         end_time = datetime.now()
         # 更新进度
-        progress.update(value=100,
-                        text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
+        progress.update(
+            value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
+        )
         logger.info(f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         # 结束进度
         progress.end()
@@ -2157,11 +2157,14 @@ class SearchChain(ChainBase):
         # 返回
         return results
 
-    async def __async_search_all_sites_stream(self, keyword: str,
-                                              mediainfo: Optional[MediaInfo] = None,
-                                              sites: List[int] = None,
-                                              page: Optional[int] = 0,
-                                              area: Optional[str] = "title") -> AsyncIterator[Dict[str, Any]]:
+    async def __async_search_all_sites_stream(
+        self,
+        keyword: str,
+        mediainfo: MediaInfo | None = None,
+        sites: list[int] = None,
+        page: int | None = 0,
+        area: str | None = "title",
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         异步搜索多个站点，按站点完成顺序渐进式返回结果
         :param mediainfo:  识别的媒体信息
@@ -2179,7 +2182,7 @@ class SearchChain(ChainBase):
             if not sites or indexer.get("id") in sites:
                 indexer_sites.append(indexer)
         if not indexer_sites:
-            logger.warn('未开启任何有效站点，无法搜索资源')
+            logger.warn("未开启任何有效站点，无法搜索资源")
             yield {
                 "type": "done",
                 "stage": "searching",
@@ -2187,7 +2190,7 @@ class SearchChain(ChainBase):
                 "text": "未开启任何有效站点，无法搜索资源",
                 "items": [],
                 "finished": 0,
-                "total": 0
+                "total": 0,
             }
             return
 
@@ -2197,8 +2200,7 @@ class SearchChain(ChainBase):
         search_pages = self._build_search_pages(page)
         total_num = len(indexer_sites) * len(search_pages)
         finish_count = 0
-        progress.update(value=0,
-                        text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
+        progress.update(value=0, text=f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
         yield {
             "type": "progress",
             "stage": "searching",
@@ -2206,26 +2208,27 @@ class SearchChain(ChainBase):
             "text": f"开始搜索，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...",
             "items": [],
             "finished": 0,
-            "total": total_num
+            "total": total_num,
         }
 
         semaphore = asyncio.Semaphore(settings.CONF.threadpool or total_num)
 
-        async def search_site(site: dict, search_page: int) -> List[TorrentInfo]:
+        async def search_site(site: dict, search_page: int) -> list[TorrentInfo]:
             """
             搜索单个站点页，用于渐进式返回入口。
             """
             async with semaphore:
                 if area == "imdbid":
-                    site_result = await self.async_search_torrents(site=site,
-                                                                   keyword=mediainfo.imdb_id if mediainfo else None,
-                                                                   mtype=mediainfo.type if mediainfo else None,
-                                                                   page=search_page)
+                    site_result = await self.async_search_torrents(
+                        site=site,
+                        keyword=mediainfo.imdb_id if mediainfo else None,
+                        mtype=mediainfo.type if mediainfo else None,
+                        page=search_page,
+                    )
                 else:
-                    site_result = await self.async_search_torrents(site=site,
-                                                                   keyword=keyword,
-                                                                   mtype=mediainfo.type if mediainfo else None,
-                                                                   page=search_page)
+                    site_result = await self.async_search_torrents(
+                        site=site, keyword=keyword, mtype=mediainfo.type if mediainfo else None, page=search_page
+                    )
                 return site_result or []
 
         tasks = {}
@@ -2256,17 +2259,12 @@ class SearchChain(ChainBase):
                     finish_count += 1
                     result = await future
                     results_count += len(result)
-                    if (
-                        self._should_continue_search_pages(
-                            site=site, page_results=result, keyword=search_keyword
-                        )
-                        and page_index + 1 < len(search_pages)
-                    ):
+                    if self._should_continue_search_pages(
+                        site=site, page_results=result, keyword=search_keyword
+                    ) and page_index + 1 < len(search_pages):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
-                        logger.debug(
-                            f"{site.get('name')} 第 {search_page} 页返回 {len(result)} 条，停止继续翻页"
-                        )
+                        logger.debug(f"{site.get('name')} 第 {search_page} 页返回 {len(result)} 条，停止继续翻页")
                     logger.info(f"站点搜索进度：{finish_count} / {total_num}")
                     progress_value = finish_count / total_num * 100
                     progress_text = f"正在搜索{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ..."
@@ -2282,7 +2280,7 @@ class SearchChain(ChainBase):
                         "page": search_page,
                         "finished": finish_count,
                         "total": total_num,
-                        "total_items": results_count
+                        "total_items": results_count,
                     }
         finally:
             for task in tasks:
@@ -2292,14 +2290,15 @@ class SearchChain(ChainBase):
                 await asyncio.gather(*tasks.keys(), return_exceptions=True)
 
         end_time = datetime.now()
-        progress.update(value=100,
-                        text=f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
+        progress.update(
+            value=100, text=f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒"
+        )
         logger.info(f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
         progress.end()
 
-    async def __async_search_subtitles_all_sites(self, keyword: str,
-                                                 sites: List[int] = None,
-                                                 page: Optional[int] = 0) -> Optional[List[SubtitleInfo]]:
+    async def __async_search_subtitles_all_sites(
+        self, keyword: str, sites: list[int] = None, page: int | None = 0
+    ) -> list[SubtitleInfo] | None:
         """
         异步搜索多个站点的字幕资源。
         :param keyword: 搜索关键词
@@ -2318,7 +2317,7 @@ class SearchChain(ChainBase):
             if not sites or indexer.get("id") in sites:
                 indexer_sites.append(indexer)
         if not indexer_sites:
-            logger.warn('未开启任何支持字幕搜索的有效站点，无法搜索字幕')
+            logger.warn("未开启任何支持字幕搜索的有效站点，无法搜索字幕")
             return []
 
         progress = ProgressHelper(ProgressKey.Search)
@@ -2327,19 +2326,16 @@ class SearchChain(ChainBase):
         search_pages = self._build_search_pages(page)
         total_num = len(indexer_sites) * len(search_pages)
         finish_count = 0
-        progress.update(value=0,
-                        text=f"开始搜索字幕，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
+        progress.update(value=0, text=f"开始搜索字幕，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
         results = []
         semaphore = asyncio.Semaphore(settings.CONF.threadpool or total_num)
 
-        async def search_site_page(site: dict, search_page: int) -> List[SubtitleInfo]:
+        async def search_site_page(site: dict, search_page: int) -> list[SubtitleInfo]:
             """
             控制单次字幕站点页请求的并发量，并返回该页的字幕列表。
             """
             async with semaphore:
-                return await self.async_search_subtitles(
-                    site=site, keyword=keyword, page=search_page
-                )
+                return await self.async_search_subtitles(site=site, keyword=keyword, page=search_page)
 
         pending_tasks = {}
 
@@ -2368,18 +2364,19 @@ class SearchChain(ChainBase):
                     result = await future
                     if result:
                         results.extend(result)
-                    if (
-                            self._should_continue_subtitle_search_pages(site=site, page_results=result)
-                            and page_index + 1 < len(search_pages)
-                    ):
+                    if self._should_continue_subtitle_search_pages(
+                        site=site, page_results=result
+                    ) and page_index + 1 < len(search_pages):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
                         logger.debug(
                             f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页"
                         )
                     logger.info(f"站点字幕搜索进度：{finish_count} / {total_num}")
-                    progress.update(value=finish_count / total_num * 100,
-                                    text=f"正在搜索字幕{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...")
+                    progress.update(
+                        value=finish_count / total_num * 100,
+                        text=f"正在搜索字幕{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ...",
+                    )
         finally:
             for task in pending_tasks:
                 if not task.done():
@@ -2388,15 +2385,16 @@ class SearchChain(ChainBase):
                 await asyncio.gather(*pending_tasks.keys(), return_exceptions=True)
 
         end_time = datetime.now()
-        progress.update(value=100,
-                        text=f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
+        progress.update(
+            value=100, text=f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
+        )
         logger.info(f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         progress.end()
         return results
 
-    async def __async_search_subtitles_all_sites_stream(self, keyword: str,
-                                                        sites: List[int] = None,
-                                                        page: Optional[int] = 0) -> AsyncIterator[Dict[str, Any]]:
+    async def __async_search_subtitles_all_sites_stream(
+        self, keyword: str, sites: list[int] = None, page: int | None = 0
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         异步搜索多个站点的字幕资源，按站点完成顺序渐进式返回结果。
         :param keyword: 搜索关键词
@@ -2414,7 +2412,7 @@ class SearchChain(ChainBase):
             if not sites or indexer.get("id") in sites:
                 indexer_sites.append(indexer)
         if not indexer_sites:
-            logger.warn('未开启任何支持字幕搜索的有效站点，无法搜索字幕')
+            logger.warn("未开启任何支持字幕搜索的有效站点，无法搜索字幕")
             yield {
                 "type": "done",
                 "stage": "searching",
@@ -2422,7 +2420,7 @@ class SearchChain(ChainBase):
                 "text": "未开启任何支持字幕搜索的有效站点，无法搜索字幕",
                 "items": [],
                 "finished": 0,
-                "total": 0
+                "total": 0,
             }
             return
 
@@ -2432,8 +2430,7 @@ class SearchChain(ChainBase):
         search_pages = self._build_search_pages(page)
         total_num = len(indexer_sites) * len(search_pages)
         finish_count = 0
-        progress.update(value=0,
-                        text=f"开始搜索字幕，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
+        progress.update(value=0, text=f"开始搜索字幕，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...")
         yield {
             "type": "progress",
             "stage": "searching",
@@ -2441,19 +2438,17 @@ class SearchChain(ChainBase):
             "text": f"开始搜索字幕，共 {len(indexer_sites)} 个站点，{len(search_pages)} 页 ...",
             "items": [],
             "finished": 0,
-            "total": total_num
+            "total": total_num,
         }
 
         semaphore = asyncio.Semaphore(settings.CONF.threadpool or total_num)
 
-        async def search_site(site: dict, search_page: int) -> List[SubtitleInfo]:
+        async def search_site(site: dict, search_page: int) -> list[SubtitleInfo]:
             """
             搜索单个站点字幕页，用于渐进式返回入口。
             """
             async with semaphore:
-                site_result = await self.async_search_subtitles(
-                    site=site, keyword=keyword, page=search_page
-                )
+                site_result = await self.async_search_subtitles(site=site, keyword=keyword, page=search_page)
                 return site_result or []
 
         tasks = {}
@@ -2483,15 +2478,12 @@ class SearchChain(ChainBase):
                     finish_count += 1
                     result = await future
                     results_count += len(result)
-                    if (
-                            self._should_continue_subtitle_search_pages(site=site, page_results=result)
-                            and page_index + 1 < len(search_pages)
-                    ):
+                    if self._should_continue_subtitle_search_pages(
+                        site=site, page_results=result
+                    ) and page_index + 1 < len(search_pages):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
-                        logger.debug(
-                            f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result)} 条，停止继续翻页"
-                        )
+                        logger.debug(f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result)} 条，停止继续翻页")
                     logger.info(f"站点字幕搜索进度：{finish_count} / {total_num}")
                     progress_value = finish_count / total_num * 100
                     progress_text = f"正在搜索字幕{keyword or ''}，已完成 {finish_count} / {total_num} 个请求 ..."
@@ -2507,7 +2499,7 @@ class SearchChain(ChainBase):
                         "page": search_page,
                         "finished": finish_count,
                         "total": total_num,
-                        "total_items": results_count
+                        "total_items": results_count,
                     }
         finally:
             for task in tasks:
@@ -2517,8 +2509,10 @@ class SearchChain(ChainBase):
                 await asyncio.gather(*tasks.keys(), return_exceptions=True)
 
         end_time = datetime.now()
-        progress.update(value=100,
-                        text=f"站点字幕搜索完成，有效字幕数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
+        progress.update(
+            value=100,
+            text=f"站点字幕搜索完成，有效字幕数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒",
+        )
         logger.info(f"站点字幕搜索完成，有效字幕数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
         progress.end()
 

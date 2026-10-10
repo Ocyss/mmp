@@ -27,6 +27,7 @@ class TmdbCache(metaclass=WeakSingleton):
         "type": MediaType
     }
     """
+
     def __init__(self):
         """初始化 TMDB 识别缓存并恢复未过期的持久化数据。"""
         self.maxsize = settings.CONF.tmdb
@@ -60,17 +61,14 @@ class TmdbCache(metaclass=WeakSingleton):
             payload = pickle.loads(content)
             now = time()
             if (
-                    isinstance(payload, dict)
-                    and payload.get("version") == PERSISTENCE_VERSION
-                    and isinstance(payload.get("items"), dict)
+                isinstance(payload, dict)
+                and payload.get("version") == PERSISTENCE_VERSION
+                and isinstance(payload.get("items"), dict)
             ):
                 items = payload["items"]
             elif isinstance(payload, dict):
                 # 旧版缓存没有保存过期时间，迁移时从当前时刻重新计算一次有效期。
-                items = {
-                    key: {"value": value, "expires_at": now + self.ttl}
-                    for key, value in payload.items()
-                }
+                items = {key: {"value": value, "expires_at": now + self.ttl} for key, value in payload.items()}
                 self._dirty = True
             else:
                 return
@@ -123,17 +121,19 @@ class TmdbCache(metaclass=WeakSingleton):
                 if not isinstance(media_type, MediaType):
                     try:
                         media_type = MediaType(media_type)
-                    except (TypeError, ValueError):
+                    except TypeError, ValueError:
                         media_type = None
-                cache_items.append({
-                    "key": key,
-                    "tmdb_id": value.get("id") or 0,
-                    "title": value.get("title") or "",
-                    "year": value.get("year") or "",
-                    "media_type": media_type.to_agent() if media_type else "unknown",
-                    "poster_path": value.get("poster_path") or "",
-                    "backdrop_path": value.get("backdrop_path") or "",
-                })
+                cache_items.append(
+                    {
+                        "key": key,
+                        "tmdb_id": value.get("id") or 0,
+                        "title": value.get("title") or "",
+                        "year": value.get("year") or "",
+                        "media_type": media_type.to_agent() if media_type else "unknown",
+                        "poster_path": value.get("poster_path") or "",
+                        "backdrop_path": value.get("backdrop_path") or "",
+                    }
+                )
             return sorted(cache_items, key=lambda item: item["key"])
 
     @staticmethod
@@ -181,7 +181,7 @@ class TmdbCache(metaclass=WeakSingleton):
         with lock:
             redis_data = self._cache.get(key)
             if redis_data:
-                redis_data['title'] = title
+                redis_data["title"] = title
                 self._set(key, redis_data)
                 return redis_data
             return {}
@@ -193,11 +193,11 @@ class TmdbCache(metaclass=WeakSingleton):
         key = self.__get_key(meta)
         if info:
             # 缓存标题
-            cache_title = info.get("title") \
-                if info.get("media_type") == MediaType.MOVIE else info.get("name")
+            cache_title = info.get("title") if info.get("media_type") == MediaType.MOVIE else info.get("name")
             # 缓存年份
-            cache_year = info.get('release_date') \
-                if info.get("media_type") == MediaType.MOVIE else info.get('first_air_date')
+            cache_year = (
+                info.get("release_date") if info.get("media_type") == MediaType.MOVIE else info.get("first_air_date")
+            )
             if cache_year:
                 cache_year = cache_year[:4]
 
@@ -209,7 +209,7 @@ class TmdbCache(metaclass=WeakSingleton):
                     "year": cache_year,
                     "title": cache_title,
                     "poster_path": info.get("poster_path"),
-                    "backdrop_path": info.get("backdrop_path")
+                    "backdrop_path": info.get("backdrop_path"),
                 }
                 self._set(key, cache_data)
 

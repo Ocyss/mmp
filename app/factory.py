@@ -1,5 +1,6 @@
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +26,8 @@ def _get_http_exception_message(detail: Any) -> str:
 
 
 async def localized_http_exception_handler(
-        _request: Request,
-        exc: HTTPException,
+    _request: Request,
+    exc: HTTPException,
 ) -> JSONResponse:
     """
     将 HTTPException 响应统一封装为 Response 结构并保留原始错误消息。
@@ -51,12 +52,7 @@ def create_app() -> FastAPI:
     """
     创建并配置 FastAPI 应用实例。
     """
-    _app = FastAPI(
-        title=settings.PROJECT_NAME,
-        version=APP_VERSION,
-        openapi_url=OPENAPI_V2_PATH,
-        lifespan=lifespan
-    )
+    _app = FastAPI(title=settings.PROJECT_NAME, version=APP_VERSION, openapi_url=OPENAPI_V2_PATH, lifespan=lifespan)
 
     @_app.get(f"{settings.API_V1_STR}/openapi.json", include_in_schema=False)
     def get_v1_openapi_schema() -> dict[str, Any]:
@@ -77,15 +73,13 @@ def create_app() -> FastAPI:
 
     @_app.middleware("http")
     async def locale_context_middleware(
-            request: Request,
-            call_next: Callable[[Request], Awaitable[Response]],
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         """
         为每个请求设置后端多语言上下文。
         """
-        token = LocaleHelper.set_current_locale(
-            LocaleHelper.get_locale_from_request(request)
-        )
+        token = LocaleHelper.set_current_locale(LocaleHelper.get_locale_from_request(request))
         try:
             return await call_next(request)
         finally:

@@ -10,8 +10,8 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas.types import SystemConfigKey
 
 # revision identifiers, used by Alembic.
-revision = 'a73f2dbf5c09'
-down_revision = 'e2dbe1421fa4'
+revision = "a73f2dbf5c09"
+down_revision = "e2dbe1421fa4"
 branch_labels = None
 depends_on = None
 

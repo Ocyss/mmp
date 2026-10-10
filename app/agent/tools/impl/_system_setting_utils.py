@@ -15,7 +15,7 @@ class SettingSpec:
     source: str
     group: str
     label: str
-    systemconfig_key: Optional[SystemConfigKey] = None
+    systemconfig_key: SystemConfigKey | None = None
 
 
 SYSTEMCONFIG_SETTING_METADATA = {
@@ -257,27 +257,16 @@ for item in SystemConfigKey:
 
 SINGLE_KEY_GROUP_ALIASES = {
     _normalize_token(alias): next(
-        (
-            spec.key
-            for spec in SYSTEMCONFIG_SETTING_SPECS.values()
-            if spec.group == canonical_group
-        ),
+        (spec.key for spec in SYSTEMCONFIG_SETTING_SPECS.values() if spec.group == canonical_group),
         None,
     )
     for alias, canonical_group in GROUP_ALIASES.items()
     if canonical_group not in {"all", "settings", "systemconfig"}
-    and len(
-        [
-            spec.key
-            for spec in SYSTEMCONFIG_SETTING_SPECS.values()
-            if spec.group == canonical_group
-        ]
-    )
-    == 1
+    and len([spec.key for spec in SYSTEMCONFIG_SETTING_SPECS.values() if spec.group == canonical_group]) == 1
 }
 
 
-def normalize_group(group: Optional[str]) -> str:
+def normalize_group(group: str | None) -> str:
     if not group:
         return "all"
     normalized = GROUP_ALIASES.get(_normalize_token(group))
@@ -290,24 +279,20 @@ def normalize_group(group: Optional[str]) -> str:
     return normalized
 
 
-def resolve_setting_spec(setting_key: Optional[str]) -> Optional[SettingSpec]:
+def resolve_setting_spec(setting_key: str | None) -> SettingSpec | None:
     """把精确键名、枚举名或单键分组别名解析为统一的设置定义。"""
 
     if not setting_key:
         return None
 
     normalized = _normalize_token(setting_key)
-    resolved_key = SETTING_KEY_ALIASES.get(normalized) or SINGLE_KEY_GROUP_ALIASES.get(
-        normalized
-    )
+    resolved_key = SETTING_KEY_ALIASES.get(normalized) or SINGLE_KEY_GROUP_ALIASES.get(normalized)
     if not resolved_key:
         return None
     return ALL_SETTING_SPECS.get(resolved_key)
 
 
-def list_setting_specs(
-    group: Optional[str] = "all", keyword: Optional[str] = None
-) -> list[SettingSpec]:
+def list_setting_specs(group: str | None = "all", keyword: str | None = None) -> list[SettingSpec]:
     """按分组和关键字筛选可查询的设置项。"""
 
     normalized_group = normalize_group(group)
@@ -318,11 +303,7 @@ def list_setting_specs(
     elif normalized_group == "systemconfig":
         specs = list(SYSTEMCONFIG_SETTING_SPECS.values())
     else:
-        specs = [
-            spec
-            for spec in SYSTEMCONFIG_SETTING_SPECS.values()
-            if spec.group == normalized_group
-        ]
+        specs = [spec for spec in SYSTEMCONFIG_SETTING_SPECS.values() if spec.group == normalized_group]
 
     if keyword:
         normalized_keyword = _normalize_token(keyword)
@@ -337,7 +318,7 @@ def list_setting_specs(
     return sorted(specs, key=lambda spec: (spec.source, spec.group, spec.key))
 
 
-def get_default_list_match_field(setting_key: str) -> Optional[str]:
+def get_default_list_match_field(setting_key: str) -> str | None:
     return LIST_ITEM_MATCH_FIELD_DEFAULTS.get(setting_key)
 
 
@@ -365,16 +346,11 @@ def redact_secret_value(value: Any, *, redact_scalar: bool = False) -> Any:
     """递归脱敏配置值中的密钥、Cookie、Token 等敏感字段。"""
     if isinstance(value, dict):
         return {
-            key: "***"
-            if is_secret_setting_key(str(key))
-            else redact_secret_value(item, redact_scalar=redact_scalar)
+            key: "***" if is_secret_setting_key(str(key)) else redact_secret_value(item, redact_scalar=redact_scalar)
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [
-            redact_secret_value(item, redact_scalar=redact_scalar)
-            for item in value
-        ]
+        return [redact_secret_value(item, redact_scalar=redact_scalar) for item in value]
     if isinstance(value, str):
         return "***" if value and redact_scalar else value
     return value
@@ -387,9 +363,5 @@ def should_redact_setting(spec: SettingSpec, value: Any) -> bool:
     if isinstance(value, dict):
         return any(is_secret_setting_key(str(key)) for key in value.keys())
     if isinstance(value, list):
-        return any(
-            should_redact_setting(spec, item)
-            for item in value
-            if isinstance(item, dict)
-        )
+        return any(should_redact_setting(spec, item) for item in value if isinstance(item, dict))
     return False

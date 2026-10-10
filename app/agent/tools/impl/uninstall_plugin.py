@@ -6,12 +6,12 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._plugin_tool_utils import (
     list_installed_plugins,
     summarize_plugin,
     uninstall_plugin_runtime,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
@@ -36,9 +36,9 @@ class UninstallPluginTool(MoviePilotTool):
         "Use query_installed_plugins first when you need filtering or discovery."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = UninstallPluginInput
+    args_schema: type[BaseModel] = UninstallPluginInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         plugin_id = kwargs.get("plugin_id")
         return f"卸载插件: {plugin_id or '未知插件'}"
 

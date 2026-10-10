@@ -1,4 +1,5 @@
 """发送语音消息工具。"""
+
 from typing import Optional, Type
 
 from pydantic import BaseModel, Field
@@ -39,9 +40,9 @@ class SendVoiceMessageTool(MoviePilotTool):
         "user-facing reply in `message`; after this tool runs, do not send another text reply "
         "or call `send_message` with the same content."
     )
-    args_schema: Type[BaseModel] = SendVoiceMessageInput
+    args_schema: type[BaseModel] = SendVoiceMessageInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成语音回复工具的执行提示。"""
         message = kwargs.get("message") or ""
         if len(message) > 40:
@@ -67,20 +68,14 @@ class SendVoiceMessageTool(MoviePilotTool):
             reply_mode == AgentCapabilityManager.REPLY_MODE_NATIVE
             and AgentCapabilityManager.is_audio_output_available()
         ):
-            voice_file = await self.run_blocking(
-                "default",
-                AgentCapabilityManager.synthesize_speech, message
-            )
+            voice_file = await self.run_blocking("default", AgentCapabilityManager.synthesize_speech, message)
             if voice_file:
                 voice_path = str(voice_file)
                 used_voice = True
         elif reply_mode == AgentCapabilityManager.REPLY_MODE_NATIVE:
             fallback_reason = "当前未配置可用的语音合成能力"
 
-        logger.info(
-            f"执行工具: {self.name}, channel={channel}, "
-            f"use_voice={used_voice}, text_len={len(message)}"
-        )
+        logger.info(f"执行工具: {self.name}, channel={channel}, use_voice={used_voice}, text_len={len(message)}")
 
         await self.send_notification_message(
             Notification(
@@ -91,11 +86,7 @@ class SendVoiceMessageTool(MoviePilotTool):
                 username=self._username,
                 text=message,
                 voice_path=voice_path,
-                voice_caption=(
-                    message
-                    if voice_path and settings.AUDIO_OUTPUT_INCLUDE_TEXT
-                    else None
-                ),
+                voice_caption=(message if voice_path and settings.AUDIO_OUTPUT_INCLUDE_TEXT else None),
                 save_history=False,
             )
         )

@@ -7,6 +7,7 @@ fixture 一并识别，autouse 自动作用于每个用例，无需逐用例改�
 
 仅供测试使用，不参与运行时逻辑。
 """
+
 from __future__ import annotations
 
 import ipaddress
@@ -44,9 +45,7 @@ def block_real_network(monkeypatch):
 
     def _blocked(operation: str, host):
         attempts.append((operation, host))
-        raise RuntimeError(
-            f"测试禁止真实出站网络：尝试通过 {operation} 访问 {host!r}；请 mock 对应外部依赖"
-        )
+        raise RuntimeError(f"测试禁止真实出站网络：尝试通过 {operation} 访问 {host!r}；请 mock 对应外部依赖")
 
     def _guarded_getaddrinfo(host, *args, **kwargs):
         if not _is_allowed_host(host):

@@ -1,6 +1,6 @@
 import mimetypes
 from pathlib import Path
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple, Union
 from urllib import parse
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
@@ -8,7 +8,6 @@ from app.log import logger
 
 
 class UrlUtils:
-
     @staticmethod
     def standardize_base_url(host: str) -> str:
         """
@@ -25,7 +24,7 @@ class UrlUtils:
         return host
 
     @staticmethod
-    def adapt_request_url(host: str, endpoint: str) -> Optional[str]:
+    def adapt_request_url(host: str, endpoint: str) -> str | None:
         """
         基于传入的host，适配请求的URL，确保每个请求的URL是完整的，用于在发送请求前自动处理和修正请求的URL
         :param host: 主机头
@@ -40,7 +39,7 @@ class UrlUtils:
         return urljoin(host, endpoint) if host else endpoint
 
     @staticmethod
-    def combine_url(host: str, path: Optional[str] = None, query: Optional[dict] = None) -> Optional[str]:
+    def combine_url(host: str, path: str | None = None, query: dict | None = None) -> str | None:
         """
         使用给定的主机头、路径和查询参数组合生成完整的URL
         :param host: str, 主机头，例如 https://example.com
@@ -51,7 +50,7 @@ class UrlUtils:
         try:
             # 如果路径为空，则默认为 '/'
             if path is None:
-                path = '/'
+                path = "/"
             host = UrlUtils.standardize_base_url(host)
             # 使用 urljoin 合并 host 和 path
             url = urljoin(host, path)
@@ -74,7 +73,7 @@ class UrlUtils:
             return None
 
     @staticmethod
-    def get_mime_type(path_or_url: Union[str, Path], default_type: str = "application/octet-stream") -> str:
+    def get_mime_type(path_or_url: str | Path, default_type: str = "application/octet-stream") -> str:
         """
         根据文件路径或 URL 获取 MIME 类型，如果无法获取则返回默认类型
 
@@ -108,7 +107,7 @@ class UrlUtils:
         return parse.quote(s)
 
     @staticmethod
-    def parse_url_params(url: str) -> Optional[Tuple[str, str, int, str]]:
+    def parse_url_params(url: str) -> tuple[str, str, int, str] | None:
         """
         解析给定的 URL，并提取协议、主机名、端口和路径信息
 

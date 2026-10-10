@@ -18,13 +18,11 @@ PAGE_SIZE = 20
 class QueryLibraryLatestInput(BaseModel):
     """查询媒体服务器最近入库影片工具的输入参数模型"""
 
-    server: Optional[str] = Field(
+    server: str | None = Field(
         None,
         description="Media server name (optional, if not specified queries all enabled media servers)",
     )
-    page: Optional[int] = Field(
-        1, description="Page number for pagination (default: 1, 20 items per page)"
-    )
+    page: int | None = Field(1, description="Page number for pagination (default: 1, 20 items per page)")
 
 
 class QueryLibraryLatestTool(MoviePilotTool):
@@ -35,9 +33,9 @@ class QueryLibraryLatestTool(MoviePilotTool):
         ToolTag.Media,
     ]
     description: str = "Query the latest media items added to the media server (Plex, Emby, Jellyfin). Returns recently added movies and TV series with their titles, images, links, and other metadata. Supports pagination with 20 items per page."
-    args_schema: Type[BaseModel] = QueryLibraryLatestInput
+    args_schema: type[BaseModel] = QueryLibraryLatestInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         server = kwargs.get("server")
         page = kwargs.get("page", 1)
@@ -60,15 +58,11 @@ class QueryLibraryLatestTool(MoviePilotTool):
         return [ms.name for ms in mediaservers if ms.enabled]
 
     @staticmethod
-    def _load_latest_items(
-        server_name: str, count: int, username: Optional[str] = None
-    ) -> list[dict]:
+    def _load_latest_items(server_name: str, count: int, username: str | None = None) -> list[dict]:
         """
         媒体服务器 SDK 和 requests 调用都是同步的，这里在线程池中转换为可序列化结果。
         """
-        latest_items = MediaServerChain().latest(
-            server=server_name, count=count, username=username
-        )
+        latest_items = MediaServerChain().latest(server=server_name, count=count, username=username)
         if not latest_items:
             return []
         return [
@@ -79,9 +73,7 @@ class QueryLibraryLatestTool(MoviePilotTool):
             for item in latest_items
         ]
 
-    async def run(
-        self, server: Optional[str] = None, page: Optional[int] = 1, **kwargs
-    ) -> str:
+    async def run(self, server: str | None = None, page: int | None = 1, **kwargs) -> str:
         page = max(1, page or 1)
         # 为了支持分页，需要获取足够多的数据再切片
         fetch_count = page * PAGE_SIZE
@@ -104,9 +96,7 @@ class QueryLibraryLatestTool(MoviePilotTool):
                         for server_name in enabled_servers
                     ]
                 )
-                results = [
-                    item for items in server_results for item in items if items
-                ]
+                results = [item for items in server_results for item in items if items]
             else:
                 results = await self.run_blocking(
                     "mediaserver",

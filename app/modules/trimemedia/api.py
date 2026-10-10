@@ -47,9 +47,9 @@ class Type(Enum):
 class MediaDb:
     guid: str
     category: Category
-    name: Optional[str] = None
-    posters: Optional[list[str]] = None
-    dir_list: Optional[list[str]] = None
+    name: str | None = None
+    posters: list[str] | None = None
+    dir_list: list[str] | None = None
 
 
 @dataclass
@@ -64,38 +64,38 @@ class MediaDbSummary:
 @dataclass
 class Version:
     # 飞牛影视版本
-    frontend: Optional[str] = None
-    backend: Optional[str] = None
+    frontend: str | None = None
+    backend: str | None = None
 
 
 @dataclass
 class Item:
     guid: str
     ancestor_guid: str = ""
-    type: Optional[Type] = None
+    type: Type | None = None
     # 当type为Episode时是剧名，parent_title是季名，title作为分集名称
-    tv_title: Optional[str] = None
-    parent_title: Optional[str] = None
-    title: Optional[str] = None
-    original_title: Optional[str] = None
-    overview: Optional[str] = None
-    poster: Optional[str] = None
-    backdrops: Optional[str] = None
-    posters: Optional[str] = None
-    douban_id: Optional[int] = None
-    imdb_id: Optional[str] = None
-    trim_id: Optional[str] = None
-    release_date: Optional[str] = None
-    air_date: Optional[str] = None
-    vote_average: Optional[str] = None
-    season_number: Optional[int] = None
-    episode_number: Optional[int] = None
-    duration: Optional[int] = None  # 片长(秒)
-    ts: Optional[int] = None  # 已播放(秒)
-    watched: Optional[int] = None  # 1:已看完
+    tv_title: str | None = None
+    parent_title: str | None = None
+    title: str | None = None
+    original_title: str | None = None
+    overview: str | None = None
+    poster: str | None = None
+    backdrops: str | None = None
+    posters: str | None = None
+    douban_id: int | None = None
+    imdb_id: str | None = None
+    trim_id: str | None = None
+    release_date: str | None = None
+    air_date: str | None = None
+    vote_average: str | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    duration: int | None = None  # 片长(秒)
+    ts: int | None = None  # 已播放(秒)
+    watched: int | None = None  # 1:已看完
 
     @property
-    def tmdb_id(self) -> Optional[int]:
+    def tmdb_id(self) -> int | None:
         if self.trim_id is None:
             return None
         if self.trim_id.startswith("tt") or self.trim_id.startswith("tm"):
@@ -117,7 +117,7 @@ class Api:
     )
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         return self._token
 
     @property
@@ -129,7 +129,7 @@ class Api:
         return self._apikey
 
     @property
-    def version(self) -> Optional[Version]:
+    def version(self) -> Version | None:
         return self._version
 
     @property
@@ -139,7 +139,7 @@ class Api:
         """
         return self._session.cookies.get_dict()
 
-    def __init__(self, host: str, apikey: str, access_code: Optional[str] = None):
+    def __init__(self, host: str, apikey: str, access_code: str | None = None):
         """
         :param host: 飞牛服务端地址，如http://127.0.0.1:5666/v
         :param access_code: 访问码，未开启时为空
@@ -148,8 +148,8 @@ class Api:
         self._host = host.rstrip("/")
         self._apikey = apikey
         self._access_code = access_code
-        self._token: Optional[str] = None
-        self._version: Optional[Version] = None
+        self._token: str | None = None
+        self._version: Version | None = None
         self._session = requests.Session()
         self._request_utils = RequestUtils(session=self._session, timeout=10)
 
@@ -177,7 +177,7 @@ class Api:
             return False
         return True
 
-    def sys_version(self) -> Optional[Version]:
+    def sys_version(self) -> Version | None:
         """
         飞牛影视版本号
         """
@@ -190,7 +190,7 @@ class Api:
                 return self._version
         return None
 
-    def login(self, username, password) -> Optional[str]:
+    def login(self, username, password) -> str | None:
         """
         登录飞牛影视
 
@@ -224,7 +224,7 @@ class Api:
                 return True
         return False
 
-    def user_list(self) -> Optional[list[User]]:
+    def user_list(self) -> list[User] | None:
         """
         用户列表(仅管理员有权访问)
         """
@@ -241,7 +241,7 @@ class Api:
             ]
         return None
 
-    def user_info(self) -> Optional[User]:
+    def user_info(self) -> User | None:
         """
         当前用户信息
         """
@@ -251,7 +251,7 @@ class Api:
             return _user
         return None
 
-    def mediadb_sum(self) -> Optional[MediaDbSummary]:
+    def mediadb_sum(self) -> MediaDbSummary | None:
         """
         媒体数量统计
         """
@@ -261,7 +261,7 @@ class Api:
             return sums
         return None
 
-    def mediadb_list(self) -> Optional[List[MediaDb]]:
+    def mediadb_list(self) -> list[MediaDb] | None:
         """
         媒体库列表(普通用户)
         """
@@ -272,23 +272,20 @@ class Api:
                     guid=info.get("guid"),
                     category=Category(info.get("category")),
                     name=info.get("title", ""),
-                    posters=[
-                        self.__build_img_api_url(poster)
-                        for poster in info.get("posters", [])
-                    ],
+                    posters=[self.__build_img_api_url(poster) for poster in info.get("posters", [])],
                 )
                 _items.append(mdb)
             return _items
         return None
 
-    def __build_img_api_url(self, img_path: Optional[str]) -> Optional[str]:
+    def __build_img_api_url(self, img_path: str | None) -> str | None:
         if not img_path:
             return None
         if img_path[0] != "/":
             img_path = "/" + img_path
         return f"{self._api_path}/sys/img{img_path}"
 
-    def mdb_list(self) -> Optional[list[MediaDb]]:
+    def mdb_list(self) -> list[MediaDb] | None:
         """
         媒体库列表(管理员)
         """
@@ -299,10 +296,7 @@ class Api:
                     guid=info.get("guid"),
                     category=Category(info.get("category")),
                     name=info.get("name", ""),
-                    posters=[
-                        self.__build_img_api_url(poster)
-                        for poster in info.get("posters", [])
-                    ],
+                    posters=[self.__build_img_api_url(poster) for poster in info.get("posters", [])],
                     dir_list=info.get("dir_list"),
                 )
                 _items.append(mdb)
@@ -347,21 +341,19 @@ class Api:
         # Item详情接口才有posters和backdrops
         item.posters = self.__build_img_api_url(item.posters)
         item.backdrops = self.__build_img_api_url(item.backdrops)
-        item.poster = (
-            self.__build_img_api_url(item.poster) if item.poster else item.posters
-        )
+        item.poster = self.__build_img_api_url(item.poster) if item.poster else item.posters
         return item
 
     def item_list(
         self,
-        guid: Optional[str] = None,
+        guid: str | None = None,
         types=None,
         exclude_grouped_video=True,
         page=1,
         page_size=20,
         sort_by="create_time",
         sort="DESC",
-    ) -> Optional[list[Item]]:
+    ) -> list[Item] | None:
         """
         媒体列表
         """
@@ -385,7 +377,7 @@ class Api:
             return [self.__build_item(info) for info in res.data.get("list", [])]
         return None
 
-    def item_count(self, guid: str, types=None) -> Optional[int]:
+    def item_count(self, guid: str, types=None) -> int | None:
         """
         获取指定媒体库的媒体条目总数
 
@@ -411,19 +403,17 @@ class Api:
             return int(total_count) if total_count is not None else None
         return None
 
-    def search_list(self, keywords: str) -> Optional[list[Item]]:
+    def search_list(self, keywords: str) -> list[Item] | None:
         """
         搜索影片、演员
         """
-        if (
-            res := self.request("/search/list", params={"q": keywords})
-        ) and res.success:
+        if (res := self.request("/search/list", params={"q": keywords})) and res.success:
             if not res.data:
                 return []
             return [self.__build_item(info) for info in res.data]
         return None
 
-    def item(self, guid: str) -> Optional[Item]:
+    def item(self, guid: str) -> Item | None:
         """
         查询媒体详情
         """
@@ -448,7 +438,7 @@ class Api:
                 return True
         return False
 
-    def season_list(self, tv_guid: str) -> Optional[list[Item]]:
+    def season_list(self, tv_guid: str) -> list[Item] | None:
         """
         查询季列表
         """
@@ -458,7 +448,7 @@ class Api:
             return [self.__build_item(info) for info in res.data]
         return None
 
-    def episode_list(self, season_guid: str) -> Optional[list[Item]]:
+    def episode_list(self, season_guid: str) -> list[Item] | None:
         """
         查询剧集列表
         """
@@ -468,7 +458,7 @@ class Api:
             return [self.__build_item(info) for info in res.data]
         return None
 
-    def play_list(self) -> Optional[list[Item]]:
+    def play_list(self) -> list[Item] | None:
         """
         继续观看列表
         """
@@ -478,7 +468,7 @@ class Api:
             return [self.__build_item(info) for info in res.data]
         return None
 
-    def __get_authx(self, api_path: str, body: Optional[str]):
+    def __get_authx(self, api_path: str, body: str | None):
         """
         计算消息签名
         """
@@ -508,9 +498,9 @@ class Api:
     def request(
         self,
         api: str,
-        method: Optional[str] = None,
-        params: Optional[dict] = None,
-        data: Optional[dict] = None,
+        method: str | None = None,
+        params: dict | None = None,
+        data: dict | None = None,
         suppress_log=False,
     ):
         """
@@ -526,8 +516,8 @@ class Api:
                 return code == 0
 
             code: int
-            msg: Optional[str] = None
-            data: Optional[Union[dict, list, str, bool]] = None
+            msg: str | None = None
+            data: dict | list | str | bool | None = None
 
         class JsonEncoder(json.JSONEncoder):
             def default(self, obj):
@@ -545,9 +535,7 @@ class Api:
         if method is None:
             method = "get" if data is None else "post"
         if method != "get":
-            json_body = (
-                json.dumps(data, allow_nan=False, cls=JsonEncoder) if data else ""
-            )
+            json_body = json.dumps(data, allow_nan=False, cls=JsonEncoder) if data else ""
         else:
             json_body = None
         if params:
@@ -564,9 +552,7 @@ class Api:
         if json_body is not None:
             headers["Content-Type"] = "application/json"
         try:
-            res = self._request_utils.request(
-                method=method, url=url, headers=headers, params=params, data=json_body
-            )
+            res = self._request_utils.request(method=method, url=url, headers=headers, params=params, data=json_body)
             if res:
                 resp = res.json()
                 msg = resp.get("msg")

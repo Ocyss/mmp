@@ -1,13 +1,14 @@
-from sqlalchemy import Column, String, UniqueConstraint, JSON
+from sqlalchemy import JSON, Column, String, UniqueConstraint
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, get_id_column, Base
+from app.db import Base, db_query, db_update, get_id_column
 
 
 class UserConfig(Base):
     """
     用户配置表
     """
+
     id = get_id_column()
     # 用户名
     username = Column(String)
@@ -18,16 +19,13 @@ class UserConfig(Base):
 
     __table_args__ = (
         # 用户名和配置键联合唯一
-        UniqueConstraint('username', 'key'),
+        UniqueConstraint("username", "key"),
     )
 
     @classmethod
     @db_query
     def get_by_key(cls, db: Session, username: str, key: str):
-        return db.query(cls) \
-                 .filter(cls.username == username) \
-                 .filter(cls.key == key) \
-                 .first()
+        return db.query(cls).filter(cls.username == username).filter(cls.key == key).first()
 
     @db_update
     def delete_by_key(self, db: Session, username: str, key: str):

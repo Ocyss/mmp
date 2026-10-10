@@ -1,4 +1,6 @@
-from typing import List, Tuple, Optional, Any, Coroutine, Sequence
+import builtins
+from collections.abc import Coroutine, Sequence
+from typing import Any, List, Optional, Tuple
 
 from app.db import DbOper
 from app.db.models.workflow import Workflow
@@ -9,7 +11,7 @@ class WorkflowOper(DbOper):
     工作流管理
     """
 
-    def add(self, **kwargs) -> Tuple[bool, str]:
+    def add(self, **kwargs) -> tuple[bool, str]:
         """
         新增工作流
         """
@@ -31,7 +33,7 @@ class WorkflowOper(DbOper):
         """
         return await Workflow.async_get(self._db, wid)
 
-    def list(self) -> List[Workflow]:
+    def list(self) -> builtins.list[Workflow]:
         """
         获取所有工作流列表
         """
@@ -43,19 +45,19 @@ class WorkflowOper(DbOper):
         """
         return await Workflow.async_list(self._db)
 
-    def list_enabled(self) -> List[Workflow]:
+    def list_enabled(self) -> builtins.list[Workflow]:
         """
         获取启用的工作流列表
         """
         return Workflow.get_enabled_workflows(self._db)
 
-    def get_timer_triggered_workflows(self) -> List[Workflow]:
+    def get_timer_triggered_workflows(self) -> builtins.list[Workflow]:
         """
         获取定时触发的工作流列表
         """
         return Workflow.get_timer_triggered_workflows(self._db)
 
-    def get_event_triggered_workflows(self) -> List[Workflow]:
+    def get_event_triggered_workflows(self) -> builtins.list[Workflow]:
         """
         获取事件触发的工作流列表
         """
@@ -79,7 +81,7 @@ class WorkflowOper(DbOper):
         """
         return Workflow.start(self._db, wid)
 
-    def success(self, wid: int, result: Optional[str] = None) -> bool:
+    def success(self, wid: int, result: str | None = None) -> bool:
         """
         成功
         """
@@ -91,17 +93,11 @@ class WorkflowOper(DbOper):
         """
         return Workflow.fail(self._db, wid, result)
 
-    def step(self, wid: int, action_id: str, context: dict, execution_state: Optional[dict] = None) -> bool:
+    def step(self, wid: int, action_id: str, context: dict, execution_state: dict | None = None) -> bool:
         """
         步进
         """
-        return Workflow.update_current_action(
-            self._db,
-            wid,
-            action_id,
-            context,
-            execution_state
-        )
+        return Workflow.update_current_action(self._db, wid, action_id, context, execution_state)
 
     def reset(self, wid: int, reset_count: bool = False) -> bool:
         """

@@ -6,8 +6,9 @@ import subprocess
 import sys
 import time
 from collections import deque
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, get_args, get_origin
+from typing import Any, Dict, Optional, get_args, get_origin
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
@@ -49,16 +50,16 @@ def _repo_root() -> Path:
     return settings.ROOT_PATH
 
 
-def _read_json_file(path: Path) -> Optional[Dict[str, Any]]:
+def _read_json_file(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8", errors="replace"))
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return None
 
 
-def _write_json_file(path: Path, payload: Dict[str, Any]) -> None:
+def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -68,7 +69,7 @@ def _clear_json_file(path: Path) -> None:
         path.unlink()
 
 
-def _get_process(runtime: Optional[Dict[str, Any]] = None) -> Optional[psutil.Process]:
+def _get_process(runtime: dict[str, Any] | None = None) -> psutil.Process | None:
     runtime = runtime or {}
     pid = runtime.get("pid")
     create_time = runtime.get("create_time")
@@ -77,7 +78,7 @@ def _get_process(runtime: Optional[Dict[str, Any]] = None) -> Optional[psutil.Pr
 
     try:
         process = psutil.Process(int(pid))
-    except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
+    except psutil.NoSuchProcess, psutil.AccessDenied, ValueError:
         return None
 
     try:
@@ -85,42 +86,42 @@ def _get_process(runtime: Optional[Dict[str, Any]] = None) -> Optional[psutil.Pr
             return None
         if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
             return None
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+    except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
         return None
 
     return process
 
 
-def _client_host(host: Optional[str]) -> str:
+def _client_host(host: str | None) -> str:
     host = (host or "").strip()
     if host in LOCAL_HOSTS:
         return "127.0.0.1"
     return host
 
 
-def _backend_runtime() -> Optional[Dict[str, Any]]:
+def _backend_runtime() -> dict[str, Any] | None:
     return _read_json_file(BACKEND_RUNTIME_FILE)
 
 
-def _frontend_runtime() -> Optional[Dict[str, Any]]:
+def _frontend_runtime() -> dict[str, Any] | None:
     return _read_json_file(FRONTEND_RUNTIME_FILE)
 
 
-def _backend_base_url(runtime: Optional[Dict[str, Any]] = None) -> str:
+def _backend_base_url(runtime: dict[str, Any] | None = None) -> str:
     runtime = runtime or _backend_runtime() or {}
     host = runtime.get("host") or settings.HOST
     port = runtime.get("port") or settings.PORT
     return f"http://{_client_host(host)}:{port}"
 
 
-def _frontend_base_url(runtime: Optional[Dict[str, Any]] = None) -> str:
+def _frontend_base_url(runtime: dict[str, Any] | None = None) -> str:
     runtime = runtime or _frontend_runtime() or {}
     host = runtime.get("host") or settings.HOST
     port = runtime.get("port") or settings.NGINX_PORT
     return f"http://{_client_host(host)}:{port}"
 
 
-def _runtime_api_token(runtime: Optional[Dict[str, Any]] = None) -> str:
+def _runtime_api_token(runtime: dict[str, Any] | None = None) -> str:
     runtime = runtime or _backend_runtime() or {}
     return runtime.get("api_token") or settings.API_TOKEN
 
@@ -129,12 +130,12 @@ def _http_request(
     method: str,
     path: str,
     *,
-    params: Optional[Dict[str, Any]] = None,
-    json_body: Optional[Dict[str, Any]] = None,
-    headers: Optional[Dict[str, str]] = None,
+    params: dict[str, Any] | None = None,
+    json_body: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
     timeout: float = 5.0,
-    runtime: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    runtime: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     url = f"{_backend_base_url(runtime)}{path}"
     if params:
         query = urlencode(params, doseq=True)
@@ -172,7 +173,7 @@ def _http_request(
         raise click.ClickException(f"无法连接到本地服务：{exc.reason}") from exc
 
 
-def _backend_health(runtime: Optional[Dict[str, Any]] = None, timeout: float = 2.0) -> tuple[bool, Optional[Dict[str, Any]]]:
+def _backend_health(runtime: dict[str, Any] | None = None, timeout: float = 2.0) -> tuple[bool, dict[str, Any] | None]:
     try:
         response = _http_request(
             "GET",
@@ -192,7 +193,7 @@ def _backend_health(runtime: Optional[Dict[str, Any]] = None, timeout: float = 2
     return True, payload
 
 
-def _frontend_health(runtime: Optional[Dict[str, Any]] = None, timeout: float = 2.0) -> tuple[bool, Optional[Dict[str, Any]]]:
+def _frontend_health(runtime: dict[str, Any] | None = None, timeout: float = 2.0) -> tuple[bool, dict[str, Any] | None]:
     runtime = runtime or _frontend_runtime() or {}
     url = f"{_frontend_base_url(runtime)}{FRONTEND_HEALTH_PATH}"
     request = Request(url=url, headers={"Accept": "text/plain"}, method="GET")
@@ -200,7 +201,7 @@ def _frontend_health(runtime: Optional[Dict[str, Any]] = None, timeout: float = 
         with urlopen(request, timeout=timeout) as response:
             raw = response.read().decode("utf-8", errors="replace").strip()
             return response.status == 200, {"version": raw}
-    except (HTTPError, URLError):
+    except HTTPError, URLError:
         return False, None
 
 
@@ -208,7 +209,7 @@ def _warn(message: str) -> None:
     click.secho(message, fg="yellow")
 
 
-def _release_prefix(version: Optional[str]) -> str:
+def _release_prefix(version: str | None) -> str:
     """
     从版本号中提取主版本前缀，用于把本地自动更新限制在当前主版本线上。
     """
@@ -241,7 +242,7 @@ def _github_api_json(url: str, *, repo: str) -> Any:
         raise RuntimeError(f"GitHub API 返回了无法解析的响应：{url}") from exc
 
 
-def _latest_release_tag(url: str, *, repo: str, prefix: str) -> Optional[str]:
+def _latest_release_tag(url: str, *, repo: str, prefix: str) -> str | None:
     payload = _github_api_json(url, repo=repo)
     if not isinstance(payload, list):
         raise RuntimeError(f"GitHub API 返回格式异常：{url}")
@@ -259,14 +260,14 @@ def _latest_release_tag(url: str, *, repo: str, prefix: str) -> Optional[str]:
     return sorted(matched_tags, key=_release_sort_key)[-1]
 
 
-def _git_current_branch() -> Optional[str]:
+def _git_current_branch() -> str | None:
     try:
         branch = subprocess.check_output(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             cwd=str(_repo_root()),
             text=True,
         ).strip()
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return None
     return branch or None
 
@@ -278,7 +279,7 @@ def _auto_update_mode() -> str:
     return SystemHelper.get_auto_update_mode()
 
 
-def _resolve_auto_update_targets(mode: str) -> Optional[str]:
+def _resolve_auto_update_targets(mode: str) -> str | None:
     backend_prefix = _release_prefix(APP_VERSION)
 
     if mode == "dev":
@@ -370,7 +371,7 @@ def _ensure_frontend_not_running_alone(timeout: int) -> None:
         _stop_frontend_service(timeout=timeout, force=True)
 
 
-def _managed_backend_status() -> tuple[str, Optional[Dict[str, Any]], Optional[psutil.Process], Optional[Dict[str, Any]]]:
+def _managed_backend_status() -> tuple[str, dict[str, Any] | None, psutil.Process | None, dict[str, Any] | None]:
     runtime = _backend_runtime()
     process = _get_process(runtime)
     if process:
@@ -388,7 +389,7 @@ def _managed_backend_status() -> tuple[str, Optional[Dict[str, Any]], Optional[p
     return "stopped", None, None, None
 
 
-def _managed_frontend_status() -> tuple[str, Optional[Dict[str, Any]], Optional[psutil.Process], Optional[Dict[str, Any]]]:
+def _managed_frontend_status() -> tuple[str, dict[str, Any] | None, psutil.Process | None, dict[str, Any] | None]:
     runtime = _frontend_runtime()
     process = _get_process(runtime)
     if process:
@@ -487,14 +488,14 @@ def _parse_tool_result(result: Any) -> Any:
         return result
 
 
-def _tool_request_headers(runtime: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+def _tool_request_headers(runtime: dict[str, Any] | None = None) -> dict[str, str]:
     api_token = _runtime_api_token(runtime)
     if not api_token:
         raise click.ClickException("本地配置中未找到 API_TOKEN，请先配置后再使用 tool/scheduler 命令")
     return {"X-API-KEY": api_token}
 
 
-def _call_tool(tool_name: str, arguments: Dict[str, Any], runtime: Optional[Dict[str, Any]] = None) -> Any:
+def _call_tool(tool_name: str, arguments: dict[str, Any], runtime: dict[str, Any] | None = None) -> Any:
     response = _http_request(
         "POST",
         "/api/v1/mcp/tools/call",
@@ -512,7 +513,7 @@ def _call_tool(tool_name: str, arguments: Dict[str, Any], runtime: Optional[Dict
     return _parse_tool_result(payload.get("result"))
 
 
-def _load_tool(tool_name: str, runtime: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _load_tool(tool_name: str, runtime: dict[str, Any] | None = None) -> dict[str, Any]:
     response = _http_request(
         "GET",
         f"/api/v1/mcp/tools/{tool_name}",
@@ -527,7 +528,7 @@ def _load_tool(tool_name: str, runtime: Optional[Dict[str, Any]] = None) -> Dict
     return response["json"]
 
 
-def _load_tools(runtime: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]]:
+def _load_tools(runtime: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     response = _http_request(
         "GET",
         "/api/v1/mcp/tools",
@@ -540,7 +541,7 @@ def _load_tools(runtime: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]
     return response["json"]
 
 
-def _normalize_type(schema: Optional[Dict[str, Any]]) -> str:
+def _normalize_type(schema: dict[str, Any] | None) -> str:
     schema = schema or {}
     if schema.get("type"):
         return str(schema["type"])
@@ -550,7 +551,7 @@ def _normalize_type(schema: Optional[Dict[str, Any]]) -> str:
     return "string"
 
 
-def _format_tool_detail(tool: Dict[str, Any]) -> None:
+def _format_tool_detail(tool: dict[str, Any]) -> None:
     click.echo(f"Command: {tool.get('name')}")
     click.echo(f"Description: {tool.get('description') or '(none)'}")
     click.echo("")
@@ -577,8 +578,8 @@ def _format_tool_detail(tool: Dict[str, Any]) -> None:
             click.echo(f"  {field_name.ljust(name_width)}  {field_type.ljust(type_width)}  {field_desc}")
 
 
-def _parse_key_value_pairs(items: Iterable[str]) -> Dict[str, str]:
-    payload: Dict[str, str] = {}
+def _parse_key_value_pairs(items: Iterable[str]) -> dict[str, str]:
+    payload: dict[str, str] = {}
     for item in items:
         if "=" not in item:
             raise click.ClickException(f"参数必须是 key=value 形式：{item}")
@@ -604,10 +605,10 @@ def _spawn_process(
     command: list[str],
     *,
     cwd: Path,
-    log_file: Optional[Path],
-    env: Optional[Dict[str, str]] = None,
+    log_file: Path | None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.Popen:
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "cwd": str(cwd),
         "stdin": subprocess.DEVNULL,
         "close_fds": True,
@@ -634,12 +635,8 @@ def _spawn_backend_process(*, safe: bool = False) -> subprocess.Popen:
         "PYTHONUNBUFFERED": "1",
         "MOVIEPILOT_DISABLE_CONSOLE_LOG": "1",
         "MOVIEPILOT_STDIO_LOG_FILE": str(BACKEND_STDIO_LOG_FILE),
-        "MOVIEPILOT_STDIO_LOG_MAX_BYTES": str(
-            max(int(settings.LOG_MAX_FILE_SIZE or 0), 1) * 1024 * 1024
-        ),
-        "MOVIEPILOT_STDIO_LOG_BACKUP_COUNT": str(
-            max(int(settings.LOG_BACKUP_COUNT or 0), 0)
-        ),
+        "MOVIEPILOT_STDIO_LOG_MAX_BYTES": str(max(int(settings.LOG_MAX_FILE_SIZE or 0), 1) * 1024 * 1024),
+        "MOVIEPILOT_STDIO_LOG_BACKUP_COUNT": str(max(int(settings.LOG_BACKUP_COUNT or 0), 0)),
     }
     if safe:
         backend_env["MOVIEPILOT_SAFE_MODE"] = "true"
@@ -690,7 +687,7 @@ def _spawn_frontend_process(backend_port: int) -> subprocess.Popen:
     )
 
 
-def _wait_until_backend_ready(runtime: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+def _wait_until_backend_ready(runtime: dict[str, Any], timeout: int) -> dict[str, Any]:
     deadline = time.time() + timeout
     while time.time() < deadline:
         process = _get_process(runtime)
@@ -705,10 +702,12 @@ def _wait_until_backend_ready(runtime: Dict[str, Any], timeout: int) -> Dict[str
             return payload or {}
         time.sleep(1)
 
-    raise click.ClickException(f"后端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --stdio` 查看启动日志")
+    raise click.ClickException(
+        f"后端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --stdio` 查看启动日志"
+    )
 
 
-def _wait_until_frontend_ready(runtime: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+def _wait_until_frontend_ready(runtime: dict[str, Any], timeout: int) -> dict[str, Any]:
     deadline = time.time() + timeout
     while time.time() < deadline:
         process = _get_process(runtime)
@@ -723,15 +722,19 @@ def _wait_until_frontend_ready(runtime: Dict[str, Any], timeout: int) -> Dict[st
             return payload or {}
         time.sleep(1)
 
-    raise click.ClickException(f"前端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --frontend` 查看前端日志")
+    raise click.ClickException(
+        f"前端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --frontend` 查看前端日志"
+    )
 
 
-def _start_backend_service(timeout: int, safe: bool = False) -> Dict[str, Any]:
+def _start_backend_service(timeout: int, safe: bool = False) -> dict[str, Any]:
     state, runtime, process, health_payload = _managed_backend_status()
     if state in {"running", "starting"} and runtime and process:
         return {"status": state, "runtime": runtime, "process": process, "health": health_payload, "started": False}
     if state == "running-unmanaged":
-        raise click.ClickException("检测到本地端口上已有 MoviePilot 后端正在运行，但不是由当前 CLI 管理，请先手动停止它")
+        raise click.ClickException(
+            "检测到本地端口上已有 MoviePilot 后端正在运行，但不是由当前 CLI 管理，请先手动停止它"
+        )
 
     _ensure_local_api_token()
     _clear_json_file(BACKEND_RUNTIME_FILE)
@@ -753,12 +756,14 @@ def _start_backend_service(timeout: int, safe: bool = False) -> Dict[str, Any]:
     return {"status": "running", "runtime": runtime, "process": ps_process, "health": health_payload, "started": True}
 
 
-def _start_frontend_service(timeout: int, backend_port: int) -> Dict[str, Any]:
+def _start_frontend_service(timeout: int, backend_port: int) -> dict[str, Any]:
     state, runtime, process, health_payload = _managed_frontend_status()
     if state in {"running", "starting"} and runtime and process:
         return {"status": state, "runtime": runtime, "process": process, "health": health_payload, "started": False}
     if state == "running-unmanaged":
-        raise click.ClickException("检测到本地端口上已有 MoviePilot 前端正在运行，但不是由当前 CLI 管理，请先手动停止它")
+        raise click.ClickException(
+            "检测到本地端口上已有 MoviePilot 前端正在运行，但不是由当前 CLI 管理，请先手动停止它"
+        )
 
     _clear_json_file(FRONTEND_RUNTIME_FILE)
     process = _spawn_frontend_process(backend_port=backend_port)
@@ -778,7 +783,7 @@ def _start_frontend_service(timeout: int, backend_port: int) -> Dict[str, Any]:
     return {"status": "running", "runtime": runtime, "process": ps_process, "health": health_payload, "started": True}
 
 
-def _terminate_process(runtime_file: Path, timeout: int, force: bool, component_name: str) -> Dict[str, Any]:
+def _terminate_process(runtime_file: Path, timeout: int, force: bool, component_name: str) -> dict[str, Any]:
     runtime = _read_json_file(runtime_file)
     process = _get_process(runtime)
     if not process:
@@ -791,7 +796,9 @@ def _terminate_process(runtime_file: Path, timeout: int, force: bool, component_
         process.wait(timeout=timeout)
     except psutil.TimeoutExpired:
         if not force:
-            raise click.ClickException(f"{component_name} 在 {timeout} 秒内没有退出，可重新执行 `moviepilot stop --force` 强制终止")
+            raise click.ClickException(
+                f"{component_name} 在 {timeout} 秒内没有退出，可重新执行 `moviepilot stop --force` 强制终止"
+            )
         process.kill()
         process.wait(timeout=10)
 
@@ -799,7 +806,7 @@ def _terminate_process(runtime_file: Path, timeout: int, force: bool, component_
     return {"stopped": True, "pid": process.pid}
 
 
-def _stop_backend_service(timeout: int, force: bool) -> Dict[str, Any]:
+def _stop_backend_service(timeout: int, force: bool) -> dict[str, Any]:
     runtime = _backend_runtime()
     process = _get_process(runtime)
     if not process:
@@ -812,7 +819,7 @@ def _stop_backend_service(timeout: int, force: bool) -> Dict[str, Any]:
     return _terminate_process(BACKEND_RUNTIME_FILE, timeout, force, "后端服务")
 
 
-def _stop_frontend_service(timeout: int, force: bool) -> Dict[str, Any]:
+def _stop_frontend_service(timeout: int, force: bool) -> dict[str, Any]:
     runtime = _frontend_runtime()
     process = _get_process(runtime)
     if not process:
@@ -825,7 +832,7 @@ def _stop_frontend_service(timeout: int, force: bool) -> Dict[str, Any]:
     return _terminate_process(FRONTEND_RUNTIME_FILE, timeout, force, "前端服务")
 
 
-def _installed_frontend_version() -> Optional[str]:
+def _installed_frontend_version() -> str | None:
     if not FRONTEND_VERSION_FILE.exists():
         return None
     try:
@@ -863,10 +870,22 @@ def start(timeout: int, safe: bool) -> None:
         raise
 
     backend_health = backend_result.get("health") or {}
-    backend_version = ((backend_health.get("data") or {}) if isinstance(backend_health, dict) else {}).get("BACKEND_VERSION", APP_VERSION)
-    frontend_version = ((frontend_result.get("health") or {}) if isinstance(frontend_result.get("health"), dict) else {}).get("version") or _installed_frontend_version() or "unknown"
+    backend_version = ((backend_health.get("data") or {}) if isinstance(backend_health, dict) else {}).get(
+        "BACKEND_VERSION", APP_VERSION
+    )
+    frontend_version = (
+        ((frontend_result.get("health") or {}) if isinstance(frontend_result.get("health"), dict) else {}).get(
+            "version"
+        )
+        or _installed_frontend_version()
+        or "unknown"
+    )
 
-    click.echo("MoviePilot 已启动" if backend_result.get("started") or frontend_result.get("started") else "MoviePilot 已在运行")
+    click.echo(
+        "MoviePilot 已启动"
+        if backend_result.get("started") or frontend_result.get("started")
+        else "MoviePilot 已在运行"
+    )
     click.echo(f"Backend PID: {backend_result['process'].pid}")
     click.echo(f"Backend URL: {_backend_base_url(backend_runtime)}")
     click.echo(f"Frontend PID: {frontend_result['process'].pid}")
@@ -904,7 +923,9 @@ def restart(start_timeout: int, stop_timeout: int, force: bool) -> None:
     _stop_backend_service(timeout=stop_timeout, force=force)
     _best_effort_auto_update()
     backend_result = _start_backend_service(timeout=start_timeout)
-    frontend_result = _start_frontend_service(timeout=start_timeout, backend_port=int(backend_result["runtime"]["port"]))
+    frontend_result = _start_frontend_service(
+        timeout=start_timeout, backend_port=int(backend_result["runtime"]["port"])
+    )
     click.echo("MoviePilot 已重启")
     click.echo(f"Backend URL: {_backend_base_url(backend_result['runtime'])}")
     click.echo(f"Frontend URL: {_frontend_base_url(frontend_result['runtime'])}")
@@ -947,12 +968,20 @@ def status() -> None:
         if installed_frontend:
             click.echo(f"  Installed Version: {installed_frontend}")
     elif frontend_state == "running-unmanaged":
-        frontend_version = ((frontend_health or {}).get("version") if isinstance(frontend_health, dict) else None) or _installed_frontend_version() or "unknown"
+        frontend_version = (
+            ((frontend_health or {}).get("version") if isinstance(frontend_health, dict) else None)
+            or _installed_frontend_version()
+            or "unknown"
+        )
         click.echo("  running (unmanaged)")
         click.echo(f"  URL: {_frontend_base_url()}")
         click.echo(f"  Version: {frontend_version}")
     else:
-        frontend_version = ((frontend_health or {}).get("version") if isinstance(frontend_health, dict) else None) or _installed_frontend_version() or "unknown"
+        frontend_version = (
+            ((frontend_health or {}).get("version") if isinstance(frontend_health, dict) else None)
+            or _installed_frontend_version()
+            or "unknown"
+        )
         click.echo(f"  {'running' if frontend_state == 'running' else 'starting'}")
         click.echo(f"  PID: {frontend_process.pid}")
         click.echo(f"  URL: {_frontend_base_url(frontend_runtime)}")
@@ -1050,7 +1079,11 @@ def config_set(key: str, value: str) -> None:
 
     backend_state, _, _, _ = _managed_backend_status()
     frontend_state, _, _, _ = _managed_frontend_status()
-    if backend_state in {"running", "starting", "running-unmanaged"} or frontend_state in {"running", "starting", "running-unmanaged"}:
+    if backend_state in {"running", "starting", "running-unmanaged"} or frontend_state in {
+        "running",
+        "starting",
+        "running-unmanaged",
+    }:
         click.echo("检测到服务正在运行，新配置将在重启前后端服务后生效")
 
 
@@ -1058,7 +1091,7 @@ def config_set(key: str, value: str) -> None:
 @click.argument("pattern", required=False)
 @click.option("--show-current", is_flag=True, help="同时显示当前值")
 @click.option("--show-secrets", is_flag=True, help="显示敏感配置原文")
-def config_keys(pattern: Optional[str], show_current: bool, show_secrets: bool) -> None:
+def config_keys(pattern: str | None, show_current: bool, show_secrets: bool) -> None:
     """列出所有可配置项及类型"""
     rows = []
     for key, field in Settings.model_fields.items():

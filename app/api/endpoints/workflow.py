@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +10,8 @@ from app import schemas
 from app.chain.workflow import WorkflowChain
 from app.core.config import global_vars
 from app.core.plugin import PluginManager
-from app.workflow import WorkFlowManager
 from app.db import get_async_db, get_db
-from app.db.models import Workflow, User
+from app.db.models import User, Workflow
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.user_oper import (
     get_current_active_manage_user,
@@ -21,7 +20,8 @@ from app.db.user_oper import (
 from app.db.workflow_oper import WorkflowOper
 from app.helper.server import MoviePilotServerHelper
 from app.scheduler import Scheduler
-from app.schemas.types import EventType, EVENT_TYPE_NAMES
+from app.schemas.types import EVENT_TYPE_NAMES, EventType
+from app.workflow import WorkFlowManager
 
 router = APIRouter()
 
@@ -30,7 +30,7 @@ WORKFLOW_TRIGGER_EVENT = "event"
 WORKFLOW_TRIGGER_MANUAL = "manual"
 
 
-@router.get("/", summary="所有工作流", response_model=List[schemas.Workflow])
+@router.get("/", summary="所有工作流", response_model=list[schemas.Workflow])
 async def list_workflows(
     db: AsyncSession = Depends(get_async_db),
     _: User = Depends(get_current_active_manage_user_async),
@@ -63,17 +63,15 @@ async def create_workflow(
     return schemas.Response(success=True, message="创建工作流成功")
 
 
-@router.get("/plugin/actions", summary="查询插件动作", response_model=List[dict])
-def list_plugin_actions(
-    plugin_id: str = None, _: User = Depends(get_current_active_manage_user)
-) -> Any:
+@router.get("/plugin/actions", summary="查询插件动作", response_model=list[dict])
+def list_plugin_actions(plugin_id: str = None, _: User = Depends(get_current_active_manage_user)) -> Any:
     """
     获取所有动作
     """
     return PluginManager().get_plugin_actions(plugin_id)
 
 
-@router.get("/actions", summary="所有动作", response_model=List[dict])
+@router.get("/actions", summary="所有动作", response_model=list[dict])
 async def list_actions(_: User = Depends(get_current_active_manage_user_async)) -> Any:
     """
     获取所有动作
@@ -81,7 +79,7 @@ async def list_actions(_: User = Depends(get_current_active_manage_user_async)) 
     return WorkFlowManager().list_actions()
 
 
-@router.get("/event_types", summary="获取所有事件类型", response_model=List[dict])
+@router.get("/event_types", summary="获取所有事件类型", response_model=list[dict])
 async def get_event_types(_: User = Depends(get_current_active_manage_user_async)) -> Any:
     """
     获取所有事件类型
@@ -103,9 +101,7 @@ async def workflow_share(
     分享工作流
     """
     if not workflow.id or not workflow.share_title or not workflow.share_user:
-        return schemas.Response(
-            success=False, message="请填写工作流ID、分享标题和分享人"
-        )
+        return schemas.Response(success=False, message="请填写工作流ID、分享标题和分享人")
 
     state, errmsg = await MoviePilotServerHelper.async_workflow_share_by_id(
         workflow_id=workflow.id,
@@ -117,9 +113,7 @@ async def workflow_share(
 
 
 @router.delete("/share/{share_id}", summary="删除分享", response_model=schemas.Response)
-async def workflow_share_delete(
-    share_id: int, _: User = Depends(get_current_active_manage_user_async)
-) -> Any:
+async def workflow_share_delete(share_id: int, _: User = Depends(get_current_active_manage_user_async)) -> Any:
     """
     删除分享
     """
@@ -190,13 +184,11 @@ async def workflow_fork(
     return schemas.Response(success=True, message="复用成功")
 
 
-@router.get(
-    "/shares", summary="查询分享的工作流", response_model=List[schemas.WorkflowShare]
-)
+@router.get("/shares", summary="查询分享的工作流", response_model=list[schemas.WorkflowShare])
 async def workflow_shares(
-    name: Optional[str] = None,
-    page: Optional[int] = 1,
-    count: Optional[int] = 30,
+    name: str | None = None,
+    page: int | None = 1,
+    count: int | None = 30,
     _: User = Depends(get_current_active_manage_user_async),
 ) -> Any:
     """
@@ -205,12 +197,10 @@ async def workflow_shares(
     return await MoviePilotServerHelper.async_get_workflow_shares(name=name, page=page, count=count)
 
 
-@router.post(
-    "/{workflow_id}/run", summary="执行工作流", response_model=schemas.Response
-)
+@router.post("/{workflow_id}/run", summary="执行工作流", response_model=schemas.Response)
 def run_workflow(
     workflow_id: int,
-    from_begin: Optional[bool] = True,
+    from_begin: bool | None = True,
     _: User = Depends(get_current_active_manage_user),
 ) -> Any:
     """
@@ -222,9 +212,7 @@ def run_workflow(
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/{workflow_id}/start", summary="启用工作流", response_model=schemas.Response
-)
+@router.post("/{workflow_id}/start", summary="启用工作流", response_model=schemas.Response)
 def start_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),
@@ -256,9 +244,7 @@ def start_workflow(
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/{workflow_id}/pause", summary="停用工作流", response_model=schemas.Response
-)
+@router.post("/{workflow_id}/pause", summary="停用工作流", response_model=schemas.Response)
 def pause_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),
@@ -284,9 +270,7 @@ def pause_workflow(
     return schemas.Response(success=True)
 
 
-@router.post(
-    "/{workflow_id}/reset", summary="重置工作流", response_model=schemas.Response
-)
+@router.post("/{workflow_id}/reset", summary="重置工作流", response_model=schemas.Response)
 async def reset_workflow(
     workflow_id: int,
     db: AsyncSession = Depends(get_async_db),

@@ -1,5 +1,5 @@
-from app.workflow.actions import BaseAction
 from app.schemas import ActionContext
+from app.workflow.actions import BaseAction
 
 
 class NoteAction(BaseAction):
@@ -11,17 +11,17 @@ class NoteAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "备注"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "给工作流添加备注"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return {}
 
     @property

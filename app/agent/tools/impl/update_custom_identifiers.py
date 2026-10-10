@@ -16,7 +16,7 @@ from app.schemas.types import SystemConfigKey
 class UpdateCustomIdentifiersInput(BaseModel):
     """更新自定义识别词工具的输入参数模型"""
 
-    identifiers: List[str] = Field(
+    identifiers: list[str] = Field(
         ...,
         description=(
             "The complete list of custom identifier rules to save. "
@@ -57,17 +57,15 @@ class UpdateCustomIdentifiersTool(MoviePilotTool):
         "for direct TMDB ID matching; g is an optional TMDB episode group ID for TV recognition."
     )
     require_admin: bool = True
-    args_schema: Type[BaseModel] = UpdateCustomIdentifiersInput
+    args_schema: type[BaseModel] = UpdateCustomIdentifiersInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         identifiers = kwargs.get("identifiers", [])
         return f"更新自定义识别词（共 {len(identifiers)} 条规则）"
 
-    async def run(self, identifiers: List[str] = None, **kwargs) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 规则数量: {len(identifiers) if identifiers else 0}"
-        )
+    async def run(self, identifiers: list[str] = None, **kwargs) -> str:
+        logger.info(f"执行工具: {self.name}, 规则数量: {len(identifiers) if identifiers else 0}")
         try:
             if identifiers is None:
                 return json.dumps(
@@ -82,9 +80,7 @@ class UpdateCustomIdentifiersTool(MoviePilotTool):
 
             # 保存
             value = identifiers if identifiers else None
-            success = await system_config_oper.async_set(
-                SystemConfigKey.CustomIdentifiers, value
-            )
+            success = await system_config_oper.async_set(SystemConfigKey.CustomIdentifiers, value)
             if success:
                 clear_rust_parse_options_cache()
                 return json.dumps(

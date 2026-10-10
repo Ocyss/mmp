@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 from typing import Optional
 
@@ -16,7 +15,7 @@ class SmallHorseSiteUserInfo(SiteParserBase):
 
         user_detail = re.search(r"user.php\?id=(\d+)", html_text)
         if user_detail and user_detail.group().strip():
-            self._user_detail_page = user_detail.group().strip().lstrip('/')
+            self._user_detail_page = user_detail.group().strip().lstrip("/")
             self.userid = user_detail.group(1)
             self._torrent_seeding_page = f"torrents.php?type=seeding&userid={self.userid}"
         self._user_traffic_page = f"user.php?id={self.userid}"
@@ -45,17 +44,23 @@ class SmallHorseSiteUserInfo(SiteParserBase):
             if tmps:
                 if tmps[1].xpath("li") and tmps[1].xpath("li")[0].xpath("span//text()"):
                     self.join_at = StringUtils.unify_datetime_str(tmps[1].xpath("li")[0].xpath("span//text()")[0])
-                self.upload = StringUtils.num_filesize(str(tmps[1].xpath("li")[2].xpath("text()")[0]).split(":")[1].strip())
+                self.upload = StringUtils.num_filesize(
+                    str(tmps[1].xpath("li")[2].xpath("text()")[0]).split(":")[1].strip()
+                )
                 self.download = StringUtils.num_filesize(
-                    str(tmps[1].xpath("li")[3].xpath("text()")[0]).split(":")[1].strip())
+                    str(tmps[1].xpath("li")[3].xpath("text()")[0]).split(":")[1].strip()
+                )
                 if tmps[1].xpath("li")[4].xpath("span//text()"):
-                    self.ratio = StringUtils.str_float(str(tmps[1].xpath("li")[4].xpath("span//text()")[0]).replace('∞', '0'))
+                    self.ratio = StringUtils.str_float(
+                        str(tmps[1].xpath("li")[4].xpath("span//text()")[0]).replace("∞", "0")
+                    )
                 else:
                     self.ratio = StringUtils.str_float(str(tmps[1].xpath("li")[5].xpath("text()")[0]).split(":")[1])
                 self.bonus = StringUtils.str_float(str(tmps[1].xpath("li")[5].xpath("text()")[0]).split(":")[1])
                 self.user_level = str(tmps[3].xpath("li")[0].xpath("text()")[0]).split(":")[1].strip()
                 self.leeching = StringUtils.str_int(
-                    (tmps[4].xpath("li")[6].xpath("text()")[0]).split(":")[1].replace("[", ""))
+                    (tmps[4].xpath("li")[6].xpath("text()")[0]).split(":")[1].replace("[", "")
+                )
         finally:
             if html is not None:
                 del html
@@ -63,13 +68,13 @@ class SmallHorseSiteUserInfo(SiteParserBase):
     def _parse_user_detail_info(self, html_text: str):
         pass
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
-         做种相关信息
-         :param html_text:
-         :param multi_page: 是否多页数据
-         :return: 下页地址
-         """
+        做种相关信息
+        :param html_text:
+        :param multi_page: 是否多页数据
+        :return: 下页地址
+        """
         html = etree.HTML(html_text)
         try:
             if not StringUtils.is_valid_html_element(html):
@@ -109,7 +114,7 @@ class SmallHorseSiteUserInfo(SiteParserBase):
                 del html
         return next_page
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         return None
 
     def _parse_message_content(self, html_text):

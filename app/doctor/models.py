@@ -92,11 +92,7 @@ class DoctorReport:
         """
         根据诊断发现计算整体状态。
         """
-        unresolved = [
-            finding
-            for finding in self.findings
-            if not finding.fixed and finding.affects_report_status
-        ]
+        unresolved = [finding for finding in self.findings if not finding.fixed and finding.affects_report_status]
         if any(finding.severity == DoctorSeverity.Error for finding in unresolved):
             return DoctorReportStatus.Failed
         if any(finding.severity == DoctorSeverity.Warn for finding in unresolved):
@@ -136,7 +132,7 @@ class DoctorReport:
         """
         self.findings.append(finding)
 
-    def find(self, finding_id: str) -> Optional[DoctorFinding]:
+    def find(self, finding_id: str) -> DoctorFinding | None:
         """
         按诊断项 ID 查找发现。
         """

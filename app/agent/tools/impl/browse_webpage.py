@@ -70,46 +70,40 @@ class BrowseWebpageInput(BaseModel):
             "- 'close_session': Close the current browser session"
         ),
     )
-    url: Optional[str] = Field(
-        None, description="URL to navigate to (required for 'goto' action)"
-    )
-    selector: Optional[str] = Field(
+    url: str | None = Field(None, description="URL to navigate to (required for 'goto' action)")
+    selector: str | None = Field(
         None,
         description="CSS selector or text selector for the target element (for 'click', 'fill', 'select', 'wait' actions). "
         "Supports CSS selectors like '#id', '.class', 'tag', and Playwright text selectors like 'text=Click me'",
     )
-    ref: Optional[str] = Field(
+    ref: str | None = Field(
         None,
         description="Element ref returned by 'snapshot' or action results (for 'click_ref', 'fill_ref', 'select_ref')",
     )
-    value: Optional[str] = Field(
+    value: str | None = Field(
         None,
         description="Value to fill into input or option value to select (for 'fill' and 'select' actions)",
     )
-    script: Optional[str] = Field(
+    script: str | None = Field(
         None,
         description="JavaScript code to execute on the page (for 'evaluate' action). "
         "The script should return a value that can be serialized to JSON.",
     )
-    content_type: Optional[str] = Field(
+    content_type: str | None = Field(
         "text",
         description="Content type for 'get_content' action: 'text' for readable text, 'html' for raw HTML",
     )
-    timeout: Optional[int] = Field(
-        DEFAULT_TIMEOUT, description="Timeout in seconds for the action (default: 30)"
-    )
-    cookies: Optional[str] = Field(
+    timeout: int | None = Field(DEFAULT_TIMEOUT, description="Timeout in seconds for the action (default: 30)")
+    cookies: str | None = Field(
         None,
         description="Cookies to set for the browser context, format: 'name1=value1; name2=value2'",
     )
-    user_agent: Optional[str] = Field(
-        None, description="Custom User-Agent string for the browser context"
-    )
-    session_key: Optional[str] = Field(
+    user_agent: str | None = Field(None, description="Custom User-Agent string for the browser context")
+    session_key: str | None = Field(
         None,
         description="Browser session key. Defaults to the current agent session id.",
     )
-    tab_index: Optional[int] = Field(
+    tab_index: int | None = Field(
         None,
         description="Tab index for 'focus_tab' and 'close_tab' actions.",
     )
@@ -136,9 +130,9 @@ class BrowseWebpageTool(MoviePilotTool):
         "first call 'goto' to open a page, inspect 'interactive_elements', then use *_ref actions when possible. "
         "For safety, localhost and private network URLs are blocked by default unless allow_private_network is true."
     )
-    args_schema: Type[BaseModel] = BrowseWebpageInput
+    args_schema: type[BaseModel] = BrowseWebpageInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据操作类型生成友好的提示消息"""
         action = kwargs.get("action", "")
         url = kwargs.get("url", "")
@@ -167,24 +161,22 @@ class BrowseWebpageTool(MoviePilotTool):
     async def run(
         self,
         action: str,
-        url: Optional[str] = None,
-        selector: Optional[str] = None,
-        ref: Optional[str] = None,
-        value: Optional[str] = None,
-        script: Optional[str] = None,
-        content_type: Optional[str] = "text",
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
-        cookies: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        session_key: Optional[str] = None,
-        tab_index: Optional[int] = None,
+        url: str | None = None,
+        selector: str | None = None,
+        ref: str | None = None,
+        value: str | None = None,
+        script: str | None = None,
+        content_type: str | None = "text",
+        timeout: int | None = DEFAULT_TIMEOUT,
+        cookies: str | None = None,
+        user_agent: str | None = None,
+        session_key: str | None = None,
+        tab_index: int | None = None,
         allow_private_network: bool = False,
         **kwargs,
     ) -> str:
         """执行浏览器操作"""
-        logger.info(
-            f"执行工具: {self.name}, 动作: {action}, URL: {url}, 选择器: {selector}"
-        )
+        logger.info(f"执行工具: {self.name}, 动作: {action}, URL: {url}, 选择器: {selector}")
 
         try:
             # 验证操作类型
@@ -226,15 +218,9 @@ class BrowseWebpageTool(MoviePilotTool):
                 return "错误: 'fill_ref' 操作需要提供 value 参数"
             if browser_action == BrowserAction.EVALUATE and not script:
                 return "错误: 'evaluate' 操作需要提供 script 参数"
-            if (
-                browser_action == BrowserAction.EVALUATE
-                and not await self.is_admin_user()
-            ):
+            if browser_action == BrowserAction.EVALUATE and not await self.is_admin_user():
                 return "错误: 'evaluate' 操作仅允许管理员使用"
-            if (
-                browser_action in (BrowserAction.FOCUS_TAB, BrowserAction.CLOSE_TAB)
-                and tab_index is None
-            ):
+            if browser_action in (BrowserAction.FOCUS_TAB, BrowserAction.CLOSE_TAB) and tab_index is None:
                 return f"错误: '{action}' 操作需要提供 tab_index 参数"
 
             effective_session_key = session_key or self._session_id
@@ -265,17 +251,17 @@ class BrowseWebpageTool(MoviePilotTool):
     def _execute_browser_action(
         self,
         browser_action: BrowserAction,
-        url: Optional[str],
-        selector: Optional[str],
-        ref: Optional[str],
-        value: Optional[str],
-        script: Optional[str],
-        content_type: Optional[str],
+        url: str | None,
+        selector: str | None,
+        ref: str | None,
+        value: str | None,
+        script: str | None,
+        content_type: str | None,
         timeout: int,
-        cookies: Optional[str],
-        user_agent: Optional[str],
+        cookies: str | None,
+        user_agent: str | None,
         session_key: str,
-        tab_index: Optional[int],
+        tab_index: int | None,
         allow_private_network: bool,
     ) -> str:
         """在同步上下文中执行 CloakBrowser 浏览器操作"""
@@ -332,14 +318,14 @@ class BrowseWebpageTool(MoviePilotTool):
         helper: BrowserSessionHelper,
         session,
         browser_action: BrowserAction,
-        url: Optional[str],
-        selector: Optional[str],
-        ref: Optional[str],
-        value: Optional[str],
-        script: Optional[str],
-        content_type: Optional[str],
+        url: str | None,
+        selector: str | None,
+        ref: str | None,
+        value: str | None,
+        script: str | None,
+        content_type: str | None,
         timeout: int,
-        tab_index: Optional[int],
+        tab_index: int | None,
         allow_private_network: bool,
     ) -> str:
         """执行具体的浏览器操作"""
@@ -480,7 +466,7 @@ class BrowseWebpageTool(MoviePilotTool):
         return BrowseWebpageTool._json_response(result)
 
     @staticmethod
-    def _action_get_content(page, content_type: Optional[str]) -> str:
+    def _action_get_content(page, content_type: str | None) -> str:
         """获取页面内容"""
         title = page.title()
         page_url = page.url
@@ -539,7 +525,7 @@ class BrowseWebpageTool(MoviePilotTool):
         page,
         selector: str,
         timeout: int,
-        ref: Optional[str] = None,
+        ref: str | None = None,
     ) -> str:
         """点击元素"""
         page.click(selector, timeout=timeout * 1000)
@@ -567,7 +553,7 @@ class BrowseWebpageTool(MoviePilotTool):
         selector: str,
         value: str,
         timeout: int,
-        ref: Optional[str] = None,
+        ref: str | None = None,
     ) -> str:
         """填写表单"""
         page.fill(selector, value, timeout=timeout * 1000)
@@ -587,9 +573,9 @@ class BrowseWebpageTool(MoviePilotTool):
     def _action_select(
         page,
         selector: str,
-        value: Optional[str],
+        value: str | None,
         timeout: int,
-        ref: Optional[str] = None,
+        ref: str | None = None,
     ) -> str:
         """选择下拉选项"""
         if value:

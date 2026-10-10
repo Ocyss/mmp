@@ -6,7 +6,6 @@ import os.path
 import re
 import shlex
 
-
 COMMAND_FORBIDDEN_KEYWORDS = (
     ":(){ :|:& };:",
     "dd if=/dev/zero",
@@ -37,10 +36,7 @@ def _contains_recursive_root_delete(command: str) -> bool:
     tokens = _command_tokens(command)
     if not any(token == "rm" or token.endswith("/rm") for token in tokens):
         return False
-    has_recursive = any(
-        token.startswith("-") and ("r" in token or "R" in token)
-        for token in tokens
-    )
+    has_recursive = any(token.startswith("-") and ("r" in token or "R" in token) for token in tokens)
     if not has_recursive:
         return False
 

@@ -1,7 +1,7 @@
 """切换当前激活人格工具。"""
 
 import json
-from typing import Type, Optional
+from typing import Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class SwitchPersonaTool(MoviePilotTool):
         "Use this when the user explicitly asks to change the speaking style, tone, or response persona. "
         "If the user asks for a vague style and you are not sure which persona matches best, call query_personas first."
     )
-    args_schema: Type[BaseModel] = SwitchPersonaInput
+    args_schema: type[BaseModel] = SwitchPersonaInput
 
     def get_tool_message(self, **kwargs) -> str:
         persona_id = kwargs.get("persona_id") or "未知人格"

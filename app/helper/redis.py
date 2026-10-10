@@ -2,7 +2,8 @@ import asyncio
 import json
 import pickle
 import threading
-from typing import Any, Optional, Generator, Tuple, AsyncGenerator, Union
+from collections.abc import AsyncGenerator, Generator
+from typing import Any, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
 import redis
@@ -85,6 +86,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
     - 支持内存限制和淘汰策略设置
     - 提供键名生成和区域管理功能
     """
+
     CONFIG_WATCH = {
         "CACHE_BACKEND_TYPE",
         "CACHE_BACKEND_URL",
@@ -144,7 +146,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
     def get_reload_name(self):
         return "Redis"
 
-    def set_memory_limit(self, policy: Optional[str] = "allkeys-lru"):
+    def set_memory_limit(self, policy: str | None = "allkeys-lru"):
         """
         动态设置Redis最大内存和内存淘汰策略
 
@@ -160,7 +162,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to set Redis maxmemory or policy: {e}")
 
     @staticmethod
-    def __get_region(region: Optional[str] = None):
+    def __get_region(region: str | None = None):
         """
         获取缓存的区
         """
@@ -175,7 +177,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
         return f"{region}:key:{quote(key)}"
 
     @staticmethod
-    def __get_original_key(redis_key: Union[str, bytes]) -> str:
+    def __get_original_key(redis_key: str | bytes) -> str:
         """
         从Redis键中提取原始key
         """
@@ -188,8 +190,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.warn(f"Failed to parse redis key: {redis_key}, error: {e}")
             return redis_key
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None,
-            region: Optional[str] = "DEFAULT", **kwargs) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = "DEFAULT", **kwargs) -> None:
         """
         设置缓存
 
@@ -209,7 +210,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to set key: {key} in region: {region}, error: {e}")
 
-    def exists(self, key: str, region: Optional[str] = "DEFAULT") -> bool:
+    def exists(self, key: str, region: str | None = "DEFAULT") -> bool:
         """
         判断缓存键是否存在
 
@@ -225,7 +226,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to exists key: {key} region: {region}, error: {e}")
             return False
 
-    def get(self, key: str, region: Optional[str] = "DEFAULT") -> Optional[Any]:
+    def get(self, key: str, region: str | None = "DEFAULT") -> Any | None:
         """
         获取缓存的值
 
@@ -244,7 +245,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to get key: {key} in region: {region}, error: {e}")
             return None
 
-    def pop(self, key: str, region: Optional[str] = "DEFAULT") -> Optional[Any]:
+    def pop(self, key: str, region: str | None = "DEFAULT") -> Any | None:
         """原子读取并删除缓存值。"""
         try:
             self._connect()
@@ -252,12 +253,10 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
             value = self.client.getdel(redis_key)
             return deserialize(value) if value is not None else None
         except Exception as e:
-            logger.error(
-                f"Failed to pop key: {key} in region: {region}, error: {e}"
-            )
+            logger.error(f"Failed to pop key: {key} in region: {region}, error: {e}")
             return None
 
-    def delete(self, key: str, region: Optional[str] = "DEFAULT") -> None:
+    def delete(self, key: str, region: str | None = "DEFAULT") -> None:
         """
         删除缓存
 
@@ -271,7 +270,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to delete key: {key} in region: {region}, error: {e}")
 
-    def clear(self, region: Optional[str] = None) -> None:
+    def clear(self, region: str | None = None) -> None:
         """
         清除指定区域的缓存或全部缓存
 
@@ -293,7 +292,7 @@ class RedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to clear cache, region: {region}, error: {e}")
 
-    def items(self, region: Optional[str] = None) -> Generator[Tuple[str, Any], None, None]:
+    def items(self, region: str | None = None) -> Generator[tuple[str, Any]]:
         """
         获取指定区域的所有缓存键值对
 
@@ -350,6 +349,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
     - 提供键名生成和区域管理功能
     - 所有操作都是异步的
     """
+
     CONFIG_WATCH = {
         "CACHE_BACKEND_TYPE",
         "CACHE_BACKEND_URL",
@@ -363,10 +363,10 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
         初始化异步Redis助手实例
         """
         self.redis_url = settings.CACHE_BACKEND_URL
-        self.client: Optional[Redis] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._connect_lock: Optional[asyncio.Lock] = None
-        self._connect_lock_loop: Optional[asyncio.AbstractEventLoop] = None
+        self.client: Redis | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._connect_lock: asyncio.Lock | None = None
+        self._connect_lock_loop: asyncio.AbstractEventLoop | None = None
 
     def _get_connect_lock(self, current_loop: asyncio.AbstractEventLoop) -> asyncio.Lock:
         """
@@ -437,7 +437,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
     def get_reload_name(self):
         return "Redis (async)"
 
-    async def set_memory_limit(self, policy: Optional[str] = "allkeys-lru"):
+    async def set_memory_limit(self, policy: str | None = "allkeys-lru"):
         """
         动态设置Redis最大内存和内存淘汰策略
 
@@ -453,7 +453,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to set Redis maxmemory or policy (async): {e}")
 
     @staticmethod
-    def __get_region(region: Optional[str] = "DEFAULT"):
+    def __get_region(region: str | None = "DEFAULT"):
         """
         获取缓存的区
         """
@@ -468,7 +468,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
         return f"{region}:key:{quote(key)}"
 
     @staticmethod
-    def __get_original_key(redis_key: Union[str, bytes]) -> str:
+    def __get_original_key(redis_key: str | bytes) -> str:
         """
         从Redis键中提取原始key
         """
@@ -481,8 +481,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.warn(f"Failed to parse redis key: {redis_key}, error: {e}")
             return redis_key
 
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None,
-                  region: Optional[str] = "DEFAULT", **kwargs) -> None:
+    async def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = "DEFAULT", **kwargs) -> None:
         """
         异步设置缓存
 
@@ -502,7 +501,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to set key (async): {key} in region: {region}, error: {e}")
 
-    async def exists(self, key: str, region: Optional[str] = "DEFAULT") -> bool:
+    async def exists(self, key: str, region: str | None = "DEFAULT") -> bool:
         """
         异步判断缓存键是否存在
 
@@ -519,7 +518,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to exists key (async): {key} region: {region}, error: {e}")
             return False
 
-    async def get(self, key: str, region: Optional[str] = "DEFAULT") -> Optional[Any]:
+    async def get(self, key: str, region: str | None = "DEFAULT") -> Any | None:
         """
         异步获取缓存的值
 
@@ -538,7 +537,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"Failed to get key (async): {key} in region: {region}, error: {e}")
             return None
 
-    async def delete(self, key: str, region: Optional[str] = "DEFAULT") -> None:
+    async def delete(self, key: str, region: str | None = "DEFAULT") -> None:
         """
         异步删除缓存
 
@@ -552,7 +551,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to delete key (async): {key} in region: {region}, error: {e}")
 
-    async def clear(self, region: Optional[str] = None) -> None:
+    async def clear(self, region: str | None = None) -> None:
         """
         异步清除指定区域的缓存或全部缓存
 
@@ -574,7 +573,7 @@ class AsyncRedisHelper(ConfigReloadMixin, metaclass=Singleton):
         except Exception as e:
             logger.error(f"Failed to clear cache (async), region: {region}, error: {e}")
 
-    async def items(self, region: Optional[str] = None) -> AsyncGenerator[Tuple[str, Any], None]:
+    async def items(self, region: str | None = None) -> AsyncGenerator[tuple[str, Any]]:
         """
         获取指定区域的所有缓存键值对
 

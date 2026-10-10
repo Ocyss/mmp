@@ -8,6 +8,7 @@ class RequestMetrics(BaseModel):
     """
     请求指标模型
     """
+
     path: str
     method: str
     status_code: int
@@ -21,6 +22,7 @@ class PerformanceSnapshot(BaseModel):
     """
     性能快照模型
     """
+
     timestamp: datetime
     cpu_usage: float
     memory_usage: float
@@ -35,6 +37,7 @@ class EndpointStats(BaseModel):
     """
     端点统计模型
     """
+
     endpoint: str
     count: int
     total_time: float
@@ -46,6 +49,7 @@ class ErrorRequest(BaseModel):
     """
     错误请求模型
     """
+
     timestamp: str
     method: str
     path: str
@@ -58,16 +62,18 @@ class MonitoringOverview(BaseModel):
     """
     监控概览模型
     """
+
     performance: PerformanceSnapshot
-    top_endpoints: List[EndpointStats]
-    recent_errors: List[ErrorRequest]
-    alerts: List[str]
+    top_endpoints: list[EndpointStats]
+    recent_errors: list[ErrorRequest]
+    alerts: list[str]
 
 
 class MonitoringConfig(BaseModel):
     """
     监控配置模型
     """
+
     slow_request_threshold: float = 1.0
     error_threshold: float = 0.05
     cpu_threshold: float = 80.0

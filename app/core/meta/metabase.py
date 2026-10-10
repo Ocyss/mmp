@@ -1,6 +1,6 @@
 import traceback
 from dataclasses import dataclass
-from typing import Union, Optional, List, Self
+from typing import List, Optional, Self, Union
 
 import cn2an
 import regex as re
@@ -9,12 +9,15 @@ from app.log import logger
 from app.schemas.types import MediaType
 from app.utils.string import StringUtils
 
-
 TITLE_EPISODE_RE = re.compile(r"Episode\s+(\d{1,4})", re.IGNORECASE)
 SUBTITLE_HAS_SEASON_EPISODE_RE = re.compile(r"[全第季集话話期幕]", re.IGNORECASE)
-SUBTITLE_SEASON_RE = re.compile(r"(?<![全共]\s*)[第\s]+([0-9一二三四五六七八九十S\-]+)\s*季(?!\s*[全共])", re.IGNORECASE)
+SUBTITLE_SEASON_RE = re.compile(
+    r"(?<![全共]\s*)[第\s]+([0-9一二三四五六七八九十S\-]+)\s*季(?!\s*[全共])", re.IGNORECASE
+)
 SUBTITLE_SEASON_ALL_RE = re.compile(r"[全共]\s*([0-9一二三四五六七八九十]+)\s*季", re.IGNORECASE)
-SUBTITLE_EPISODE_RE = re.compile(r"(?<![全共]\s*)[第\s]+([0-9一二三四五六七八九十百零EP]+)\s*[集话話期幕](?!\s*[全共])", re.IGNORECASE)
+SUBTITLE_EPISODE_RE = re.compile(
+    r"(?<![全共]\s*)[第\s]+([0-9一二三四五六七八九十百零EP]+)\s*[集话話期幕](?!\s*[全共])", re.IGNORECASE
+)
 SUBTITLE_EPISODE_BETWEEN_RE = re.compile(
     r"[第]*\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]?\s*-\s*第*\s*"
     r"([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]",
@@ -38,73 +41,73 @@ VIDEO_BIT_RE = re.compile(
 
 
 @dataclass
-class MetaBase(object):
+class MetaBase:
     """
     媒体信息基类
     """
+
     # 是否处理的文件
     isfile: bool = False
     # 原标题字符串（未经过识别词处理）
     title: str = ""
     # 识别用字符串（经过识别词处理后）
-    org_string: Optional[str] = None
+    org_string: str | None = None
     # 副标题
-    subtitle: Optional[str] = None
+    subtitle: str | None = None
     # 类型 电影、电视剧
     type: MediaType = MediaType.UNKNOWN
     # 识别的中文名
-    cn_name: Optional[str] = None
+    cn_name: str | None = None
     # 识别的英文名
-    en_name: Optional[str] = None
+    en_name: str | None = None
     # 未应用识别词时识别出的名称
-    original_name: Optional[str] = None
+    original_name: str | None = None
     # 年份
-    year: Optional[str] = None
+    year: str | None = None
     # 总季数
     total_season: int = 0
     # 识别的开始季 数字
-    begin_season: Optional[int] = None
+    begin_season: int | None = None
     # 识别的结束季 数字
-    end_season: Optional[int] = None
+    end_season: int | None = None
     # 总集数
     total_episode: int = 0
     # 识别的开始集
-    begin_episode: Optional[int] = None
+    begin_episode: int | None = None
     # 识别的结束集
-    end_episode: Optional[int] = None
+    end_episode: int | None = None
     # Partx Cd Dvd Disk Disc
-    part: Optional[str] = None
+    part: str | None = None
     # 识别的资源类型
-    resource_type: Optional[str] = None
+    resource_type: str | None = None
     # 识别的效果
-    resource_effect: Optional[str] = None
+    resource_effect: str | None = None
     # 识别的分辨率
-    resource_pix: Optional[str] = None
+    resource_pix: str | None = None
     # 识别的制作组/字幕组
-    resource_team: Optional[str] = None
+    resource_team: str | None = None
     # 识别的自定义占位符
-    customization: Optional[str] = None
+    customization: str | None = None
     # 识别的流媒体平台
-    web_source: Optional[str] = None
+    web_source: str | None = None
     # 视频编码
-    video_encode: Optional[str] = None
+    video_encode: str | None = None
     # 视频位深
-    video_bit: Optional[str] = None
+    video_bit: str | None = None
     # 音频编码
-    audio_encode: Optional[str] = None
+    audio_encode: str | None = None
     # 应用的识别词信息
-    apply_words: Optional[List[str]] = None
+    apply_words: list[str] | None = None
     # 附加信息
     tmdbid: int = None
     doubanid: str = None
     bangumiid: int = None
     anilistid: int = None
-    media_source: Optional[str] = None
-    media_id: Optional[str] = None
-    episode_group: Optional[str] = None
+    media_source: str | None = None
+    media_id: str | None = None
+    episode_group: str | None = None
     # 帧率信息（纯数值）
-    fps: Optional[int] = None
-
+    fps: int | None = None
 
     # 副标题解析
     _subtitle_flag = False
@@ -113,7 +116,9 @@ class MetaBase(object):
     _subtitle_season_all_re = r"[全共]\s*([0-9一二三四五六七八九十]+)\s*季"
     _subtitle_episode_re = r"(?<![全共]\s*)[第\s]+([0-9一二三四五六七八九十百零EP]+)\s*[集话話期幕](?!\s*[全共])"
     _subtitle_episode_between_re = r"[第]*\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]?\s*-\s*第*\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]"
-    _subtitle_episode_all_re = r"([0-9一二三四五六七八九十百零]+)\s*集\s*全|[全共]\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]"
+    _subtitle_episode_all_re = (
+        r"([0-9一二三四五六七八九十百零]+)\s*集\s*全|[全共]\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期幕]"
+    )
 
     def __init__(self, title: str, subtitle: str = None, isfile: bool = False):
         if not title:
@@ -159,7 +164,7 @@ class MetaBase(object):
                 try:
                     episode = int(episode_str.group(1))
                 except Exception as err:
-                    logger.debug(f'识别集失败：{str(err)} - {traceback.format_exc()}')
+                    logger.debug(f"识别集失败：{str(err)} - {traceback.format_exc()}")
                     return
                 if episode >= 10000:
                     return
@@ -177,9 +182,9 @@ class MetaBase(object):
                     season_all = season_all_str.group(2)
                 if season_all and self.begin_season is None and self.begin_episode is None:
                     try:
-                        self.total_season = int(cn2an.cn2an(season_all.strip(), mode='smart'))
+                        self.total_season = int(cn2an.cn2an(season_all.strip(), mode="smart"))
                     except Exception as err:
-                        logger.debug(f'识别季失败：{str(err)} - {traceback.format_exc()}')
+                        logger.debug(f"识别季失败：{str(err)} - {traceback.format_exc()}")
                         return
                     self.begin_season = 1
                     self.end_season = self.total_season
@@ -196,15 +201,15 @@ class MetaBase(object):
                     return
                 try:
                     end_season = None
-                    if seasons.find('-') != -1:
-                        seasons = seasons.split('-')
-                        begin_season = int(cn2an.cn2an(seasons[0].strip(), mode='smart'))
+                    if seasons.find("-") != -1:
+                        seasons = seasons.split("-")
+                        begin_season = int(cn2an.cn2an(seasons[0].strip(), mode="smart"))
                         if len(seasons) > 1:
-                            end_season = int(cn2an.cn2an(seasons[1].strip(), mode='smart'))
+                            end_season = int(cn2an.cn2an(seasons[1].strip(), mode="smart"))
                     else:
-                        begin_season = int(cn2an.cn2an(seasons, mode='smart'))
+                        begin_season = int(cn2an.cn2an(seasons, mode="smart"))
                 except Exception as err:
-                    logger.debug(f'识别季失败：{str(err)} - {traceback.format_exc()}')
+                    logger.debug(f"识别季失败：{str(err)} - {traceback.format_exc()}")
                     return
                 if begin_season and begin_season > 100:
                     return
@@ -213,10 +218,12 @@ class MetaBase(object):
                 if self.begin_season is None and isinstance(begin_season, int):
                     self.begin_season = begin_season
                     self.total_season = 1
-                if self.begin_season is not None \
-                        and self.end_season is None \
-                        and isinstance(end_season, int) \
-                        and end_season != self.begin_season:
+                if (
+                    self.begin_season is not None
+                    and self.end_season is None
+                    and isinstance(end_season, int)
+                    and end_season != self.begin_season
+                ):
                     self.end_season = end_season
                     self.total_season = (self.end_season - self.begin_season) + 1
                 self.type = MediaType.TV
@@ -231,10 +238,10 @@ class MetaBase(object):
                 else:
                     return
                 try:
-                    begin_episode = int(cn2an.cn2an(begin_episode.strip(), mode='smart'))
-                    end_episode = int(cn2an.cn2an(end_episode.strip(), mode='smart'))
+                    begin_episode = int(cn2an.cn2an(begin_episode.strip(), mode="smart"))
+                    end_episode = int(cn2an.cn2an(end_episode.strip(), mode="smart"))
                 except Exception as err:
-                    logger.debug(f'识别集失败：{str(err)} - {traceback.format_exc()}')
+                    logger.debug(f"识别集失败：{str(err)} - {traceback.format_exc()}")
                     return
                 if begin_episode and begin_episode >= 10000:
                     return
@@ -243,10 +250,12 @@ class MetaBase(object):
                 if self.begin_episode is None and isinstance(begin_episode, int):
                     self.begin_episode = begin_episode
                     self.total_episode = 1
-                if self.begin_episode is not None \
-                        and self.end_episode is None \
-                        and isinstance(end_episode, int) \
-                        and end_episode != self.begin_episode:
+                if (
+                    self.begin_episode is not None
+                    and self.end_episode is None
+                    and isinstance(end_episode, int)
+                    and end_episode != self.begin_episode
+                ):
                     self.end_episode = end_episode
                     self.total_episode = (self.end_episode - self.begin_episode) + 1
                 self.type = MediaType.TV
@@ -262,15 +271,15 @@ class MetaBase(object):
                     return
                 try:
                     end_episode = None
-                    if episodes.find('-') != -1:
-                        episodes = episodes.split('-')
-                        begin_episode = int(cn2an.cn2an(episodes[0].strip(), mode='smart'))
+                    if episodes.find("-") != -1:
+                        episodes = episodes.split("-")
+                        begin_episode = int(cn2an.cn2an(episodes[0].strip(), mode="smart"))
                         if len(episodes) > 1:
-                            end_episode = int(cn2an.cn2an(episodes[1].strip(), mode='smart'))
+                            end_episode = int(cn2an.cn2an(episodes[1].strip(), mode="smart"))
                     else:
-                        begin_episode = int(cn2an.cn2an(episodes, mode='smart'))
+                        begin_episode = int(cn2an.cn2an(episodes, mode="smart"))
                 except Exception as err:
-                    logger.debug(f'识别集失败：{str(err)} - {traceback.format_exc()}')
+                    logger.debug(f"识别集失败：{str(err)} - {traceback.format_exc()}")
                     return
                 if begin_episode and begin_episode >= 10000:
                     return
@@ -279,10 +288,12 @@ class MetaBase(object):
                 if self.begin_episode is None and isinstance(begin_episode, int):
                     self.begin_episode = begin_episode
                     self.total_episode = 1
-                if self.begin_episode is not None \
-                        and self.end_episode is None \
-                        and isinstance(end_episode, int) \
-                        and end_episode != self.begin_episode:
+                if (
+                    self.begin_episode is not None
+                    and self.end_episode is None
+                    and isinstance(end_episode, int)
+                    and end_episode != self.begin_episode
+                ):
                     self.end_episode = end_episode
                     self.total_episode = (self.end_episode - self.begin_episode) + 1
                 self.type = MediaType.TV
@@ -296,9 +307,9 @@ class MetaBase(object):
                     episode_all = episode_all_str.group(2)
                 if episode_all and self.begin_episode is None:
                     try:
-                        self.total_episode = int(cn2an.cn2an(episode_all.strip(), mode='smart'))
+                        self.total_episode = int(cn2an.cn2an(episode_all.strip(), mode="smart"))
                     except Exception as err:
-                        logger.debug(f'识别集失败：{str(err)} - {traceback.format_exc()}')
+                        logger.debug(f"识别集失败：{str(err)} - {traceback.format_exc()}")
                         return
                     self.type = MediaType.TV
                     self._subtitle_flag = True
@@ -320,7 +331,7 @@ class MetaBase(object):
             begin_episode = int(episode_range_str.group(1))
             end_episode = int(episode_range_str.group(2))
         except Exception as err:
-            logger.debug(f'识别集失败：{str(err)} - {traceback.format_exc()}')
+            logger.debug(f"识别集失败：{str(err)} - {traceback.format_exc()}")
             return
         if begin_episode < 1 or begin_episode > end_episode or end_episode >= 10000:
             return
@@ -340,11 +351,11 @@ class MetaBase(object):
         返回开始季、结束季字符串，确定是剧集没有季的返回S01
         """
         if self.begin_season is not None:
-            return "S%s" % str(self.begin_season).rjust(2, "0") \
-                if self.end_season is None \
-                else "S%s-S%s" % \
-                     (str(self.begin_season).rjust(2, "0"),
-                      str(self.end_season).rjust(2, "0"))
+            return (
+                "S%s" % str(self.begin_season).rjust(2, "0")
+                if self.end_season is None
+                else "S%s-S%s" % (str(self.begin_season).rjust(2, "0"), str(self.end_season).rjust(2, "0"))
+            )
         else:
             if self.type == MediaType.TV:
                 return "S01"
@@ -375,7 +386,7 @@ class MetaBase(object):
                 return ""
 
     @property
-    def season_list(self) -> List[int]:
+    def season_list(self) -> list[int]:
         """
         返回季的数组
         """
@@ -395,17 +406,16 @@ class MetaBase(object):
         返回开始集、结束集字符串
         """
         if self.begin_episode is not None:
-            return "E%s" % str(self.begin_episode).rjust(2, "0") \
-                if self.end_episode is None \
-                else "E%s-E%s" % \
-                     (
-                         str(self.begin_episode).rjust(2, "0"),
-                         str(self.end_episode).rjust(2, "0"))
+            return (
+                "E%s" % str(self.begin_episode).rjust(2, "0")
+                if self.end_episode is None
+                else "E%s-E%s" % (str(self.begin_episode).rjust(2, "0"), str(self.end_episode).rjust(2, "0"))
+            )
         else:
             return ""
 
     @property
-    def episode_list(self) -> List[int]:
+    def episode_list(self) -> list[int]:
         """
         返回集的数组
         """
@@ -421,7 +431,7 @@ class MetaBase(object):
         """
         返回集的并列表达方式，用于支持单文件多集
         """
-        return "E%s" % "E".join(str(episode).rjust(2, '0') for episode in self.episode_list)
+        return "E%s" % "E".join(str(episode).rjust(2, "0") for episode in self.episode_list)
 
     @property
     def episode_seqs(self) -> str:
@@ -525,7 +535,7 @@ class MetaBase(object):
         return self.fps or None
 
     @staticmethod
-    def extract_video_bit(value: Optional[str]) -> Optional[str]:
+    def extract_video_bit(value: str | None) -> str | None:
         """
         从标题或编码文本中提取视频位深标签。
         """
@@ -536,7 +546,7 @@ class MetaBase(object):
             return None
         return f"{bit_match.group('bit')}bit"
 
-    def is_in_season(self, season: Union[list, int, str]) -> bool:
+    def is_in_season(self, season: list | int | str) -> bool:
         """
         是否包含季
         """
@@ -559,7 +569,7 @@ class MetaBase(object):
                 else:
                     return int(season) == 1
 
-    def is_in_episode(self, episode: Union[list, int, str]) -> bool:
+    def is_in_episode(self, episode: list | int | str) -> bool:
         """
         是否包含集
         """
@@ -575,7 +585,7 @@ class MetaBase(object):
             else:
                 return int(episode) == self.begin_episode
 
-    def set_season(self, sea: Union[list, int, str]):
+    def set_season(self, sea: list | int | str):
         """
         更新季
         """
@@ -592,7 +602,7 @@ class MetaBase(object):
             self.begin_season = int(sea)
             self.end_season = None
 
-    def set_episode(self, ep: Union[list, int, str]):
+    def set_episode(self, ep: list | int | str):
         """
         更新集
         """
@@ -626,8 +636,7 @@ class MetaBase(object):
         合并Meta信息
         """
         # 类型
-        if self.type == MediaType.UNKNOWN \
-                and meta.type != MediaType.UNKNOWN:
+        if self.type == MediaType.UNKNOWN and meta.type != MediaType.UNKNOWN:
             self.type = meta.type
         # 名称
         if not self.name:
@@ -640,14 +649,12 @@ class MetaBase(object):
         if not self.year:
             self.year = meta.year
         # 季
-        if (self.type == MediaType.TV
-                and self.begin_season is None):
+        if self.type == MediaType.TV and self.begin_season is None:
             self.begin_season = meta.begin_season
             self.end_season = meta.end_season
             self.total_season = meta.total_season
         # 开始集
-        if (self.type == MediaType.TV
-                and self.begin_episode is None):
+        if self.type == MediaType.TV and self.begin_episode is None:
             self.begin_episode = meta.begin_episode
             self.end_episode = meta.end_episode
             self.total_episode = meta.total_episode

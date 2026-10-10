@@ -1,10 +1,10 @@
 import re
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
 
 from app.core.cache import cached
 from app.core.config import settings
 from app.log import logger
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 from app.utils.singleton import SingletonClass
 from app.utils.string import StringUtils
 
@@ -18,7 +18,7 @@ class TNodeSpider(metaclass=SingletonClass):
     _pageurl = "%storrent/info/%s"
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量。
         """
@@ -26,24 +26,23 @@ class TNodeSpider(metaclass=SingletonClass):
 
     def __init__(self, indexer: dict):
         if indexer:
-            self._indexerid = indexer.get('id')
-            self._domain = indexer.get('domain')
+            self._indexerid = indexer.get("id")
+            self._domain = indexer.get("domain")
             self._searchurl = self._baseurl % self._domain
-            self._name = indexer.get('name')
-            if indexer.get('proxy'):
+            self._name = indexer.get("name")
+            if indexer.get("proxy"):
                 self._proxy = settings.PROXY
-            self._cookie = indexer.get('cookie')
-            self._ua = indexer.get('ua')
-            self._timeout = indexer.get('timeout') or 15
+            self._cookie = indexer.get("cookie")
+            self._ua = indexer.get("ua")
+            self._timeout = indexer.get("timeout") or 15
 
     @cached(region="indexer_spider", maxsize=1, ttl=60 * 60 * 24, skip_empty=True, shared_key="get_token")
-    def __get_token(self) -> Optional[str]:
+    def __get_token(self) -> str | None:
         if not self._domain:
             return
-        res = RequestUtils(ua=self._ua,
-                           cookies=self._cookie,
-                           proxies=self._proxy,
-                           timeout=self._timeout).get_res(url=self._domain)
+        res = RequestUtils(ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout).get_res(
+            url=self._domain
+        )
         if res and res.status_code == 200:
             csrf_token = re.search(r'<meta name="x-csrf-token" content="(.+?)">', res.text)
             if csrf_token:
@@ -51,24 +50,23 @@ class TNodeSpider(metaclass=SingletonClass):
         return None
 
     @cached(region="indexer_spider", maxsize=1, ttl=60 * 60 * 24, skip_empty=True, shared_key="get_token")
-    async def __async_get_token(self) -> Optional[str]:
+    async def __async_get_token(self) -> str | None:
         if not self._domain:
             return
-        res = await AsyncRequestUtils(ua=self._ua,
-                                      cookies=self._cookie,
-                                      proxies=self._proxy,
-                                      timeout=self._timeout).get_res(url=self._domain)
+        res = await AsyncRequestUtils(
+            ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout
+        ).get_res(url=self._domain)
         if res and res.status_code == 200:
             csrf_token = re.search(r'<meta name="x-csrf-token" content="(.+?)">', res.text)
             if csrf_token:
                 return csrf_token.group(1)
         return None
 
-    def __get_params(self, keyword: str = None, page: Optional[int] = 0) -> dict:
+    def __get_params(self, keyword: str = None, page: int | None = 0) -> dict:
         """
         获取搜索参数
         """
-        search_type = "imdbid" if (keyword and keyword.startswith('tt')) else "title"
+        search_type = "imdbid" if (keyword and keyword.startswith("tt")) else "title"
         return {
             "page": int(page) + 1,
             "size": self._size,
@@ -82,10 +80,10 @@ class TNodeSpider(metaclass=SingletonClass):
             "videoCoding": [],
             "audioCoding": [],
             "resolution": [],
-            "group": []
+            "group": [],
         }
 
-    def __parse_result(self, results: List[dict]) -> List[dict]:
+    def __parse_result(self, results: list[dict]) -> list[dict]:
         """
         解析搜索结果
         """
@@ -95,24 +93,24 @@ class TNodeSpider(metaclass=SingletonClass):
 
         for result in results:
             torrent = {
-                'title': result.get('title'),
-                'description': result.get('subtitle'),
-                'enclosure': self._downloadurl % (self._domain, result.get('id')),
-                'pubdate': StringUtils.format_timestamp(result.get('upload_time')),
-                'size': result.get('size'),
-                'seeders': result.get('seeding'),
-                'peers': result.get('leeching'),
-                'grabs': result.get('complete'),
-                'downloadvolumefactor': result.get('downloadRate'),
-                'uploadvolumefactor': result.get('uploadRate'),
-                'page_url': self._pageurl % (self._domain, result.get('id')),
-                'imdbid': result.get('imdb')
+                "title": result.get("title"),
+                "description": result.get("subtitle"),
+                "enclosure": self._downloadurl % (self._domain, result.get("id")),
+                "pubdate": StringUtils.format_timestamp(result.get("upload_time")),
+                "size": result.get("size"),
+                "seeders": result.get("seeding"),
+                "peers": result.get("leeching"),
+                "grabs": result.get("complete"),
+                "downloadvolumefactor": result.get("downloadRate"),
+                "uploadvolumefactor": result.get("uploadRate"),
+                "page_url": self._pageurl % (self._domain, result.get("id")),
+                "imdbid": result.get("imdb"),
             }
             torrents.append(torrent)
 
         return torrents
 
-    def search(self, keyword: str, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+    def search(self, keyword: str, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         搜索
         """
@@ -128,16 +126,16 @@ class TNodeSpider(metaclass=SingletonClass):
         # 发送请求
         res = RequestUtils(
             headers={
-                'X-CSRF-TOKEN': _token,
+                "X-CSRF-TOKEN": _token,
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": f"{self._ua}"
+                "User-Agent": f"{self._ua}",
             },
             cookies=self._cookie,
             proxies=self._proxy,
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
-            results = res.json().get('data', {}).get("torrents") or []
+            results = res.json().get("data", {}).get("torrents") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")
@@ -145,8 +143,8 @@ class TNodeSpider(metaclass=SingletonClass):
         else:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
-        
-    async def async_search(self, keyword: str, page: Optional[int] = 0) -> Tuple[bool, List[dict]]:
+
+    async def async_search(self, keyword: str, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         异步搜索
         """
@@ -162,16 +160,16 @@ class TNodeSpider(metaclass=SingletonClass):
         # 发送请求
         res = await AsyncRequestUtils(
             headers={
-                'x-csrf-token': _token,
+                "x-csrf-token": _token,
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": f"{self._ua}"
+                "User-Agent": f"{self._ua}",
             },
             cookies=self._cookie,
             proxies=self._proxy,
-            timeout=self._timeout
+            timeout=self._timeout,
         ).post_res(url=self._searchurl, json=params)
         if res and res.status_code == 200:
-            results = res.json().get('data', {}).get("torrents") or []
+            results = res.json().get("data", {}).get("torrents") or []
             return False, self.__parse_result(results)
         elif res is not None:
             logger.warn(f"{self._name} 搜索失败，错误码：{res.status_code}")

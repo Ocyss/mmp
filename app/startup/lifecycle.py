@@ -1,7 +1,7 @@
 import asyncio
 import inspect
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from typing import Callable
 
 from fastapi import FastAPI
 
@@ -9,12 +9,8 @@ from fastapi import FastAPI
 try:
     import urllib3.fields as _urllib3_fields
 
-    if not hasattr(_urllib3_fields, "format_header_param") and hasattr(
-        _urllib3_fields, "format_header_param_rfc2231"
-    ):
-        _urllib3_fields.format_header_param = (
-            _urllib3_fields.format_header_param_rfc2231
-        )
+    if not hasattr(_urllib3_fields, "format_header_param") and hasattr(_urllib3_fields, "format_header_param_rfc2231"):
+        _urllib3_fields.format_header_param = _urllib3_fields.format_header_param_rfc2231
 except Exception:
     pass
 
@@ -22,16 +18,16 @@ from app.chain.system import SystemChain
 from app.core.config import global_vars, settings
 from app.helper.server import MoviePilotServerHelper
 from app.helper.system import SystemHelper
-from app.log import logger, LoggerManager
-from app.startup.command_initializer import init_command, stop_command, restart_command
+from app.log import LoggerManager, logger
+from app.startup.command_initializer import init_command, restart_command, stop_command
 from app.startup.modules_initializer import init_modules, stop_modules
-from app.startup.monitor_initializer import stop_monitor, init_monitor
+from app.startup.monitor_initializer import init_monitor, stop_monitor
 from app.startup.plugins_initializer import init_plugins, stop_plugins, sync_plugins
 from app.startup.routers_initializer import init_routers
 from app.startup.scheduler_initializer import (
-    stop_scheduler,
-    init_scheduler,
     init_plugin_scheduler,
+    init_scheduler,
+    stop_scheduler,
 )
 from app.startup.workflow_initializer import init_workflow, stop_workflow
 from app.utils.http import aclose_shared_async_transports
@@ -113,9 +109,7 @@ async def lifespan(app: FastAPI):
             print(str(e))
         try:
             if not settings.MOVIEPILOT_SAFE_MODE:
-                await run_shutdown_step(
-                    "插件备份", lambda: SystemChain().backup_plugins()
-                )
+                await run_shutdown_step("插件备份", lambda: SystemChain().backup_plugins())
                 await run_shutdown_step("工作流", stop_workflow)
                 await run_shutdown_step("命令服务", stop_command)
                 await run_shutdown_step("监控器", stop_monitor)

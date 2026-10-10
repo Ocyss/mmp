@@ -41,10 +41,10 @@ class RunSlashCommandTool(MoviePilotTool):
         "The command will be executed asynchronously. "
         "Note: This tool triggers the command execution but the actual processing happens in the background."
     )
-    args_schema: Type[BaseModel] = RunSlashCommandInput
+    args_schema: type[BaseModel] = RunSlashCommandInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """生成友好的提示消息"""
         command = kwargs.get("command", "")
         return f"执行命令: {command}"
@@ -67,10 +67,7 @@ class RunSlashCommandTool(MoviePilotTool):
             if not matched_command:
                 # 列出所有可用命令帮助用户
                 all_commands = command_obj.get_commands()
-                available_cmds = [
-                    f"{cmd} - {info.get('description', '无描述')}"
-                    for cmd, info in all_commands.items()
-                ]
+                available_cmds = [f"{cmd} - {info.get('description', '无描述')}" for cmd, info in all_commands.items()]
                 result = {
                     "success": False,
                     "message": f"命令 {cmd_name} 不存在",
@@ -84,7 +81,7 @@ class RunSlashCommandTool(MoviePilotTool):
             if self._channel:
                 try:
                     channel = MessageChannel(self._channel)
-                except (ValueError, KeyError):
+                except ValueError, KeyError:
                     channel = None
 
             # 发送命令执行事件，与 message.py 中的方式一致

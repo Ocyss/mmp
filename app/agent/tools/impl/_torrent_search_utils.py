@@ -11,14 +11,14 @@ SEARCH_RESULT_CACHE_FILE = "__search_result__"
 TORRENT_RESULT_LIMIT = 50
 
 
-def build_torrent_ref(context: Optional[Context]) -> str:
+def build_torrent_ref(context: Context | None) -> str:
     """生成用于下载校验的短引用"""
     if not context or not context.torrent_info:
         return ""
     return HashUtils.sha1(context.torrent_info.enclosure or "")[:7]
 
 
-def sort_season_options(options: List[str]) -> List[str]:
+def sort_season_options(options: list[str]) -> list[str]:
     """按前端逻辑排序季集选项"""
     if len(options) <= 1:
         return options
@@ -27,26 +27,30 @@ def sort_season_options(options: List[str]) -> List[str]:
     for index, option in enumerate(options):
         match = re.match(r"^S(\d+)(?:-S(\d+))?\s*(?:E(\d+)(?:-E(\d+))?)?$", option or "")
         if not match:
-            parsed_options.append({
-                "original": option,
-                "season_num": 0,
-                "episode_num": 0,
-                "max_episode_num": 0,
-                "is_whole_season": False,
-                "index": index,
-            })
+            parsed_options.append(
+                {
+                    "original": option,
+                    "season_num": 0,
+                    "episode_num": 0,
+                    "max_episode_num": 0,
+                    "is_whole_season": False,
+                    "index": index,
+                }
+            )
             continue
 
         episode_num = int(match.group(3)) if match.group(3) else 0
         max_episode_num = int(match.group(4)) if match.group(4) else episode_num
-        parsed_options.append({
-            "original": option,
-            "season_num": int(match.group(1)),
-            "episode_num": episode_num,
-            "max_episode_num": max_episode_num,
-            "is_whole_season": not match.group(3),
-            "index": index,
-        })
+        parsed_options.append(
+            {
+                "original": option,
+                "season_num": int(match.group(1)),
+                "episode_num": episode_num,
+                "max_episode_num": max_episode_num,
+                "is_whole_season": not match.group(3),
+                "index": index,
+            }
+        )
 
     whole_seasons = [item for item in parsed_options if item["is_whole_season"]]
     episodes = [item for item in parsed_options if not item["is_whole_season"]]
@@ -63,13 +67,13 @@ def sort_season_options(options: List[str]) -> List[str]:
     return [item["original"] for item in whole_seasons + episodes]
 
 
-def append_option(options: List[str], value: Optional[str]) -> None:
+def append_option(options: list[str], value: str | None) -> None:
     """按前端逻辑收集去重后的筛选项"""
     if value and value not in options:
         options.append(value)
 
 
-def build_filter_options(items: List[Context]) -> dict:
+def build_filter_options(items: list[Context]) -> dict:
     """从搜索结果中构建筛选项汇总"""
     filter_options = {
         "site": [],
@@ -96,19 +100,21 @@ def build_filter_options(items: List[Context]) -> dict:
     return filter_options
 
 
-def match_filter(filter_values: Optional[List[str]], value: Optional[str]) -> bool:
+def match_filter(filter_values: list[str] | None, value: str | None) -> bool:
     """匹配前端同款多选筛选规则"""
     return not filter_values or bool(value and value in filter_values)
 
 
-def filter_contexts(items: List[Context],
-                    site: Optional[List[str]] = None,
-                    season: Optional[List[str]] = None,
-                    free_state: Optional[List[str]] = None,
-                    video_code: Optional[List[str]] = None,
-                    edition: Optional[List[str]] = None,
-                    resolution: Optional[List[str]] = None,
-                    release_group: Optional[List[str]] = None) -> List[Context]:
+def filter_contexts(
+    items: list[Context],
+    site: list[str] | None = None,
+    season: list[str] | None = None,
+    free_state: list[str] | None = None,
+    video_code: list[str] | None = None,
+    edition: list[str] | None = None,
+    resolution: list[str] | None = None,
+    release_group: list[str] | None = None,
+) -> list[Context]:
     """按前端同款维度筛选结果"""
     filtered_items = []
     for item in items:

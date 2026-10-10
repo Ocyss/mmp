@@ -1,17 +1,33 @@
 import asyncio
-from typing import Any, Generator, List, Optional, Self, Tuple, AsyncGenerator, Union
+import builtins
+from collections.abc import AsyncGenerator, Generator
+from typing import Any, List, Optional, Self, Tuple, Union
 
-from sqlalchemy import NullPool, QueuePool, and_, create_engine, event, inspect, text, select, delete, Column, Integer, \
-    Sequence, Identity
-from sqlalchemy.engine import Engine as SQLAlchemyEngine, ExceptionContext
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import (
+    Column,
+    Identity,
+    Integer,
+    NullPool,
+    QueuePool,
+    Sequence,
+    and_,
+    create_engine,
+    delete,
+    event,
+    inspect,
+    select,
+    text,
+)
+from sqlalchemy.engine import Engine as SQLAlchemyEngine
+from sqlalchemy.engine import ExceptionContext
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, as_declarative, declared_attr, scoped_session, sessionmaker
 
 from app.core.config import settings
 from app.log import logger
 
 
-def _database_error_metadata(error: BaseException) -> Optional[dict[str, Any]]:
+def _database_error_metadata(error: BaseException) -> dict[str, Any] | None:
     """提取 SQLite 与 PostgreSQL 驱动提供的稳定错误分类字段。"""
     metadata = {"error_type": type(error).__name__}
 
@@ -47,9 +63,7 @@ def _log_database_error(exception_context: ExceptionContext) -> None:
         "driver": dialect.driver,
         **metadata,
     }
-    logger.error(
-        "数据库驱动异常：" + ", ".join(f"{key}={value}" for key, value in fields.items())
-    )
+    logger.error("数据库驱动异常：" + ", ".join(f"{key}={value}" for key, value in fields.items()))
 
 
 def _register_database_error_logging(engine: SQLAlchemyEngine) -> None:
@@ -66,7 +80,7 @@ def get_id_column():
         return Column(Integer, Identity(start=1, cycle=True), primary_key=True)
     else:
         # SQLite使用Sequence
-        return Column(Integer, Sequence('id'), primary_key=True)
+        return Column(Integer, Sequence("id"), primary_key=True)
 
 
 def _get_database_engine(is_async: bool = False):
@@ -106,16 +120,18 @@ def _get_sqlite_engine(is_async: bool = False):
             "echo": settings.DB_ECHO,
             "poolclass": _pool_class,
             "pool_recycle": settings.DB_POOL_RECYCLE,
-            "connect_args": _connect_args
+            "connect_args": _connect_args,
         }
 
         # 当使用 QueuePool 时，添加 QueuePool 特有的参数
         if _pool_class == QueuePool:
-            _db_kwargs.update({
-                "pool_size": settings.DB_SQLITE_POOL_SIZE,
-                "pool_timeout": settings.DB_POOL_TIMEOUT,
-                "max_overflow": settings.DB_SQLITE_MAX_OVERFLOW
-            })
+            _db_kwargs.update(
+                {
+                    "pool_size": settings.DB_SQLITE_POOL_SIZE,
+                    "pool_timeout": settings.DB_POOL_TIMEOUT,
+                    "max_overflow": settings.DB_SQLITE_MAX_OVERFLOW,
+                }
+            )
 
         # 创建数据库引擎
         engine = create_engine(**_db_kwargs)
@@ -136,7 +152,7 @@ def _get_sqlite_engine(is_async: bool = False):
             "echo": settings.DB_ECHO,
             "poolclass": NullPool,
             "pool_recycle": settings.DB_POOL_RECYCLE,
-            "connect_args": _connect_args
+            "connect_args": _connect_args,
         }
         # 创建异步数据库引擎
         async_engine = create_async_engine(**_db_kwargs)
@@ -183,16 +199,18 @@ def _get_postgresql_engine(is_async: bool = False):
             "echo": settings.DB_ECHO,
             "poolclass": _pool_class,
             "pool_recycle": settings.DB_POOL_RECYCLE,
-            "connect_args": _connect_args
+            "connect_args": _connect_args,
         }
 
         # 当使用 QueuePool 时，添加 QueuePool 特有的参数
         if _pool_class == QueuePool:
-            _db_kwargs.update({
-                "pool_size": settings.DB_POSTGRESQL_POOL_SIZE,
-                "pool_timeout": settings.DB_POOL_TIMEOUT,
-                "max_overflow": settings.DB_POSTGRESQL_MAX_OVERFLOW
-            })
+            _db_kwargs.update(
+                {
+                    "pool_size": settings.DB_POSTGRESQL_POOL_SIZE,
+                    "pool_timeout": settings.DB_POOL_TIMEOUT,
+                    "max_overflow": settings.DB_POSTGRESQL_MAX_OVERFLOW,
+                }
+            )
 
         # 创建数据库引擎
         engine = create_engine(**_db_kwargs)
@@ -210,12 +228,14 @@ def _get_postgresql_engine(is_async: bool = False):
             "echo": settings.DB_ECHO,
             "poolclass": NullPool,
             "pool_recycle": settings.DB_POOL_RECYCLE,
-            "connect_args": _connect_args
+            "connect_args": _connect_args,
         }
         # 创建异步数据库引擎
         async_engine = create_async_engine(**_db_kwargs)
         _register_database_error_logging(async_engine.sync_engine)
-        print(f"Async PostgreSQL database connected to {settings.DB_POSTGRESQL_TARGET}/{settings.DB_POSTGRESQL_DATABASE}")
+        print(
+            f"Async PostgreSQL database connected to {settings.DB_POSTGRESQL_TARGET}/{settings.DB_POSTGRESQL_DATABASE}"
+        )
 
         return async_engine
 
@@ -250,7 +270,7 @@ def get_db() -> Generator:
             db.close()
 
 
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db() -> AsyncGenerator[AsyncSession]:
     """
     获取异步数据库会话，用于WEB请求
     :return: AsyncSession
@@ -275,7 +295,7 @@ async def close_database():
         print(f"Error while disposing database connections: {err}")
 
 
-def _get_args_db(args: tuple, kwargs: dict) -> Optional[Session]:
+def _get_args_db(args: tuple, kwargs: dict) -> Session | None:
     """
     从参数中获取数据库Session对象
     """
@@ -293,7 +313,7 @@ def _get_args_db(args: tuple, kwargs: dict) -> Optional[Session]:
     return db
 
 
-def _get_args_async_db(args: tuple, kwargs: dict) -> Optional[AsyncSession]:
+def _get_args_async_db(args: tuple, kwargs: dict) -> AsyncSession | None:
     """
     从参数中获取异步数据库AsyncSession对象
     """
@@ -311,12 +331,12 @@ def _get_args_async_db(args: tuple, kwargs: dict) -> Optional[AsyncSession]:
     return db
 
 
-def _update_args_db(args: tuple, kwargs: dict, db: Session) -> Tuple[tuple, dict]:
+def _update_args_db(args: tuple, kwargs: dict, db: Session) -> tuple[tuple, dict]:
     """
     更新参数中的数据库Session对象，关键字传参时更新db的值，否则更新第1或第2个参数
     """
-    if kwargs and 'db' in kwargs:
-        kwargs['db'] = db
+    if kwargs and "db" in kwargs:
+        kwargs["db"] = db
     elif args:
         if args[0] is None:
             args = (db, *args[1:])
@@ -325,12 +345,12 @@ def _update_args_db(args: tuple, kwargs: dict, db: Session) -> Tuple[tuple, dict
     return args, kwargs
 
 
-def _update_args_async_db(args: tuple, kwargs: dict, db: AsyncSession) -> Tuple[tuple, dict]:
+def _update_args_async_db(args: tuple, kwargs: dict, db: AsyncSession) -> tuple[tuple, dict]:
     """
     更新参数中的异步数据库AsyncSession对象，关键字传参时更新db的值，否则更新第1或第2个参数
     """
-    if kwargs and 'db' in kwargs:
-        kwargs['db'] = db
+    if kwargs and "db" in kwargs:
+        kwargs["db"] = db
     elif args:
         if args[0] is None:
             args = (db, *args[1:])
@@ -538,7 +558,7 @@ class Base:
 
     @classmethod
     @db_query
-    def list(cls, db: Session) -> List[Self]:
+    def list(cls, db: Session) -> builtins.list[Self]:
         return db.query(cls).all()
 
     @classmethod
@@ -560,5 +580,5 @@ class DbOper:
     数据库操作基类
     """
 
-    def __init__(self, db: Union[Session, AsyncSession] = None):
+    def __init__(self, db: Session | AsyncSession = None):
         self._db = db

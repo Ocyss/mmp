@@ -2,12 +2,11 @@ from queue import Queue
 from threading import Lock
 from typing import Optional, Union
 
-
 _WEB_AGENT_EDIT_QUEUES: dict[str, list[Queue[dict]]] = {}
 _WEB_AGENT_EDIT_LOCK = Lock()
 
 
-def normalize_web_agent_button_rows(buttons: Optional[list[list[dict]]]) -> list[list[dict]]:
+def normalize_web_agent_button_rows(buttons: list[list[dict]] | None) -> list[list[dict]]:
     """
     将消息按钮转换为 WebAgent 前端可识别的按钮行。
 
@@ -35,8 +34,8 @@ def normalize_web_agent_button_rows(buttons: Optional[list[list[dict]]]) -> list
 
 
 def _resolve_web_agent_choice_id(
-        message_id: Union[str, int],
-        button_rows: list[list[dict]],
+    message_id: str | int,
+    button_rows: list[list[dict]],
 ) -> str:
     """
     从按钮回调中提取稳定的 WebAgent 选项 ID。
@@ -58,11 +57,11 @@ def _resolve_web_agent_choice_id(
 
 
 def build_web_agent_message_update_event(
-        *,
-        message_id: Union[str, int],
-        title: Optional[str],
-        text: str,
-        buttons: Optional[list[list[dict]]],
+    *,
+    message_id: str | int,
+    title: str | None,
+    text: str,
+    buttons: list[list[dict]] | None,
 ) -> dict:
     """
     构造 WebAgent 原消息更新事件。
@@ -84,14 +83,16 @@ def build_web_agent_message_update_event(
         "status": "done",
     }
     if button_rows:
-        target_message["choices"].append({
-            "id": _resolve_web_agent_choice_id(message_id, button_rows),
-            "title": title,
-            "prompt": text or "",
-            "buttons": [button for row in button_rows for button in row],
-            "button_rows": button_rows,
-            "status": "pending",
-        })
+        target_message["choices"].append(
+            {
+                "id": _resolve_web_agent_choice_id(message_id, button_rows),
+                "title": title,
+                "prompt": text or "",
+                "buttons": [button for row in button_rows for button in row],
+                "button_rows": button_rows,
+                "status": "pending",
+            }
+        )
     return {
         "type": "message_update",
         "target_message": target_message,
@@ -120,17 +121,15 @@ def detach_web_agent_edit_queue(user_id: str, edit_queue: Queue[dict]) -> None:
         queues = _WEB_AGENT_EDIT_QUEUES.get(str(user_id))
         if not queues:
             return
-        _WEB_AGENT_EDIT_QUEUES[str(user_id)] = [
-            item for item in queues if item is not edit_queue
-        ]
+        _WEB_AGENT_EDIT_QUEUES[str(user_id)] = [item for item in queues if item is not edit_queue]
         if not _WEB_AGENT_EDIT_QUEUES[str(user_id)]:
             _WEB_AGENT_EDIT_QUEUES.pop(str(user_id), None)
 
 
 def dispatch_web_agent_edit_event(
-        *,
-        user_id: str,
-        event: dict,
+    *,
+    user_id: str,
+    event: dict,
 ) -> bool:
     """
     将 WebAgent 原消息编辑事件分发给正在等待的请求队列。
@@ -147,12 +146,12 @@ def dispatch_web_agent_edit_event(
 
 
 def edit_web_agent_message(
-        *,
-        user_id: str,
-        message_id: Union[str, int],
-        title: Optional[str],
-        text: str,
-        buttons: Optional[list[list[dict]]] = None,
+    *,
+    user_id: str,
+    message_id: str | int,
+    title: str | None,
+    text: str,
+    buttons: list[list[dict]] | None = None,
 ) -> bool:
     """
     原地更新 WebAgent 前端消息卡片。

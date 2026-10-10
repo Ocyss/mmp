@@ -4,25 +4,26 @@ import re
 import threading
 import traceback
 import uuid
+from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
 from time import monotonic
-from typing import List, Optional, Tuple, Union, Dict, Callable, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app import schemas
-from app.agent import ReplyMode, prompt_manager, agent_manager
+from app.agent import ReplyMode, agent_manager, prompt_manager
 from app.chain import ChainBase
 from app.chain.media import MediaChain
 from app.chain.storage import StorageChain
 from app.chain.subscribe import SubscribeChain
 from app.chain.tmdb import TmdbChain
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.context import MediaInfo
 from app.core.event import eventmanager
 from app.core.meta import MetaBase
 from app.core.metainfo import MetaInfoPath
 from app.db.downloadhistory_oper import DownloadHistoryOper
-from app.db.models.downloadhistory import DownloadHistory, DownloadFiles
+from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
 from app.db.models.transferhistory import TransferHistory
 from app.db.systemconfig_oper import SystemConfigOper
 from app.db.transferhistory_oper import TransferHistoryOper
@@ -30,33 +31,33 @@ from app.helper.directory import DirectoryHelper
 from app.helper.format import EpisodeFormatRuleHelper, FormatParser
 from app.helper.progress import ProgressHelper
 from app.log import logger
-from app.schemas import StorageOperSelectionEventData
 from app.schemas import (
-    TransferInfo,
-    Notification,
     EpisodeFormat,
     FileItem,
+    Notification,
+    StorageOperSelectionEventData,
+    TmdbEpisode,
     TransferDirectoryConf,
-    TransferTask,
-    TransferQueue,
+    TransferInfo,
     TransferJob,
     TransferJobTask,
-    TmdbEpisode,
+    TransferQueue,
+    TransferTask,
 )
 from app.schemas.exception import OperationInterrupted
 from app.schemas.types import (
-    TorrentStatus,
-    EventType,
-    MediaType,
-    ProgressKey,
-    NotificationType,
-    MessageChannel,
-    SystemConfigKey,
     ChainEventType,
     ContentType,
+    EventType,
+    MediaType,
+    MessageChannel,
+    NotificationType,
+    ProgressKey,
+    SystemConfigKey,
+    TorrentStatus,
 )
-from app.utils.mixins import ConfigReloadMixin
 from app.utils.media import normalize_media_source, parse_media_key, resolve_media_identity
+from app.utils.mixins import ConfigReloadMixin
 from app.utils.singleton import Singleton
 from app.utils.string import StringUtils
 from app.utils.system import SystemUtils
@@ -118,15 +119,15 @@ class JobManager:
     """
 
     # 整理中的作业
-    _job_view: Dict[Tuple, TransferJob] = {}
+    _job_view: dict[tuple, TransferJob] = {}
     # 汇总季集清单
-    _season_episodes: Dict[Tuple, List[int]] = {}
+    _season_episodes: dict[tuple, list[int]] = {}
     # 记录从 meta 作业迁移到 media 作业的关系，用于清理提前失败后残留的 media 作业
-    _meta_to_media_ids: Dict[Tuple, set[Tuple]] = {}
+    _meta_to_media_ids: dict[tuple, set[tuple]] = {}
     # 记录任务最近一次状态心跳，供外部异步接管任务的失活检测使用
-    _task_state_changed_at: Dict[Tuple[str, str], float] = {}
+    _task_state_changed_at: dict[tuple[str, str], float] = {}
     # 记录仍由主程序整理线程直接执行的任务，避免把阻塞中的本地任务误判为失活
-    _active_executions: set[Tuple[str, str]] = set()
+    _active_executions: set[tuple[str, str]] = set()
 
     def __init__(self):
         self._job_view = {}
@@ -136,14 +137,14 @@ class JobManager:
         self._active_executions = set()
 
     @staticmethod
-    def __get_meta_id(meta: MetaBase = None, season: Optional[int] = None) -> Tuple:
+    def __get_meta_id(meta: MetaBase = None, season: int | None = None) -> tuple:
         """
         获取元数据ID
         """
         return meta.name, season
 
     @staticmethod
-    def __get_media_id(media: MediaInfo = None, season: Optional[int] = None) -> Tuple:
+    def __get_media_id(media: MediaInfo = None, season: int | None = None) -> tuple:
         """
         获取媒体ID
         """
@@ -153,25 +154,21 @@ class JobManager:
         return (source, media_id), season
 
     @staticmethod
-    def __get_file_key(fileitem: FileItem) -> Optional[Tuple[str, str]]:
+    def __get_file_key(fileitem: FileItem) -> tuple[str, str] | None:
         """
         获取源文件唯一键，用于跨媒体作业识别同一个整理任务。
         """
         if not fileitem or not fileitem.path:
             return None
-        normalized_path = (
-            Path(str(fileitem.path).replace("\\", "/")).as_posix().rstrip("/") or "/"
-        )
+        normalized_path = Path(str(fileitem.path).replace("\\", "/")).as_posix().rstrip("/") or "/"
         return fileitem.storage or "local", normalized_path
 
-    def __get_id(self, task: TransferTask = None) -> Tuple:
+    def __get_id(self, task: TransferTask = None) -> tuple:
         """
         获取作业ID
         """
         if task.mediainfo:
-            return self.__get_media_id(
-                media=task.mediainfo, season=task.meta.begin_season
-            )
+            return self.__get_media_id(media=task.mediainfo, season=task.meta.begin_season)
         else:
             return self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
 
@@ -202,7 +199,7 @@ class JobManager:
         """
         return schemas.MetaInfo(**task.meta.to_dict())
 
-    def add_task(self, task: TransferTask, state: Optional[str] = "waiting") -> bool:
+    def add_task(self, task: TransferTask, state: str | None = "waiting") -> bool:
         """
         添加整理任务，自动分组到对应的作业中
         :return: True表示任务已添加，False表示任务无效或已存在（重复）
@@ -215,11 +212,7 @@ class JobManager:
         with job_lock:
             __mediaid__ = self.__get_id(task)
             # 同一个源文件可能在识别前后落入不同作业，必须跨作业去重。
-            if any(
-                    self.__get_file_key(t.fileitem) == file_key
-                    for job in self._job_view.values()
-                    for t in job.tasks
-            ):
+            if any(self.__get_file_key(t.fileitem) == file_key for job in self._job_view.values() for t in job.tasks):
                 logger.debug(f"任务 {task.fileitem.name} 已存在，跳过重复添加")
                 return False
             if __mediaid__ not in self._job_view:
@@ -238,12 +231,7 @@ class JobManager:
                 )
             else:
                 # 不重复添加任务
-                if any(
-                        [
-                            self.__get_file_key(t.fileitem) == file_key
-                            for t in self._job_view[__mediaid__].tasks
-                        ]
-                ):
+                if any([self.__get_file_key(t.fileitem) == file_key for t in self._job_view[__mediaid__].tasks]):
                     logger.debug(f"任务 {task.fileitem.name} 已存在，跳过重复添加")
                     return False
                 self._job_view[__mediaid__].tasks.append(
@@ -259,9 +247,7 @@ class JobManager:
             # 添加季集信息
             if self._season_episodes.get(__mediaid__):
                 self._season_episodes[__mediaid__].extend(task.meta.episode_list)
-                self._season_episodes[__mediaid__] = list(
-                    set(self._season_episodes[__mediaid__])
-                )
+                self._season_episodes[__mediaid__] = list(set(self._season_episodes[__mediaid__]))
             else:
                 self._season_episodes[__mediaid__] = task.meta.episode_list
             return True
@@ -270,33 +256,26 @@ class JobManager:
         """
         将任务从 meta 作业迁移到 media 作业
         """
-        curr_task, source_job_id = self.__remove_task_with_job_id(
-            task.fileitem, preserve_execution=True
-        )
+        curr_task, source_job_id = self.__remove_task_with_job_id(task.fileitem, preserve_execution=True)
         if not self.add_task(task, state=curr_task.state if curr_task else "waiting"):
             return False
         if curr_task and task.mediainfo:
-            metaid = self.__get_meta_id(
-                meta=task.meta, season=task.meta.begin_season
-            )
+            metaid = self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
             mediaid = self.__get_id(task)
             if source_job_id == metaid and mediaid != metaid:
                 with job_lock:
                     self._meta_to_media_ids.setdefault(metaid, set()).add(mediaid)
         return True
 
-    def __is_job_done(self, job_id: Tuple) -> bool:
+    def __is_job_done(self, job_id: tuple) -> bool:
         """
         检查指定作业是否已完成
         """
         if job_id not in self._job_view:
             return True
-        return all(
-            task.state in ["completed", "failed"]
-            for task in self._job_view[job_id].tasks
-        )
+        return all(task.state in ["completed", "failed"] for task in self._job_view[job_id].tasks)
 
-    def __pop_job(self, job_id: Tuple):
+    def __pop_job(self, job_id: tuple):
         """
         移除指定作业和对应季集缓存
         """
@@ -310,7 +289,7 @@ class JobManager:
                 self._task_state_changed_at.pop(file_key, None)
                 self._active_executions.discard(file_key)
 
-    def __remove_done_job_groups(self, job_ids: set[Tuple]):
+    def __remove_done_job_groups(self, job_ids: set[tuple]):
         """
         清理已进入终态的独立作业或关联作业组。
         """
@@ -326,9 +305,7 @@ class JobManager:
                 candidates.difference_update(related_ids)
 
         referenced_ids = {
-            job_id
-            for metaid, mediaids in self._meta_to_media_ids.items()
-            for job_id in {metaid, *mediaids}
+            job_id for metaid, mediaids in self._meta_to_media_ids.items() for job_id in {metaid, *mediaids}
         }
         for job_id in candidates - referenced_ids:
             if self.__is_job_done(job_id):
@@ -362,9 +339,7 @@ class JobManager:
         with job_lock:
             self._active_executions.discard(file_key)
 
-    def expire_stale_running_tasks(
-            self, timeout_seconds: int
-    ) -> List[Tuple[FileItem, int]]:
+    def expire_stale_running_tasks(self, timeout_seconds: int) -> list[tuple[FileItem, int]]:
         """
         将外部接管后长期无心跳的运行中任务标记失败并清理作业视图。
 
@@ -378,17 +353,13 @@ class JobManager:
             return []
 
         current_time = monotonic()
-        expired: List[Tuple[FileItem, int]] = []
-        affected_job_ids: set[Tuple] = set()
+        expired: list[tuple[FileItem, int]] = []
+        affected_job_ids: set[tuple] = set()
         with job_lock:
             for mediaid, job in self._job_view.items():
                 for task in job.tasks:
                     file_key = self.__get_file_key(task.fileitem)
-                    if (
-                            not file_key
-                            or task.state != "running"
-                            or file_key in self._active_executions
-                    ):
+                    if not file_key or task.state != "running" or file_key in self._active_executions:
                         continue
                     updated_at = self._task_state_changed_at.get(file_key, current_time)
                     inactive_seconds = current_time - updated_at
@@ -398,9 +369,7 @@ class JobManager:
                     self._task_state_changed_at[file_key] = current_time
                     episodes = getattr(task.meta, "episode_list", None) or []
                     if mediaid in self._season_episodes:
-                        self._season_episodes[mediaid] = list(
-                            set(self._season_episodes[mediaid]) - set(episodes)
-                        )
+                        self._season_episodes[mediaid] = list(set(self._season_episodes[mediaid]) - set(episodes))
                     expired.append((task.fileitem, int(inactive_seconds)))
                     affected_job_ids.add(mediaid)
 
@@ -460,8 +429,7 @@ class JobManager:
             # 移除剧集信息
             if __mediaid__ in self._season_episodes:
                 self._season_episodes[__mediaid__] = list(
-                    set(self._season_episodes[__mediaid__])
-                    - set(task.meta.episode_list)
+                    set(self._season_episodes[__mediaid__]) - set(task.meta.episode_list)
                 )
 
     def fail_unfinished_task(self, task: TransferTask):
@@ -483,12 +451,11 @@ class JobManager:
                         self._task_state_changed_at[file_key] = monotonic()
                         if mediaid in self._season_episodes:
                             self._season_episodes[mediaid] = list(
-                                set(self._season_episodes[mediaid])
-                                - set(task.meta.episode_list)
+                                set(self._season_episodes[mediaid]) - set(task.meta.episode_list)
                             )
                     return
 
-    def remove_task(self, fileitem: FileItem) -> Optional[TransferJobTask]:
+    def remove_task(self, fileitem: FileItem) -> TransferJobTask | None:
         """
         根据文件项移除任务
         """
@@ -496,10 +463,10 @@ class JobManager:
         return task
 
     def __remove_task_with_job_id(
-            self,
-            fileitem: FileItem,
-            preserve_execution: bool = False,
-    ) -> Tuple[Optional[TransferJobTask], Optional[Tuple]]:
+        self,
+        fileitem: FileItem,
+        preserve_execution: bool = False,
+    ) -> tuple[TransferJobTask | None, tuple | None]:
         """
         根据文件项移除任务，并返回任务所在的作业ID
         """
@@ -521,13 +488,12 @@ class JobManager:
                         # 移除季集信息
                         if mediaid in self._season_episodes:
                             self._season_episodes[mediaid] = list(
-                                set(self._season_episodes[mediaid])
-                                - set(task.meta.episode_list)
+                                set(self._season_episodes[mediaid]) - set(task.meta.episode_list)
                             )
                         return task, mediaid
             return None, None
 
-    def remove_job(self, task: TransferTask) -> Optional[TransferJob]:
+    def remove_job(self, task: TransferTask) -> TransferJob | None:
         """
         移除任务对应的作业（强制，线程不安全）
         """
@@ -544,21 +510,15 @@ class JobManager:
         尝试移除任务对应的作业（严格检查未完成作业，线程安全）
         """
         with job_lock:
-            __metaid__ = self.__get_meta_id(
-                meta=task.meta, season=task.meta.begin_season
-            )
-            __mediaid__ = self.__get_media_id(
-                media=task.mediainfo, season=task.meta.begin_season
-            )
+            __metaid__ = self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
+            __mediaid__ = self.__get_media_id(media=task.mediainfo, season=task.meta.begin_season)
 
             related_media_ids = set(self._meta_to_media_ids.get(__metaid__, set()))
             if task.mediainfo:
                 related_media_ids.add(__mediaid__)
 
             meta_done = self.__is_job_done(__metaid__)
-            media_done = all(
-                self.__is_job_done(mediaid) for mediaid in related_media_ids
-            )
+            media_done = all(self.__is_job_done(mediaid) for mediaid in related_media_ids)
 
             if meta_done and media_done:
                 remove_ids = {__metaid__, self.__get_id(task), *related_media_ids}
@@ -571,24 +531,14 @@ class JobManager:
         检查任务对应的作业是否整理完成（不管成功还是失败）
         """
         with job_lock:
-            __metaid__ = self.__get_meta_id(
-                meta=task.meta, season=task.meta.begin_season
-            )
-            __mediaid__ = self.__get_media_id(
-                media=task.mediainfo, season=task.meta.begin_season
-            )
+            __metaid__ = self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
+            __mediaid__ = self.__get_media_id(media=task.mediainfo, season=task.meta.begin_season)
             if __metaid__ in self._job_view:
-                meta_done = all(
-                    task.state in ["completed", "failed"]
-                    for task in self._job_view[__metaid__].tasks
-                )
+                meta_done = all(task.state in ["completed", "failed"] for task in self._job_view[__metaid__].tasks)
             else:
                 meta_done = True
             if __mediaid__ in self._job_view:
-                media_done = all(
-                    task.state in ["completed", "failed"]
-                    for task in self._job_view[__mediaid__].tasks
-                )
+                media_done = all(task.state in ["completed", "failed"] for task in self._job_view[__mediaid__].tasks)
             else:
                 media_done = True
             return meta_done and media_done
@@ -598,24 +548,17 @@ class JobManager:
         检查任务对应的作业是否已完成且有成功的记录
         """
         with job_lock:
-            __metaid__ = self.__get_meta_id(
-                meta=task.meta, season=task.meta.begin_season
-            )
-            __mediaid__ = self.__get_media_id(
-                media=task.mediainfo, season=task.meta.begin_season
-            )
+            __metaid__ = self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
+            __mediaid__ = self.__get_media_id(media=task.mediainfo, season=task.meta.begin_season)
             if __metaid__ in self._job_view:
-                meta_finished = all(
-                    task.state in ["completed", "failed"]
-                    for task in self._job_view[__metaid__].tasks
-                )
+                meta_finished = all(task.state in ["completed", "failed"] for task in self._job_view[__metaid__].tasks)
             else:
                 meta_finished = True
             if __mediaid__ in self._job_view:
                 tasks = self._job_view[__mediaid__].tasks
-                media_finished = all(
-                    task.state in ["completed", "failed"] for task in tasks
-                ) and any(task.state == "completed" for task in tasks)
+                media_finished = all(task.state in ["completed", "failed"] for task in tasks) and any(
+                    task.state == "completed" for task in tasks
+                )
             else:
                 media_finished = True
             return meta_finished and media_finished
@@ -625,24 +568,14 @@ class JobManager:
         检查任务对应的作业是否全部成功
         """
         with job_lock:
-            __metaid__ = self.__get_meta_id(
-                meta=task.meta, season=task.meta.begin_season
-            )
-            __mediaid__ = self.__get_media_id(
-                media=task.mediainfo, season=task.meta.begin_season
-            )
+            __metaid__ = self.__get_meta_id(meta=task.meta, season=task.meta.begin_season)
+            __mediaid__ = self.__get_media_id(media=task.mediainfo, season=task.meta.begin_season)
             if __metaid__ in self._job_view:
-                meta_success = all(
-                    task.state in ["completed"]
-                    for task in self._job_view[__metaid__].tasks
-                )
+                meta_success = all(task.state in ["completed"] for task in self._job_view[__metaid__].tasks)
             else:
                 meta_success = True
             if __mediaid__ in self._job_view:
-                media_success = all(
-                    task.state in ["completed"]
-                    for task in self._job_view[__mediaid__].tasks
-                )
+                media_success = all(task.state in ["completed"] for task in self._job_view[__mediaid__].tasks)
             else:
                 media_success = True
             return meta_success and media_success
@@ -652,11 +585,7 @@ class JobManager:
         获取所有种子的哈希值集合
         """
         with job_lock:
-            return {
-                task.download_hash
-                for job in self._job_view.values()
-                for task in job.tasks
-            }
+            return {task.download_hash for job in self._job_view.values() for task in job.tasks}
 
     def is_torrent_done(self, download_hash: str) -> bool:
         """
@@ -664,10 +593,10 @@ class JobManager:
         """
         with job_lock:
             if any(
-                    task.state not in {"completed", "failed"}
-                    for job in self._job_view.values()
-                    for task in job.tasks
-                    if task.download_hash == download_hash
+                task.state not in {"completed", "failed"}
+                for job in self._job_view.values()
+                for task in job.tasks
+                if task.download_hash == download_hash
             ):
                 return False
             return True
@@ -678,19 +607,19 @@ class JobManager:
         """
         with job_lock:
             if any(
-                    task.state != "completed"
-                    for job in self._job_view.values()
-                    for task in job.tasks
-                    if task.download_hash == download_hash
+                task.state != "completed"
+                for job in self._job_view.values()
+                for task in job.tasks
+                if task.download_hash == download_hash
             ):
                 return False
             return True
 
     def has_tasks(
-            self,
-            meta: MetaBase,
-            mediainfo: Optional[MediaInfo] = None,
-            season: Optional[int] = None,
+        self,
+        meta: MetaBase,
+        mediainfo: MediaInfo | None = None,
+        season: int | None = None,
     ) -> bool:
         """
         判断作业是否还有任务正在处理
@@ -702,14 +631,9 @@ class JobManager:
                     return True
 
             __metaid__ = self.__get_meta_id(meta=meta, season=season)
-            return (
-                    __metaid__ in self._job_view
-                    and len(self._job_view[__metaid__].tasks) > 0
-            )
+            return __metaid__ in self._job_view and len(self._job_view[__metaid__].tasks) > 0
 
-    def success_tasks(
-            self, media: MediaInfo, season: Optional[int] = None
-    ) -> List[TransferJobTask]:
+    def success_tasks(self, media: MediaInfo, season: int | None = None) -> list[TransferJobTask]:
         """
         获取作业中所有成功的任务
         """
@@ -717,15 +641,9 @@ class JobManager:
             __mediaid__ = self.__get_media_id(media=media, season=season)
             if __mediaid__ not in self._job_view:
                 return []
-            return [
-                task
-                for task in self._job_view[__mediaid__].tasks
-                if task.state == "completed"
-            ]
+            return [task for task in self._job_view[__mediaid__].tasks if task.state == "completed"]
 
-    def all_tasks(
-            self, media: MediaInfo, season: Optional[int] = None
-    ) -> List[TransferJobTask]:
+    def all_tasks(self, media: MediaInfo, season: int | None = None) -> list[TransferJobTask]:
         """
         获取作业中全部任务
         """
@@ -735,7 +653,7 @@ class JobManager:
                 return []
             return self._job_view[__mediaid__].tasks
 
-    def count(self, media: MediaInfo, season: Optional[int] = None) -> int:
+    def count(self, media: MediaInfo, season: int | None = None) -> int:
         """
         获取作业中成功总数
         """
@@ -743,15 +661,9 @@ class JobManager:
             __mediaid__ = self.__get_media_id(media=media, season=season)
             if __mediaid__ not in self._job_view:
                 return 0
-            return len(
-                [
-                    task
-                    for task in self._job_view[__mediaid__].tasks
-                    if task.state == "completed"
-                ]
-            )
+            return len([task for task in self._job_view[__mediaid__].tasks if task.state == "completed"])
 
-    def size(self, media: MediaInfo, season: Optional[int] = None) -> int:
+    def size(self, media: MediaInfo, season: int | None = None) -> int:
         """
         获取作业中所有成功文件总大小
         """
@@ -780,16 +692,14 @@ class JobManager:
         with job_lock:
             return sum([len(job.tasks) for job in self._job_view.values()])
 
-    def list_jobs(self) -> List[TransferJob]:
+    def list_jobs(self) -> list[TransferJob]:
         """
         获取所有作业的任务列表
         """
         with job_lock:
             return list(self._job_view.values())
 
-    def season_episodes(
-            self, media: MediaInfo, season: Optional[int] = None
-    ) -> List[int]:
+    def season_episodes(self, media: MediaInfo, season: int | None = None) -> list[int]:
         """
         获取作业的季集清单
         """
@@ -822,7 +732,7 @@ class FailedRetryScheduler:
 
     @staticmethod
     def _build_retry_transfer_template_context(
-            history_ids: list[int],
+        history_ids: list[int],
     ) -> tuple[str, dict[str, int | str]]:
         """仅负责把失败重试任务的动态数据映射成模板变量。"""
         is_batch = len(history_ids) > 1
@@ -881,9 +791,7 @@ class FailedRetryScheduler:
             return
 
         ids_str = ", ".join(str(item) for item in history_ids)
-        logger.info(
-            f"智能体重试整理：开始批量处理失败记录 IDs=[{ids_str}] (group={group_key})"
-        )
+        logger.info(f"智能体重试整理：开始批量处理失败记录 IDs=[{ids_str}] (group={group_key})")
 
         try:
             await agent_manager.run_background_prompt(
@@ -891,13 +799,9 @@ class FailedRetryScheduler:
                 session_prefix="__agent_retry_transfer_batch",
                 reply_mode=ReplyMode.DISPATCH,
             )
-            logger.info(
-                f"智能体重试整理：批量处理完成 IDs=[{ids_str}] (group={group_key})"
-            )
+            logger.info(f"智能体重试整理：批量处理完成 IDs=[{ids_str}] (group={group_key})")
         except Exception as err:
-            logger.error(
-                f"智能体重试整理失败 (IDs=[{ids_str}], group={group_key}): {err}"
-            )
+            logger.error(f"智能体重试整理失败 (IDs=[{ids_str}], group={group_key}): {err}")
 
 
 class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
@@ -922,9 +826,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return False
         if task.library_category_folder is not None:
             return bool(task.library_category_folder)
-        return bool(
-            target_directory and target_directory.library_category_folder
-        )
+        return bool(target_directory and target_directory.library_category_folder)
 
     def __init__(self):
         """初始化文件整理处理链。"""
@@ -948,9 +850,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         # Agent重试管理器
         self.retry_scheduler = FailedRetryScheduler()
         # 转移成功的文件清单
-        self._success_target_files: Dict[str, List[str]] = {}
+        self._success_target_files: dict[str, list[str]] = {}
         # 批次级刮削缓冲，避免同一批多文件入库重复触发目录刮削
-        self._scrape_batches: Dict[str, Dict[str, Any]] = {}
+        self._scrape_batches: dict[str, dict[str, Any]] = {}
         # 整理进度进度
         self._progress = ProgressHelper(ProgressKey.FileTransfer)
         # 队列相关状态
@@ -970,9 +872,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         self._queue_active = True
         for i in range(settings.TRANSFER_THREADS):
             logger.info(f"启动文件整理线程 {i + 1} ...")
-            thread = threading.Thread(
-                target=self.__start_transfer, name=f"transfer-{i}", daemon=True
-            )
+            thread = threading.Thread(target=self.__start_transfer, name=f"transfer-{i}", daemon=True)
             self._threads.append(thread)
             thread.start()
 
@@ -997,9 +897,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         """
         if not fileitem.extension:
             return False
-        return (
-            True if f".{fileitem.extension.lower()}" in self._subtitle_exts else False
-        )
+        return True if f".{fileitem.extension.lower()}" in self._subtitle_exts else False
 
     def __is_audio_file(self, fileitem: FileItem) -> bool:
         """
@@ -1033,14 +931,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         """
         判断是否满足最小文件大小
         """
-        return (
-            True
-            if not min_filesize or (fileitem.size or 0) > min_filesize * 1024 * 1024
-            else False
-        )
+        return True if not min_filesize or (fileitem.size or 0) > min_filesize * 1024 * 1024 else False
 
     @staticmethod
-    def __is_hidden_or_recycle_path(file_path: Optional[str]) -> bool:
+    def __is_hidden_or_recycle_path(file_path: str | None) -> bool:
         """
         判断是否隐藏或回收站路径
         """
@@ -1056,9 +950,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
     @staticmethod
     def __should_delete_empty_source_directories(
-            task: TransferTask,
-            delete_mounted_local_disk_empty_dirs: bool,
-            mounted_filesystem_cache: Dict[Path, bool],
+        task: TransferTask,
+        delete_mounted_local_disk_empty_dirs: bool,
+        mounted_filesystem_cache: dict[Path, bool],
     ) -> bool:
         """
         判断移动整理后是否应删除源空目录。
@@ -1077,16 +971,12 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             else Path(task.fileitem.path).parent
         )
         if source_directory not in mounted_filesystem_cache:
-            mounted_filesystem_cache[source_directory] = (
-                SystemUtils.is_network_filesystem(
-                    source_directory, include_local_fuse=True
-                )
+            mounted_filesystem_cache[source_directory] = SystemUtils.is_network_filesystem(
+                source_directory, include_local_fuse=True
             )
         return not mounted_filesystem_cache[source_directory]
 
-    def __default_callback(
-            self, task: TransferTask, transferinfo: TransferInfo, /
-    ) -> Tuple[bool, str]:
+    def __default_callback(self, task: TransferTask, transferinfo: TransferInfo, /) -> tuple[bool, str]:
         """
         整理完成后处理
         """
@@ -1100,21 +990,14 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             完成时发送消息、移除任务等
             """
             # 更新文件数量
-            transferinfo.file_count = (
-                    self.jobview.count(task.mediainfo, task.meta.begin_season) or 1
-            )
+            transferinfo.file_count = self.jobview.count(task.mediainfo, task.meta.begin_season) or 1
             # 更新文件大小
-            transferinfo.total_size = (
-                    self.jobview.size(task.mediainfo, task.meta.begin_season)
-                    or task.fileitem.size
-            )
+            transferinfo.total_size = self.jobview.size(task.mediainfo, task.meta.begin_season) or task.fileitem.size
             # 发送通知，实时手动整理时不发
             if transferinfo.need_notify and (task.background or not task.manual):
                 se_str = None
                 if task.mediainfo.type == MediaType.TV:
-                    season_episodes = self.jobview.season_episodes(
-                        task.mediainfo, task.meta.begin_season
-                    )
+                    season_episodes = self.jobview.season_episodes(task.mediainfo, task.meta.begin_season)
                     if season_episodes:
                         se_str = f"{task.meta.season} {StringUtils.format_ep(season_episodes)}"
                     else:
@@ -1199,19 +1082,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     text="\n".join(
                         [
                             f"原因：{transferinfo.message or '未知'}",
-                            (
-                                f"如果按钮不可用，可回复：\n```\n/redo {history.id}\n```"
-                                if history
-                                else ""
-                            ),
+                            (f"如果按钮不可用，可回复：\n```\n/redo {history.id}\n```" if history else ""),
                         ]
                     ).strip(),
                     image=task.mediainfo.get_message_image(),
                     username=task.username,
                     link=settings.MP_DOMAIN("#/history"),
-                    buttons=self.build_failed_transfer_buttons(
-                        history.id if history else None
-                    ),
+                    buttons=self.build_failed_transfer_buttons(history.id if history else None),
                 )
             )
 
@@ -1219,23 +1096,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             self.jobview.fail_task(task)
 
             # AI智能体自动重试整理
-            if (
-                    history
-                    and settings.AI_AGENT_ENABLE
-                    and settings.AI_AGENT_RETRY_TRANSFER
-            ):
+            if history and settings.AI_AGENT_ENABLE and settings.AI_AGENT_RETRY_TRANSFER:
                 try:
                     # 使用 download_hash 或源文件父目录作为分组键，
                     # 同一批次（如同一个种子）的失败记录会被合并为一次agent调用
-                    group_key = (
-                        task.download_hash or str(task.fileitem.path).rsplit("/", 1)[0]
-                        if task.fileitem
-                        else ""
-                    )
+                    group_key = task.download_hash or str(task.fileitem.path).rsplit("/", 1)[0] if task.fileitem else ""
                     asyncio.run_coroutine_threadsafe(
-                        self.retry_scheduler.schedule_retry(
-                            history.id, group_key=group_key
-                        ),
+                        self.retry_scheduler.schedule_retry(history.id, group_key=group_key),
                         global_vars.loop,
                     )
                     logger.info(f"已触发AI智能体重试整理历史记录 #{history.id}")
@@ -1325,9 +1192,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             # 更新文件清单
             with job_lock:
                 if target_dir_path:
-                    transferinfo.file_list_new = self._success_target_files.pop(
-                        target_dir_path, []
-                    )
+                    transferinfo.file_list_new = self._success_target_files.pop(target_dir_path, [])
                 else:
                     transferinfo.file_list_new = transferinfo.file_list_new or []
             __notify()
@@ -1342,52 +1207,40 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             # 全部整理成功时
             if self.jobview.is_success(task):
                 # 所有成功的业务
-                tasks = self.jobview.success_tasks(
-                    task.mediainfo, task.meta.begin_season
-                )
+                tasks = self.jobview.success_tasks(task.mediainfo, task.meta.begin_season)
                 system_config_oper = SystemConfigOper()
                 # 获取整理屏蔽词
-                transfer_exclude_words = system_config_oper.get(
-                    SystemConfigKey.TransferExcludeWords
-                )
+                transfer_exclude_words = system_config_oper.get(SystemConfigKey.TransferExcludeWords)
                 # 挂载盘空目录清理默认开启
-                delete_mounted_local_disk_empty_dirs = system_config_oper.get(
-                    SystemConfigKey.MountedLocalDiskDeleteEmptyDirs
-                ) is not False
-                mounted_filesystem_cache: Dict[Path, bool] = {}
+                delete_mounted_local_disk_empty_dirs = (
+                    system_config_oper.get(SystemConfigKey.MountedLocalDiskDeleteEmptyDirs) is not False
+                )
+                mounted_filesystem_cache: dict[Path, bool] = {}
                 processed_hashes = set()
                 for t in tasks:
                     if t.download_hash and t.download_hash not in processed_hashes:
                         # 检查该种子的所有任务（跨作业）是否都已成功
                         if self.jobview.is_torrent_success(t.download_hash):
                             processed_hashes.add(t.download_hash)
-                            if self._can_delete_torrent(
-                                    t.download_hash, t.downloader, transfer_exclude_words
-                            ):
+                            if self._can_delete_torrent(t.download_hash, t.downloader, transfer_exclude_words):
                                 # 移除种子及文件
-                                if self.remove_torrents(
-                                        t.download_hash, downloader=t.downloader
-                                ):
-                                    logger.info(
-                                        f"移动模式删除种子成功：{t.download_hash}"
-                                    )
+                                if self.remove_torrents(t.download_hash, downloader=t.downloader):
+                                    logger.info(f"移动模式删除种子成功：{t.download_hash}")
                     if (
-                            not t.download_hash
-                            and t.fileitem
-                            and self.__should_delete_empty_source_directories(
-                                t,
-                                delete_mounted_local_disk_empty_dirs,
-                                mounted_filesystem_cache,
-                            )
+                        not t.download_hash
+                        and t.fileitem
+                        and self.__should_delete_empty_source_directories(
+                            t,
+                            delete_mounted_local_disk_empty_dirs,
+                            mounted_filesystem_cache,
+                        )
                     ):
                         # 删除剩余空目录
                         StorageChain().delete_media_file(t.fileitem, delete_self=False)
 
         return ret_status, ret_message
 
-    def __get_transfer_target_dir_path(
-            self, transferinfo: Optional[TransferInfo]
-    ) -> Optional[str]:
+    def __get_transfer_target_dir_path(self, transferinfo: TransferInfo | None) -> str | None:
         """
         获取整理目标目录路径，兼容 OpenList 等成功后目录项短时间不可见的存储。
         """
@@ -1425,38 +1278,28 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return self.jobview.add_task(task)
 
     def __mark_torrent_completed_if_done(
-            self,
-            download_hash: Optional[str],
-            downloader: Optional[str],
-            history_exists: bool = True,
+        self,
+        download_hash: str | None,
+        downloader: str | None,
+        history_exists: bool = True,
     ):
         """
         当同一种子的任务都已结束且种子已完成下载时，回写下载器已整理标签。
         """
-        if (
-                not history_exists
-                or not download_hash
-                or not self.jobview.is_torrent_done(download_hash)
-        ):
+        if not history_exists or not download_hash or not self.jobview.is_torrent_done(download_hash):
             return
         # 作业视图只包含已登记的整理任务；多集种子部分文件先下载完成时，
         # 剩余文件尚未产生任务，此时打已整理标签会使下载器轮询永久跳过
         # 剩余文件（#6009），因此必须确认种子已整体下载完成。
         if not self.__is_torrent_download_completed(download_hash, downloader):
-            logger.debug(
-                f"种子 {download_hash} 尚未下载完成或状态未知，暂不设置已整理标签"
-            )
+            logger.debug(f"种子 {download_hash} 尚未下载完成或状态未知，暂不设置已整理标签")
             return
         if not self.jobview.is_torrent_done(download_hash):
-            logger.debug(
-                f"种子 {download_hash} 存在新登记的整理任务，暂不设置已整理标签"
-            )
+            logger.debug(f"种子 {download_hash} 存在新登记的整理任务，暂不设置已整理标签")
             return
         self.transfer_completed(hashs=download_hash, downloader=downloader)
 
-    def __is_torrent_download_completed(
-            self, download_hash: str, downloader: Optional[str]
-    ) -> bool:
+    def __is_torrent_download_completed(self, download_hash: str, downloader: str | None) -> bool:
         """
         检查种子在下载器中是否已完成下载；查询不到或查询失败时视为未完成，
         留待下载器定时轮询兜底，避免误打已整理标签。
@@ -1470,18 +1313,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"检查种子 {download_hash} 下载进度失败：{e}")
             return False
 
-    def __send_metadata_scrape_event(
-            self, task: TransferTask, transferinfo: TransferInfo
-    ):
+    def __send_metadata_scrape_event(self, task: TransferTask, transferinfo: TransferInfo):
         """
         发送元数据刮削事件，保持对外事件载荷兼容。
         """
-        if (
-                not task
-                or not transferinfo
-                or not transferinfo.need_scrape
-                or not self.__is_media_file(task.fileitem)
-        ):
+        if not task or not transferinfo or not transferinfo.need_scrape or not self.__is_media_file(task.fileitem):
             return
 
         target_diritem = transferinfo.target_diritem
@@ -1516,7 +1352,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             )
             batch["pending"].add(task.fileitem.path)
 
-    def __close_scrape_batch(self, batch_id: Optional[str]):
+    def __close_scrape_batch(self, batch_id: str | None):
         """
         标记批次不再接收新任务，并尝试发送已聚合的刮削事件。
         """
@@ -1539,11 +1375,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         记录批次内需要刮削的目标文件，按目标媒体根目录聚合。
         """
         if (
-                not task
-                or not task.transfer_batch_id
-                or not transferinfo
-                or not transferinfo.need_scrape
-                or not self.__is_media_file(task.fileitem)
+            not task
+            or not task.transfer_batch_id
+            or not transferinfo
+            or not transferinfo.need_scrape
+            or not self.__is_media_file(task.fileitem)
         ):
             return
 
@@ -1593,7 +1429,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             batch["pending"].discard(task.fileitem.path)
         self.__flush_scrape_batch_if_ready(task.transfer_batch_id)
 
-    def __flush_scrape_batch_if_ready(self, batch_id: Optional[str]):
+    def __flush_scrape_batch_if_ready(self, batch_id: str | None):
         """
         批次任务全部结束后发送聚合后的刮削事件。
         """
@@ -1602,11 +1438,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
         with job_lock:
             batch = self._scrape_batches.get(batch_id)
-            if (
-                    not batch
-                    or not batch.get("closed")
-                    or batch.get("pending")
-            ):
+            if not batch or not batch.get("closed") or batch.get("pending"):
                 return
             targets = list(batch.get("targets", {}).values())
             self._scrape_batches.pop(batch_id, None)
@@ -1651,11 +1483,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         """清理外部接管后失去状态心跳的运行中整理任务。"""
         timeout_minutes = max(int(settings.TRANSFER_TASK_TIMEOUT), 0)
         expire_tasks = getattr(self.jobview, "expire_stale_running_tasks", None)
-        expired_tasks = (
-            expire_tasks(timeout_seconds=timeout_minutes * 60)
-            if expire_tasks
-            else []
-        )
+        expired_tasks = expire_tasks(timeout_seconds=timeout_minutes * 60) if expire_tasks else []
         for fileitem, inactive_seconds in expired_tasks:
             logger.error(
                 f"整理任务 {fileitem.path} 已连续 {inactive_seconds // 60} 分钟无状态心跳，"
@@ -1676,9 +1504,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         """
         while not global_vars.is_system_stopped and self._queue_active:
             try:
-                item: TransferQueue = self._queue.get(
-                    block=True, timeout=self._transfer_interval
-                )
+                item: TransferQueue = self._queue.get(block=True, timeout=self._transfer_interval)
                 if not item:
                     continue
 
@@ -1704,9 +1530,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         # 重置计数
                         self._processed_num = 0
                         self._fail_num = 0
-                        __process_msg = (
-                            f"开始整理队列处理，当前共 {self._total_num} 个文件 ..."
-                        )
+                        __process_msg = f"开始整理队列处理，当前共 {self._total_num} 个文件 ..."
                         logger.info(__process_msg)
                         self._progress.update(value=0, text=__process_msg)
                     # 增加运行中的任务数
@@ -1719,15 +1543,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     logger.info(__process_msg)
                     with task_lock:
                         self._progress.update(
-                            value=(self._processed_num / self._total_num * 100)
-                            if self._total_num
-                            else 0,
+                            value=(self._processed_num / self._total_num * 100) if self._total_num else 0,
                             text=__process_msg,
                         )
                     # 整理
-                    state, err_msg = self.__handle_transfer(
-                        task=task, callback=item.callback
-                    )
+                    state, err_msg = self.__handle_transfer(task=task, callback=item.callback)
 
                     with task_lock:
                         if not state:
@@ -1738,15 +1558,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         __process_msg = f"{fileitem.name} 整理完成"
                         logger.info(__process_msg)
                         self._progress.update(
-                            value=(self._processed_num / self._total_num * 100)
-                            if self._total_num
-                            else 100,
+                            value=(self._processed_num / self._total_num * 100) if self._total_num else 100,
                             text=__process_msg,
                         )
                 except Exception as e:
-                    logger.error(
-                        f"{fileitem.name} 整理任务处理出现错误：{e} - {traceback.format_exc()}"
-                    )
+                    logger.error(f"{fileitem.name} 整理任务处理出现错误：{e} - {traceback.format_exc()}")
                     self.__fail_transfer_task(task)
                     with task_lock:
                         self._processed_num += 1
@@ -1760,7 +1576,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         # 检查是否所有任务都已完成且队列为空
                         if self._active_tasks == 0 and self._queue.empty():
                             # 结束进度
-                            __end_msg = f"整理队列处理完成，共整理 {self._processed_num} 个文件，失败 {self._fail_num} 个"
+                            __end_msg = (
+                                f"整理队列处理完成，共整理 {self._processed_num} 个文件，失败 {self._fail_num} 个"
+                            )
                             logger.info(__end_msg)
                             self._progress.update(value=100, text=__end_msg)
                             self._progress.end()
@@ -1778,9 +1596,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             except Exception as e:
                 logger.error(f"整理队列处理出现错误：{e} - {traceback.format_exc()}")
 
-    def __handle_transfer(
-            self, task: TransferTask, callback: Optional[Callable] = None
-    ) -> Optional[Tuple[bool, str]]:
+    def __handle_transfer(self, task: TransferTask, callback: Callable | None = None) -> tuple[bool, str] | None:
         """
         处理整理任务
         """
@@ -1796,21 +1612,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 if download_history:
                     task.username = download_history.username
                     # 识别媒体信息
-                    history_year_conflict = self._is_movie_year_conflict(
-                        task.meta, download_history
-                    )
+                    history_year_conflict = self._is_movie_year_conflict(task.meta, download_history)
                     if (
-                            (
-                                download_history.media_id
-                                or download_history.tmdbid
-                                or download_history.doubanid
-                                or download_history.bangumiid
-                                or download_history.anilistid
-                            )
-                            and not history_year_conflict
-                    ):
+                        download_history.media_id
+                        or download_history.tmdbid
+                        or download_history.doubanid
+                        or download_history.bangumiid
+                        or download_history.anilistid
+                    ) and not history_year_conflict:
                         # 下载记录中已存在识别信息
-                        mediainfo: Optional[MediaInfo] = self.recognize_media(
+                        mediainfo: MediaInfo | None = self.recognize_media(
                             mtype=MediaType(download_history.type),
                             tmdbid=download_history.tmdbid,
                             doubanid=download_history.doubanid,
@@ -1834,9 +1645,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         recognize_kwargs = {"obtain_images": True}
                         if task.media_source:
                             recognize_kwargs["source"] = task.media_source
-                        mediainfo = MediaChain().recognize_by_meta(
-                            task.meta, **recognize_kwargs
-                        )
+                        mediainfo = MediaChain().recognize_by_meta(task.meta, **recognize_kwargs)
                         if mediainfo and download_history.media_category:
                             mediainfo.category = download_history.media_category
                 else:
@@ -1844,9 +1653,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     recognize_kwargs = {"obtain_images": True}
                     if task.media_source:
                         recognize_kwargs["source"] = task.media_source
-                    mediainfo = MediaChain().recognize_by_meta(
-                        task.meta, **recognize_kwargs
-                    )
+                    mediainfo = MediaChain().recognize_by_meta(task.meta, **recognize_kwargs)
 
                 # 按名称识别时已在识别链路补图，这里只补齐显式ID识别的场景。
                 if mediainfo and need_obtain_images:
@@ -1878,35 +1685,22 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             ),
                             username=task.username,
                             link=settings.MP_DOMAIN("#/history"),
-                            buttons=self.build_failed_transfer_buttons(
-                                his.id if his else None
-                            ),
+                            buttons=self.build_failed_transfer_buttons(his.id if his else None),
                         )
                     )
                     # 任务失败，直接移除task
                     self.jobview.remove_task(task.fileitem)
-                    self.__mark_torrent_completed_if_done(
-                        task.download_hash, task.downloader
-                    )
+                    self.__mark_torrent_completed_if_done(task.download_hash, task.downloader)
 
                     # AI智能体自动重试整理
-                    if (
-                            his
-                            and settings.AI_AGENT_ENABLE
-                            and settings.AI_AGENT_RETRY_TRANSFER
-                    ):
+                    if his and settings.AI_AGENT_ENABLE and settings.AI_AGENT_RETRY_TRANSFER:
                         try:
                             # 使用 download_hash 或源文件父目录作为分组键
                             group_key = (
-                                task.download_hash
-                                or str(task.fileitem.path).rsplit("/", 1)[0]
-                                if task.fileitem
-                                else ""
+                                task.download_hash or str(task.fileitem.path).rsplit("/", 1)[0] if task.fileitem else ""
                             )
                             asyncio.run_coroutine_threadsafe(
-                                self.retry_scheduler.schedule_retry(
-                                    his.id, group_key=group_key
-                                ),
+                                self.retry_scheduler.schedule_retry(his.id, group_key=group_key),
                                 global_vars.loop,
                             )
                             logger.info(f"已触发AI智能体重试整理历史记录 #{his.id}")
@@ -1922,13 +1716,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             task.mediainfo = mediainfo
 
             # 只有 TMDB 主源沿用历史 TMDB 标题，避免辅助 ID 改写其它识别源标题。
-            if (
-                    not settings.SCRAP_FOLLOW_TMDB
-                    and normalize_media_source(mediainfo.source) == "themoviedb"
-            ):
-                transfer_history = transferhis.get_by_type_tmdbid(
-                    tmdbid=mediainfo.tmdb_id, mtype=mediainfo.type.value
-                )
+            if not settings.SCRAP_FOLLOW_TMDB and normalize_media_source(mediainfo.source) == "themoviedb":
+                transfer_history = transferhis.get_by_type_tmdbid(tmdbid=mediainfo.tmdb_id, mtype=mediainfo.type.value)
                 if transfer_history and mediainfo.title != transfer_history.title:
                     mediainfo.title = transfer_history.title
                     mediainfo_changed = True
@@ -1942,11 +1731,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     return False, f"{task.fileitem.name} 已在整理队列中"
 
             # 获取集数据
-            if (
-                    task.mediainfo.type == MediaType.TV
-                    and task.mediainfo.tmdb_id
-                    and not task.episodes_info
-            ):
+            if task.mediainfo.type == MediaType.TV and task.mediainfo.tmdb_id and not task.episodes_info:
                 # 判断注意season为0的情况
                 season_num = task.mediainfo.season
                 if season_num is None and task.meta.season_seq:
@@ -2007,14 +1792,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             source_event_data = StorageOperSelectionEventData(
                 storage=task.fileitem.storage,
             )
-            source_event = eventmanager.send_event(
-                ChainEventType.StorageOperSelection, source_event_data
-            )
+            source_event = eventmanager.send_event(ChainEventType.StorageOperSelection, source_event_data)
             # 使用事件返回的上下文数据
             if source_event and source_event.event_data:
-                source_event_data: StorageOperSelectionEventData = (
-                    source_event.event_data
-                )
+                source_event_data: StorageOperSelectionEventData = source_event.event_data
                 if source_event_data.storage_oper:
                     source_oper = source_event_data.storage_oper
 
@@ -2023,14 +1804,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             target_event_data = StorageOperSelectionEventData(
                 storage=task.target_storage,
             )
-            target_event = eventmanager.send_event(
-                ChainEventType.StorageOperSelection, target_event_data
-            )
+            target_event = eventmanager.send_event(ChainEventType.StorageOperSelection, target_event_data)
             # 使用事件返回的上下文数据
             if target_event and target_event.event_data:
-                target_event_data: StorageOperSelectionEventData = (
-                    target_event.event_data
-                )
+                target_event_data: StorageOperSelectionEventData = target_event.event_data
                 if target_event_data.storage_oper:
                     target_oper = target_event_data.storage_oper
 
@@ -2066,14 +1843,14 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             self.jobview.try_remove_job(task)
             self.__finish_scrape_batch_task(task)
 
-    def get_queue_tasks(self) -> List[TransferJob]:
+    def get_queue_tasks(self) -> list[TransferJob]:
         """
         获取整理任务列表
         """
         self.__expire_stale_transfer_tasks()
         return self.jobview.list_jobs()
 
-    def recommend_name(self, meta: MetaBase, mediainfo: MediaInfo) -> Optional[str]:
+    def recommend_name(self, meta: MetaBase, mediainfo: MediaInfo) -> str | None:
         """
         获取重命名后的名称
         :param meta: 元数据
@@ -2083,10 +1860,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return self.run_module("recommend_name", meta=meta, mediainfo=mediainfo)
 
     def recommend_episode_format(
-            self,
-            fileitem: FileItem,
-            fileitems: Optional[List[FileItem]] = None,
-    ) -> Tuple[bool, str, Optional[dict]]:
+        self,
+        fileitem: FileItem,
+        fileitems: list[FileItem] | None = None,
+    ) -> tuple[bool, str, dict | None]:
         """
         根据目录样本推荐集数定位模板
         """
@@ -2096,9 +1873,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
         rules = self.__get_episode_format_rules()
         if fileitems:
-            state, errmsg, sample_files = self.__get_selected_episode_format_sample_files(
-                fileitems
-            )
+            state, errmsg, sample_files = self.__get_selected_episode_format_sample_files(fileitems)
             if not state:
                 logger.warn(f"推荐集数定位模板失败：{errmsg}")
                 return False, errmsg, None
@@ -2113,9 +1888,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 return False, "目录不存在", None
             sample_files = self.__get_episode_format_sample_files(directory)
             target_path = directory.path
-        logger.info(
-            f"开始匹配集数定位规则：{target_path}，规则数 {len(rules)}，样本数 {len(sample_files)}"
-        )
+        logger.info(f"开始匹配集数定位规则：{target_path}，规则数 {len(rules)}，样本数 {len(sample_files)}")
         state, errmsg, data = EpisodeFormatRuleHelper().recommend(
             rules=rules,
             sample_files=sample_files,
@@ -2123,18 +1896,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         if not state:
             logger.warn(f"集数定位模板推荐失败：{target_path} - {errmsg}")
             return state, errmsg, data
-        logger.info(
-            f"集数定位模板推荐成功：{target_path} - 规则 {data.get('rule_name') if data else None}"
-        )
+        logger.info(f"集数定位模板推荐成功：{target_path} - 规则 {data.get('rule_name') if data else None}")
         return state, errmsg, data
 
     @staticmethod
-    def __get_episode_format_rules() -> List[schemas.EpisodeFormatRule]:
+    def __get_episode_format_rules() -> list[schemas.EpisodeFormatRule]:
         """
         获取启用的集数定位规则
         """
         rule_items = SystemConfigOper().get(SystemConfigKey.EpisodeFormatRuleTable) or []
-        rules: List[schemas.EpisodeFormatRule] = []
+        rules: list[schemas.EpisodeFormatRule] = []
         for item in rule_items:
             if not isinstance(item, dict):
                 continue
@@ -2147,9 +1918,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 rules.append(rule)
         return sorted(rules, key=lambda item: item.order)
 
-    def __resolve_episode_format_directory(
-            self, fileitem: FileItem
-    ) -> Optional[FileItem]:
+    def __resolve_episode_format_directory(self, fileitem: FileItem) -> FileItem | None:
         """
         将文件或目录入参归一化为目录对象
         """
@@ -2165,17 +1934,15 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         )
         return storage_chain.get_item(parent_item)
 
-    def __get_selected_episode_format_sample_files(
-            self, fileitems: List[FileItem]
-    ) -> Tuple[bool, str, List[FileItem]]:
+    def __get_selected_episode_format_sample_files(self, fileitems: list[FileItem]) -> tuple[bool, str, list[FileItem]]:
         """
         获取当前选择文件中可参与模板推荐的样本文件。
         """
         if not fileitems:
             return False, "没有可用于识别的样本文件", []
 
-        expected_dir_key: Optional[Tuple[str, str]] = None
-        selected_files: List[FileItem] = []
+        expected_dir_key: tuple[str, str] | None = None
+        selected_files: list[FileItem] = []
         seen_files = set()
         for item in fileitems:
             if not item or not item.path or item.type != "file":
@@ -2195,11 +1962,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 continue
             seen_files.add(file_key)
 
-            if not (
-                    self.__is_media_file(item)
-                    or self.__is_subtitle_file(item)
-                    or self.__is_audio_file(item)
-            ):
+            if not (self.__is_media_file(item) or self.__is_subtitle_file(item) or self.__is_audio_file(item)):
                 continue
             if self.__is_hidden_or_recycle_path(item.path):
                 continue
@@ -2209,9 +1972,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return False, "没有可用于识别的样本文件", []
         return True, "", selected_files
 
-    def __get_episode_format_sample_files(
-            self, directory: FileItem
-    ) -> List[FileItem]:
+    def __get_episode_format_sample_files(self, directory: FileItem) -> list[FileItem]:
         """
         获取目录下可参与模板推荐的样本文件。
 
@@ -2220,22 +1981,18 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         同目录下的主视频、字幕和外挂音频一起纳入推荐流程。
         """
         file_items = StorageChain().list_files(directory, recursion=False) or []
-        sample_files: List[FileItem] = []
+        sample_files: list[FileItem] = []
         for item in file_items:
             if not item or item.type != "file":
                 continue
-            if not (
-                    self.__is_media_file(item)
-                    or self.__is_subtitle_file(item)
-                    or self.__is_audio_file(item)
-            ):
+            if not (self.__is_media_file(item) or self.__is_subtitle_file(item) or self.__is_audio_file(item)):
                 continue
             if self.__is_hidden_or_recycle_path(item.path):
                 continue
             sample_files.append(item)
         return sample_files
 
-    def process(self, progress_callback: Optional[Callable[..., None]] = None) -> bool:
+    def process(self, progress_callback: Callable[..., None] | None = None) -> bool:
         """
         获取下载器中的种子列表，并执行整理
 
@@ -2248,8 +2005,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
             # 如果没有下载器监控的目录则不处理
             if not any(
-                    dir_info.monitor_type == "downloader" and dir_info.storage == "local"
-                    for dir_info in download_dirs
+                dir_info.monitor_type == "downloader" and dir_info.storage == "local" for dir_info in download_dirs
             ):
                 if progress_callback:
                     progress_callback(value=100, text="未配置下载器监控目录，跳过整理")
@@ -2267,8 +2023,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     torrent
                     for torrent in torrents_list
                     if (h := torrent.hash) not in existing_hashes
-                       # 排除多下载器返回的重复种子
-                       and (h not in seen and (seen.add(h) or True))
+                    # 排除多下载器返回的重复种子
+                    and (h not in seen and (seen.add(h) or True))
                 ]
             else:
                 torrents = []
@@ -2293,11 +2049,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     if global_vars.is_system_stopped:
                         break
                     if progress_callback:
-                        torrent_name = (
-                            getattr(torrent, "title", None)
-                            or getattr(torrent, "name", None)
-                            or torrent.hash
-                        )
+                        torrent_name = getattr(torrent, "title", None) or getattr(torrent, "name", None) or torrent.hash
                         progress_callback(
                             value=(index - 1) / total_num * 100,
                             text=f"正在整理下载任务（{index}/{total_num}）{torrent_name} ...",
@@ -2325,15 +2077,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             is_downloader_monitor = True
                             break
                     if not is_downloader_monitor:
-                        logger.debug(
-                            f"文件 {file_path} 不在下载器监控目录中，不通过下载器进行整理"
-                        )
+                        logger.debug(f"文件 {file_path} 不在下载器监控目录中，不通过下载器进行整理")
                         continue
 
                     # 查询下载记录识别情况
-                    downloadhis: DownloadHistory = DownloadHistoryOper().get_by_hash(
-                        torrent.hash
-                    )
+                    downloadhis: DownloadHistory = DownloadHistoryOper().get_by_hash(torrent.hash)
                     if downloadhis:
                         # 类型
                         try:
@@ -2366,17 +2114,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     self.do_transfer(
                         fileitem=FileItem(
                             storage="local",
-                            path=file_path.as_posix()
-                                 + ("/" if file_path.is_dir() else ""),
+                            path=file_path.as_posix() + ("/" if file_path.is_dir() else ""),
                             type="dir" if not file_path.is_file() else "file",
                             name=file_path.name,
                             size=file_path.stat().st_size,
                             extension=file_path.suffix.lstrip("."),
                         ),
                         mediainfo=mediainfo,
-                            downloader=torrent.downloader,
-                            download_hash=torrent.hash,
-                        )
+                        downloader=torrent.downloader,
+                        download_hash=torrent.hash,
+                    )
                     if progress_callback:
                         progress_callback(
                             value=index / total_num * 100,
@@ -2391,11 +2138,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return True
 
     def __get_trans_fileitems(
-            self,
-            fileitem: FileItem,
-            predicate: Optional[Callable[[FileItem, bool], bool]],
-            verify_file_exists: bool = True,
-    ) -> List[Tuple[FileItem, bool]]:
+        self,
+        fileitem: FileItem,
+        predicate: Callable[[FileItem, bool], bool] | None,
+        verify_file_exists: bool = True,
+    ) -> list[tuple[FileItem, bool]]:
         """
         获取待整理文件项列表
 
@@ -2420,11 +2167,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             """
             判断是否蓝光原盘目录内的子目录或文件
             """
-            return (
-                True if re.search(r"BDMV[/\\]STREAM", _path, re.IGNORECASE) else False
-            )
+            return True if re.search(r"BDMV[/\\]STREAM", _path, re.IGNORECASE) else False
 
-        def __get_bluray_dir(_storage: str, _path: Path) -> Optional[FileItem]:
+        def __get_bluray_dir(_storage: str, _path: Path) -> FileItem | None:
             """
             获取蓝光原盘BDMV目录的上级目录
             """
@@ -2433,9 +2178,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     return storagechain.get_file_item(storage=_storage, path=p.parent)
             return None
 
-        def _apply_predicate(
-                file_item: FileItem, is_bluray_dir: bool
-        ) -> List[Tuple[FileItem, bool]]:
+        def _apply_predicate(file_item: FileItem, is_bluray_dir: bool) -> list[tuple[FileItem, bool]]:
             if predicate is None or predicate(file_item, is_bluray_dir):
                 return [(file_item, is_bluray_dir)]
             return []
@@ -2469,9 +2212,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             item
             for sub_item in sub_items
             for item in (
-                self.__get_trans_fileitems(
-                    sub_item, predicate, verify_file_exists=False
-                )
+                self.__get_trans_fileitems(sub_item, predicate, verify_file_exists=False)
                 if sub_item.type == "dir"
                 else _apply_predicate(sub_item, False)
             )
@@ -2504,21 +2245,17 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             media_type = dir_info.media_type
 
             if (
-                    not dir_info.media_type
-                    and dir_info.download_type_folder
-                    and len(relative_parts) > part_index
-                    and relative_parts[part_index] in media_type_dirs
+                not dir_info.media_type
+                and dir_info.download_type_folder
+                and len(relative_parts) > part_index
+                and relative_parts[part_index] in media_type_dirs
             ):
                 current_root = current_root / relative_parts[part_index]
                 shared_roots.add(current_root.as_posix())
                 media_type = relative_parts[part_index]
                 part_index += 1
 
-            if (
-                    not dir_info.media_category
-                    and dir_info.download_category_folder
-                    and len(relative_parts) > part_index
-            ):
+            if not dir_info.media_category and dir_info.download_category_folder and len(relative_parts) > part_index:
                 category_root = current_root / relative_parts[part_index]
                 shared_roots.add(category_root.as_posix())
                 if media_categories is None:
@@ -2526,19 +2263,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 if media_type:
                     category_names = media_categories.get(media_type, [])
                 else:
-                    category_names = {
-                        category
-                        for categories in media_categories.values()
-                        for category in categories
-                    }
+                    category_names = {category for categories in media_categories.values() for category in categories}
                 category_paths = sorted(
                     (Path(category).parts for category in category_names if category),
                     key=len,
                 )
                 for category_parts in category_paths:
-                    relative_category_parts = tuple(
-                        relative_parts[part_index:part_index + len(category_parts)]
-                    )
+                    relative_category_parts = tuple(relative_parts[part_index : part_index + len(category_parts)])
                     if relative_category_parts != category_parts:
                         continue
                     category_root = current_root
@@ -2550,9 +2281,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
     @staticmethod
     def _match_download_file(
-            download_file: DownloadFiles,
-            file_path: Path,
-            save_path: Path,
+        download_file: DownloadFiles,
+        file_path: Path,
+        save_path: Path,
     ) -> bool:
         """
         判断下载文件记录是否明确对应当前文件。
@@ -2566,16 +2297,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
         try:
             return (save_path / Path(filepath)).as_posix() == file_path.as_posix()
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
     def _resolve_history_from_download_files(
-            self,
-            downloadhis: DownloadHistoryOper,
-            download_files: List[DownloadFiles],
-            file_path: Optional[Path] = None,
-            save_path: Optional[Path] = None,
-    ) -> Optional[DownloadHistory]:
+        self,
+        downloadhis: DownloadHistoryOper,
+        download_files: list[DownloadFiles],
+        file_path: Path | None = None,
+        save_path: Path | None = None,
+    ) -> DownloadHistory | None:
         """
         从下载文件记录中解析唯一的下载历史。
         """
@@ -2591,21 +2322,19 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             ]
 
         download_hashes = {
-            download_file.download_hash
-            for download_file in download_files
-            if download_file.download_hash
+            download_file.download_hash for download_file in download_files if download_file.download_hash
         }
         if len(download_hashes) == 1:
             return downloadhis.get_by_hash(next(iter(download_hashes)))
         return None
 
     def _resolve_download_history(
-            self,
-            downloadhis: DownloadHistoryOper,
-            file_path: Path,
-            bluray_dir: bool = False,
-            download_hash: Optional[str] = None,
-    ) -> Optional[DownloadHistory]:
+        self,
+        downloadhis: DownloadHistoryOper,
+        file_path: Path,
+        bluray_dir: bool = False,
+        download_hash: str | None = None,
+    ) -> DownloadHistory | None:
         """
         根据显式 hash、文件路径或种子根目录回查下载历史。
         """
@@ -2654,9 +2383,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return None
 
     @staticmethod
-    def _is_movie_year_conflict(
-            file_meta: MetaBase, media: Union[DownloadHistory, MediaInfo]
-    ) -> bool:
+    def _is_movie_year_conflict(file_meta: MetaBase, media: DownloadHistory | MediaInfo) -> bool:
         """
         判断文件名年份是否与已识别电影年份冲突。
 
@@ -2671,19 +2398,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         if not isinstance(media_type, MediaType):
             try:
                 media_type = MediaType(media_type)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return False
-        return (
-            media_type == MediaType.MOVIE
-            and str(file_year) != str(media_year)
-        )
+        return media_type == MediaType.MOVIE and str(file_year) != str(media_year)
 
     @staticmethod
     def __optional_attr_equal(
-            source: MetaBase,
-            target: MetaBase,
-            attr: str,
-            normalizer: Callable = None,
+        source: MetaBase,
+        target: MetaBase,
+        attr: str,
+        normalizer: Callable = None,
     ) -> bool:
         """
         比较可选识别字段。
@@ -2702,9 +2426,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             target_value = normalizer(target_value)
         return source_value == target_value
 
-    def __is_same_media_meta(
-            self, source_meta: MetaBase, target_meta: MetaBase
-    ) -> bool:
+    def __is_same_media_meta(self, source_meta: MetaBase, target_meta: MetaBase) -> bool:
         """
         判断两个文件识别出的媒体身份是否一致。
         """
@@ -2712,24 +2434,22 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return False
         if source_meta.type != target_meta.type:
             return False
-        if StringUtils.clear_upper(source_meta.name) != StringUtils.clear_upper(
-                target_meta.name
-        ):
+        if StringUtils.clear_upper(source_meta.name) != StringUtils.clear_upper(target_meta.name):
             return False
         if not self.__optional_attr_equal(source_meta, target_meta, "year", str):
             return False
         for attr in (
-                "begin_season",
-                "end_season",
-                "begin_episode",
-                "end_episode",
+            "begin_season",
+            "end_season",
+            "begin_episode",
+            "end_episode",
         ):
             if not self.__optional_attr_equal(source_meta, target_meta, attr, int):
                 return False
         return True
 
     @staticmethod
-    def __get_file_key(fileitem: FileItem) -> Tuple[str, str]:
+    def __get_file_key(fileitem: FileItem) -> tuple[str, str]:
         """
         获取文件缓存键。
         """
@@ -2766,21 +2486,18 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return self.__get_file_stem(extra_fileitem)
 
     def __get_related_main_file_key(
-            self,
-            extra_fileitem: FileItem,
-            main_fileitems: List[FileItem],
-    ) -> Optional[Tuple[str, str]]:
+        self,
+        extra_fileitem: FileItem,
+        main_fileitems: list[FileItem],
+    ) -> tuple[str, str] | None:
         """
         获取与附加文件名完全匹配的主视频键。
         """
-        if not (
-                self.__is_subtitle_file(extra_fileitem)
-                or self.__is_audio_file(extra_fileitem)
-        ):
+        if not (self.__is_subtitle_file(extra_fileitem) or self.__is_audio_file(extra_fileitem)):
             return None
 
         extra_media_stem = self.__get_extra_media_stem(extra_fileitem)
-        matched_items: List[FileItem] = []
+        matched_items: list[FileItem] = []
         for main_fileitem in main_fileitems:
             main_stem = self.__get_file_stem(main_fileitem)
             if main_stem and main_stem == extra_media_stem:
@@ -2791,20 +2508,20 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return self.__get_file_key(matched_items[0])
 
     @staticmethod
-    def __normalize_dir_path(dir_path: Union[str, Path]) -> str:
+    def __normalize_dir_path(dir_path: str | Path) -> str:
         """
         归一化目录路径，用于同一父目录候选缓存。
         """
         normalized = Path(dir_path).as_posix().rstrip("/")
         return normalized or "/"
 
-    def __get_dir_key(self, dir_item: FileItem) -> Tuple[str, str]:
+    def __get_dir_key(self, dir_item: FileItem) -> tuple[str, str]:
         """
         获取目录缓存键。
         """
         return dir_item.storage, self.__normalize_dir_path(dir_item.path)
 
-    def __get_file_parent_key(self, current_item: FileItem) -> Tuple[str, str]:
+    def __get_file_parent_key(self, current_item: FileItem) -> tuple[str, str]:
         """
         获取文件父目录缓存键。
         """
@@ -2815,8 +2532,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
     @staticmethod
     def _get_subscribe_custom_words(
-            history_record: Optional[DownloadHistory],
-    ) -> Optional[List[str]]:
+        history_record: DownloadHistory | None,
+    ) -> list[str] | None:
         """
         获取整理用自定义识别词：优先使用下载时保存的快照，无快照（历史旧记录）时再按来源实时反查订阅。
 
@@ -2830,31 +2547,20 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         # 兜底：历史旧记录无快照时，按下载来源实时反查订阅
         if not isinstance(history_record.note, dict):
             return None
-        subscribe = SubscribeChain().get_subscribe_by_source(
-            history_record.note.get("source")
-        )
-        return (
-            subscribe.custom_words.split("\n")
-            if subscribe and subscribe.custom_words
-            else None
-        )
+        subscribe = SubscribeChain().get_subscribe_by_source(history_record.note.get("source"))
+        return subscribe.custom_words.split("\n") if subscribe and subscribe.custom_words else None
 
     @staticmethod
-    def _is_successful_move_history(history: Optional[TransferHistory]) -> bool:
+    def _is_successful_move_history(history: TransferHistory | None) -> bool:
         """判断历史记录是否为已成功完成的移动类整理。"""
-        return bool(
-            history
-            and history.status
-            and history.mode
-            and "move" in history.mode
-        )
+        return bool(history and history.status and history.mode and "move" in history.mode)
 
     def _get_manual_transfer_history(
-            self,
-            fileitem: FileItem,
-            transfer_history_oper: TransferHistoryOper,
-            include_move_dest: bool = False,
-    ) -> Optional[TransferHistory]:
+        self,
+        fileitem: FileItem,
+        transfer_history_oper: TransferHistoryOper,
+        include_move_dest: bool = False,
+    ) -> TransferHistory | None:
         """查询文件源路径历史，并兼容从成功移动后的目标现址重新整理。"""
         history = transfer_history_oper.get_by_src(
             fileitem.path,
@@ -2870,9 +2576,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return history if self._is_successful_move_history(history) else None
 
     def get_manual_transfer_histories(
-            self,
-            fileitems: List[FileItem],
-    ) -> List[TransferHistory]:
+        self,
+        fileitems: list[FileItem],
+    ) -> list[TransferHistory]:
         """
         查询文件或目录命中的成功整理记录，供手动整理界面显示重整状态。
 
@@ -2880,7 +2586,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         :return: 去重后的成功整理记录
         """
         transfer_history_oper = TransferHistoryOper()
-        histories: Dict[int, TransferHistory] = {}
+        histories: dict[int, TransferHistory] = {}
         for fileitem in fileitems or []:
             if not fileitem or not fileitem.path:
                 continue
@@ -2912,51 +2618,45 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
     @staticmethod
     def _delete_manual_transfer_history(
-            history: TransferHistory,
-            transfer_history_oper: TransferHistoryOper,
-    ) -> Tuple[bool, str]:
+        history: TransferHistory,
+        transfer_history_oper: TransferHistoryOper,
+    ) -> tuple[bool, str]:
         """删除手动重整历史；非成功移动记录同时清理可能存在的旧目标。"""
-        if (
-                history.dest_fileitem
-                and not TransferChain._is_successful_move_history(history)
-        ):
+        if history.dest_fileitem and not TransferChain._is_successful_move_history(history):
             dest_fileitem = FileItem(**history.dest_fileitem)
             storage_chain = StorageChain()
-            if (
-                    storage_chain.exists(dest_fileitem)
-                    and not storage_chain.delete_media_file(dest_fileitem)
-            ):
+            if storage_chain.exists(dest_fileitem) and not storage_chain.delete_media_file(dest_fileitem):
                 return False, f"{dest_fileitem.path} 删除失败"
         transfer_history_oper.delete(history.id)
         return True, ""
 
     def do_transfer(
-            self,
-            fileitem: FileItem,
-            meta: MetaBase = None,
-            mediainfo: MediaInfo = None,
-            media_source: Optional[str] = None,
-            target_directory: TransferDirectoryConf = None,
-            target_storage: Optional[str] = None,
-            target_path: Path = None,
-            transfer_type: Optional[str] = None,
-            scrape: Optional[bool] = None,
-            library_type_folder: Optional[bool] = None,
-            library_category_folder: Optional[bool] = None,
-            season: Optional[int] = None,
-            epformat: EpisodeFormat = None,
-            min_filesize: Optional[int] = 0,
-            downloader: Optional[str] = None,
-            download_hash: Optional[str] = None,
-            force: Optional[bool] = False,
-            background: Optional[bool] = True,
-            manual: Optional[bool] = False,
-            preview: Optional[bool] = False,
-            sync_extra_files: Optional[bool] = False,
-            cleanup_dest_fileitem: Optional[FileItem] = None,
-            continue_callback: Callable = None,
-            reorganize: Optional[bool] = False,
-    ) -> Tuple[bool, Union[str, dict]]:
+        self,
+        fileitem: FileItem,
+        meta: MetaBase = None,
+        mediainfo: MediaInfo = None,
+        media_source: str | None = None,
+        target_directory: TransferDirectoryConf = None,
+        target_storage: str | None = None,
+        target_path: Path = None,
+        transfer_type: str | None = None,
+        scrape: bool | None = None,
+        library_type_folder: bool | None = None,
+        library_category_folder: bool | None = None,
+        season: int | None = None,
+        epformat: EpisodeFormat = None,
+        min_filesize: int | None = 0,
+        downloader: str | None = None,
+        download_hash: str | None = None,
+        force: bool | None = False,
+        background: bool | None = True,
+        manual: bool | None = False,
+        preview: bool | None = False,
+        sync_extra_files: bool | None = False,
+        cleanup_dest_fileitem: FileItem | None = None,
+        continue_callback: Callable = None,
+        reorganize: bool | None = False,
+    ) -> tuple[bool, str | dict]:
         """
         执行一个复杂目录的整理操作
         :param fileitem: 文件项
@@ -3005,23 +2705,19 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         )
 
         # 整理屏蔽词
-        transfer_exclude_words = SystemConfigOper().get(
-            SystemConfigKey.TransferExcludeWords
-        )
+        transfer_exclude_words = SystemConfigOper().get(SystemConfigKey.TransferExcludeWords)
         # 汇总错误信息
-        err_msgs: List[str] = []
+        err_msgs: list[str] = []
         matched_episode_format_template = False
 
         def _build_file_meta(
-                source_path: Path,
-                custom_word_list: Optional[List[str]] = None,
-        ) -> Optional[MetaBase]:
+            source_path: Path,
+            custom_word_list: list[str] | None = None,
+        ) -> MetaBase | None:
             """
             构建整理任务使用的文件元数据，并应用手动季集/自定义格式覆盖。
             """
-            built_meta = deepcopy(meta) if meta else _build_path_meta(
-                source_path, custom_word_list=custom_word_list
-            )
+            built_meta = deepcopy(meta) if meta else _build_path_meta(source_path, custom_word_list=custom_word_list)
             if not built_meta:
                 return None
             if not meta:
@@ -3031,22 +2727,18 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return _apply_meta_overrides(built_meta, source_path)
 
         def _build_path_meta(
-                source_path: Path,
-                custom_word_list: Optional[List[str]] = None,
-        ) -> Optional[MetaBase]:
+            source_path: Path,
+            custom_word_list: list[str] | None = None,
+        ) -> MetaBase | None:
             """
             从文件路径识别媒体信息，用于判断附加文件是否属于当前主视频。
             """
-            path_meta = MetaInfoPath(
-                source_path, custom_words=custom_word_list
-            )
+            path_meta = MetaInfoPath(source_path, custom_words=custom_word_list)
             if not path_meta:
                 return None
             return _apply_meta_overrides(path_meta, source_path)
 
-        def _apply_meta_overrides(
-                current_meta: MetaBase, source_path: Path
-        ) -> Optional[MetaBase]:
+        def _apply_meta_overrides(current_meta: MetaBase, source_path: Path) -> MetaBase | None:
             """
             应用手动传入的季集覆盖和自定义识别格式。
             """
@@ -3084,28 +2776,22 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     return False
                 matched_episode_format_template = True
             # 过滤后缀和大小（蓝光目录、附加文件不过滤）
-            if (
-                    not is_bluray_dir
-                    and not self.__is_subtitle_file(item)
-                    and not self.__is_audio_file(item)
-            ):
+            if not is_bluray_dir and not self.__is_subtitle_file(item) and not self.__is_audio_file(item):
                 if not self.__is_media_file(item):
                     return False
                 if not self.__is_allow_filesize(item, min_filesize):
                     return False
             # 回收站及隐藏的文件不处理
             if (
-                    item.path.find("/@Recycle/") != -1
-                    or item.path.find("/#recycle/") != -1
-                    or item.path.find("/.") != -1
-                    or item.path.find("/@eaDir") != -1
+                item.path.find("/@Recycle/") != -1
+                or item.path.find("/#recycle/") != -1
+                or item.path.find("/.") != -1
+                or item.path.find("/@eaDir") != -1
             ):
                 logger.debug(f"{item.path} 是回收站或隐藏的文件")
                 return False
             # 整理屏蔽词不处理
-            if self._is_blocked_by_exclude_words(
-                    item.path, transfer_exclude_words
-            ):
+            if self._is_blocked_by_exclude_words(item.path, transfer_exclude_words):
                 return False
             return True
 
@@ -3117,15 +2803,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 raise OperationInterrupted()
             return True
 
-        def _collect_candidate_file_items() -> List[Tuple[FileItem, bool]]:
+        def _collect_candidate_file_items() -> list[tuple[FileItem, bool]]:
             """
             收集来源下的候选文件项，不在此阶段套用整理业务过滤。
             """
             return self.__get_trans_fileitems(fileitem, predicate=_keep_candidate_item)
 
-        def _filter_allowed_file_items(
-                candidates: List[Tuple[FileItem, bool]]
-        ) -> List[Tuple[FileItem, bool]]:
+        def _filter_allowed_file_items(candidates: list[tuple[FileItem, bool]]) -> list[tuple[FileItem, bool]]:
             """
             将候选文件项筛选为本轮允许整理的文件项。
             """
@@ -3136,10 +2820,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             ]
 
         def _build_main_meta(
-                main_fileitem: FileItem,
-                main_bluray_dir: bool,
-                download_history_oper: DownloadHistoryOper,
-        ) -> Optional[MetaBase]:
+            main_fileitem: FileItem,
+            main_bluray_dir: bool,
+            download_history_oper: DownloadHistoryOper,
+        ) -> MetaBase | None:
             """
             构建主视频元数据。
             """
@@ -3156,10 +2840,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             )
 
         def _append_item(
-                planned_items: List[Tuple[FileItem, bool]],
-                seen_file_keys: set[Tuple[str, str]],
-                item: FileItem,
-                is_bluray_dir: bool,
+            planned_items: list[tuple[FileItem, bool]],
+            seen_file_keys: set[tuple[str, str]],
+            item: FileItem,
+            is_bluray_dir: bool,
         ) -> bool:
             """
             添加待整理文件项并去重。
@@ -3172,16 +2856,16 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return True
 
         def _build_directory_index(
-                items: List[Tuple[FileItem, bool]]
-        ) -> Tuple[
-            Dict[Tuple[str, str], List[FileItem]],
-            Dict[Tuple[str, str], List[Tuple[FileItem, bool]]],
+            items: list[tuple[FileItem, bool]],
+        ) -> tuple[
+            dict[tuple[str, str], list[FileItem]],
+            dict[tuple[str, str], list[tuple[FileItem, bool]]],
         ]:
             """
             基于已遍历结果构建同目录主视频和附加文件索引。
             """
-            main_items_by_dir: Dict[Tuple[str, str], List[FileItem]] = {}
-            extra_items_by_dir: Dict[Tuple[str, str], List[Tuple[FileItem, bool]]] = {}
+            main_items_by_dir: dict[tuple[str, str], list[FileItem]] = {}
+            extra_items_by_dir: dict[tuple[str, str], list[tuple[FileItem, bool]]] = {}
             for item, is_bluray_dir in items:
                 if not item or item.type != "file":
                     continue
@@ -3193,21 +2877,19 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return main_items_by_dir, extra_items_by_dir
 
         def _get_single_file_sibling_items(
-                current_fileitem: FileItem,
-        ) -> Tuple[List[FileItem], List[Tuple[FileItem, bool]]]:
+            current_fileitem: FileItem,
+        ) -> tuple[list[FileItem], list[tuple[FileItem, bool]]]:
             """
             单文件整理时只额外读取一次父目录，收集同目录主视频和附加文件。
             """
             storagechain = StorageChain()
-            if not hasattr(storagechain, "get_parent_item") or not hasattr(
-                    storagechain, "list_files"
-            ):
+            if not hasattr(storagechain, "get_parent_item") or not hasattr(storagechain, "list_files"):
                 return [], []
             parent_item = storagechain.get_parent_item(current_fileitem)
             if not parent_item:
                 return [], []
-            main_fileitems: List[FileItem] = []
-            extra_items: List[Tuple[FileItem, bool]] = []
+            main_fileitems: list[FileItem] = []
+            extra_items: list[tuple[FileItem, bool]] = []
             for item in storagechain.list_files(parent_item, recursion=False) or []:
                 if not item or item.type != "file":
                     continue
@@ -3222,8 +2904,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return main_fileitems, extra_items
 
         def _plan_file_items(
-                items: List[Tuple[FileItem, bool]]
-        ) -> Tuple[List[Tuple[FileItem, bool]], Dict[Tuple[str, str], MetaBase]]:
+            items: list[tuple[FileItem, bool]],
+        ) -> tuple[list[tuple[FileItem, bool]], dict[tuple[str, str], MetaBase]]:
             """
             生成最终整理顺序：主视频优先，同名附加文件跟随，剩余附加文件最后处理。
             """
@@ -3231,22 +2913,19 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 return [], {}
 
             download_history_oper = DownloadHistoryOper()
-            inherited_map: Dict[Tuple[str, str], MetaBase] = {}
+            inherited_map: dict[tuple[str, str], MetaBase] = {}
             main_items_by_dir, extra_items_by_dir = _build_directory_index(items)
             main_items = [
                 (item, is_bluray_dir)
                 for item, is_bluray_dir in items
-                if item
-                and (is_bluray_dir or (item.type == "file" and self.__is_media_file(item)))
+                if item and (is_bluray_dir or (item.type == "file" and self.__is_media_file(item)))
             ]
 
             single_file_mode = len(items) == 1 and fileitem.type == "file"
             if single_file_mode:
                 current_item, current_bluray_dir = items[0]
                 if current_item.type == "file":
-                    sibling_main_items, sibling_extra_items = _get_single_file_sibling_items(
-                        current_item
-                    )
+                    sibling_main_items, sibling_extra_items = _get_single_file_sibling_items(current_item)
                     current_dir_key = self.__get_file_parent_key(current_item)
                     if not current_bluray_dir and self.__is_media_file(current_item):
                         main_items = [(current_item, current_bluray_dir)]
@@ -3278,14 +2957,14 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             if not main_items:
                 return list(items), inherited_map
 
-            planned_items: List[Tuple[FileItem, bool]] = []
-            seen_file_keys: set[Tuple[str, str]] = set()
-            extra_meta_cache: Dict[Tuple[str, Tuple[str, ...]], Optional[MetaBase]] = {}
+            planned_items: list[tuple[FileItem, bool]] = []
+            seen_file_keys: set[tuple[str, str]] = set()
+            extra_meta_cache: dict[tuple[str, tuple[str, ...]], MetaBase | None] = {}
 
             def _get_cached_extra_meta(
-                    extra_path: Path,
-                    custom_word_list: Optional[List[str]],
-            ) -> Optional[MetaBase]:
+                extra_path: Path,
+                custom_word_list: list[str] | None,
+            ) -> MetaBase | None:
                 """
                 同一组识别词下的附加文件只解析一次。
                 """
@@ -3310,9 +2989,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     bluray_dir=main_bluray_dir,
                     download_hash=download_hash,
                 )
-                subscribe_custom_words = self._get_subscribe_custom_words(
-                    main_download_history
-                )
+                subscribe_custom_words = self._get_subscribe_custom_words(main_download_history)
                 main_meta = _build_file_meta(
                     main_path,
                     custom_word_list=subscribe_custom_words,
@@ -3333,10 +3010,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     if related_main_file_key:
                         if related_main_file_key == main_file_key:
                             if _append_item(
-                                    planned_items,
-                                    seen_file_keys,
-                                    extra_item,
-                                    extra_bluray_dir,
+                                planned_items,
+                                seen_file_keys,
+                                extra_item,
+                                extra_bluray_dir,
                             ):
                                 inherited_map[self.__get_file_key(extra_item)] = deepcopy(main_meta)
                         continue
@@ -3351,10 +3028,10 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     if not self.__is_same_media_meta(main_meta, extra_meta):
                         continue
                     if _append_item(
-                            planned_items,
-                            seen_file_keys,
-                            extra_item,
-                            extra_bluray_dir,
+                        planned_items,
+                        seen_file_keys,
+                        extra_item,
+                        extra_bluray_dir,
                     ):
                         inherited_map[self.__get_file_key(extra_item)] = deepcopy(extra_meta)
 
@@ -3363,7 +3040,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
             return planned_items, inherited_map
 
-        candidate_file_items: List[Tuple[FileItem, bool]] = []
+        candidate_file_items: list[tuple[FileItem, bool]] = []
         try:
             candidate_file_items = _collect_candidate_file_items()
             file_items = _filter_allowed_file_items(candidate_file_items)
@@ -3399,7 +3076,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             logger.info(f"正在计划整理 {planned_file_count} 个文件...")
 
         # 整理所有文件
-        transfer_tasks: List[TransferTask] = []
+        transfer_tasks: list[TransferTask] = []
         skipped_history_count = 0
         skipped_torrents = set()
         try:
@@ -3419,9 +3096,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         include_move_dest=manual and reorganize,
                     )
                     if transferd:
-                        should_reorganize = manual and (
-                            reorganize or not transferd.status
-                        )
+                        should_reorganize = manual and (reorganize or not transferd.status)
                         if should_reorganize:
                             state, message = self._delete_manual_transfer_history(
                                 history=transferd,
@@ -3432,9 +3107,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                                 logger.error(message)
                                 err_msgs.append(message)
                                 continue
-                            logger.info(
-                                f"{file_item.path} 已清理旧整理记录，继续重新整理。"
-                            )
+                            logger.info(f"{file_item.path} 已清理旧整理记录，继续重新整理。")
                             transferd = None
 
                     if transferd:
@@ -3444,12 +3117,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         candidate_hash = download_hash or transferd.download_hash
                         candidate_downloader = downloader or transferd.downloader
                         if candidate_hash and candidate_downloader:
-                            skipped_torrents.add(
-                                (candidate_hash, candidate_downloader)
-                            )
-                        logger.info(
-                            f"{file_item.path} 已整理过，如需重新处理，请删除整理记录。"
-                        )
+                            skipped_torrents.add((candidate_hash, candidate_downloader))
+                        logger.info(f"{file_item.path} 已整理过，如需重新处理，请删除整理记录。")
                         err_msgs.append(f"{file_item.name} 已整理过")
                         continue
 
@@ -3464,9 +3133,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
                 if not meta:
                     # 文件元数据(优先使用订阅识别词)
-                    inherited_meta = inherited_meta_map.get(
-                        self.__get_file_key(file_item)
-                    )
+                    inherited_meta = inherited_meta_map.get(self.__get_file_key(file_item))
                     if inherited_meta:
                         file_meta = deepcopy(inherited_meta)
                     else:
@@ -3493,10 +3160,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
                 # 自动整理预载的媒体信息来自整条下载历史；电影合集内文件年份冲突时逐文件识别。
                 task_mediainfo = mediainfo
-                if (
-                        not manual
-                        and self._is_movie_year_conflict(file_meta, task_mediainfo)
-                ):
+                if not manual and self._is_movie_year_conflict(file_meta, task_mediainfo):
                     task_mediainfo = None
 
                 # 后台整理
@@ -3540,9 +3204,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             self.__close_scrape_batch(transfer_batch_id)
 
         # 实时整理
-        preview_items: List[dict] = []
+        preview_items: list[dict] = []
 
-        def _preview_callback(task: TransferTask, transferinfo: TransferInfo) -> Tuple[bool, str]:
+        def _preview_callback(task: TransferTask, transferinfo: TransferInfo) -> tuple[bool, str]:
             item_meta = task.meta
             item_media = task.mediainfo
             preview_items.append(
@@ -3592,7 +3256,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         break
                     if not preview:
                         # 更新进度
-                        __process_msg = f"正在整理 （{processed_num + fail_num + 1}/{total_num}）{transfer_task.fileitem.name} ..."
+                        __process_msg = (
+                            f"正在整理 （{processed_num + fail_num + 1}/{total_num}）{transfer_task.fileitem.name} ..."
+                        )
                         logger.info(__process_msg)
                         progress.update(
                             value=(processed_num + fail_num) / total_num * 100,
@@ -3610,8 +3276,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         )
                     except Exception as e:
                         logger.error(
-                            f"{transfer_task.fileitem.name} 整理任务处理出现错误："
-                            f"{e} - {traceback.format_exc()}"
+                            f"{transfer_task.fileitem.name} 整理任务处理出现错误：{e} - {traceback.format_exc()}"
                         )
                         if not preview:
                             self.__fail_transfer_task(transfer_task)
@@ -3626,7 +3291,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             # 预览模式不走默认回调，这里需要手动收敛任务状态，避免残留 running
                             self.jobview.fail_task(transfer_task)
                             self.jobview.try_remove_job(transfer_task)
-                        if preview and (not preview_items or preview_items[-1].get("source") != transfer_task.fileitem.path):
+                        if preview and (
+                            not preview_items or preview_items[-1].get("source") != transfer_task.fileitem.path
+                        ):
                             preview_items.append(
                                 {
                                     "source": transfer_task.fileitem.path,
@@ -3661,28 +3328,19 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
             # 整理结束
             if not preview:
-                __end_msg = (
-                    f"整理队列处理完成，共整理 {total_num} 个文件，失败 {fail_num} 个"
-                )
+                __end_msg = f"整理队列处理完成，共整理 {total_num} 个文件，失败 {fail_num} 个"
                 logger.info(__end_msg)
                 progress.update(value=100, text=__end_msg, data={})
                 progress.end()
 
         # 下载器任务在这一轮可能因为历史记录全部命中而没有进入整理队列，
         # 这里补打一遍已整理标签，避免同一种子被重复扫描。
-        if (
-                skipped_history_count == planned_file_count
-                and skipped_torrents
-        ):
+        if skipped_history_count == planned_file_count and skipped_torrents:
             for skipped_hash, skipped_downloader in skipped_torrents:
                 logger.info(f"补充设置下载任务已整理标签：{skipped_hash}")
-                self.__mark_torrent_completed_if_done(
-                    skipped_hash, skipped_downloader
-                )
+                self.__mark_torrent_completed_if_done(skipped_hash, skipped_downloader)
 
-        error_msg = "、".join(err_msgs[:2]) + (
-            f"，等{len(err_msgs)}个文件错误！" if len(err_msgs) > 2 else ""
-        )
+        error_msg = "、".join(err_msgs[:2]) + (f"，等{len(err_msgs)}个文件错误！" if len(err_msgs) > 2 else "")
         if preview:
             return all_success, {
                 "summary": {
@@ -3696,11 +3354,11 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return all_success, error_msg
 
     def remote_transfer(
-            self,
-            arg_str: str,
-            channel: MessageChannel,
-            userid: Union[str, int] = None,
-            source: Optional[str] = None,
+        self,
+        arg_str: str,
+        channel: MessageChannel,
+        userid: str | int = None,
+        source: str | None = None,
     ):
         """
         远程重新整理，参数 历史记录ID 来源前缀:媒体ID|类型
@@ -3712,7 +3370,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     channel=channel,
                     source=source,
                     title="请输入正确的命令格式：/redo [id] 或 /redo [id] [来源前缀:媒体ID]|[类型]，"
-                          "[id] 为整理记录编号",
+                    "[id] 为整理记录编号",
                     userid=userid,
                     save_history=False,
                 )
@@ -3756,9 +3414,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         if not type_str or type_str not in [MediaType.MOVIE.value, MediaType.TV.value]:
             args_error()
             return
-        state, errmsg = self.__re_transfer(
-            logid=int(logid), mtype=MediaType(type_str), mediaid=media_id
-        )
+        state, errmsg = self.__re_transfer(logid=int(logid), mtype=MediaType(type_str), mediaid=media_id)
         if not state:
             self.post_message(
                 Notification(
@@ -3775,8 +3431,8 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
 
     @staticmethod
     def build_failed_transfer_buttons(
-            history_id: Optional[int],
-    ) -> Optional[List[List[dict]]]:
+        history_id: int | None,
+    ) -> list[list[dict]] | None:
         """
         构建整理失败通知的操作按钮。
         """
@@ -3792,15 +3448,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             ]
         ]
 
-    def redo_transfer_history(self, history_id: int) -> Tuple[bool, str]:
+    def redo_transfer_history(self, history_id: int) -> tuple[bool, str]:
         """
         按历史记录直接重新整理，自动重新识别媒体信息。
         """
         return self.__re_transfer(logid=history_id)
 
-    def __re_transfer(
-            self, logid: int, mtype: MediaType = None, mediaid: Optional[str] = None
-    ) -> Tuple[bool, str]:
+    def __re_transfer(self, logid: int, mtype: MediaType = None, mediaid: str | None = None) -> tuple[bool, str]:
         """
         根据历史记录，重新识别整理，只支持简单条件
         :param logid: 历史记录ID
@@ -3870,34 +3524,34 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         return True, ""
 
     def manual_transfer(
-            self,
-            fileitem: FileItem,
-            target_storage: Optional[str] = None,
-            target_path: Path = None,
-            tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None,
-            media_source: Optional[str] = None,
-            media_id: Optional[str] = None,
-            mtype: MediaType = None,
-            season: Optional[int] = None,
-            episode_group: Optional[str] = None,
-            transfer_type: Optional[str] = None,
-            epformat: EpisodeFormat = None,
-            min_filesize: Optional[int] = 0,
-            scrape: Optional[bool] = None,
-            library_type_folder: Optional[bool] = None,
-            library_category_folder: Optional[bool] = None,
-            force: Optional[bool] = False,
-            background: Optional[bool] = False,
-            downloader: Optional[str] = None,
-            download_hash: Optional[str] = None,
-            preview: Optional[bool] = False,
-            sync_extra_files: Optional[bool] = True,
-            cleanup_dest_fileitem: Optional[FileItem] = None,
-            bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None,
-            reorganize: Optional[bool] = False,
-    ) -> Tuple[bool, Union[str, dict]]:
+        self,
+        fileitem: FileItem,
+        target_storage: str | None = None,
+        target_path: Path = None,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
+        mtype: MediaType = None,
+        season: int | None = None,
+        episode_group: str | None = None,
+        transfer_type: str | None = None,
+        epformat: EpisodeFormat = None,
+        min_filesize: int | None = 0,
+        scrape: bool | None = None,
+        library_type_folder: bool | None = None,
+        library_category_folder: bool | None = None,
+        force: bool | None = False,
+        background: bool | None = False,
+        downloader: str | None = None,
+        download_hash: str | None = None,
+        preview: bool | None = False,
+        sync_extra_files: bool | None = True,
+        cleanup_dest_fileitem: FileItem | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        reorganize: bool | None = False,
+    ) -> tuple[bool, str | dict]:
         """
         手动整理，支持复杂条件，带进度显示
         :param fileitem: 文件项
@@ -4010,13 +3664,13 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return state, errmsg
 
     def send_transfer_message(
-            self,
-            meta: MetaBase,
-            mediainfo: MediaInfo,
-            transferinfo: TransferInfo,
-            season_episode: Optional[str] = None,
-            episodes_info: Optional[List[TmdbEpisode]] = None,
-            username: Optional[str] = None,
+        self,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+        transferinfo: TransferInfo,
+        season_episode: str | None = None,
+        episodes_info: list[TmdbEpisode] | None = None,
+        username: str | None = None,
     ):
         """
         发送入库成功的消息
@@ -4060,9 +3714,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 return True
         return False
 
-    def _can_delete_torrent(
-            self, download_hash: str, downloader: str, transfer_exclude_words
-    ) -> bool:
+    def _can_delete_torrent(self, download_hash: str, downloader: str, transfer_exclude_words) -> bool:
         """
         检查是否可以删除种子文件
         :param download_hash: 种子Hash
@@ -4094,11 +3746,9 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 file_path = save_path / file.name
                 # 如果存在未被屏蔽的媒体文件，则不删除种子
                 if (
-                        file_path.suffix in self._allowed_exts
-                        and not self._is_blocked_by_exclude_words(
-                    file_path.as_posix(), transfer_exclude_words
-                )
-                        and file_path.exists()
+                    file_path.suffix in self._allowed_exts
+                    and not self._is_blocked_by_exclude_words(file_path.as_posix(), transfer_exclude_words)
+                    and file_path.exists()
                 ):
                     return False
 

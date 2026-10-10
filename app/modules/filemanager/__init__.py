@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, List, Tuple, Union, Dict, Callable
+from typing import Dict, List, Optional, Tuple, Union
 
 from app.chain.tmdb import TmdbChain
 from app.core.config import settings
@@ -13,7 +14,7 @@ from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.filemanager.storages import StorageBase
 from app.modules.filemanager.transhandler import TransHandler
-from app.schemas import TransferInfo, ExistMediaInfo, TmdbEpisode, TransferDirectoryConf, FileItem, StorageUsage
+from app.schemas import ExistMediaInfo, FileItem, StorageUsage, TmdbEpisode, TransferDirectoryConf, TransferInfo
 from app.schemas.types import MediaType, ModuleType, OtherModulesType
 from app.utils.system import SystemUtils
 
@@ -33,8 +34,9 @@ class FileManagerModule(_ModuleBase):
 
     def init_module(self) -> None:
         # 加载模块
-        self._storage_schemas = ModuleHelper.load('app.modules.filemanager.storages',
-                                                  filter_func=lambda _, obj: hasattr(obj, 'schema') and obj.schema)
+        self._storage_schemas = ModuleHelper.load(
+            "app.modules.filemanager.storages", filter_func=lambda _, obj: hasattr(obj, "schema") and obj.schema
+        )
         # 获取存储类型
         self._support_storages = [storage.schema.value for storage in self._storage_schemas if storage.schema]
 
@@ -66,7 +68,7 @@ class FileManagerModule(_ModuleBase):
     def stop(self):
         pass
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -89,11 +91,16 @@ class FileManagerModule(_ModuleBase):
                 if d.library_storage == "local" and not Path(library_path).exists():
                     return False, f"{d.name} 的媒体库目录 {library_path} 不存在"
                 # 硬链接
-                if d.transfer_type == "link" \
-                        and d.storage == "local" \
-                        and d.library_storage == "local" \
-                        and not SystemUtils.is_same_disk(Path(download_path), Path(library_path)):
-                    return False, f"{d.name} 的下载目录 {download_path} 与媒体库目录 {library_path} 不在同一磁盘，无法硬链接"
+                if (
+                    d.transfer_type == "link"
+                    and d.storage == "local"
+                    and d.library_storage == "local"
+                    and not SystemUtils.is_same_disk(Path(download_path), Path(library_path))
+                ):
+                    return (
+                        False,
+                        f"{d.name} 的下载目录 {download_path} 与媒体库目录 {library_path} 不在同一磁盘，无法硬链接",
+                    )
             # 存储
             storage_oper = self.__get_storage_oper(d.storage)
             if storage_oper:
@@ -104,21 +111,23 @@ class FileManagerModule(_ModuleBase):
 
         return True, ""
 
-    def __get_storage_oper(self, _storage: str, _func: Optional[str] = None) -> Optional[StorageBase]:
+    def __get_storage_oper(self, _storage: str, _func: str | None = None) -> StorageBase | None:
         """
         获取存储操作对象
         """
         for storage_schema in self._storage_schemas:
-            if storage_schema.schema \
-                    and storage_schema.schema.value == _storage \
-                    and (not _func or hasattr(storage_schema, _func)):
+            if (
+                storage_schema.schema
+                and storage_schema.schema.value == _storage
+                and (not _func or hasattr(storage_schema, _func))
+            ):
                 return storage_schema()
         return None
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
-    def support_transtype(self, storage: str) -> Optional[dict]:
+    def support_transtype(self, storage: str) -> dict | None:
         """
         支持的整理方式
         """
@@ -131,7 +140,7 @@ class FileManagerModule(_ModuleBase):
         return storage_oper.support_transtype()
 
     @staticmethod
-    def recommend_name(meta: MetaBase, mediainfo: MediaInfo) -> Optional[str]:
+    def recommend_name(meta: MetaBase, mediainfo: MediaInfo) -> str | None:
         """
         获取重命名后的名称
         :param meta: 元数据
@@ -142,7 +151,7 @@ class FileManagerModule(_ModuleBase):
         # 重命名格式
         rename_format = settings.RENAME_FORMAT(mediainfo.type)
         # 获取集信息
-        episodes_info: Optional[List[TmdbEpisode]] = None
+        episodes_info: list[TmdbEpisode] | None = None
         if mediainfo.type == MediaType.TV:
             # 判断注意season为0的情况
             season_num = mediainfo.season
@@ -160,14 +169,13 @@ class FileManagerModule(_ModuleBase):
         # 获取重命名后的名称
         path = handler.get_rename_path(
             template_string=rename_format,
-            rename_dict=handler.get_naming_dict(meta=meta,
-                                                mediainfo=mediainfo,
-                                                episodes_info=episodes_info,
-                                                file_ext=Path(meta.title).suffix)
+            rename_dict=handler.get_naming_dict(
+                meta=meta, mediainfo=mediainfo, episodes_info=episodes_info, file_ext=Path(meta.title).suffix
+            ),
         )
         return path.as_posix() if path else ""
 
-    def save_config(self, storage: str, conf: Dict) -> None:
+    def save_config(self, storage: str, conf: dict) -> None:
         """
         保存存储配置
         """
@@ -187,7 +195,7 @@ class FileManagerModule(_ModuleBase):
             return
         storage_oper.reset_config()
 
-    def generate_qrcode(self, storage: str) -> Optional[Tuple[dict, str]]:
+    def generate_qrcode(self, storage: str) -> tuple[dict, str] | None:
         """
         生成二维码
         """
@@ -197,7 +205,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.generate_qrcode()
 
-    def generate_auth_url(self, storage: str) -> Optional[Tuple[dict, str]]:
+    def generate_auth_url(self, storage: str) -> tuple[dict, str] | None:
         """
         生成 OAuth2 授权 URL
         """
@@ -207,7 +215,7 @@ class FileManagerModule(_ModuleBase):
             return {}, f"不支持 {storage} 的 OAuth2 授权"
         return storage_oper.generate_auth_url()
 
-    def check_login(self, storage: str, **kwargs) -> Optional[Dict[str, str]]:
+    def check_login(self, storage: str, **kwargs) -> dict[str, str] | None:
         """
         登录确认
         """
@@ -217,7 +225,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.check_login(**kwargs)
 
-    def list_files(self, fileitem: FileItem, recursion: Optional[bool] = False) -> Optional[List[FileItem]]:
+    def list_files(self, fileitem: FileItem, recursion: bool | None = False) -> list[FileItem] | None:
         """
         浏览文件
         :param fileitem: 源文件
@@ -231,7 +239,7 @@ class FileManagerModule(_ModuleBase):
             logger.error(f"不支持 {fileitem.storage} 的文件浏览")
             return None
 
-        def __get_files(_item: FileItem, _r: Optional[bool] = False):
+        def __get_files(_item: FileItem, _r: bool | None = False):
             """
             递归处理
             """
@@ -252,7 +260,7 @@ class FileManagerModule(_ModuleBase):
 
         return result
 
-    def any_files(self, fileitem: FileItem, extensions: list = None) -> Optional[bool]:
+    def any_files(self, fileitem: FileItem, extensions: list = None) -> bool | None:
         """
         查询当前目录下是否存在指定扩展名任意文件
         """
@@ -272,9 +280,7 @@ class FileManagerModule(_ModuleBase):
                 if not extensions:
                     return True
                 for t in _items:
-                    if (t.type == "file"
-                            and t.extension
-                            and f".{t.extension.lower()}" in extensions):
+                    if t.type == "file" and t.extension and f".{t.extension.lower()}" in extensions:
                         return True
                     elif t.type == "dir":
                         if __any_file(t):
@@ -284,7 +290,7 @@ class FileManagerModule(_ModuleBase):
         # 返回结果
         return __any_file(fileitem)
 
-    def create_folder(self, fileitem: FileItem, name: str) -> Optional[FileItem]:
+    def create_folder(self, fileitem: FileItem, name: str) -> FileItem | None:
         """
         创建目录
         :param fileitem: 源文件
@@ -299,7 +305,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.create_folder(fileitem, name)
 
-    def get_folder(self, storage: str, path: Path) -> Optional[FileItem]:
+    def get_folder(self, storage: str, path: Path) -> FileItem | None:
         """
         获取目录，如目录不存在则创建
         """
@@ -311,7 +317,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.get_folder(path)
 
-    def delete_file(self, fileitem: FileItem) -> Optional[bool]:
+    def delete_file(self, fileitem: FileItem) -> bool | None:
         """
         删除文件或目录
         """
@@ -323,7 +329,7 @@ class FileManagerModule(_ModuleBase):
             return False
         return storage_oper.delete(fileitem)
 
-    def rename_file(self, fileitem: FileItem, name: str) -> Optional[bool]:
+    def rename_file(self, fileitem: FileItem, name: str) -> bool | None:
         """
         重命名文件或目录
         """
@@ -335,7 +341,7 @@ class FileManagerModule(_ModuleBase):
             return False
         return storage_oper.rename(fileitem, name)
 
-    def download_file(self, fileitem: FileItem, path: Path = None) -> Optional[Path]:
+    def download_file(self, fileitem: FileItem, path: Path = None) -> Path | None:
         """
         下载文件
         """
@@ -347,7 +353,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.download(fileitem, path=path)
 
-    def upload_file(self, fileitem: FileItem, path: Path, new_name: Optional[str] = None) -> Optional[FileItem]:
+    def upload_file(self, fileitem: FileItem, path: Path, new_name: str | None = None) -> FileItem | None:
         """
         上传文件
         """
@@ -359,7 +365,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.upload(fileitem, path, new_name)
 
-    def get_file_item(self, storage: str, path: Path) -> Optional[FileItem]:
+    def get_file_item(self, storage: str, path: Path) -> FileItem | None:
         """
         根据路径获取文件项
         """
@@ -371,7 +377,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.get_item(path)
 
-    def get_parent_item(self, fileitem: FileItem) -> Optional[FileItem]:
+    def get_parent_item(self, fileitem: FileItem) -> FileItem | None:
         """
         获取上级目录项
         """
@@ -383,8 +389,9 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.get_parent(fileitem)
 
-    def snapshot_storage(self, storage: str, path: Path,
-                         last_snapshot_time: float = None, max_depth: int = 5) -> Optional[Dict[str, Dict]]:
+    def snapshot_storage(
+        self, storage: str, path: Path, last_snapshot_time: float = None, max_depth: int = 5
+    ) -> dict[str, dict] | None:
         """
         快照存储
         :param storage: 存储类型
@@ -400,7 +407,7 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.snapshot(path, last_snapshot_time=last_snapshot_time, max_depth=max_depth)
 
-    def storage_usage(self, storage: str) -> Optional[StorageUsage]:
+    def storage_usage(self, storage: str) -> StorageUsage | None:
         """
         存储使用情况
         """
@@ -412,14 +419,23 @@ class FileManagerModule(_ModuleBase):
             return None
         return storage_oper.usage()
 
-    def transfer(self, fileitem: FileItem, meta: MetaBase, mediainfo: MediaInfo,
-                 target_directory: TransferDirectoryConf = None,
-                 target_storage: Optional[str] = None, target_path: Path = None,
-                 transfer_type: Optional[str] = None, scrape: Optional[bool] = None,
-                 library_type_folder: Optional[bool] = None, library_category_folder: Optional[bool] = None,
-                 episodes_info: List[TmdbEpisode] = None,
-                 source_oper: Callable = None, target_oper: Callable = None,
-                 preview: Optional[bool] = False) -> TransferInfo:
+    def transfer(
+        self,
+        fileitem: FileItem,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+        target_directory: TransferDirectoryConf = None,
+        target_storage: str | None = None,
+        target_path: Path = None,
+        transfer_type: str | None = None,
+        scrape: bool | None = None,
+        library_type_folder: bool | None = None,
+        library_category_folder: bool | None = None,
+        episodes_info: list[TmdbEpisode] = None,
+        source_oper: Callable = None,
+        target_oper: Callable = None,
+        preview: bool | None = False,
+    ) -> TransferInfo:
         """
         文件整理
         :param fileitem:  文件信息
@@ -440,23 +456,17 @@ class FileManagerModule(_ModuleBase):
         handler = TransHandler()
         # 检查目录路径
         if fileitem.storage == "local" and not Path(fileitem.path).exists():
-            return TransferInfo(success=False,
-                                fileitem=fileitem,
-                                message=f"{fileitem.path} 不存在")
+            return TransferInfo(success=False, fileitem=fileitem, message=f"{fileitem.path} 不存在")
         # 目标路径不能是文件
         if target_path and target_path.is_file():
             logger.error(f"整理目标路径 {target_path} 是一个文件")
-            return TransferInfo(success=False,
-                                fileitem=fileitem,
-                                message=f"{target_path} 不是有效目录")
+            return TransferInfo(success=False, fileitem=fileitem, message=f"{target_path} 不是有效目录")
         # 获取目标路径
         if target_directory:
             # 目标媒体库目录未设置
             if not target_directory.library_path:
                 logger.error(f"目标媒体库目录未设置，无法整理文件，源路径：{fileitem.path}")
-                return TransferInfo(success=False,
-                                    fileitem=fileitem,
-                                    message="目标媒体库目录未设置")
+                return TransferInfo(success=False, fileitem=fileitem, message="目标媒体库目录未设置")
             # 整理方式
             if not transfer_type:
                 transfer_type = target_directory.transfer_type
@@ -472,74 +482,82 @@ class FileManagerModule(_ModuleBase):
             # 是否需要刮削
             need_scrape = target_directory.scraping if scrape is None else scrape
             # 拼装媒体库一、二级子目录
-            target_path = handler.get_dest_dir(mediainfo=mediainfo, target_dir=target_directory,
-                                               need_type_folder=library_type_folder,
-                                               need_category_folder=library_category_folder)
+            target_path = handler.get_dest_dir(
+                mediainfo=mediainfo,
+                target_dir=target_directory,
+                need_type_folder=library_type_folder,
+                need_category_folder=library_category_folder,
+            )
         elif target_path:
             need_scrape = scrape or False
             need_rename = True
             need_notify = False
             overwrite_mode = "never"
             # 手动整理的场景，有自定义目标路径
-            target_path = handler.get_dest_path(mediainfo=mediainfo, target_path=target_path,
-                                                need_type_folder=library_type_folder,
-                                                need_category_folder=library_category_folder)
+            target_path = handler.get_dest_path(
+                mediainfo=mediainfo,
+                target_path=target_path,
+                need_type_folder=library_type_folder,
+                need_category_folder=library_category_folder,
+            )
         else:
             # 未找到有效的媒体库目录
             logger.error(
-                f"{mediainfo.type.value if mediainfo.type else '未知类型'} {mediainfo.title_year} 未找到有效的媒体库目录，无法整理文件，源路径：{fileitem.path}")
-            return TransferInfo(success=False,
-                                fileitem=fileitem,
-                                message="未找到有效的媒体库目录")
+                f"{mediainfo.type.value if mediainfo.type else '未知类型'} {mediainfo.title_year} 未找到有效的媒体库目录，无法整理文件，源路径：{fileitem.path}"
+            )
+            return TransferInfo(success=False, fileitem=fileitem, message="未找到有效的媒体库目录")
         # 整理方式
         if not transfer_type:
             logger.error(f"{target_directory.name} 未设置整理方式")
-            return TransferInfo(success=False,
-                                fileitem=fileitem,
-                                message=f"{target_directory.name} 未设置整理方式")
+            return TransferInfo(success=False, fileitem=fileitem, message=f"{target_directory.name} 未设置整理方式")
 
         # 源操作对象
         if not source_oper:
             source_oper = self.__get_storage_oper(fileitem.storage)
         if not source_oper:
-            return TransferInfo(success=False,
-                                message=f"不支持的存储类型：{fileitem.storage}",
-                                fileitem=fileitem,
-                                fail_list=[fileitem.path],
-                                transfer_type=transfer_type,
-                                need_notify=need_notify
-                                )
+            return TransferInfo(
+                success=False,
+                message=f"不支持的存储类型：{fileitem.storage}",
+                fileitem=fileitem,
+                fail_list=[fileitem.path],
+                transfer_type=transfer_type,
+                need_notify=need_notify,
+            )
         # 目的操作对象
         if not target_oper:
             if not target_storage:
                 target_storage = fileitem.storage
             target_oper = self.__get_storage_oper(target_storage)
         if not target_oper:
-            return TransferInfo(success=False,
-                                message=f"不支持的存储类型：{target_storage}",
-                                fileitem=fileitem,
-                                fail_list=[fileitem.path],
-                                transfer_type=transfer_type,
-                                need_notify=need_notify)
+            return TransferInfo(
+                success=False,
+                message=f"不支持的存储类型：{target_storage}",
+                fileitem=fileitem,
+                fail_list=[fileitem.path],
+                transfer_type=transfer_type,
+                need_notify=need_notify,
+            )
 
         # 整理
         logger.info(f"获取整理目标路径：【{target_storage}】{target_path}")
-        return handler.transfer_media(fileitem=fileitem,
-                                      in_meta=meta,
-                                      mediainfo=mediainfo,
-                                      target_storage=target_storage,
-                                      target_path=target_path,
-                                      transfer_type=transfer_type,
-                                      need_scrape=need_scrape,
-                                      need_rename=need_rename,
-                                      need_notify=need_notify,
-                                      overwrite_mode=overwrite_mode,
-                                      episodes_info=episodes_info,
-                                      preview=preview,
-                                      source_oper=source_oper,
-                                      target_oper=target_oper)
+        return handler.transfer_media(
+            fileitem=fileitem,
+            in_meta=meta,
+            mediainfo=mediainfo,
+            target_storage=target_storage,
+            target_path=target_path,
+            transfer_type=transfer_type,
+            need_scrape=need_scrape,
+            need_rename=need_rename,
+            need_notify=need_notify,
+            overwrite_mode=overwrite_mode,
+            episodes_info=episodes_info,
+            preview=preview,
+            source_oper=source_oper,
+            target_oper=target_oper,
+        )
 
-    def media_files(self, mediainfo: MediaInfo) -> List[FileItem]:
+    def media_files(self, mediainfo: MediaInfo) -> list[FileItem]:
         """
         获取对应媒体的媒体库文件列表
         :param mediainfo: 媒体信息
@@ -572,13 +590,10 @@ class FileManagerModule(_ModuleBase):
             target_path = handler.get_rename_path(
                 path=dir_path,
                 template_string=rename_format,
-                rename_dict=handler.get_naming_dict(meta=meta,
-                                                    mediainfo=mediainfo)
+                rename_dict=handler.get_naming_dict(meta=meta, mediainfo=mediainfo),
             )
             # 获取重命名后的媒体文件根路径
-            media_path = DirectoryHelper.get_media_root_path(
-                rename_format, rename_path=target_path
-            )
+            media_path = DirectoryHelper.get_media_root_path(rename_format, rename_path=target_path)
             if not media_path:
                 # 忽略
                 continue
@@ -602,7 +617,7 @@ class FileManagerModule(_ModuleBase):
                             ret_fileitems.append(media_file)
         return ret_fileitems
 
-    def media_exists(self, mediainfo: MediaInfo, **kwargs) -> Optional[ExistMediaInfo]:
+    def media_exists(self, mediainfo: MediaInfo, **kwargs) -> ExistMediaInfo | None:
         """
         判断媒体文件是否存在于文件系统（网盘或本地文件），只支持标准媒体库结构
         :param mediainfo:  识别的媒体信息
@@ -629,7 +644,7 @@ class FileManagerModule(_ModuleBase):
             return ExistMediaInfo(type=MediaType.MOVIE)
         else:
             # 电视剧检索集数
-            seasons: Dict[int, list] = {}
+            seasons: dict[int, list] = {}
             for fileitem in fileitems:
                 file_meta = MetaInfo(fileitem.basename)
                 season_index = file_meta.begin_season if file_meta.begin_season is not None else 1

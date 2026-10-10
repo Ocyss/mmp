@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import List, Optional, Tuple
 
 from app.core.config import settings
-from app.log import logger, log_settings
+from app.log import log_settings, logger
 
 try:
     import moviepilot_rust as _moviepilot_rust
@@ -46,14 +46,14 @@ def status() -> dict:
     }
 
 
-def import_error() -> Optional[Exception]:
+def import_error() -> Exception | None:
     """
     返回 Rust 扩展导入失败的异常，便于调试构建问题。
     """
     return _import_error
 
 
-def parse_filter_rule(expression: str) -> Optional[list]:
+def parse_filter_rule(expression: str) -> list | None:
     """
     使用 Rust 解析过滤规则表达式，不可用时返回 None。
     """
@@ -68,12 +68,12 @@ def parse_filter_rule(expression: str) -> Optional[list]:
 
 
 def filter_torrents(
-        groups: list,
-        torrent_list: list,
-        rule_set: dict,
-        mediainfo=None,
-        metainfo_options: Optional[dict] = None,
-) -> Optional[Tuple[list, list]]:
+    groups: list,
+    torrent_list: list,
+    rule_set: dict,
+    mediainfo=None,
+    metainfo_options: dict | None = None,
+) -> tuple[list, list] | None:
     """
     使用 Rust 执行完整种子过滤入口，返回原列表下标、优先级和可选调试日志。
     """
@@ -105,14 +105,10 @@ def is_debug_log_enabled() -> bool:
         return True
     return getattr(logging, log_settings.LOG_LEVEL.upper(), logging.INFO) <= logging.DEBUG
 
+
 def parse_indexer_torrents(
-        html_text: str,
-        domain: str,
-        list_config: dict,
-        fields: dict,
-        category: Optional[dict] = None,
-        result_num: int = 100
-) -> Optional[List[dict]]:
+    html_text: str, domain: str, list_config: dict, fields: dict, category: dict | None = None, result_num: int = 100
+) -> list[dict] | None:
     """
     使用 Rust 批量解析普通配置站点种子列表，不可用时返回 None。
     """
@@ -120,12 +116,7 @@ def parse_indexer_torrents(
         return None
     try:
         return _moviepilot_rust.parse_indexer_torrents_fast(
-            html_text,
-            domain,
-            list_config,
-            fields,
-            category,
-            result_num
+            html_text, domain, list_config, fields, category, result_num
         )
     except BaseException as err:
         _raise_non_rust_panic(err)
@@ -134,32 +125,22 @@ def parse_indexer_torrents(
 
 
 def parse_indexer_subtitles(
-        html_text: str,
-        domain: str,
-        list_config: dict,
-        fields: dict,
-        result_num: int = 100
-) -> Optional[List[dict]]:
+    html_text: str, domain: str, list_config: dict, fields: dict, result_num: int = 100
+) -> list[dict] | None:
     """
     使用 Rust 批量解析普通配置站点字幕列表，不可用时返回 None。
     """
     if not is_enabled():
         return None
     try:
-        return _moviepilot_rust.parse_indexer_subtitles_fast(
-            html_text,
-            domain,
-            list_config,
-            fields,
-            result_num
-        )
+        return _moviepilot_rust.parse_indexer_subtitles_fast(html_text, domain, list_config, fields, result_num)
     except BaseException as err:
         _raise_non_rust_panic(err)
         logger.debug(f"Rust 字幕列表解析失败，使用 Python 解析兜底：{err}")
         return None
 
 
-def parse_rss_items(xml_text: str, max_items: int = 1000) -> Optional[List[dict]]:
+def parse_rss_items(xml_text: str, max_items: int = 1000) -> list[dict] | None:
     """
     使用 Rust 解析 RSS/Atom 条目，不可用或异常时返回 None。
     """
@@ -173,7 +154,7 @@ def parse_rss_items(xml_text: str, max_items: int = 1000) -> Optional[List[dict]
         return None
 
 
-def parse_metainfo(title: str, subtitle: Optional[str] = None, options: Optional[dict] = None) -> Optional[dict]:
+def parse_metainfo(title: str, subtitle: str | None = None, options: dict | None = None) -> dict | None:
     """
     使用 Rust 从标题入口解析 MetaInfo，不可用或异常时返回 None。
     """
@@ -187,7 +168,7 @@ def parse_metainfo(title: str, subtitle: Optional[str] = None, options: Optional
         return None
 
 
-def parse_metainfo_path(path: str, options: Optional[dict] = None) -> Optional[dict]:
+def parse_metainfo_path(path: str, options: dict | None = None) -> dict | None:
     """
     使用 Rust 从路径入口解析 MetaInfoPath，不可用或异常时返回 None。
     """
@@ -201,7 +182,7 @@ def parse_metainfo_path(path: str, options: Optional[dict] = None) -> Optional[d
         return None
 
 
-def find_metainfo(title: str) -> Optional[dict]:
+def find_metainfo(title: str) -> dict | None:
     """
     使用 Rust 提取标题中的显式媒体标签，不可用或异常时返回 None。
     """
@@ -231,11 +212,7 @@ def supports_extended_media_ids() -> bool:
         logger.debug(f"检测 Rust 扩展数据源ID能力失败：{err}")
         return False
     metainfo = result.get("metainfo") if isinstance(result, dict) else None
-    return bool(
-        metainfo
-        and metainfo.get("media_source") == "anilist"
-        and metainfo.get("media_id") == "1"
-    )
+    return bool(metainfo and metainfo.get("media_source") == "anilist" and metainfo.get("media_id") == "1")
 
 
 def _raise_non_rust_panic(err: BaseException) -> None:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from typing import Optional, Tuple
 from urllib.parse import urlencode, urljoin
@@ -35,7 +34,7 @@ class SunnyPTSiteUserInfo(SiteParserBase):
             "X-API-Key": self.apikey,
         }
 
-    def _load_api_payload(self, html_text: str, operation: str) -> Optional[dict]:
+    def _load_api_payload(self, html_text: str, operation: str) -> dict | None:
         """
         解析并校验 SunnyPT 通用 JSON 响应
 
@@ -92,20 +91,20 @@ class SunnyPTSiteUserInfo(SiteParserBase):
         """
         page = 1
         while True:
-            query = urlencode({
-                "unread_only": "true",
-                "page": page,
-                "page_size": 100,
-            })
-            html_text = self._get_page_content(
-                url=urljoin(self._base_url, f"messages?{query}")
+            query = urlencode(
+                {
+                    "unread_only": "true",
+                    "page": page,
+                    "page_size": 100,
+                }
             )
+            html_text = self._get_page_content(url=urljoin(self._base_url, f"messages?{query}"))
             has_more = self._parse_message_unread_links(html_text, [])
             if not has_more:
                 return
             page += 1
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         解析 SunnyPT 未读消息列表并直接保存消息正文
 
@@ -126,9 +125,7 @@ class SunnyPTSiteUserInfo(SiteParserBase):
             message_id = message.get("id")
             if title and content and created_at:
                 message_source = f"sunnypt-message:{message_id}" if message_id is not None else None
-                self.message_unread_contents.append(
-                    (title, created_at, content, message_source)
-                )
+                self.message_unread_contents.append((title, created_at, content, message_source))
         return "next" if messages_data.get("has_more") else None
 
     def _parse_user_traffic_info(self, html_text: str) -> None:
@@ -149,7 +146,7 @@ class SunnyPTSiteUserInfo(SiteParserBase):
         self,
         html_text: str,
         multi_page: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         跳过独立做种列表，profile 接口已经返回做种数量和体积
 
@@ -162,7 +159,7 @@ class SunnyPTSiteUserInfo(SiteParserBase):
     def _parse_message_content(
         self,
         html_text: str,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None, str | None]:
         """
         跳过消息详情请求，messages 接口已经返回完整正文
 

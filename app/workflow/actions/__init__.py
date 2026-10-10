@@ -76,13 +76,15 @@ class BaseAction(ABC):
                 field = {"name": field}
             if not isinstance(field, dict) or not field.get("name"):
                 continue
-            result.append({
-                "name": field["name"],
-                "label": field.get("label") or field["name"],
-                "kind": field.get("kind") or "scalar",
-                "merge": field.get("merge"),
-                "identity": field.get("identity"),
-            })
+            result.append(
+                {
+                    "name": field["name"],
+                    "label": field.get("label") or field["name"],
+                    "kind": field.get("kind") or "scalar",
+                    "merge": field.get("merge"),
+                    "identity": field.get("identity"),
+                }
+            )
         return result
 
     @property
@@ -123,7 +125,7 @@ class BaseAction(ABC):
         action_cache = workflow_cache.get(self._action_id) or []
         return key in action_cache
 
-    def save_cache(self, workflow_id: int, data: Union[list, str]):
+    def save_cache(self, workflow_id: int, data: list | str):
         """
         保存缓存
         """
@@ -147,8 +149,9 @@ class BaseAction(ABC):
         """
         raise NotImplementedError
 
-    def execute_with_inputs(self, workflow_id: int, params: ActionParams, inputs: dict,
-                            runtime: dict, context: ActionContext) -> ActionResult:
+    def execute_with_inputs(
+        self, workflow_id: int, params: ActionParams, inputs: dict, runtime: dict, context: ActionContext
+    ) -> ActionResult:
         """
         使用显式输入与运行期信息执行动作。
         """
@@ -156,12 +159,7 @@ class BaseAction(ABC):
         self._apply_runtime_to_context(runtime=runtime, context=context)
         result_context = self.execute(workflow_id, params, context)
         outputs = self._extract_outputs_from_context(result_context)
-        return ActionResult(
-            success=self.success,
-            message=self.message,
-            context=result_context,
-            outputs=outputs
-        )
+        return ActionResult(success=self.success, message=self.message, context=result_context, outputs=outputs)
 
     def _apply_inputs_to_context(self, inputs: dict, context: ActionContext) -> None:
         """
@@ -190,8 +188,7 @@ class BaseAction(ABC):
             return
         context.runtime_state = context.runtime_state or {}
         context.runtime_state["current_action_runtime"] = {
-            key: value for key, value in runtime.items()
-            if key != "cancel_token"
+            key: value for key, value in runtime.items() if key != "cancel_token"
         }
 
     def _extract_outputs_from_context(self, context: ActionContext) -> dict[str, Any]:

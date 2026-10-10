@@ -35,7 +35,7 @@ class EditFileInput(BaseModel):
             "ambiguous match fails instead of changing multiple locations."
         ),
     )
-    expected_sha256: Optional[str] = Field(
+    expected_sha256: str | None = Field(
         None,
         pattern=r"^[0-9a-fA-F]{64}$",
         description=(
@@ -61,9 +61,9 @@ class EditFileTool(MoviePilotTool):
         "Non-admin users can only edit files inside the MoviePilot Agent config "
         "directory."
     )
-    args_schema: Type[BaseModel] = EditFileInput
+    args_schema: type[BaseModel] = EditFileInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据参数生成友好的提示消息"""
         file_path = kwargs.get("file_path", "")
         file_name = Path(file_path).name if file_path else "未知文件"
@@ -75,16 +75,14 @@ class EditFileTool(MoviePilotTool):
         old_text: str,
         new_text: str,
         replace_all: bool = False,
-        expected_sha256: Optional[str] = None,
+        expected_sha256: str | None = None,
         **kwargs,
     ) -> str:
         """校验精确匹配和可选文件版本后，以原子方式写入编辑结果。"""
         logger.info(f"执行工具: {self.name}, 参数: file_path={file_path}")
 
         try:
-            resolved_path, access_error = await self._check_local_file_access(
-                file_path, operation="编辑"
-            )
+            resolved_path, access_error = await self._check_local_file_access(file_path, operation="编辑")
             if access_error:
                 return access_error
 
@@ -99,26 +97,15 @@ class EditFileTool(MoviePilotTool):
                 return f"错误：{resolved_path} 不是一个文件"
 
             local_path = Path(resolved_path)
-            current_sha256 = await self.run_blocking(
-                "default", calculate_file_sha256, local_path
-            )
-            if (
-                expected_sha256
-                and current_sha256.casefold() != expected_sha256.casefold()
-            ):
-                return (
-                    f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。"
-                    "请重新读取文件并基于最新内容编辑。"
-                )
+            current_sha256 = await self.run_blocking("default", calculate_file_sha256, local_path)
+            if expected_sha256 and current_sha256.casefold() != expected_sha256.casefold():
+                return f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。请重新读取文件并基于最新内容编辑。"
 
             content = await path.read_text(encoding="utf-8", errors="strict")
             occurrences = content.count(old_text)
             if occurrences == 0:
                 logger.warning(f"编辑文件 {resolved_path} 失败：未找到指定的旧文本块")
-                return (
-                    f"错误：在文件 {resolved_path} 中未找到指定的旧文本。"
-                    "请重新读取文件并确认空格、缩进和换行。"
-                )
+                return f"错误：在文件 {resolved_path} 中未找到指定的旧文本。请重新读取文件并确认空格、缩进和换行。"
             if occurrences > 1 and not replace_all:
                 return (
                     f"错误：old_text 在文件 {resolved_path} 中匹配到 {occurrences} 处，"
@@ -139,23 +126,13 @@ class EditFileTool(MoviePilotTool):
                 new_content,
                 current_sha256,
             )
-            new_sha256 = await self.run_blocking(
-                "default", calculate_file_sha256, local_path
-            )
+            new_sha256 = await self.run_blocking("default", calculate_file_sha256, local_path)
 
-            logger.info(
-                f"成功编辑文件 {resolved_path}，替换了 {replacement_count} 处内容"
-            )
-            return (
-                f"成功编辑文件 {resolved_path}（替换了 {replacement_count} 处匹配内容，"
-                f"sha256={new_sha256}）"
-            )
+            logger.info(f"成功编辑文件 {resolved_path}，替换了 {replacement_count} 处内容")
+            return f"成功编辑文件 {resolved_path}（替换了 {replacement_count} 处匹配内容，sha256={new_sha256}）"
 
         except FileVersionConflictError:
-            return (
-                f"错误：文件 {file_path} 在编辑期间发生变化，拒绝覆盖。"
-                "请重新读取文件并再次编辑。"
-            )
+            return f"错误：文件 {file_path} 在编辑期间发生变化，拒绝覆盖。请重新读取文件并再次编辑。"
         except PermissionError:
             return f"错误：没有访问/修改 {file_path} 的权限"
         except UnicodeDecodeError:

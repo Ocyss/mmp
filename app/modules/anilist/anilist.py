@@ -14,10 +14,7 @@ class AniListApi:
 
     _base_url = "https://trace.moe/anilist/"
     _official_url = "https://graphql.anilist.co"
-    _translations_url = (
-        "https://raw.githubusercontent.com/soruly/anilist-chinese/"
-        "master/anilist-chinese.json"
-    )
+    _translations_url = "https://raw.githubusercontent.com/soruly/anilist-chinese/master/anilist-chinese.json"
     _media_summary_fields = """
         id
         idMal
@@ -114,10 +111,10 @@ class AniListApi:
             headers=headers,
         )
         self._proxy_available = True
-        self._translations: Optional[dict[int, dict]] = None
+        self._translations: dict[int, dict] | None = None
 
     @staticmethod
-    def _extract_response(response) -> Optional[dict]:
+    def _extract_response(response) -> dict | None:
         """
         提取 GraphQL 响应数据并统一处理上游错误。
 
@@ -136,7 +133,7 @@ class AniListApi:
             return None
         return result.get("data")
 
-    def _invoke(self, query: str, variables: dict) -> Optional[dict]:
+    def _invoke(self, query: str, variables: dict) -> dict | None:
         """
         执行同步 GraphQL 请求。
 
@@ -155,7 +152,7 @@ class AniListApi:
         result = self._extract_response(response)
         return self._inject_chinese(result, self._translation_map()) if result else result
 
-    async def _async_invoke(self, query: str, variables: dict) -> Optional[dict]:
+    async def _async_invoke(self, query: str, variables: dict) -> dict | None:
         """
         执行异步 GraphQL 请求。
 
@@ -186,10 +183,7 @@ class AniListApi:
         """
         self._proxy_available = False
         status_code = getattr(response, "status_code", None)
-        logger.warning(
-            f"anilist-chinese 代理不可用（HTTP {status_code}），"
-            "改用 AniList 官方接口并合并中文数据集"
-        )
+        logger.warning(f"anilist-chinese 代理不可用（HTTP {status_code}），改用 AniList 官方接口并合并中文数据集")
 
     @staticmethod
     def _build_translation_map(items) -> dict[int, dict]:
@@ -201,11 +195,7 @@ class AniListApi:
         """
         if not isinstance(items, list):
             return {}
-        return {
-            item.get("id"): item
-            for item in items
-            if isinstance(item, dict) and item.get("id")
-        }
+        return {item.get("id"): item for item in items if isinstance(item, dict) and item.get("id")}
 
     def _translation_map(self) -> dict[int, dict]:
         """
@@ -255,9 +245,7 @@ class AniListApi:
             title["chinese"] = translation.get("title")
         synonyms = value.get("synonyms")
         if translation and isinstance(synonyms, list):
-            value["synonyms"] = list(
-                dict.fromkeys([*synonyms, *(translation.get("synonyms") or [])])
-            )
+            value["synonyms"] = list(dict.fromkeys([*synonyms, *(translation.get("synonyms") or [])]))
         for child in value.values():
             cls._inject_chinese(child, translations)
         return value
@@ -266,14 +254,14 @@ class AniListApi:
     def _page_variables(
         page: int,
         count: int,
-        search: Optional[str] = None,
-        genre: Optional[str] = None,
-        media_format: Optional[str] = None,
-        season: Optional[str] = None,
-        season_year: Optional[int] = None,
-        status: Optional[str] = None,
-        country: Optional[str] = None,
-        sort: Optional[str] = None,
+        search: str | None = None,
+        genre: str | None = None,
+        media_format: str | None = None,
+        season: str | None = None,
+        season_year: int | None = None,
+        status: str | None = None,
+        country: str | None = None,
+        sort: str | None = None,
     ) -> dict:
         """
         构造 AniList 分页媒体查询变量。
@@ -295,7 +283,7 @@ class AniListApi:
         return {key: value for key, value in variables.items() if value is not None}
 
     @staticmethod
-    def _page_medias(result: Optional[dict]) -> list[dict]:
+    def _page_medias(result: dict | None) -> list[dict]:
         """
         从分页响应中提取媒体列表。
 
@@ -349,7 +337,7 @@ class AniListApi:
         return self._ordered_medias(media_ids, self._page_medias(result))
 
     @staticmethod
-    def _current_season(today: Optional[date] = None) -> tuple[str, int]:
+    def _current_season(today: date | None = None) -> tuple[str, int]:
         """
         根据当前日期计算 AniList 季度与年份。
 
@@ -366,7 +354,7 @@ class AniListApi:
         skip_empty=True,
         shared_key="detail",
     )
-    def detail(self, anilist_id: int) -> Optional[dict]:
+    def detail(self, anilist_id: int) -> dict | None:
         """
         根据 AniList ID 获取动画详情。
 
@@ -383,7 +371,7 @@ class AniListApi:
         skip_empty=True,
         shared_key="detail",
     )
-    async def async_detail(self, anilist_id: int) -> Optional[dict]:
+    async def async_detail(self, anilist_id: int) -> dict | None:
         """
         异步根据 AniList ID 获取动画详情。
 
@@ -452,14 +440,14 @@ class AniListApi:
         self,
         page: int = 1,
         count: int = 20,
-        search: Optional[str] = None,
-        genre: Optional[str] = None,
-        media_format: Optional[str] = None,
-        season: Optional[str] = None,
-        season_year: Optional[int] = None,
-        status: Optional[str] = None,
-        country: Optional[str] = None,
-        sort: Optional[str] = None,
+        search: str | None = None,
+        genre: str | None = None,
+        media_format: str | None = None,
+        season: str | None = None,
+        season_year: int | None = None,
+        status: str | None = None,
+        country: str | None = None,
+        sort: str | None = None,
     ) -> list[dict]:
         """
         按组合条件探索 AniList 动画。
@@ -490,14 +478,14 @@ class AniListApi:
         self,
         page: int = 1,
         count: int = 20,
-        search: Optional[str] = None,
-        genre: Optional[str] = None,
-        media_format: Optional[str] = None,
-        season: Optional[str] = None,
-        season_year: Optional[int] = None,
-        status: Optional[str] = None,
-        country: Optional[str] = None,
-        sort: Optional[str] = None,
+        search: str | None = None,
+        genre: str | None = None,
+        media_format: str | None = None,
+        season: str | None = None,
+        season_year: int | None = None,
+        status: str | None = None,
+        country: str | None = None,
+        sort: str | None = None,
     ) -> list[dict]:
         """
         异步按组合条件探索 AniList 动画。
@@ -691,7 +679,7 @@ class AniListApi:
         skip_empty=True,
         shared_key="person_detail",
     )
-    def person_detail(self, person_id: int) -> Optional[dict]:
+    def person_detail(self, person_id: int) -> dict | None:
         """
         获取 AniList 演员详情。
 
@@ -716,7 +704,7 @@ class AniListApi:
         skip_empty=True,
         shared_key="person_detail",
     )
-    async def async_person_detail(self, person_id: int) -> Optional[dict]:
+    async def async_person_detail(self, person_id: int) -> dict | None:
         """
         异步获取 AniList 演员详情。
 

@@ -2,13 +2,14 @@ from sqlalchemy import Column, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, Base, get_id_column, async_db_query
+from app.db import Base, async_db_query, db_query, get_id_column
 
 
 class SiteIcon(Base):
     """
     站点图标表
     """
+
     id = get_id_column()
     # 站点名称
     name = Column(String, nullable=False)

@@ -13,10 +13,10 @@ from app.agent.llm.capability import AgentCapabilityManager
 from app.core.config import settings
 from app.log import logger
 from app.schemas import (
-    ChannelCapability,
     ChannelCapabilities,
-    MessageChannel,
+    ChannelCapability,
     ChannelCapabilityManager,
+    MessageChannel,
 )
 from app.utils.system import SystemUtils
 
@@ -58,12 +58,12 @@ class SystemTaskTypeDefinition:
 
     header: str
     objective: str
-    context_title: Optional[str] = None
+    context_title: str | None = None
     context_lines: list[str] = field(default_factory=list)
-    steps_title: Optional[str] = None
+    steps_title: str | None = None
     steps: list[str] = field(default_factory=list)
     task_rules: list[str] = field(default_factory=list)
-    empty_result: Optional[str] = None
+    empty_result: str | None = None
 
 
 @dataclass
@@ -86,10 +86,10 @@ class PromptManager:
             self.prompts_dir = Path(__file__).parent
         else:
             self.prompts_dir = Path(prompts_dir)
-        self.prompts_cache: Dict[str, str] = {}
-        self._system_tasks_cache: Optional[SystemTasksDefinition] = None
-        self._system_tasks_signature: Optional[tuple[int, int]] = None
-        self._available_shell_command_names_cache: Optional[list[str]] = None
+        self.prompts_cache: dict[str, str] = {}
+        self._system_tasks_cache: SystemTasksDefinition | None = None
+        self._system_tasks_signature: tuple[int, int] | None = None
+        self._available_shell_command_names_cache: list[str] | None = None
 
     def load_prompt(self, prompt_name: str) -> str:
         """
@@ -100,7 +100,7 @@ class PromptManager:
 
         prompt_file = self.prompts_dir / prompt_name
         try:
-            with open(prompt_file, "r", encoding="utf-8", errors="replace") as f:
+            with open(prompt_file, encoding="utf-8", errors="replace") as f:
                 content = f.read().strip()
             # 缓存提示词
             self.prompts_cache[prompt_name] = content
@@ -126,13 +126,7 @@ class PromptManager:
 
         # 识别渠道
         markdown_spec = ""
-        msg_channel = (
-            next(
-                (c for c in MessageChannel if c.value.lower() == channel.lower()), None
-            )
-            if channel
-            else None
-        )
+        msg_channel = next((c for c in MessageChannel if c.value.lower() == channel.lower()), None) if channel else None
         # 获取渠道能力说明
         if msg_channel:
             caps = ChannelCapabilityManager.get_capabilities(msg_channel)
@@ -164,28 +158,21 @@ class PromptManager:
             raise PromptConfigError(f"系统任务定义文件不存在: {system_tasks_path}") from err
 
         signature = (stat.st_mtime_ns, stat.st_size)
-        if (
-            self._system_tasks_signature == signature
-            and self._system_tasks_cache is not None
-        ):
+        if self._system_tasks_signature == signature and self._system_tasks_cache is not None:
             return self._system_tasks_cache
 
         try:
             content = system_tasks_path.read_text(encoding="utf-8", errors="replace")
         except Exception as err:  # noqa: BLE001
             logger.error(f"读取系统任务定义失败: {system_tasks_path}, 错误: {err}")
-            raise PromptConfigError(
-                f"读取系统任务定义失败 {system_tasks_path}: {err}"
-            ) from err
+            raise PromptConfigError(f"读取系统任务定义失败 {system_tasks_path}: {err}") from err
 
         try:
             data = yaml.safe_load(content) or {}
         except yaml.YAMLError as err:
             raise PromptConfigError(f"YAML 解析失败 {system_tasks_path}: {err}") from err
         if not isinstance(data, dict):
-            raise PromptConfigError(
-                f"YAML 根节点必须是映射类型: {system_tasks_path}"
-            )
+            raise PromptConfigError(f"YAML 根节点必须是映射类型: {system_tasks_path}")
 
         definition = self._parse_system_tasks_definition(system_tasks_path, data)
         self._system_tasks_signature = signature
@@ -196,8 +183,8 @@ class PromptManager:
         self,
         task_type: str,
         *,
-        template_context: Optional[dict[str, Any]] = None,
-        extra_rules: Optional[list[str]] = None,
+        template_context: dict[str, Any] | None = None,
+        extra_rules: list[str] | None = None,
     ) -> str:
         """根据程序内置 YAML 渲染后台系统任务提示词。"""
         system_tasks = self.load_system_tasks_definition()
@@ -289,9 +276,7 @@ class PromptManager:
                 + ", ".join(f"`{command}`" for command in available_commands)
             )
             if "rg" in available_commands:
-                info_lines.append(
-                    "- 搜索文件或文本时优先使用 `rg` / `rg --files`，不适合或不可用时再使用其他命令。"
-                )
+                info_lines.append("- 搜索文件或文本时优先使用 `rg` / `rg --files`，不适合或不可用时再使用其他命令。")
 
         return "\n".join(info_lines)
 
@@ -310,9 +295,7 @@ class PromptManager:
         if self._available_shell_command_names_cache is not None:
             return self._available_shell_command_names_cache
 
-        available_commands = [
-            command for command in COMMON_SHELL_COMMANDS if shutil.which(command)
-        ]
+        available_commands = [command for command in COMMON_SHELL_COMMANDS if shutil.which(command)]
         self._available_shell_command_names_cache = available_commands
         return available_commands
 
@@ -327,9 +310,7 @@ class PromptManager:
         """
         instructions = []
         if ChannelCapability.MARKDOWN not in caps.capabilities:
-            instructions.append(
-                "- Formatting: Use **Plain Text ONLY**. The channel does NOT support Markdown."
-            )
+            instructions.append("- Formatting: Use **Plain Text ONLY**. The channel does NOT support Markdown.")
             instructions.append(
                 "- No Markdown Symbols: NEVER use `**`, `*`, `__`, or `[` blocks. Use natural text to emphasize (e.g., using ALL CAPS or separators)."
             )
@@ -434,7 +415,7 @@ class PromptManager:
     def _render_template_text(
         cls,
         text: str,
-        template_context: Optional[dict[str, Any]],
+        template_context: dict[str, Any] | None,
         task_type: str,
         field_name: str,
     ) -> str:
@@ -442,11 +423,7 @@ class PromptManager:
             return ""
 
         formatter = Formatter()
-        required_fields = {
-            placeholder_name
-            for _, placeholder_name, _, _ in formatter.parse(text)
-            if placeholder_name
-        }
+        required_fields = {placeholder_name for _, placeholder_name, _, _ in formatter.parse(text) if placeholder_name}
         if not required_fields:
             return text
 
@@ -454,8 +431,7 @@ class PromptManager:
         missing_fields = sorted(f for f in required_fields if f not in context)
         if missing_fields:
             raise PromptConfigError(
-                f"系统任务定义 `{task_type}` 的 `{field_name}` 缺少变量: "
-                + ", ".join(f"`{f}`" for f in missing_fields)
+                f"系统任务定义 `{task_type}` 的 `{field_name}` 缺少变量: " + ", ".join(f"`{f}`" for f in missing_fields)
             )
 
         # 这里统一做字符串替换，让 YAML 成为后台任务文案的唯一行为来源。
@@ -465,7 +441,7 @@ class PromptManager:
     def _render_template_lines(
         cls,
         items: list[str],
-        template_context: Optional[dict[str, Any]],
+        template_context: dict[str, Any] | None,
         task_type: str,
         field_name: str,
     ) -> list[str]:
@@ -482,20 +458,15 @@ class PromptManager:
 
     @staticmethod
     def _normalize_template_context(
-        template_context: Optional[dict[str, Any]],
+        template_context: dict[str, Any] | None,
     ) -> dict[str, str]:
         if not template_context:
             return {}
-        return {
-            str(key): "" if value is None else str(value)
-            for key, value in template_context.items()
-        }
+        return {str(key): "" if value is None else str(value) for key, value in template_context.items()}
 
     @staticmethod
     def _format_numbered_rules(title: str, items: list[str]) -> str:
-        return "\n".join(
-            [f"{title}:"] + [f"{index}. {item}" for index, item in enumerate(items, start=1)]
-        )
+        return "\n".join([f"{title}:"] + [f"{index}. {item}" for index, item in enumerate(items, start=1)])
 
     @staticmethod
     def _format_titled_lines(title: str, items: list[str]) -> str:

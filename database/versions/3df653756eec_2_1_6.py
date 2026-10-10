@@ -5,14 +5,15 @@ Revises: 486e56a62dcb
 Create Date: 2025-06-11 19:52:57.185355
 
 """
+
 import json
 
 from app.db import SessionFactory
 from app.db.models import User
 
 # revision identifiers, used by Alembic.
-revision = '3df653756eec'
-down_revision = '486e56a62dcb'
+revision = "3df653756eec"
+down_revision = "486e56a62dcb"
 branch_labels = None
 depends_on = None
 
@@ -32,9 +33,12 @@ def upgrade() -> None:
                     "subscribe": True,
                     "manage": False,
                 }
-                user.update(db, {
-                    "permissions": permissions,
-                })
+                user.update(
+                    db,
+                    {
+                        "permissions": permissions,
+                    },
+                )
     # ### end Alembic commands ###
 
 

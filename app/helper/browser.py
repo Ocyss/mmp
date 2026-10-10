@@ -2,9 +2,10 @@ import ipaddress
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Optional, Protocol
 from urllib.parse import urlparse
 
 from app.core.config import settings
@@ -35,7 +36,7 @@ class BrowserContext(Protocol):
     CloakBrowser 返回的上下文只需要满足这些能力即可。
     """
 
-    def new_page(self) -> "BrowserPage":
+    def new_page(self) -> BrowserPage:
         """创建新的浏览器页面。"""
         ...
 
@@ -88,7 +89,7 @@ class BrowserPage(Protocol):
         """选择下拉框选项。"""
         ...
 
-    def query_selector(self, selector: str) -> Optional[BrowserElement]:
+    def query_selector(self, selector: str) -> BrowserElement | None:
         """查询指定选择器元素。"""
         ...
 
@@ -123,8 +124,8 @@ class _BrowserSessionState:
     context: BrowserContext
     pages: list[BrowserPage]
     active_index: int = 0
-    user_agent: Optional[str] = None
-    cookies: Optional[str] = None
+    user_agent: str | None = None
+    cookies: str | None = None
     created_at: float = field(default_factory=time.monotonic)
     last_used_at: float = field(default_factory=time.monotonic)
     lock: threading.RLock = field(default_factory=threading.RLock)
@@ -152,7 +153,7 @@ class BrowserSessionHelper:
     _session_thread_ids: dict[str, int] = {}
     _sessions_lock = threading.RLock()
 
-    def __init__(self, headless: bool = True, viewport: Optional[dict[str, int]] = None):
+    def __init__(self, headless: bool = True, viewport: dict[str, int] | None = None):
         """
         初始化浏览器会话辅助类。
 
@@ -181,9 +182,7 @@ class BrowserSessionHelper:
         if allow_private_network:
             return url
 
-        if hostname in cls.PRIVATE_HOSTNAMES or hostname.endswith(
-            cls.PRIVATE_HOST_SUFFIXES
-        ):
+        if hostname in cls.PRIVATE_HOSTNAMES or hostname.endswith(cls.PRIVATE_HOST_SUFFIXES):
             raise ValueError("默认不允许访问本机或私网地址")
 
         try:
@@ -215,9 +214,7 @@ class BrowserSessionHelper:
         关闭所有 Agent 浏览器会话。
         """
         with cls._sessions_lock:
-            session_keys = list(
-                set(cls._sessions.keys()) | set(cls._session_executors.keys())
-            )
+            session_keys = list(set(cls._sessions.keys()) | set(cls._session_executors.keys()))
         for session_key in session_keys:
             cls.close_session(session_key)
 
@@ -255,9 +252,9 @@ class BrowserSessionHelper:
         self,
         session_key: str,
         callback: Callable[[_BrowserSessionState], Any],
-        user_agent: Optional[str] = None,
-        cookies: Optional[str] = None,
-        timeout: Optional[int] = 30,
+        user_agent: str | None = None,
+        cookies: str | None = None,
+        timeout: int | None = 30,
     ) -> Any:
         """
         获取或创建浏览器会话，并在持有会话锁时执行回调。
@@ -284,9 +281,9 @@ class BrowserSessionHelper:
         self,
         session_key: str,
         callback: Callable[[_BrowserSessionState], Any],
-        user_agent: Optional[str] = None,
-        cookies: Optional[str] = None,
-        timeout: Optional[int] = 30,
+        user_agent: str | None = None,
+        cookies: str | None = None,
+        timeout: int | None = 30,
     ) -> Any:
         """
         在会话专属线程内获取浏览器会话并执行回调。
@@ -409,9 +406,7 @@ class BrowserSessionHelper:
             return executor
 
     @classmethod
-    def _get_existing_session_executor(
-        cls, session_key: str
-    ) -> Optional[ThreadPoolExecutor]:
+    def _get_existing_session_executor(cls, session_key: str) -> ThreadPoolExecutor | None:
         """
         获取指定会话已存在的执行器。
 
@@ -473,8 +468,8 @@ class BrowserSessionHelper:
     def open_tab(
         self,
         session: _BrowserSessionState,
-        url: Optional[str] = None,
-        timeout: Optional[int] = 30,
+        url: str | None = None,
+        timeout: int | None = 30,
         allow_private_network: bool = False,
     ) -> BrowserPage:
         """
@@ -561,7 +556,7 @@ class BrowserSessionHelper:
         self,
         page: BrowserPage,
         url: str,
-        timeout: Optional[int] = 30,
+        timeout: int | None = 30,
         allow_private_network: bool = False,
     ) -> Any:
         """
@@ -590,9 +585,7 @@ class BrowserSessionHelper:
         return response
 
     @classmethod
-    def validate_current_url(
-        cls, page: BrowserPage, allow_private_network: bool = False
-    ) -> None:
+    def validate_current_url(cls, page: BrowserPage, allow_private_network: bool = False) -> None:
         """
         校验当前页面地址，捕获跳转后的不安全目标。
 
@@ -607,7 +600,7 @@ class BrowserSessionHelper:
     def build_snapshot(
         cls,
         page: BrowserPage,
-        status: Optional[Any] = None,
+        status: Any | None = None,
         max_text_chars: int = 8000,
         max_elements: int = 40,
     ) -> dict[str, Any]:
@@ -625,9 +618,7 @@ class BrowserSessionHelper:
             "url": getattr(page, "url", ""),
             "title": cls._safe_page_title(page),
             "text_content": cls._truncate_text(text_content, max_text_chars),
-            "interactive_elements": cls._extract_interactive_elements(
-                page, max_elements=max_elements
-            ),
+            "interactive_elements": cls._extract_interactive_elements(page, max_elements=max_elements),
         }
         if status is not None:
             result["status"] = status
@@ -655,8 +646,8 @@ class BrowserSessionHelper:
     @staticmethod
     def _launch_context(
         headless: bool,
-        user_agent: Optional[str] = None,
-        viewport: Optional[dict[str, int]] = None,
+        user_agent: str | None = None,
+        viewport: dict[str, int] | None = None,
     ) -> BrowserContext:
         from cloakbrowser import launch_context
 
@@ -674,8 +665,8 @@ class BrowserSessionHelper:
     def _get_or_create_session(
         self,
         session_key: str,
-        user_agent: Optional[str] = None,
-        cookies: Optional[str] = None,
+        user_agent: str | None = None,
+        cookies: str | None = None,
     ) -> _BrowserSessionState:
         with self._sessions_lock:
             session = self._sessions.get(session_key)
@@ -723,7 +714,7 @@ class BrowserSessionHelper:
             cls.close_session(session_key)
 
     @classmethod
-    def _enforce_session_limit(cls, protect_session_key: Optional[str] = None) -> None:
+    def _enforce_session_limit(cls, protect_session_key: str | None = None) -> None:
         """
         清理超过数量上限的旧会话。
 
@@ -733,11 +724,7 @@ class BrowserSessionHelper:
             with cls._sessions_lock:
                 if len(cls._sessions) <= cls.MAX_SESSIONS:
                     return
-                candidate_keys = [
-                    session_key
-                    for session_key in cls._sessions
-                    if session_key != protect_session_key
-                ]
+                candidate_keys = [session_key for session_key in cls._sessions if session_key != protect_session_key]
                 if not candidate_keys:
                     return
                 oldest_key = min(
@@ -775,7 +762,7 @@ class BrowserSessionHelper:
             return ""
 
     @staticmethod
-    def _truncate_text(text: Optional[str], max_chars: int) -> str:
+    def _truncate_text(text: str | None, max_chars: int) -> str:
         if not text:
             return ""
         if len(text) <= max_chars:
@@ -783,9 +770,7 @@ class BrowserSessionHelper:
         return text[:max_chars] + "\n\n...(内容已截断)"
 
     @classmethod
-    def _extract_interactive_elements(
-        cls, page: BrowserPage, max_elements: int
-    ) -> list[dict[str, Any]]:
+    def _extract_interactive_elements(cls, page: BrowserPage, max_elements: int) -> list[dict[str, Any]]:
         script = f"""
             () => {{
                 const limit = {int(max_elements)};
@@ -850,7 +835,7 @@ class BrowserSessionHelper:
 
 
 class PlaywrightHelper:
-    def __init__(self, browser_type: Optional[str] = None, *args, **kwargs):
+    def __init__(self, browser_type: str | None = None, *args, **kwargs):
         """
         兼容旧的 PlaywrightHelper(browser_type=...) 构造方式。
         """
@@ -864,31 +849,32 @@ class PlaywrightHelper:
         return (settings.BROWSER_EMULATION or "cloakbrowser").lower()
 
     @staticmethod
-    def __launch_cloakbrowser_context(headless: bool,
-                                      user_agent: Optional[str] = None,
-                                      proxies: Optional[dict] = None) -> BrowserContext:
+    def __launch_cloakbrowser_context(
+        headless: bool, user_agent: str | None = None, proxies: dict | None = None
+    ) -> BrowserContext:
         """
         启动 CloakBrowser 上下文。
         """
         from cloakbrowser import launch_context
 
-        return launch_context(headless=headless,
-                              proxy=proxies,
-                              user_agent=user_agent,
-                              humanize=settings.CLOAKBROWSER_HUMANIZE,
-                              human_preset=settings.CLOAKBROWSER_HUMAN_PRESET)
+        return launch_context(
+            headless=headless,
+            proxy=proxies,
+            user_agent=user_agent,
+            humanize=settings.CLOAKBROWSER_HUMANIZE,
+            human_preset=settings.CLOAKBROWSER_HUMAN_PRESET,
+        )
 
     @staticmethod
     def __fs_cookie_str(cookies: list) -> str:
         if not cookies:
             return ""
-        return "; ".join([f"{c.get('name')}={c.get('value')}" for c in cookies if c and c.get('name') is not None])
+        return "; ".join([f"{c.get('name')}={c.get('value')}" for c in cookies if c and c.get("name") is not None])
 
     @staticmethod
-    def __flaresolverr_request(url: str,
-                               cookies: Optional[str] = None,
-                               proxy_config: Optional[dict] = None,
-                               timeout: Optional[int] = 60) -> Optional[dict]:
+    def __flaresolverr_request(
+        url: str, cookies: str | None = None, proxy_config: dict | None = None, timeout: int | None = 60
+    ) -> dict | None:
         """
         调用 FlareSolverr 解决 Cloudflare 并返回 solution 结果
         参考: https://github.com/FlareSolverr/FlareSolverr
@@ -902,8 +888,11 @@ class PlaywrightHelper:
 
         try:
             # 检查是否需要代理认证
-            need_proxy_auth = (proxy_config and proxy_config.get("server") and
-                               (proxy_config.get("username") or proxy_config.get("password")))
+            need_proxy_auth = (
+                proxy_config
+                and proxy_config.get("server")
+                and (proxy_config.get("username") or proxy_config.get("password"))
+            )
 
             if need_proxy_auth:
                 # 使用 session 模式支持代理认证
@@ -911,10 +900,7 @@ class PlaywrightHelper:
 
                 # 1. 创建会话
                 session_id = str(uuid.uuid4())
-                create_payload: dict = {
-                    "cmd": "sessions.create",
-                    "session": session_id
-                }
+                create_payload: dict = {"cmd": "sessions.create", "session": session_id}
 
                 # 添加代理配置到会话创建请求
                 if proxy_config and proxy_config.get("server"):
@@ -926,11 +912,13 @@ class PlaywrightHelper:
                     create_payload["proxy"] = proxy_payload
 
                 # 创建会话
-                create_result = RequestUtils(content_type="application/json",
-                                             timeout=timeout or 60).post_json(url=fs_api, json=create_payload)
+                create_result = RequestUtils(content_type="application/json", timeout=timeout or 60).post_json(
+                    url=fs_api, json=create_payload
+                )
                 if not create_result or create_result.get("status") != "ok":
                     logger.error(
-                        f"创建 FlareSolverr 会话失败: {create_result.get('message') if create_result else '无响应'}")
+                        f"创建 FlareSolverr 会话失败: {create_result.get('message') if create_result else '无响应'}"
+                    )
                     return None
 
                 # 2. 使用会话发送请求
@@ -959,8 +947,9 @@ class PlaywrightHelper:
                     logger.debug(f"解析 cookies 失败，忽略: {str(e)}")
 
             # 发送请求
-            data = RequestUtils(content_type="application/json",
-                                timeout=timeout or 60).post_json(url=fs_api, json=request_payload)
+            data = RequestUtils(content_type="application/json", timeout=timeout or 60).post_json(
+                url=fs_api, json=request_payload
+            )
             if not data:
                 logger.error("FlareSolverr 返回空响应")
                 return None
@@ -975,23 +964,24 @@ class PlaywrightHelper:
             # 清理会话
             if session_id:
                 try:
-                    destroy_payload = {
-                        "cmd": "sessions.destroy",
-                        "session": session_id
-                    }
-                    RequestUtils(content_type="application/json",
-                                 timeout=10).post_json(url=fs_api, json=destroy_payload)
+                    destroy_payload = {"cmd": "sessions.destroy", "session": session_id}
+                    RequestUtils(content_type="application/json", timeout=10).post_json(
+                        url=fs_api, json=destroy_payload
+                    )
                     logger.debug(f"已清理 FlareSolverr 会话: {session_id}")
                 except Exception as e:
                     logger.warning(f"清理 FlareSolverr 会话失败: {str(e)}")
 
-    def action(self, url: str,
-               callback: Callable[[BrowserPage], Any],
-               cookies: Optional[str] = None,
-               ua: Optional[str] = None,
-               proxies: Optional[dict] = None,
-               headless: Optional[bool] = False,
-               timeout: Optional[int] = 60) -> Any:
+    def action(
+        self,
+        url: str,
+        callback: Callable[[BrowserPage], Any],
+        cookies: str | None = None,
+        ua: str | None = None,
+        proxies: dict | None = None,
+        headless: bool | None = False,
+        timeout: int | None = 60,
+    ) -> Any:
         """
         访问网页，接收Page对象并执行操作
         :param url: 网页地址
@@ -1011,15 +1001,14 @@ class PlaywrightHelper:
                 fs_cookie_header = None
                 fs_ua = None
                 if self.__browser_emulation() == "flaresolverr":
-                    solution = self.__flaresolverr_request(url=url, cookies=cookies,
-                                                           proxy_config=proxies, timeout=timeout)
+                    solution = self.__flaresolverr_request(
+                        url=url, cookies=cookies, proxy_config=proxies, timeout=timeout
+                    )
                     if solution:
                         fs_cookie_header = self.__fs_cookie_str(solution.get("cookies", []))
                         fs_ua = solution.get("userAgent")
 
-                context = self.__launch_cloakbrowser_context(headless=headless,
-                                                             user_agent=fs_ua or ua,
-                                                             proxies=proxies)
+                context = self.__launch_cloakbrowser_context(headless=headless, user_agent=fs_ua or ua, proxies=proxies)
                 page = context.new_page()
 
                 # 优先使用 FlareSolverr 返回，其次使用入参
@@ -1045,12 +1034,15 @@ class PlaywrightHelper:
 
         return result
 
-    def get_page_source(self, url: str,
-                        cookies: Optional[str] = None,
-                        ua: Optional[str] = None,
-                        proxies: Optional[dict] = None,
-                        headless: Optional[bool] = False,
-                        timeout: Optional[int] = 60) -> Optional[str]:
+    def get_page_source(
+        self,
+        url: str,
+        cookies: str | None = None,
+        ua: str | None = None,
+        proxies: dict | None = None,
+        headless: bool | None = False,
+        timeout: int | None = 60,
+    ) -> str | None:
         """
         获取网页源码
         :param url: 网页地址
@@ -1064,8 +1056,7 @@ class PlaywrightHelper:
         # 如果配置为 FlareSolverr，则直接调用获取页面源码
         if self.__browser_emulation() == "flaresolverr":
             try:
-                solution = self.__flaresolverr_request(url=url, cookies=cookies,
-                                                       proxy_config=proxies, timeout=timeout)
+                solution = self.__flaresolverr_request(url=url, cookies=cookies, proxy_config=proxies, timeout=timeout)
                 if solution:
                     return solution.get("response")
             except Exception as e:
@@ -1074,9 +1065,7 @@ class PlaywrightHelper:
             context = None
             page = None
             try:
-                context = self.__launch_cloakbrowser_context(headless=headless,
-                                                             user_agent=ua,
-                                                             proxies=proxies)
+                context = self.__launch_cloakbrowser_context(headless=headless, user_agent=ua, proxies=proxies)
                 page = context.new_page()
 
                 if cookies:

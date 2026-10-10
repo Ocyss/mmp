@@ -1,11 +1,11 @@
 import time
 from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, JSON, Index, select, func
+from sqlalchemy import JSON, Column, Index, Integer, String, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, get_id_column, Base, async_db_query
+from app.db import Base, async_db_query, db_query, db_update, get_id_column
 
 
 def _title_like(column, title: str):
@@ -71,9 +71,9 @@ class DownloadHistory(Base):
     custom_words = Column(String)
 
     __table_args__ = (
-        Index('ix_downloadhistory_download_hash_date', 'download_hash', 'date'),
-        Index('ix_downloadhistory_date_id', 'date', 'id'),
-        Index('ix_downloadhistory_media_identity', 'media_source', 'media_id'),
+        Index("ix_downloadhistory_download_hash_date", "download_hash", "date"),
+        Index("ix_downloadhistory_date_id", "date", "id"),
+        Index("ix_downloadhistory_media_identity", "media_source", "media_id"),
     )
 
     @classmethod
@@ -88,7 +88,7 @@ class DownloadHistory(Base):
 
     @classmethod
     @db_query
-    def get_by_hashes(cls, db: Session, download_hashes: List[str]):
+    def get_by_hashes(cls, db: Session, download_hashes: list[str]):
         """
         批量查询多个下载任务的最新历史记录，避免在上层形成 N+1 查询。
         """
@@ -115,18 +115,20 @@ class DownloadHistory(Base):
                 latest_histories[history.download_hash] = history
 
         return [
-            latest_histories[download_hash]
-            for download_hash in normalized_hashes
-            if download_hash in latest_histories
+            latest_histories[download_hash] for download_hash in normalized_hashes if download_hash in latest_histories
         ]
 
     @classmethod
     @db_query
     def get_by_mediaid(
-            cls, db: Session, tmdbid: Optional[int] = None,
-            doubanid: Optional[str] = None, bangumiid: Optional[int] = None,
-            anilistid: Optional[int] = None, media_source: Optional[str] = None,
-            media_id: Optional[str] = None,
+        cls,
+        db: Session,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        bangumiid: int | None = None,
+        anilistid: int | None = None,
+        media_source: str | None = None,
+        media_id: str | None = None,
     ):
         """按统一媒体身份或兼容 ID 查询下载历史。"""
         query = db.query(DownloadHistory)
@@ -147,9 +149,7 @@ class DownloadHistory(Base):
 
     @classmethod
     @db_query
-    def list_by_page(
-        cls, db: Session, page: Optional[int] = 1, count: Optional[int] = 30
-    ):
+    def list_by_page(cls, db: Session, page: int | None = 1, count: int | None = 30):
         return (
             db.query(DownloadHistory)
             .order_by(DownloadHistory.date.desc(), DownloadHistory.id.desc())
@@ -160,14 +160,9 @@ class DownloadHistory(Base):
 
     @classmethod
     @async_db_query
-    async def async_list_by_page(
-        cls, db: AsyncSession, page: Optional[int] = 1, count: Optional[int] = 30
-    ):
+    async def async_list_by_page(cls, db: AsyncSession, page: int | None = 1, count: int | None = 30):
         result = await db.execute(
-            select(cls)
-            .order_by(cls.date.desc(), cls.id.desc())
-            .offset((page - 1) * count)
-            .limit(count)
+            select(cls).order_by(cls.date.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
         )
         return result.scalars().all()
 
@@ -177,12 +172,10 @@ class DownloadHistory(Base):
         cls,
         db: AsyncSession,
         title: str,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
+        page: int | None = 1,
+        count: int | None = 30,
     ):
-        query = (
-            select(cls).filter(_title_like(cls.title, title)).order_by(cls.date.desc())
-        )
+        query = select(cls).filter(_title_like(cls.title, title)).order_by(cls.date.desc())
         query = query.offset((page - 1) * count).limit(count)
         result = await db.execute(query)
         return result.scalars().all()
@@ -196,9 +189,7 @@ class DownloadHistory(Base):
     @classmethod
     @async_db_query
     async def async_count_by_title(cls, db: AsyncSession, title: str):
-        result = await db.execute(
-            select(func.count(cls.id)).filter(_title_like(cls.title, title))
-        )
+        result = await db.execute(select(func.count(cls.id)).filter(_title_like(cls.title, title)))
         return result.scalar()
 
     @classmethod
@@ -211,12 +202,12 @@ class DownloadHistory(Base):
     def get_last_by(
         cls,
         db: Session,
-        mtype: Optional[str] = None,
-        title: Optional[str] = None,
-        year: Optional[str] = None,
-        season: Optional[str] = None,
-        episode: Optional[str] = None,
-        tmdbid: Optional[int] = None,
+        mtype: str | None = None,
+        title: str | None = None,
+        year: str | None = None,
+        season: str | None = None,
+        episode: str | None = None,
+        tmdbid: int | None = None,
     ):
         """
         据tmdbid、season、season_episode查询下载记录
@@ -253,9 +244,7 @@ class DownloadHistory(Base):
                 # 电视剧所有季集/电影
                 return (
                     db.query(DownloadHistory)
-                    .filter(
-                        DownloadHistory.tmdbid == tmdbid, DownloadHistory.type == mtype
-                    )
+                    .filter(DownloadHistory.tmdbid == tmdbid, DownloadHistory.type == mtype)
                     .order_by(DownloadHistory.id.desc())
                     .all()
                 )
@@ -290,9 +279,7 @@ class DownloadHistory(Base):
                 # 电视剧所有季集/电影
                 return (
                     db.query(DownloadHistory)
-                    .filter(
-                        DownloadHistory.title == title, DownloadHistory.year == year
-                    )
+                    .filter(DownloadHistory.title == title, DownloadHistory.year == year)
                     .order_by(DownloadHistory.id.desc())
                     .all()
                 )
@@ -301,25 +288,20 @@ class DownloadHistory(Base):
 
     @classmethod
     @db_query
-    def list_by_user_date(cls, db: Session, date: str, username: Optional[str] = None):
+    def list_by_user_date(cls, db: Session, date: str, username: str | None = None):
         """
         查询某用户某时间之后的下载历史
         """
         if username:
             return (
                 db.query(DownloadHistory)
-                .filter(
-                    DownloadHistory.date < date, DownloadHistory.username == username
-                )
+                .filter(DownloadHistory.date < date, DownloadHistory.username == username)
                 .order_by(DownloadHistory.id.desc())
                 .all()
             )
         else:
             return (
-                db.query(DownloadHistory)
-                .filter(DownloadHistory.date < date)
-                .order_by(DownloadHistory.id.desc())
-                .all()
+                db.query(DownloadHistory).filter(DownloadHistory.date < date).order_by(DownloadHistory.id.desc()).all()
             )
 
     @classmethod
@@ -330,7 +312,7 @@ class DownloadHistory(Base):
         date: str,
         type: str,
         tmdbid: str,
-        seasons: Optional[str] = None,
+        seasons: str | None = None,
     ):
         """
         查询某时间之后的下载历史
@@ -367,9 +349,7 @@ class DownloadHistory(Base):
             .filter(
                 DownloadHistory.type == mtype,
                 DownloadHistory.date
-                >= time.strftime(
-                    "%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400 * int(days))
-                ),
+                >= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400 * int(days))),
             )
             .all()
         )
@@ -380,26 +360,17 @@ class DownloadHistory(Base):
         cls,
         db: Session,
         before_time: str,
-        limit: Optional[int] = 500,
+        limit: int | None = 500,
     ) -> int:
         """
         分批删除指定时间之前的下载历史。
         """
         ids = [
-            row[0]
-            for row in db.query(cls.id)
-            .filter(cls.date < before_time)
-            .order_by(cls.id.asc())
-            .limit(limit)
-            .all()
+            row[0] for row in db.query(cls.id).filter(cls.date < before_time).order_by(cls.id.asc()).limit(limit).all()
         ]
         if not ids:
             return 0
-        return (
-            db.query(cls)
-            .filter(cls.id.in_(ids))
-            .delete(synchronize_session=False)
-        )
+        return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)
 
 
 class DownloadFiles(Base):
@@ -424,19 +395,15 @@ class DownloadFiles(Base):
     state = Column(Integer, nullable=False, default=1)
 
     __table_args__ = (
-        Index('ix_downloadfiles_download_hash_state', 'download_hash', 'state'),
-        Index('ix_downloadfiles_fullpath_id', 'fullpath', 'id'),
+        Index("ix_downloadfiles_download_hash_state", "download_hash", "state"),
+        Index("ix_downloadfiles_fullpath_id", "fullpath", "id"),
     )
 
     @classmethod
     @db_query
-    def get_by_hash(cls, db: Session, download_hash: str, state: Optional[int] = None):
+    def get_by_hash(cls, db: Session, download_hash: str, state: int | None = None):
         if state is not None:
-            return (
-                db.query(cls)
-                .filter(cls.download_hash == download_hash, cls.state == state)
-                .all()
-            )
+            return db.query(cls).filter(cls.download_hash == download_hash, cls.state == state).all()
         else:
             return db.query(cls).filter(cls.download_hash == download_hash).all()
 
@@ -444,19 +411,9 @@ class DownloadFiles(Base):
     @db_query
     def get_by_fullpath(cls, db: Session, fullpath: str, all_files: bool = False):
         if not all_files:
-            return (
-                db.query(cls)
-                .filter(cls.fullpath == fullpath)
-                .order_by(cls.id.desc())
-                .first()
-            )
+            return db.query(cls).filter(cls.fullpath == fullpath).order_by(cls.id.desc()).first()
         else:
-            return (
-                db.query(cls)
-                .filter(cls.fullpath == fullpath)
-                .order_by(cls.id.desc())
-                .all()
-            )
+            return db.query(cls).filter(cls.fullpath == fullpath).order_by(cls.id.desc()).all()
 
     @classmethod
     @db_query
@@ -466,16 +423,14 @@ class DownloadFiles(Base):
     @classmethod
     @db_update
     def delete_by_fullpath(cls, db: Session, fullpath: str):
-        db.query(cls).filter(cls.fullpath == fullpath, cls.state == 1).update(
-            {"state": 0}
-        )
+        db.query(cls).filter(cls.fullpath == fullpath, cls.state == 1).update({"state": 0})
 
     @classmethod
     @db_update
     def delete_orphans(
         cls,
         db: Session,
-        limit: Optional[int] = 500,
+        limit: int | None = 500,
     ) -> int:
         """
         分批删除已找不到父下载历史的文件记录。
@@ -497,8 +452,4 @@ class DownloadFiles(Base):
         ]
         if not ids:
             return 0
-        return (
-            db.query(cls)
-            .filter(cls.id.in_(ids))
-            .delete(synchronize_session=False)
-        )
+        return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

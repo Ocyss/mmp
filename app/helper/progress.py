@@ -11,7 +11,7 @@ class ProgressHelper:
     处理进度辅助类
     """
 
-    def __init__(self, key: Union[ProgressKey, str]) -> None:
+    def __init__(self, key: ProgressKey | str) -> None:
         if isinstance(key, Enum):
             key = key.value
         self._key = key
@@ -21,12 +21,7 @@ class ProgressHelper:
         """
         重置进度
         """
-        self._progress[self._key] = {
-            "enable": False,
-            "value": 0,
-            "text": "请稍候...",
-            "data": {}
-        }
+        self._progress[self._key] = {"enable": False, "value": 0, "text": "请稍候...", "data": {}}
 
     def start(self) -> None:
         """
@@ -36,14 +31,14 @@ class ProgressHelper:
         current = self._progress.get(self._key)
         if not current:
             return
-        current['enable'] = True
+        current["enable"] = True
         self._progress[self._key] = current
 
     def end(
-            self,
-            text: Optional[str] = "",
-            data: Optional[dict] = None,
-            value: Optional[Union[float, int]] = 100,
+        self,
+        text: str | None = "",
+        data: dict | None = None,
+        value: float | int | None = 100,
     ) -> None:
         """
         结束进度
@@ -52,9 +47,9 @@ class ProgressHelper:
         if not current:
             return
         if data is not None:
-            if not current.get('data'):
-                current['data'] = {}
-            current['data'].update(data)
+            if not current.get("data"):
+                current["data"] = {}
+            current["data"].update(data)
         current["enable"] = False
         if value is not None:
             current["value"] = max(min(float(value), 100), 0)
@@ -62,28 +57,28 @@ class ProgressHelper:
         self._progress[self._key] = current
 
     def update(
-            self,
-            value: Optional[Union[float, int]] = None,
-            text: Optional[str] = None,
-            data: Optional[dict] = None,
+        self,
+        value: float | int | None = None,
+        text: str | None = None,
+        data: dict | None = None,
     ) -> None:
         """
         更新进度
         """
         current = self._progress.get(self._key)
-        if not current or not current.get('enable'):
+        if not current or not current.get("enable"):
             return
         if value is not None:
-            current['value'] = max(min(float(value), 100), 0)
+            current["value"] = max(min(float(value), 100), 0)
         if text is not None:
-            current['text'] = text
+            current["text"] = text
         if data is not None:
-            if not current.get('data'):
-                current['data'] = {}
-            current['data'].update(data)
+            if not current.get("data"):
+                current["data"] = {}
+            current["data"].update(data)
         self._progress[self._key] = current
 
-    def get(self, locale: Optional[str] = None) -> Optional[dict]:
+    def get(self, locale: str | None = None) -> dict | None:
         """
         获取当前进度，并按语言补充前端展示字段。
 
@@ -105,12 +100,8 @@ class ProgressHelper:
             error = localized_data.get("error")
             message = localized_data.get("message")
             if isinstance(error, str):
-                localized_data["error_i18n"] = LocaleHelper.translate_text(
-                    error, locale=locale
-                )
+                localized_data["error_i18n"] = LocaleHelper.translate_text(error, locale=locale)
             if isinstance(message, str):
-                localized_data["message_i18n"] = LocaleHelper.translate_text(
-                    message, locale=locale
-                )
+                localized_data["message_i18n"] = LocaleHelper.translate_text(message, locale=locale)
             detail["data"] = localized_data
         return detail

@@ -1,17 +1,18 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, JSON, Index, func, or_, select
+from sqlalchemy import JSON, Column, Float, Index, Integer, String, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, Base, get_id_column, async_db_query
+from app.db import Base, async_db_query, db_query, db_update, get_id_column
 
 
 class SiteUserData(Base):
     """
     站点数据表
     """
+
     id = get_id_column()
     # 站点域名
     domain = Column(String)
@@ -50,30 +51,33 @@ class SiteUserData(Base):
     # 错误信息
     err_msg = Column(String)
     # 更新日期
-    updated_day = Column(String, default=datetime.now().strftime('%Y-%m-%d'))
+    updated_day = Column(String, default=datetime.now().strftime("%Y-%m-%d"))
     # 更新时间
-    updated_time = Column(String, default=datetime.now().strftime('%H:%M:%S'))
+    updated_time = Column(String, default=datetime.now().strftime("%H:%M:%S"))
 
     __table_args__ = (
-        Index('ix_siteuserdata_updated_day_id', 'updated_day', 'id'),
-        Index('ix_siteuserdata_domain_updated_day_updated_time', 'domain', 'updated_day', 'updated_time'),
+        Index("ix_siteuserdata_updated_day_id", "updated_day", "id"),
+        Index("ix_siteuserdata_domain_updated_day_updated_time", "domain", "updated_day", "updated_time"),
     )
 
     @classmethod
     @db_query
-    def get_by_domain(cls, db: Session, domain: str, workdate: Optional[str] = None, worktime: Optional[str] = None):
+    def get_by_domain(cls, db: Session, domain: str, workdate: str | None = None, worktime: str | None = None):
         if workdate and worktime:
-            return db.query(cls).filter(cls.domain == domain,
-                                        cls.updated_day == workdate,
-                                        cls.updated_time == worktime).all()
+            return (
+                db.query(cls)
+                .filter(cls.domain == domain, cls.updated_day == workdate, cls.updated_time == worktime)
+                .all()
+            )
         elif workdate:
-            return db.query(cls).filter(cls.domain == domain,
-                                        cls.updated_day == workdate).all()
+            return db.query(cls).filter(cls.domain == domain, cls.updated_day == workdate).all()
         return db.query(cls).filter(cls.domain == domain).all()
 
     @classmethod
     @async_db_query
-    async def async_get_by_domain(cls, db: AsyncSession, domain: str, workdate: Optional[str] = None, worktime: Optional[str] = None):
+    async def async_get_by_domain(
+        cls, db: AsyncSession, domain: str, workdate: str | None = None, worktime: str | None = None
+    ):
         query = select(cls).filter(cls.domain == domain)
         if workdate and worktime:
             query = query.filter(cls.updated_day == workdate, cls.updated_time == worktime)
@@ -94,21 +98,19 @@ class SiteUserData(Base):
         获取各站点最新一天的数据
         """
         subquery = (
-            db.query(
-                cls.domain,
-                func.max(cls.updated_day).label('latest_update_day')
-            )
+            db.query(cls.domain, func.max(cls.updated_day).label("latest_update_day"))
             .group_by(cls.domain)
             .filter(or_(cls.err_msg.is_(None), cls.err_msg == ""))
             .subquery()
         )
 
         # 主查询：按 domain 和 updated_day 获取最新的记录
-        return db.query(cls).join(
-            subquery,
-            (cls.domain == subquery.c.domain) &
-            (cls.updated_day == subquery.c.latest_update_day)
-        ).order_by(cls.updated_time.desc()).all()
+        return (
+            db.query(cls)
+            .join(subquery, (cls.domain == subquery.c.domain) & (cls.updated_day == subquery.c.latest_update_day))
+            .order_by(cls.updated_time.desc())
+            .all()
+        )
 
     @classmethod
     @async_db_query
@@ -117,10 +119,7 @@ class SiteUserData(Base):
         异步获取各站点最新一天的数据
         """
         subquery = (
-            select(
-                cls.domain,
-                func.max(cls.updated_day).label('latest_update_day')
-            )
+            select(cls.domain, func.max(cls.updated_day).label("latest_update_day"))
             .group_by(cls.domain)
             .filter(or_(cls.err_msg.is_(None), cls.err_msg == ""))
             .subquery()
@@ -128,11 +127,10 @@ class SiteUserData(Base):
 
         # 主查询：按 domain 和 updated_day 获取最新的记录
         result = await db.execute(
-            select(cls).join(
-                subquery,
-                (cls.domain == subquery.c.domain) &
-                (cls.updated_day == subquery.c.latest_update_day)
-            ).order_by(cls.updated_time.desc()))
+            select(cls)
+            .join(subquery, (cls.domain == subquery.c.domain) & (cls.updated_day == subquery.c.latest_update_day))
+            .order_by(cls.updated_time.desc())
+        )
         return result.scalars().all()
 
     @classmethod
@@ -141,24 +139,16 @@ class SiteUserData(Base):
         cls,
         db: Session,
         before_day: str,
-        limit: Optional[int] = 500,
+        limit: int | None = 500,
     ) -> int:
         """
         分批删除指定日期之前的站点用户快照。
         """
         ids = [
             row[0]
-            for row in db.query(cls.id)
-            .filter(cls.updated_day < before_day)
-            .order_by(cls.id.asc())
-            .limit(limit)
-            .all()
+            for row in db.query(cls.id).filter(cls.updated_day < before_day).order_by(cls.id.asc()).limit(limit).all()
         ]
         if not ids:
             return 0
-        deleted = (
-            db.query(cls)
-            .filter(cls.id.in_(ids))
-            .delete(synchronize_session=False)
-        )
+        deleted = db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)
         return deleted

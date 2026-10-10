@@ -6,8 +6,9 @@ import threading
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from queue import Empty, PriorityQueue
-from typing import Callable, Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -30,9 +31,12 @@ class Event:
     事件类，封装事件的基本信息
     """
 
-    def __init__(self, event_type: Union[EventType, ChainEventType],
-                 event_data: Optional[Union[Dict, ChainEventData]] = None,
-                 priority: Optional[int] = DEFAULT_EVENT_PRIORITY):
+    def __init__(
+        self,
+        event_type: EventType | ChainEventType,
+        event_data: dict | ChainEventData | None = None,
+        priority: int | None = DEFAULT_EVENT_PRIORITY,
+    ):
         """
         :param event_type: 事件的类型，支持 EventType 或 ChainEventType
         :param event_data: 可选，事件携带的数据，默认为空字典
@@ -58,7 +62,7 @@ class Event:
         return self.priority < other.priority
 
     @staticmethod
-    def get_event_kind(event_type: Union[EventType, ChainEventType]) -> str:
+    def get_event_kind(event_type: EventType | ChainEventType) -> str:
         """
         根据事件类型判断事件是广播事件还是链式事件
         :param event_type: 事件类型，支持 EventType 或 ChainEventType
@@ -80,9 +84,9 @@ class EventManager(metaclass=Singleton):
         # 优先级队列
         self.__event_queue = PriorityQueue()
         # 广播事件的订阅者
-        self.__broadcast_subscribers: Dict[EventType, Dict[str, Callable]] = {}
+        self.__broadcast_subscribers: dict[EventType, dict[str, Callable]] = {}
         # 链式事件的订阅者
-        self.__chain_subscribers: Dict[ChainEventType, Dict[str, tuple[int, Callable]]] = {}
+        self.__chain_subscribers: dict[ChainEventType, dict[str, tuple[int, Callable]]] = {}
         # 禁用的事件处理器集合
         self.__disabled_handlers = set()
         # 禁用的事件处理器类集合
@@ -117,7 +121,7 @@ class EventManager(metaclass=Singleton):
         except Exception as e:
             logger.error(f"停止事件处理线程出错：{str(e)} - {traceback.format_exc()}")
 
-    def check(self, etype: Union[EventType, ChainEventType]) -> bool:
+    def check(self, etype: EventType | ChainEventType) -> bool:
         """
         检查是否有启用的事件处理器可以响应某个事件类型
         :param etype: 事件类型 (EventType 或 ChainEventType)
@@ -125,19 +129,17 @@ class EventManager(metaclass=Singleton):
         """
         if isinstance(etype, ChainEventType):
             handlers = self.__chain_subscribers.get(etype, {})
-            return any(
-                self.__is_handler_enabled(handler)
-                for _, handler in handlers.values()
-            )
+            return any(self.__is_handler_enabled(handler) for _, handler in handlers.values())
         else:
             handlers = self.__broadcast_subscribers.get(etype, {})
-            return any(
-                self.__is_handler_enabled(handler)
-                for handler in handlers.values()
-            )
+            return any(self.__is_handler_enabled(handler) for handler in handlers.values())
 
-    def send_event(self, etype: Union[EventType, ChainEventType], data: Optional[Union[Dict, ChainEventData]] = None,
-                   priority: Optional[int] = DEFAULT_EVENT_PRIORITY) -> Optional[Event]:
+    def send_event(
+        self,
+        etype: EventType | ChainEventType,
+        data: dict | ChainEventData | None = None,
+        priority: int | None = DEFAULT_EVENT_PRIORITY,
+    ) -> Event | None:
         """
         发送事件，根据事件类型决定是广播事件还是链式事件
         :param etype: 事件类型 (EventType 或 ChainEventType)
@@ -154,9 +156,12 @@ class EventManager(metaclass=Singleton):
             logger.error(f"Unknown event type: {etype}")
         return None
 
-    async def async_send_event(self, etype: Union[EventType, ChainEventType],
-                               data: Optional[Union[Dict, ChainEventData]] = None,
-                               priority: Optional[int] = DEFAULT_EVENT_PRIORITY) -> Optional[Event]:
+    async def async_send_event(
+        self,
+        etype: EventType | ChainEventType,
+        data: dict | ChainEventData | None = None,
+        priority: int | None = DEFAULT_EVENT_PRIORITY,
+    ) -> Event | None:
         """
         异步发送事件，根据事件类型决定是广播事件还是链式事件
         :param etype: 事件类型 (EventType 或 ChainEventType)
@@ -173,8 +178,9 @@ class EventManager(metaclass=Singleton):
             logger.error(f"Unknown event type: {etype}")
         return None
 
-    def add_event_listener(self, event_type: Union[EventType, ChainEventType], handler: Callable,
-                           priority: Optional[int] = DEFAULT_EVENT_PRIORITY):
+    def add_event_listener(
+        self, event_type: EventType | ChainEventType, handler: Callable, priority: int | None = DEFAULT_EVENT_PRIORITY
+    ):
         """
         注册事件处理器，将处理器添加到对应的事件订阅列表中
         :param event_type: 事件类型 (EventType 或 ChainEventType)
@@ -193,8 +199,8 @@ class EventManager(metaclass=Singleton):
                     handlers.pop(handler_identifier)
                 else:
                     logger.debug(
-                        f"Subscribed to chain event: {event_type.value}, "
-                        f"Priority: {priority} - {handler_identifier}")
+                        f"Subscribed to chain event: {event_type.value}, Priority: {priority} - {handler_identifier}"
+                    )
                 handlers[handler_identifier] = (priority, handler)
                 # 根据优先级排序
                 self.__chain_subscribers[event_type] = dict(
@@ -211,7 +217,7 @@ class EventManager(metaclass=Singleton):
                     logger.debug(f"Subscribed to broadcast event: {event_type.value} - {handler_identifier}")
                 handlers[handler_identifier] = handler
 
-    def remove_event_listener(self, event_type: Union[EventType, ChainEventType], handler: Callable):
+    def remove_event_listener(self, event_type: EventType | ChainEventType, handler: Callable):
         """
         移除事件处理器，将处理器从对应事件的订阅列表中删除
         :param event_type: 事件类型 (EventType 或 ChainEventType)
@@ -227,7 +233,7 @@ class EventManager(metaclass=Singleton):
                 self.__broadcast_subscribers[event_type].pop(handler_identifier, None)
                 logger.debug(f"Unsubscribed from broadcast event: {event_type.value} - {handler_identifier}")
 
-    def disable_event_handler(self, target: Union[Callable, type]):
+    def disable_event_handler(self, target: Callable | type):
         """
         禁用指定的事件处理器或事件处理器类
         :param target: 处理器函数或类
@@ -242,7 +248,7 @@ class EventManager(metaclass=Singleton):
             self.__disabled_handlers.add(identifier)
             logger.debug(f"Disabled event handler - {identifier}")
 
-    def enable_event_handler(self, target: Union[Callable, type]):
+    def enable_event_handler(self, target: Callable | type):
         """
         启用指定的事件处理器或事件处理器类
         :param target: 处理器函数或类
@@ -255,7 +261,7 @@ class EventManager(metaclass=Singleton):
             self.__disabled_handlers.discard(identifier)
             logger.debug(f"Enabled event handler - {identifier}")
 
-    def visualize_handlers(self) -> List[Dict]:
+    def visualize_handlers(self) -> list[dict]:
         """
         可视化所有事件处理器，包括是否被禁用的状态
         :return: 处理器列表，包含事件类型、处理器标识符、优先级（如果有）和状态
@@ -283,7 +289,7 @@ class EventManager(metaclass=Singleton):
                 handler_dict = {
                     "event_type": event_type.value,
                     "handler_identifier": handler_identifier,
-                    "status": status
+                    "status": status,
                 }
                 if priority is not None:
                     handler_dict["priority"] = priority
@@ -291,7 +297,7 @@ class EventManager(metaclass=Singleton):
         return handler_info
 
     @classmethod
-    def __get_handler_identifier(cls, target: Union[Callable, type]) -> Optional[str]:
+    def __get_handler_identifier(cls, target: Callable | type) -> str | None:
         """
         获取处理器或处理器类的唯一标识符，包括模块名和类名/方法名
         :param target: 处理器函数或类
@@ -306,7 +312,7 @@ class EventManager(metaclass=Singleton):
         return f"{module_name}.{qualname}"
 
     @classmethod
-    def __get_class_from_callable(cls, handler: Callable) -> Optional[str]:
+    def __get_class_from_callable(cls, handler: Callable) -> str | None:
         """
         获取可调用对象所属类的唯一标识符
         :param handler: 可调用对象（函数、方法等）
@@ -348,7 +354,7 @@ class EventManager(metaclass=Singleton):
 
         return True
 
-    def __trigger_chain_event(self, event: Event) -> Optional[Event]:
+    def __trigger_chain_event(self, event: Event) -> Event | None:
         """
         触发链式事件，按顺序调用订阅的处理器，并记录处理耗时
         """
@@ -356,7 +362,7 @@ class EventManager(metaclass=Singleton):
         dispatch = self.__dispatch_chain_event(event)
         return event if dispatch else None
 
-    async def __trigger_chain_event_async(self, event: Event) -> Optional[Event]:
+    async def __trigger_chain_event_async(self, event: Event) -> Event | None:
         """
         异步触发链式事件，按顺序调用订阅的处理器，并记录处理耗时
         """
@@ -383,8 +389,11 @@ class EventManager(metaclass=Singleton):
             return False
 
         # 过滤出启用的处理器
-        enabled_handlers = {handler_id: (priority, handler) for handler_id, (priority, handler) in handlers.items()
-                            if self.__is_handler_enabled(handler)}
+        enabled_handlers = {
+            handler_id: (priority, handler)
+            for handler_id, (priority, handler) in handlers.items()
+            if self.__is_handler_enabled(handler)
+        }
 
         if not enabled_handlers:
             logger.debug(f"No enabled handlers found for chain event: {event}. Skipping execution.")
@@ -412,8 +421,11 @@ class EventManager(metaclass=Singleton):
             return False
 
         # 过滤出启用的处理器
-        enabled_handlers = {handler_id: (priority, handler) for handler_id, (priority, handler) in handlers.items()
-                            if self.__is_handler_enabled(handler)}
+        enabled_handlers = {
+            handler_id: (priority, handler)
+            for handler_id, (priority, handler) in handlers.items()
+            if self.__is_handler_enabled(handler)
+        }
 
         if not enabled_handlers:
             logger.debug(f"No enabled handlers found for chain event: {event}. Skipping execution.")
@@ -445,7 +457,7 @@ class EventManager(metaclass=Singleton):
         # 为每个处理器提供独立的事件实例，防止某个处理器对 event_data 的修改影响其他处理器
         for handler_id, handler in handlers.items():
             if target_plugin_id and not self.__should_dispatch_to_target_plugin(
-                    handler, handler_id, str(target_plugin_id)
+                handler, handler_id, str(target_plugin_id)
             ):
                 continue
             # 仅浅拷贝顶层字典，避免不必要的深拷贝开销；这样可以隔离键级别的替换/赋值
@@ -454,14 +466,11 @@ class EventManager(metaclass=Singleton):
                 event_data_copy.pop("__mp_target_plugin_id", None)
             else:
                 event_data_copy = event.event_data
-            isolated_event = Event(event_type=event.event_type,
-                                   event_data=event_data_copy,
-                                   priority=event.priority)
+            isolated_event = Event(event_type=event.event_type, event_data=event_data_copy, priority=event.priority)
             if inspect.iscoroutinefunction(handler):
                 # 对于异步函数，直接在事件循环中运行
                 asyncio.run_coroutine_threadsafe(
-                    self.__safe_invoke_handler_async(handler, isolated_event),
-                    global_vars.loop
+                    self.__safe_invoke_handler_async(handler, isolated_event), global_vars.loop
                 )
             else:
                 # 对于同步函数，在线程池中运行
@@ -469,10 +478,10 @@ class EventManager(metaclass=Singleton):
 
     @classmethod
     def __should_dispatch_to_target_plugin(
-            cls,
-            handler: Callable,
-            handler_identifier: str,
-            target_plugin_id: str,
+        cls,
+        handler: Callable,
+        handler_identifier: str,
+        target_plugin_id: str,
     ) -> bool:
         """
         限定插件输入事件只投递给目标插件，避免自由文本被其他插件观察到。
@@ -527,8 +536,8 @@ class EventManager(metaclass=Singleton):
         """
         class_name, method_name = self.__parse_handler_names(handler)
 
-        from app.core.plugin import PluginManager
         from app.core.module import ModuleManager
+        from app.core.plugin import PluginManager
 
         plugin_manager = PluginManager()
         module_manager = ModuleManager()
@@ -544,8 +553,9 @@ class EventManager(metaclass=Singleton):
             try:
                 method(event)
             except Exception as e:
-                self.__handle_event_error(event=event, module_name=plugin.name,
-                                          class_name=class_name, method_name=method_name, e=e)
+                self.__handle_event_error(
+                    event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e
+                )
         elif class_name in module_manager.get_module_ids():
             # 模块处理器
             module = module_manager.get_running_module(class_name)
@@ -557,16 +567,22 @@ class EventManager(metaclass=Singleton):
             try:
                 method(event)
             except Exception as e:
-                self.__handle_event_error(event=event, module_name=module.get_name(),
-                                          class_name=class_name, method_name=method_name, e=e)
+                self.__handle_event_error(
+                    event=event, module_name=module.get_name(), class_name=class_name, method_name=method_name, e=e
+                )
         else:
             # 全局处理器
             if not class_name:
                 try:
                     handler(event)
                 except Exception as e:
-                    self.__handle_event_error(event=event, module_name=self.__get_handler_identifier(handler),
-                                              class_name=class_name, method_name=method_name, e=e)
+                    self.__handle_event_error(
+                        event=event,
+                        module_name=self.__get_handler_identifier(handler),
+                        class_name=class_name,
+                        method_name=method_name,
+                        e=e,
+                    )
                 return
             class_obj = self.__get_class_instance(class_name)
             if not class_obj or not hasattr(class_obj, method_name):
@@ -577,8 +593,9 @@ class EventManager(metaclass=Singleton):
             try:
                 method(event)
             except Exception as e:
-                self.__handle_event_error(event=event, module_name=class_name,
-                                          class_name=class_name, method_name=method_name, e=e)
+                self.__handle_event_error(
+                    event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e
+                )
 
     async def __invoke_handler_by_type_async(self, handler: Callable, event: Event):
         """
@@ -588,8 +605,8 @@ class EventManager(metaclass=Singleton):
         """
         class_name, method_name = self.__parse_handler_names(handler)
 
-        from app.core.plugin import PluginManager
         from app.core.module import ModuleManager
+        from app.core.plugin import PluginManager
 
         plugin_manager = PluginManager()
         module_manager = ModuleManager()
@@ -606,13 +623,18 @@ class EventManager(metaclass=Singleton):
                     else:
                         await run_in_threadpool(handler, event)
                 except Exception as e:
-                    self.__handle_event_error(event=event, module_name=self.__get_handler_identifier(handler),
-                                              class_name=class_name, method_name=method_name, e=e)
+                    self.__handle_event_error(
+                        event=event,
+                        module_name=self.__get_handler_identifier(handler),
+                        class_name=class_name,
+                        method_name=method_name,
+                        e=e,
+                    )
                 return
             await self.__invoke_global_method_async(class_name, method_name, event)
 
     @staticmethod
-    def __parse_handler_names(handler: Callable) -> Tuple[str, str]:
+    def __parse_handler_names(handler: Callable) -> tuple[str, str]:
         """
         解析处理器的类名和方法名
         :param handler: 处理器
@@ -640,8 +662,9 @@ class EventManager(metaclass=Singleton):
                 # 插件同步函数在异步环境中运行，避免阻塞
                 await run_in_threadpool(method, event)
         except Exception as e:
-            self.__handle_event_error(event=event, module_name=plugin.name,
-                                      class_name=class_name, method_name=method_name, e=e)
+            self.__handle_event_error(
+                event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e
+            )
 
     async def __invoke_module_method_async(self, handler: Any, class_name: str, method_name: str, event: Event):
         """
@@ -659,8 +682,9 @@ class EventManager(metaclass=Singleton):
             else:
                 method(event)
         except Exception as e:
-            self.__handle_event_error(event=event, module_name=module.get_name(),
-                                      class_name=class_name, method_name=method_name, e=e)
+            self.__handle_event_error(
+                event=event, module_name=module.get_name(), class_name=class_name, method_name=method_name, e=e
+            )
 
     async def __invoke_global_method_async(self, class_name: str, method_name: str, event: Event):
         """
@@ -678,8 +702,9 @@ class EventManager(metaclass=Singleton):
             else:
                 method(event)
         except Exception as e:
-            self.__handle_event_error(event=event, module_name=class_name,
-                                      class_name=class_name, method_name=method_name, e=e)
+            self.__handle_event_error(
+                event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e
+            )
 
     @staticmethod
     def __get_class_instance(class_name: str):
@@ -729,11 +754,13 @@ class EventManager(metaclass=Singleton):
         持续从队列中提取事件的后台广播消费者线程
         """
         jitter_factor = 0.1
-        rate_limiter = ExponentialBackoffRateLimiter(base_wait=INITIAL_EVENT_QUEUE_IDLE_TIMEOUT_SECONDS,
-                                                     max_wait=MAX_EVENT_QUEUE_IDLE_TIMEOUT_SECONDS,
-                                                     backoff_factor=2.0,
-                                                     source="BroadcastConsumer",
-                                                     enable_logging=False)
+        rate_limiter = ExponentialBackoffRateLimiter(
+            base_wait=INITIAL_EVENT_QUEUE_IDLE_TIMEOUT_SECONDS,
+            max_wait=MAX_EVENT_QUEUE_IDLE_TIMEOUT_SECONDS,
+            backoff_factor=2.0,
+            source="BroadcastConsumer",
+            enable_logging=False,
+        )
         while self.__event.is_set():
             try:
                 priority, event = self.__event_queue.get(timeout=rate_limiter.current_wait)
@@ -750,8 +777,7 @@ class EventManager(metaclass=Singleton):
         """
         logger.debug(f"{stage} - {event}")
 
-    def __handle_event_error(self, event: Event, module_name: str,
-                             class_name: str, method_name: str, e: Exception):
+    def __handle_event_error(self, event: Event, module_name: str, class_name: str, method_name: str, e: Exception):
         """
         全局错误处理器，用于处理事件处理中的异常
         """
@@ -759,9 +785,12 @@ class EventManager(metaclass=Singleton):
 
         # 发送系统错误通知
         from app.helper.message import MessageHelper
-        MessageHelper().put(title=f"{module_name} 处理事件 {event.event_type} 时出错",
-                            message=f"{class_name}.{method_name}：{str(e)}",
-                            role="system")
+
+        MessageHelper().put(
+            title=f"{module_name} 处理事件 {event.event_type} 时出错",
+            message=f"{class_name}.{method_name}：{str(e)}",
+            role="system",
+        )
         self.send_event(
             EventType.SystemError,
             {
@@ -769,12 +798,15 @@ class EventManager(metaclass=Singleton):
                 "event_type": event.event_type,
                 "event_handle": f"{class_name}.{method_name}",
                 "error": str(e),
-                "traceback": traceback.format_exc()
-            }
+                "traceback": traceback.format_exc(),
+            },
         )
 
-    def register(self, etype: Union[EventType, ChainEventType, List[Union[EventType, ChainEventType]], type],
-                 priority: Optional[int] = DEFAULT_EVENT_PRIORITY):
+    def register(
+        self,
+        etype: EventType | ChainEventType | list[EventType | ChainEventType] | type,
+        priority: int | None = DEFAULT_EVENT_PRIORITY,
+    ):
         """
         事件注册装饰器，用于将函数注册为事件的处理器
         :param etype:

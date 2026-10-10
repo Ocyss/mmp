@@ -1,25 +1,25 @@
 """查询自定义过滤规则工具。"""
 
 import json
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     collect_custom_rule_group_refs,
     get_custom_rules,
     get_rule_groups,
     serialize_custom_rule,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
 class QueryCustomFilterRulesInput(BaseModel):
     """查询自定义过滤规则工具的输入参数模型"""
 
-    rule_ids: Optional[List[str]] = Field(
+    rule_ids: list[str] | None = Field(
         None,
         description="Optional list of custom rule IDs to query. If omitted, return all custom rules.",
     )
@@ -40,9 +40,9 @@ class QueryCustomFilterRulesTool(MoviePilotTool):
         "Custom rules can be referenced from rule_string expressions in filter rule groups. "
         "Use this tool before add_rule_group or update_rule_group to learn valid custom rule IDs."
     )
-    args_schema: Type[BaseModel] = QueryCustomFilterRulesInput
+    args_schema: type[BaseModel] = QueryCustomFilterRulesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         rule_ids = kwargs.get("rule_ids") or []
         if rule_ids:
             return f"查询自定义过滤规则: {', '.join(rule_ids)}"
@@ -50,7 +50,7 @@ class QueryCustomFilterRulesTool(MoviePilotTool):
 
     async def run(
         self,
-        rule_ids: Optional[List[str]] = None,
+        rule_ids: list[str] | None = None,
         include_group_refs: bool = True,
         **kwargs,
     ) -> str:
@@ -60,9 +60,7 @@ class QueryCustomFilterRulesTool(MoviePilotTool):
             custom_rules = get_custom_rules()
             if rule_ids:
                 target_ids = set(rule_ids)
-                custom_rules = [
-                    rule for rule in custom_rules if rule.id in target_ids
-                ]
+                custom_rules = [rule for rule in custom_rules if rule.id in target_ids]
 
             refs = {}
             if include_group_refs:
@@ -71,10 +69,7 @@ class QueryCustomFilterRulesTool(MoviePilotTool):
                     [rule.id for rule in custom_rules if rule.id],
                 )
 
-            serialized = [
-                serialize_custom_rule(rule, refs.get(rule.id))
-                for rule in custom_rules
-            ]
+            serialized = [serialize_custom_rule(rule, refs.get(rule.id)) for rule in custom_rules]
             return json.dumps(
                 {
                     "success": True,

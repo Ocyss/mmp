@@ -12,31 +12,31 @@ class OpenAIModelInfo(BaseModel):
 
 class OpenAIModelListResponse(BaseModel):
     object: str = "list"
-    data: List[OpenAIModelInfo] = Field(default_factory=list)
+    data: list[OpenAIModelInfo] = Field(default_factory=list)
 
 
 class OpenAIChatMessage(BaseModel):
     role: str
     content: Any
-    name: Optional[str] = None
+    name: str | None = None
 
     model_config = ConfigDict(extra="allow")
 
 
 class OpenAIChatCompletionsRequest(BaseModel):
-    model: Optional[str] = None
-    messages: List[OpenAIChatMessage]
-    user: Optional[str] = None
+    model: str | None = None
+    messages: list[OpenAIChatMessage]
+    user: str | None = None
     stream: bool = False
 
     model_config = ConfigDict(extra="allow")
 
 
 class OpenAIResponsesRequest(BaseModel):
-    model: Optional[str] = None
+    model: str | None = None
     input: Any
-    instructions: Optional[str] = None
-    user: Optional[str] = None
+    instructions: str | None = None
+    user: str | None = None
     stream: bool = False
 
     model_config = ConfigDict(extra="allow")
@@ -64,14 +64,14 @@ class OpenAIChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int
     model: str
-    choices: List[OpenAIChatChoice]
+    choices: list[OpenAIChatChoice]
     usage: OpenAIUsage
 
 
 class OpenAIResponsesOutputText(BaseModel):
     type: str = "output_text"
     text: str
-    annotations: List[Dict[str, Any]] = Field(default_factory=list)
+    annotations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class OpenAIResponsesOutputMessage(BaseModel):
@@ -79,7 +79,7 @@ class OpenAIResponsesOutputMessage(BaseModel):
     type: str = "message"
     status: str = "completed"
     role: str = "assistant"
-    content: List[OpenAIResponsesOutputText] = Field(default_factory=list)
+    content: list[OpenAIResponsesOutputText] = Field(default_factory=list)
 
 
 class OpenAIResponsesResponse(BaseModel):
@@ -88,24 +88,24 @@ class OpenAIResponsesResponse(BaseModel):
     created_at: int
     status: str = "completed"
     model: str
-    output: List[OpenAIResponsesOutputMessage] = Field(default_factory=list)
-    error: Optional[Any] = None
-    incomplete_details: Optional[Any] = None
+    output: list[OpenAIResponsesOutputMessage] = Field(default_factory=list)
+    error: Any | None = None
+    incomplete_details: Any | None = None
     usage: OpenAIUsage
 
 
 class OpenAIErrorDetail(BaseModel):
     message: str
     type: str = "invalid_request_error"
-    param: Optional[str] = None
-    code: Optional[str] = None
+    param: str | None = None
+    code: str | None = None
 
 
 class OpenAIErrorResponse(BaseModel):
     error: OpenAIErrorDetail
 
 
-OpenAIChatContentPart = Dict[str, Any]
+OpenAIChatContentPart = dict[str, Any]
 
 
 class AnthropicMessage(BaseModel):
@@ -116,10 +116,10 @@ class AnthropicMessage(BaseModel):
 
 
 class AnthropicMessagesRequest(BaseModel):
-    model: Optional[str] = None
-    messages: List[AnthropicMessage]
-    system: Optional[Any] = None
-    max_tokens: Optional[int] = 1024
+    model: str | None = None
+    messages: list[AnthropicMessage]
+    system: Any | None = None
+    max_tokens: int | None = 1024
     stream: bool = False
 
     model_config = ConfigDict(extra="allow")
@@ -139,10 +139,10 @@ class AnthropicMessagesResponse(BaseModel):
     id: str
     type: str = "message"
     role: str = "assistant"
-    content: List[AnthropicTextBlock] = Field(default_factory=list)
+    content: list[AnthropicTextBlock] = Field(default_factory=list)
     model: str
     stop_reason: str = "end_turn"
-    stop_sequence: Optional[str] = None
+    stop_sequence: str | None = None
     usage: AnthropicUsage = Field(default_factory=AnthropicUsage)
 
 

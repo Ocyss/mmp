@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from typing import Optional, Tuple
 from urllib.parse import urljoin
@@ -43,21 +42,14 @@ class MTorrentSiteUserInfo(SiteParserBase):
         self._user_traffic_page = None
         self._user_detail_page = None
         self._user_basic_page = "api/member/profile"
-        self._user_basic_params = {
-            "uid": self.userid
-        }
+        self._user_basic_params = {"uid": self.userid}
         self._sys_mail_unread_page = None
         self._user_mail_unread_page = "api/msg/search"
-        self._mail_unread_params = {
-            "keyword": "",
-            "box": "-2",
-            "type": "pageNumber",
-            "pageSize": 100
-        }
+        self._mail_unread_params = {"keyword": "", "box": "-2", "type": "pageNumber", "pageSize": 100}
         self._torrent_seeding_page = "api/member/getUserTorrentList"
         self._torrent_seeding_headers = {
             "Content-Type": "application/json",
-            "Accept": "application/json, text/plain, */*"
+            "Accept": "application/json, text/plain, */*",
         }
         self._addition_headers = {
             "x-api-key": self.apikey,
@@ -87,17 +79,12 @@ class MTorrentSiteUserInfo(SiteParserBase):
         self.user_level = self.MTeam_sysRoleList.get(user_info.get("role") or "1")
         self.join_at = user_info.get("memberStatus", {}).get("createdDate")
 
-        self.upload = int(user_info.get("memberCount", {}).get("uploaded") or '0')
-        self.download = int(user_info.get("memberCount", {}).get("downloaded") or '0')
+        self.upload = int(user_info.get("memberCount", {}).get("uploaded") or "0")
+        self.download = int(user_info.get("memberCount", {}).get("downloaded") or "0")
         self.ratio = user_info.get("memberCount", {}).get("shareRate") or 0
         self.bonus = user_info.get("memberCount", {}).get("bonus") or 0
         self.message_read_force = True
-        self._torrent_seeding_params = {
-            "pageNumber": 1,
-            "pageSize": 200,
-            "type": "SEEDING",
-            "userid": self.userid
-        }
+        self._torrent_seeding_params = {"pageNumber": 1, "pageSize": 200, "type": "SEEDING", "userid": self.userid}
 
     def _parse_user_traffic_info(self, html_text: str):
         """
@@ -111,7 +98,7 @@ class MTorrentSiteUserInfo(SiteParserBase):
         """
         pass
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
         解析用户做种信息
         """
@@ -135,8 +122,8 @@ class MTorrentSiteUserInfo(SiteParserBase):
             torrent = info.get("torrent")
             if not isinstance(torrent, dict):
                 continue
-            size = int(torrent.get("size") or '0')
-            seeders = int(torrent.get("source") or '0')
+            size = int(torrent.get("size") or "0")
+            seeders = int(torrent.get("source") or "0")
             page_seeding += 1
             page_seeding_size += size
             page_seeding_info.append([seeders, size])
@@ -164,7 +151,7 @@ class MTorrentSiteUserInfo(SiteParserBase):
         self._torrent_seeding_params["pageNumber"] += 1
         return ""
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         解析未读消息链接，这里直接读出详情
         """
@@ -184,13 +171,12 @@ class MTorrentSiteUserInfo(SiteParserBase):
                 self.message_unread_contents.append((head, date, content))
                 # 设置已读
                 self._get_page_content(
-                    url=urljoin(self._base_url, f"api/msg/markRead"),
-                    params={"msgId": message.get("id")}
+                    url=urljoin(self._base_url, "api/msg/markRead"), params={"msgId": message.get("id")}
                 )
         # 是否存在下页数据
         return None
 
-    def _parse_message_content(self, html_text) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def _parse_message_content(self, html_text) -> tuple[str | None, str | None, str | None]:
         """
         解析消息内容
         """

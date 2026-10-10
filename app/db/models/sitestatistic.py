@@ -1,16 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, JSON, select
+from sqlalchemy import JSON, Column, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db import db_query, db_update, get_id_column, Base, async_db_query
+from app.db import Base, async_db_query, db_query, db_update, get_id_column
 
 
 class SiteStatistic(Base):
     """
     站点统计表
     """
+
     id = get_id_column()
     # 域名Key
     domain = Column(String, index=True)

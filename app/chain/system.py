@@ -2,17 +2,17 @@ import json
 import re
 import shutil
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 from app.chain import ChainBase
 from app.core.config import settings
 from app.core.plugin import PluginManager
 from app.helper.system import SystemHelper
 from app.log import logger
-from app.schemas import Notification, MessageChannel
+from app.schemas import MessageChannel, Notification
 from app.utils.http import RequestUtils
 from app.utils.system import SystemUtils
-from version import FRONTEND_VERSION, APP_VERSION
+from version import APP_VERSION, FRONTEND_VERSION
 
 
 class SystemChain(ChainBase):
@@ -22,34 +22,31 @@ class SystemChain(ChainBase):
 
     _restart_file = "__system_restart__"
 
-    def remote_clear_cache(self, channel: MessageChannel, userid: Union[int, str], source: Optional[str] = None):
+    def remote_clear_cache(self, channel: MessageChannel, userid: int | str, source: str | None = None):
         """
         清理系统缓存
         """
         self.clear_cache()
-        self.post_message(Notification(
-            channel=channel,
-            source=source,
-            title=f"缓存清理完成！",
-            userid=userid,
-            save_history=False))
+        self.post_message(
+            Notification(channel=channel, source=source, title="缓存清理完成！", userid=userid, save_history=False)
+        )
 
-    def restart(self, channel: MessageChannel, userid: Union[int, str], source: Optional[str] = None):
+    def restart(self, channel: MessageChannel, userid: int | str, source: str | None = None):
         """
         重启系统
         """
         if channel and userid:
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title="系统正在重启，请耐心等候！",
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(
+                    channel=channel,
+                    source=source,
+                    title="系统正在重启，请耐心等候！",
+                    userid=userid,
+                    save_history=False,
+                )
+            )
             # 保存重启信息
-            self.save_cache({
-                "channel": channel.value,
-                "userid": userid
-            }, self._restart_file)
+            self.save_cache({"channel": channel.value, "userid": userid}, self._restart_file)
         # 主动备份一次插件
         self.backup_plugins()
         # 重启
@@ -125,7 +122,6 @@ class SystemChain(ChainBase):
 
         # 系统被重置才恢复插件
         if SystemHelper().is_system_reset():
-
             # 确保插件目录存在
             plugins_dir.mkdir(parents=True, exist_ok=True)
 
@@ -180,16 +176,15 @@ class SystemChain(ChainBase):
             title += f"当前前端版本：{front_local_version}，远程版本：{front_release_version}"
         return title
 
-    def version(self, channel: MessageChannel, userid: Union[int, str], source: Optional[str] = None):
+    def version(self, channel: MessageChannel, userid: int | str, source: str | None = None):
         """
         查看当前版本、远程版本
         """
-        self.post_message(Notification(
-            channel=channel,
-            source=source,
-            title=self.__get_version_message(),
-            userid=userid,
-            save_history=False))
+        self.post_message(
+            Notification(
+                channel=channel, source=source, title=self.__get_version_message(), userid=userid, save_history=False
+            )
+        )
 
     def restart_finish(self):
         """
@@ -203,17 +198,20 @@ class SystemChain(ChainBase):
             if not isinstance(restart_channel, dict):
                 restart_channel = json.loads(restart_channel)
             channel = next(
-                (channel for channel in MessageChannel.__members__.values() if
-                 channel.value == restart_channel.get('channel')), None)
-            userid = restart_channel.get('userid')
+                (
+                    channel
+                    for channel in MessageChannel.__members__.values()
+                    if channel.value == restart_channel.get("channel")
+                ),
+                None,
+            )
+            userid = restart_channel.get("userid")
 
             # 版本号
             title = self.__get_version_message()
-            self.post_message(Notification(
-                channel=channel,
-                title=f"系统已重启完成！\n{title}",
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(channel=channel, title=f"系统已重启完成！\n{title}", userid=userid, save_history=False)
+            )
             self.remove_cache(self._restart_file)
 
     @staticmethod
@@ -223,18 +221,17 @@ class SystemChain(ChainBase):
         """
         try:
             # 获取所有发布的版本列表
-            response = RequestUtils(
-                proxies=settings.PROXY,
-                headers=settings.GITHUB_HEADERS
-            ).get_res("https://api.github.com/repos/jxxghp/MoviePilot/releases")
+            response = RequestUtils(proxies=settings.PROXY, headers=settings.GITHUB_HEADERS).get_res(
+                "https://api.github.com/repos/jxxghp/MoviePilot/releases"
+            )
             if response:
-                releases = [release['tag_name'] for release in response.json()]
+                releases = [release["tag_name"] for release in response.json()]
                 v2_releases = [tag for tag in releases if re.match(r"^v2\.", tag)]
                 if not v2_releases:
                     logger.warn("获取v2后端最新版本版本出错！")
                 else:
                     # 找到最新的v2版本
-                    latest_v2 = sorted(v2_releases, key=lambda s: list(map(int, re.findall(r'\d+', s))))[-1]
+                    latest_v2 = sorted(v2_releases, key=lambda s: list(map(int, re.findall(r"\d+", s))))[-1]
                     logger.info(f"获取到后端最新版本：{latest_v2}")
                     return latest_v2
             else:
@@ -250,18 +247,17 @@ class SystemChain(ChainBase):
         """
         try:
             # 获取所有发布的版本列表
-            response = RequestUtils(
-                proxies=settings.PROXY,
-                headers=settings.GITHUB_HEADERS
-            ).get_res("https://api.github.com/repos/jxxghp/MoviePilot-Frontend/releases")
+            response = RequestUtils(proxies=settings.PROXY, headers=settings.GITHUB_HEADERS).get_res(
+                "https://api.github.com/repos/jxxghp/MoviePilot-Frontend/releases"
+            )
             if response:
-                releases = [release['tag_name'] for release in response.json()]
+                releases = [release["tag_name"] for release in response.json()]
                 v2_releases = [tag for tag in releases if re.match(r"^v2\.", tag)]
                 if not v2_releases:
                     logger.warn("获取v2前端最新版本版本出错！")
                 else:
                     # 找到最新的v2版本
-                    latest_v2 = sorted(v2_releases, key=lambda s: list(map(int, re.findall(r'\d+', s))))[-1]
+                    latest_v2 = sorted(v2_releases, key=lambda s: list(map(int, re.findall(r"\d+", s))))[-1]
                     logger.info(f"获取到前端最新版本：{latest_v2}")
                     return latest_v2
             else:
@@ -288,7 +284,7 @@ class SystemChain(ChainBase):
             version_file = Path(settings.FRONTEND_PATH) / "version.txt"
         if version_file.exists():
             try:
-                with open(version_file, 'r', encoding='utf-8', errors='replace') as f:
+                with open(version_file, encoding="utf-8", errors="replace") as f:
                     version = str(f.read()).strip()
                 return version
             except Exception as err:

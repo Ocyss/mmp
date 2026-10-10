@@ -29,20 +29,16 @@ class SunnyPTSpider:
         self._indexer_id = indexer.get("id")
         self._name = indexer.get("name") or "SunnyPT"
         self._site_url = indexer.get("domain") or "https://sunnypt.top/"
-        self._api_url = str(
-            indexer.get("api_url") or "https://api.sunnypt.top/api/v1/mp"
-        ).rstrip("/")
+        self._api_url = str(indexer.get("api_url") or "https://api.sunnypt.top/api/v1/mp").rstrip("/")
         self._proxy = settings.PROXY if indexer.get("proxy") else None
         self._use_proxy = bool(indexer.get("proxy"))
         self._user_agent = indexer.get("ua") or settings.USER_AGENT
         self._api_key = indexer.get("apikey")
         self._timeout = indexer.get("timeout") or 15
-        self._configured_categories = self._parse_configured_categories(
-            indexer.get("category") or {}
-        )
+        self._configured_categories = self._parse_configured_categories(indexer.get("category") or {})
 
     @classmethod
-    def get_search_page_size(cls, keyword: Optional[str] = None) -> Optional[int]:
+    def get_search_page_size(cls, keyword: str | None = None) -> int | None:
         """
         获取搜索接口单页容量
 
@@ -86,7 +82,7 @@ class SunnyPTSpider:
         return category_map
 
     @classmethod
-    def _get_cached_categories(cls, api_url: str) -> Optional[dict]:
+    def _get_cached_categories(cls, api_url: str) -> dict | None:
         """
         获取未过期的站点分类缓存
 
@@ -194,7 +190,7 @@ class SunnyPTSpider:
         return category_map
 
     @staticmethod
-    def _media_type_value(media_type: MediaType) -> Optional[str]:
+    def _media_type_value(media_type: MediaType) -> str | None:
         """
         将 MoviePilot 媒体类型转换为 SunnyPT API 枚举
 
@@ -209,10 +205,10 @@ class SunnyPTSpider:
 
     def _build_params(
         self,
-        keyword: Optional[str],
+        keyword: str | None,
         media_type: MediaType,
-        category: Optional[str],
-        page: Optional[int],
+        category: str | None,
+        page: int | None,
         category_map: dict,
     ) -> dict:
         """
@@ -243,7 +239,7 @@ class SunnyPTSpider:
             params["categories"] = categories
         return params
 
-    def _parse_result(self, results: List[dict]) -> List[dict]:
+    def _parse_result(self, results: list[dict]) -> list[dict]:
         """
         将 SunnyPT API 种子数据转换为 MoviePilot 标准字段
 
@@ -264,34 +260,37 @@ class SunnyPTSpider:
 
             promotion = result.get("promotion") or {}
             promotion_active = bool(promotion.get("is_active"))
-            download_factor = float(promotion.get("down_multiplier", 1.0)) \
-                if promotion_active else 1.0
-            upload_factor = float(promotion.get("up_multiplier", 1.0)) \
-                if promotion_active else 1.0
-            freedate = StringUtils.unify_datetime_str(promotion.get("until")) \
-                if promotion_active and promotion.get("until") else None
+            download_factor = float(promotion.get("down_multiplier", 1.0)) if promotion_active else 1.0
+            upload_factor = float(promotion.get("up_multiplier", 1.0)) if promotion_active else 1.0
+            freedate = (
+                StringUtils.unify_datetime_str(promotion.get("until"))
+                if promotion_active and promotion.get("until")
+                else None
+            )
             torrent_id = result.get("id")
-            torrents.append({
-                "title": result.get("title"),
-                "description": result.get("subtitle"),
-                "enclosure": self._build_download_url(torrent_id),
-                "pubdate": StringUtils.unify_datetime_str(result.get("created_at")),
-                "size": int(result.get("size") or 0),
-                "seeders": int(result.get("seeders") or 0),
-                "peers": int(result.get("leechers") or 0),
-                "grabs": int(result.get("completed") or 0),
-                "downloadvolumefactor": download_factor,
-                "uploadvolumefactor": upload_factor,
-                "freedate": freedate,
-                "page_url": result.get("details_url"),
-                "imdbid": result.get("imdb_id"),
-                "labels": result.get("tags") or [],
-                "hit_and_run": bool(result.get("hit_and_run")),
-                "category": category,
-            })
+            torrents.append(
+                {
+                    "title": result.get("title"),
+                    "description": result.get("subtitle"),
+                    "enclosure": self._build_download_url(torrent_id),
+                    "pubdate": StringUtils.unify_datetime_str(result.get("created_at")),
+                    "size": int(result.get("size") or 0),
+                    "seeders": int(result.get("seeders") or 0),
+                    "peers": int(result.get("leechers") or 0),
+                    "grabs": int(result.get("completed") or 0),
+                    "downloadvolumefactor": download_factor,
+                    "uploadvolumefactor": upload_factor,
+                    "freedate": freedate,
+                    "page_url": result.get("details_url"),
+                    "imdbid": result.get("imdb_id"),
+                    "labels": result.get("tags") or [],
+                    "hit_and_run": bool(result.get("hit_and_run")),
+                    "category": category,
+                }
+            )
         return torrents
 
-    def _process_search_response(self, response) -> Tuple[bool, List[dict]]:
+    def _process_search_response(self, response) -> tuple[bool, list[dict]]:
         """
         处理 SunnyPT 种子搜索响应
 
@@ -305,11 +304,11 @@ class SunnyPTSpider:
 
     def search(
         self,
-        keyword: Optional[str],
+        keyword: str | None,
         mtype: MediaType = None,
-        cat: Optional[str] = None,
-        page: Optional[int] = 0,
-    ) -> Tuple[bool, List[dict]]:
+        cat: str | None = None,
+        page: int | None = 0,
+    ) -> tuple[bool, list[dict]]:
         """
         同步搜索 SunnyPT 种子
 
@@ -333,11 +332,11 @@ class SunnyPTSpider:
 
     async def async_search(
         self,
-        keyword: Optional[str],
+        keyword: str | None,
         mtype: MediaType = None,
-        cat: Optional[str] = None,
-        page: Optional[int] = 0,
-    ) -> Tuple[bool, List[dict]]:
+        cat: str | None = None,
+        page: int | None = 0,
+    ) -> tuple[bool, list[dict]]:
         """
         异步搜索 SunnyPT 种子
 
@@ -350,8 +349,7 @@ class SunnyPTSpider:
         if not self._api_key:
             logger.warning(f"{self._name} 未配置 API Key")
             return True, []
-        category_map = await self._async_load_categories() \
-            if mtype and not cat else self._configured_categories
+        category_map = await self._async_load_categories() if mtype and not cat else self._configured_categories
         params = self._build_params(keyword, mtype, cat, page, category_map)
         response = await AsyncRequestUtils(
             headers=self._request_headers(),
@@ -378,8 +376,6 @@ class SunnyPTSpider:
             "result": "data.download_url",
             "result_base_url": self._api_url,
         }
-        encoded_config = base64.b64encode(
-            json.dumps(request_config).encode("utf-8")
-        ).decode("ascii")
+        encoded_config = base64.b64encode(json.dumps(request_config).encode("utf-8")).decode("ascii")
         token_url = f"{self._api_url}/torrents/{torrent_id}/download-token"
         return f"[{encoded_config}]{token_url}"

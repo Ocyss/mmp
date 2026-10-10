@@ -2,9 +2,7 @@ from ..tmdb import TMDb
 
 
 class Find(TMDb):
-    _urls = {
-        "find": "/find/%s"
-    }
+    _urls = {"find": "/find/%s"}
 
     def find(self, external_id, external_source):
         """
@@ -14,8 +12,7 @@ class Find(TMDb):
         :return:
         """
         return self._request_obj(
-            self._urls["find"] % external_id.replace("/", "%2F"),
-            params="external_source=" + external_source
+            self._urls["find"] % external_id.replace("/", "%2F"), params="external_source=" + external_source
         )
 
     def find_by_imdb_id(self, imdb_id):
@@ -91,8 +88,7 @@ class Find(TMDb):
         :return:
         """
         return await self._async_request_obj(
-            self._urls["find"] % external_id.replace("/", "%2F"),
-            params="external_source=" + external_source
+            self._urls["find"] % external_id.replace("/", "%2F"), params="external_source=" + external_source
         )
 
     async def async_find_by_imdb_id(self, imdb_id):

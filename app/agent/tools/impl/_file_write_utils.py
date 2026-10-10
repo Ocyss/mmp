@@ -39,11 +39,7 @@ def atomic_write_text(
             os.fsync(file_handle.fileno())
 
         if expected_sha256:
-            if (
-                not path.is_file()
-                or calculate_file_sha256(path).casefold()
-                != expected_sha256.casefold()
-            ):
+            if not path.is_file() or calculate_file_sha256(path).casefold() != expected_sha256.casefold():
                 raise FileVersionConflictError(str(path))
         if path.exists():
             os.chmod(temp_path, path.stat().st_mode)

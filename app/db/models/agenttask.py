@@ -59,11 +59,11 @@ class AgentTask(Base):
     @classmethod
     @db_query
     def get_for_user(
-            cls,
-            db: Session,
-            task_id: int,
-            user_id: Optional[str] = None,
-    ) -> Optional["AgentTask"]:
+        cls,
+        db: Session,
+        task_id: int,
+        user_id: str | None = None,
+    ) -> AgentTask | None:
         """
         按任务 ID 和可选用户 ID 查询 Agent 定时任务。
         """
@@ -75,11 +75,11 @@ class AgentTask(Base):
     @classmethod
     @db_query
     def list_for_user(
-            cls,
-            db: Session,
-            user_id: Optional[str] = None,
-            enabled: Optional[bool] = None,
-    ) -> list["AgentTask"]:
+        cls,
+        db: Session,
+        user_id: str | None = None,
+        enabled: bool | None = None,
+    ) -> list[AgentTask]:
         """
         按用户和启用状态查询 Agent 定时任务。
         """
@@ -93,11 +93,11 @@ class AgentTask(Base):
     @classmethod
     @db_update
     def update_task(
-            cls,
-            db: Session,
-            task_id: int,
-            payload: dict,
-            user_id: Optional[str] = None,
+        cls,
+        db: Session,
+        task_id: int,
+        payload: dict,
+        user_id: str | None = None,
     ) -> bool:
         """
         按任务 ID 和可选用户 ID 更新 Agent 定时任务。
@@ -110,10 +110,10 @@ class AgentTask(Base):
     @classmethod
     @db_update
     def delete_task(
-            cls,
-            db: Session,
-            task_id: int,
-            user_id: Optional[str] = None,
+        cls,
+        db: Session,
+        task_id: int,
+        user_id: str | None = None,
     ) -> bool:
         """
         按任务 ID 和可选用户 ID 删除 Agent 定时任务。
@@ -149,12 +149,12 @@ class AgentTask(Base):
     @classmethod
     @db_update
     def finish_task(
-            cls,
-            db: Session,
-            task_id: int,
-            success: bool,
-            result: str,
-            disable: bool = False,
+        cls,
+        db: Session,
+        task_id: int,
+        success: bool,
+        result: str,
+        disable: bool = False,
     ) -> bool:
         """
         记录 Agent 定时任务执行结果，并按需关闭单次任务。

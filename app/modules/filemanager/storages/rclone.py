@@ -1,10 +1,11 @@
+import builtins
 import json
 import subprocess
 import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -41,10 +42,7 @@ class Rclone(StorageBase):
     schema = StorageSchema.Rclone
 
     # 支持的整理方式
-    transtype = {
-        "move": "移动",
-        "copy": "复制"
-    }
+    transtype = {"move": "移动", "copy": "复制"}
 
     snapshot_check_folder_modtime = settings.RCLONE_SNAPSHOT_CHECK_FOLDER_MODTIME
 
@@ -66,7 +64,7 @@ class Rclone(StorageBase):
         path = Path(filepath)
         if not path.parent.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(conf.get('content'), encoding='utf-8')
+        path.write_text(conf.get("content"), encoding="utf-8")
 
     @staticmethod
     def __get_hidden_shell():
@@ -79,41 +77,41 @@ class Rclone(StorageBase):
             return None
 
     @staticmethod
-    def __parse_rclone_progress(line: str) -> Optional[float]:
+    def __parse_rclone_progress(line: str) -> float | None:
         """
         解析rclone进度输出
         """
         if not line:
             return None
-        
+
         line = line.strip()
-        
+
         # 检查是否包含百分比
-        if '%' not in line:
+        if "%" not in line:
             return None
-            
+
         try:
             # 尝试多种进度输出格式
-            if 'ETA' in line:
+            if "ETA" in line:
                 # 格式: "Transferred: 1.234M / 5.678M, 22%, 1.234MB/s, ETA 2m3s"
-                percent_str = line.split('%')[0].split()[-1]
+                percent_str = line.split("%")[0].split()[-1]
                 return float(percent_str)
-            elif 'Transferred:' in line and '100%' in line:
+            elif "Transferred:" in line and "100%" in line:
                 # 传输完成
                 return 100.0
             else:
                 # 其他包含百分比的格式
                 parts = line.split()
                 for part in parts:
-                    if '%' in part:
-                        percent_str = part.replace('%', '')
+                    if "%" in part:
+                        percent_str = part.replace("%", "")
                         return float(percent_str)
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             pass
-            
+
         return None
 
-    def __get_rcloneitem(self, item: dict, parent: Optional[str] = "/") -> schemas.FileItem:
+    def __get_rcloneitem(self, item: dict, parent: str | None = "/") -> schemas.FileItem:
         """
         获取rclone文件项
         """
@@ -126,7 +124,7 @@ class Rclone(StorageBase):
                 path=f"{parent}{item.get('Name')}" + "/",
                 name=item.get("Name"),
                 basename=item.get("Name"),
-                modify_time=StringUtils.str_to_timestamp(item.get("ModTime"))
+                modify_time=StringUtils.str_to_timestamp(item.get("ModTime")),
             )
         else:
             return schemas.FileItem(
@@ -137,11 +135,11 @@ class Rclone(StorageBase):
                 basename=Path(item.get("Name")).stem,
                 extension=Path(item.get("Name")).suffix[1:],
                 size=item.get("Size"),
-                modify_time=StringUtils.str_to_timestamp(item.get("ModTime"))
+                modify_time=StringUtils.str_to_timestamp(item.get("ModTime")),
             )
 
     @staticmethod
-    def __normalize_remote_path(path: Union[Path, str]) -> str:
+    def __normalize_remote_path(path: Path | str) -> str:
         """
         规范化远端路径，统一目录锁键值。
         """
@@ -153,7 +151,7 @@ class Rclone(StorageBase):
         return path_str or "/"
 
     @staticmethod
-    def __get_path_lock(path: Union[Path, str]) -> threading.Lock:
+    def __get_path_lock(path: Path | str) -> threading.Lock:
         """
         获取指定远端路径的模块级锁。
         """
@@ -168,9 +166,7 @@ class Rclone(StorageBase):
             _folder_locks[normalized] = lock
             return lock
 
-    def __wait_for_item(
-        self, path: Path, retries: int = 3, delay: float = 0.2
-    ) -> Optional[schemas.FileItem]:
+    def __wait_for_item(self, path: Path, retries: int = 3, delay: float = 0.2) -> schemas.FileItem | None:
         """
         等待目录或文件在远端可见，兼容云盘最终一致性延迟。
         """
@@ -187,17 +183,14 @@ class Rclone(StorageBase):
         检查存储是否可用
         """
         try:
-            retcode = subprocess.run(
-                ['rclone', 'lsf', 'MP:'],
-                startupinfo=self.__get_hidden_shell()
-            ).returncode
+            retcode = subprocess.run(["rclone", "lsf", "MP:"], startupinfo=self.__get_hidden_shell()).returncode
             if retcode == 0:
                 return True
         except Exception as err:
             logger.error(f"【rclone】存储检查失败：{err}")
         return False
 
-    def list(self, fileitem: schemas.FileItem) -> List[schemas.FileItem]:
+    def list(self, fileitem: schemas.FileItem) -> builtins.list[schemas.FileItem]:
         """
         浏览文件
         """
@@ -205,12 +198,7 @@ class Rclone(StorageBase):
             return [fileitem]
         try:
             ret = subprocess.run(
-                [
-                    'rclone', 'lsjson',
-                    f'MP:{fileitem.path}'
-                ],
-                capture_output=True,
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "lsjson", f"MP:{fileitem.path}"], capture_output=True, startupinfo=self.__get_hidden_shell()
             )
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
@@ -219,7 +207,7 @@ class Rclone(StorageBase):
             logger.error(f"【rclone】浏览文件失败：{err}")
         return []
 
-    def create_folder(self, fileitem: schemas.FileItem, name: str) -> Optional[schemas.FileItem]:
+    def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         :param fileitem: 父目录
@@ -228,11 +216,7 @@ class Rclone(StorageBase):
         path = Path(self.__normalize_remote_path(Path(fileitem.path) / name))
         try:
             retcode = subprocess.run(
-                [
-                    'rclone', 'mkdir',
-                    f'MP:{path}'
-                ],
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "mkdir", f"MP:{path}"], startupinfo=self.__get_hidden_shell()
             ).returncode
             if retcode == 0:
                 folder = self.__wait_for_item(path)
@@ -252,7 +236,7 @@ class Rclone(StorageBase):
                 return folder
         return None
 
-    def get_folder(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, path: Path) -> schemas.FileItem | None:
         """
         根据文件路程获取目录，不存在则创建
         """
@@ -276,18 +260,13 @@ class Rclone(StorageBase):
                 fileitem = dir_file
         return fileitem
 
-    def get_item(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_item(self, path: Path) -> schemas.FileItem | None:
         """
         获取文件或目录，不存在返回None
         """
         try:
             ret = subprocess.run(
-                [
-                    'rclone', 'lsjson',
-                    f'MP:{path.parent}'
-                ],
-                capture_output=True,
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "lsjson", f"MP:{path.parent}"], capture_output=True, startupinfo=self.__get_hidden_shell()
             )
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
@@ -305,11 +284,7 @@ class Rclone(StorageBase):
         """
         try:
             retcode = subprocess.run(
-                [
-                    'rclone', 'deletefile',
-                    f'MP:{fileitem.path}'
-                ],
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "deletefile", f"MP:{fileitem.path}"], startupinfo=self.__get_hidden_shell()
             ).returncode
             if retcode == 0:
                 return True
@@ -323,12 +298,8 @@ class Rclone(StorageBase):
         """
         try:
             retcode = subprocess.run(
-                [
-                    'rclone', 'moveto',
-                    f'MP:{fileitem.path}',
-                    f'MP:{Path(fileitem.path).parent / name}'
-                ],
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "moveto", f"MP:{fileitem.path}", f"MP:{Path(fileitem.path).parent / name}"],
+                startupinfo=self.__get_hidden_shell(),
             ).returncode
             if retcode == 0:
                 return True
@@ -336,35 +307,37 @@ class Rclone(StorageBase):
             logger.error(f"【rclone】重命名文件失败：{err}")
         return False
 
-    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Optional[Path]:
+    def download(self, fileitem: schemas.FileItem, path: Path = None) -> Path | None:
         """
         带实时进度显示的下载
         """
         local_path = self._build_download_path(fileitem, path or settings.TEMP_PATH)
         if not local_path:
             return None
-        
+
         # 初始化进度条
         logger.info(f"【rclone】开始下载: {fileitem.name} -> {local_path}")
         progress_callback = transfer_process(Path(fileitem.path).as_posix())
-        
+
         try:
             # 使用rclone的进度显示功能
             process = subprocess.Popen(
                 [
-                    'rclone', 'copyto',
-                    '--progress',  # 启用进度显示
-                    '--stats', '1s',  # 每秒更新一次统计信息
-                    f'MP:{fileitem.path}',
-                    f'{local_path}'
+                    "rclone",
+                    "copyto",
+                    "--progress",  # 启用进度显示
+                    "--stats",
+                    "1s",  # 每秒更新一次统计信息
+                    f"MP:{fileitem.path}",
+                    f"{local_path}",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 startupinfo=self.__get_hidden_shell(),
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
             )
-            
+
             # 监控进度输出
             last_progress = 0
             for line in process.stdout:
@@ -376,7 +349,7 @@ class Rclone(StorageBase):
                         last_progress = progress
                         if progress >= 100:
                             break
-            
+
             # 等待进程完成
             retcode = process.wait()
             if retcode == 0:
@@ -385,7 +358,7 @@ class Rclone(StorageBase):
             else:
                 logger.error(f"【rclone】下载失败: {fileitem.name}")
                 return None
-                
+
         except Exception as err:
             logger.error(f"【rclone】下载失败: {fileitem.name} - {err}")
             # 删除可能部分下载的文件
@@ -393,8 +366,7 @@ class Rclone(StorageBase):
                 local_path.unlink()
             return None
 
-    def upload(self, fileitem: schemas.FileItem, path: Path,
-               new_name: Optional[str] = None) -> Optional[schemas.FileItem]:
+    def upload(self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None) -> schemas.FileItem | None:
         """
         带实时进度显示的上传
         :param fileitem: 上传目录项
@@ -403,28 +375,30 @@ class Rclone(StorageBase):
         """
         target_name = new_name or path.name
         new_path = Path(fileitem.path) / target_name
-        
+
         # 初始化进度条
         logger.info(f"【rclone】开始上传: {path} -> {new_path}")
         progress_callback = transfer_process(path.as_posix())
-        
+
         try:
             # 使用rclone的进度显示功能
             process = subprocess.Popen(
                 [
-                    'rclone', 'copyto',
-                    '--progress',  # 启用进度显示
-                    '--stats', '1s',  # 每秒更新一次统计信息
+                    "rclone",
+                    "copyto",
+                    "--progress",  # 启用进度显示
+                    "--stats",
+                    "1s",  # 每秒更新一次统计信息
                     path.as_posix(),
-                    f'MP:{new_path}'
+                    f"MP:{new_path}",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 startupinfo=self.__get_hidden_shell(),
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
             )
-            
+
             # 监控进度输出
             last_progress = 0
             for line in process.stdout:
@@ -436,7 +410,7 @@ class Rclone(StorageBase):
                         last_progress = progress
                         if progress >= 100:
                             break
-            
+
             # 等待进程完成
             retcode = process.wait()
             if retcode == 0:
@@ -445,23 +419,18 @@ class Rclone(StorageBase):
             else:
                 logger.error(f"【rclone】上传失败: {target_name}")
                 return None
-                
+
         except Exception as err:
             logger.error(f"【rclone】上传失败: {target_name} - {err}")
             return None
 
-    def detail(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def detail(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取文件详情
         """
         try:
             ret = subprocess.run(
-                [
-                    'rclone', 'lsjson',
-                    f'MP:{fileitem.path}'
-                ],
-                capture_output=True,
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "lsjson", f"MP:{fileitem.path}"], capture_output=True, startupinfo=self.__get_hidden_shell()
             )
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
@@ -478,28 +447,30 @@ class Rclone(StorageBase):
         :param new_name: 新文件名
         """
         target_path = path / new_name
-        
+
         # 初始化进度条
         logger.info(f"【rclone】开始移动: {fileitem.path} -> {target_path}")
         progress_callback = transfer_process(Path(fileitem.path).as_posix())
-        
+
         try:
             # 使用rclone的进度显示功能
             process = subprocess.Popen(
                 [
-                    'rclone', 'moveto',
-                    '--progress',  # 启用进度显示
-                    '--stats', '1s',  # 每秒更新一次统计信息
-                    f'MP:{fileitem.path}',
-                    f'MP:{target_path}'
+                    "rclone",
+                    "moveto",
+                    "--progress",  # 启用进度显示
+                    "--stats",
+                    "1s",  # 每秒更新一次统计信息
+                    f"MP:{fileitem.path}",
+                    f"MP:{target_path}",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 startupinfo=self.__get_hidden_shell(),
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
             )
-            
+
             # 监控进度输出
             last_progress = 0
             for line in process.stdout:
@@ -511,7 +482,7 @@ class Rclone(StorageBase):
                         last_progress = progress
                         if progress >= 100:
                             break
-            
+
             # 等待进程完成
             retcode = process.wait()
             if retcode == 0:
@@ -520,7 +491,7 @@ class Rclone(StorageBase):
             else:
                 logger.error(f"【rclone】移动失败: {fileitem.name}")
                 return False
-                
+
         except Exception as err:
             logger.error(f"【rclone】移动失败: {fileitem.name} - {err}")
             return False
@@ -533,28 +504,30 @@ class Rclone(StorageBase):
         :param new_name: 新文件名
         """
         target_path = path / new_name
-        
+
         # 初始化进度条
         logger.info(f"【rclone】开始复制: {fileitem.path} -> {target_path}")
         progress_callback = transfer_process(Path(fileitem.path).as_posix())
-        
+
         try:
             # 使用rclone的进度显示功能
             process = subprocess.Popen(
                 [
-                    'rclone', 'copyto',
-                    '--progress',  # 启用进度显示
-                    '--stats', '1s',  # 每秒更新一次统计信息
-                    f'MP:{fileitem.path}',
-                    f'MP:{target_path}'
+                    "rclone",
+                    "copyto",
+                    "--progress",  # 启用进度显示
+                    "--stats",
+                    "1s",  # 每秒更新一次统计信息
+                    f"MP:{fileitem.path}",
+                    f"MP:{target_path}",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 startupinfo=self.__get_hidden_shell(),
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
             )
-            
+
             # 监控进度输出
             last_progress = 0
             for line in process.stdout:
@@ -566,7 +539,7 @@ class Rclone(StorageBase):
                         last_progress = progress
                         if progress >= 100:
                             break
-            
+
             # 等待进程完成
             retcode = process.wait()
             if retcode == 0:
@@ -575,7 +548,7 @@ class Rclone(StorageBase):
             else:
                 logger.error(f"【rclone】复制失败: {fileitem.name}")
                 return False
-                
+
         except Exception as err:
             logger.error(f"【rclone】复制失败: {fileitem.name} - {err}")
             return False
@@ -586,7 +559,7 @@ class Rclone(StorageBase):
     def softlink(self, fileitem: schemas.FileItem, target_file: Path) -> bool:
         pass
 
-    def usage(self) -> Optional[schemas.StorageUsage]:
+    def usage(self) -> schemas.StorageUsage | None:
         """
         存储使用情况
         """
@@ -597,7 +570,7 @@ class Rclone(StorageBase):
         if not file_path or not Path(file_path).exists():
             return None
         # 读取rclone文件，检查是否有[MP]节点配置
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
             if not lines:
                 return None
@@ -605,19 +578,11 @@ class Rclone(StorageBase):
                 return None
         try:
             ret = subprocess.run(
-                [
-                    'rclone', 'about',
-                    'MP:/', '--json'
-                ],
-                capture_output=True,
-                startupinfo=self.__get_hidden_shell()
+                ["rclone", "about", "MP:/", "--json"], capture_output=True, startupinfo=self.__get_hidden_shell()
             )
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
-                return schemas.StorageUsage(
-                    total=items.get("total"),
-                    available=items.get("free")
-                )
+                return schemas.StorageUsage(total=items.get("total"), available=items.get("free"))
         except Exception as err:
             logger.error(f"【rclone】获取存储使用情况失败：{err}")
         return None

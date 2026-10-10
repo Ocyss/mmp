@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import gc
 import hashlib
 import inspect
@@ -6,9 +7,9 @@ import json
 import multiprocessing
 import threading
 import traceback
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable, Optional, Dict, Any
-from typing import List
+from typing import Any, Dict, List, Optional
 
 import pytz
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -25,12 +26,12 @@ from app.chain.site import SiteChain
 from app.chain.subscribe import SubscribeChain
 from app.chain.transfer import TransferChain
 from app.chain.workflow import WorkflowChain
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.core.event import Event, eventmanager
 from app.core.plugin import PluginManager
 from app.db import SessionFactory
 from app.db.agenttask_oper import AgentTaskOper
-from app.db.models.downloadhistory import DownloadHistory, DownloadFiles
+from app.db.models.downloadhistory import DownloadFiles, DownloadHistory
 from app.db.models.message import Message
 from app.db.models.siteuserdata import SiteUserData
 from app.db.models.transferhistory import TransferHistory
@@ -58,14 +59,15 @@ class SchedulerChain(ChainBase):
     """
     定时任务链，负责执行各类定时任务，包括数据清理等
     """
+
     # 每批处理的记录数，避免一次性删除过多数据导致性能问题
     DEFAULT_BATCH_SIZE = 500
 
     def cleanup(
-            self,
-            batch_size: Optional[int] = None,
-            progress_callback: Optional[Callable[..., None]] = None,
-    ) -> Dict[str, Any]:
+        self,
+        batch_size: int | None = None,
+        progress_callback: Callable[..., None] | None = None,
+    ) -> dict[str, Any]:
         """
         按配置保留期执行分批清理。
         """
@@ -74,7 +76,7 @@ class SchedulerChain(ChainBase):
         if batch_size <= 0:
             batch_size = self.DEFAULT_BATCH_SIZE
 
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "started_at": started_at.strftime("%Y-%m-%d %H:%M:%S"),
             "batch_size": batch_size,
             "enabled": bool(settings.DATA_CLEANUP_ENABLE),
@@ -148,9 +150,7 @@ class SchedulerChain(ChainBase):
 
         if errors:
             report["errors"] = errors
-            logger.error(
-                f"数据表清理部分失败：{json.dumps(report, ensure_ascii=False)}"
-            )
+            logger.error(f"数据表清理部分失败：{json.dumps(report, ensure_ascii=False)}")
             raise RuntimeError("；".join(errors))
 
         logger.info(f"数据表清理完成：{json.dumps(report, ensure_ascii=False)}")
@@ -160,38 +160,24 @@ class SchedulerChain(ChainBase):
     def _normalize_retention_days(retention_days: Any) -> int:
         try:
             normalized_days = int(retention_days or 0)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return 0
         return max(normalized_days, 0)
 
     def _build_cleanup_plans(
-            self,
-            started_at: datetime,
-            batch_size: int,
-    ) -> List[Dict[str, Any]]:
+        self,
+        started_at: datetime,
+        batch_size: int,
+    ) -> list[dict[str, Any]]:
         message_days = self._normalize_retention_days(settings.DATA_CLEANUP_MESSAGE_DAYS)
-        download_history_days = self._normalize_retention_days(
-            settings.DATA_CLEANUP_DOWNLOAD_HISTORY_DAYS
-        )
-        site_userdata_days = self._normalize_retention_days(
-            settings.DATA_CLEANUP_SITE_USERDATA_DAYS
-        )
-        transfer_history_days = self._normalize_retention_days(
-            settings.DATA_CLEANUP_TRANSFER_HISTORY_DAYS
-        )
+        download_history_days = self._normalize_retention_days(settings.DATA_CLEANUP_DOWNLOAD_HISTORY_DAYS)
+        site_userdata_days = self._normalize_retention_days(settings.DATA_CLEANUP_SITE_USERDATA_DAYS)
+        transfer_history_days = self._normalize_retention_days(settings.DATA_CLEANUP_TRANSFER_HISTORY_DAYS)
 
-        message_cutoff = (
-                started_at - timedelta(days=message_days)
-        ).strftime("%Y-%m-%d")
-        download_history_cutoff = (
-                started_at - timedelta(days=download_history_days)
-        ).strftime("%Y-%m-%d")
-        site_userdata_cutoff = (
-                started_at - timedelta(days=site_userdata_days)
-        ).strftime("%Y-%m-%d")
-        transfer_history_cutoff = (
-                started_at - timedelta(days=transfer_history_days)
-        ).strftime("%Y-%m-%d")
+        message_cutoff = (started_at - timedelta(days=message_days)).strftime("%Y-%m-%d")
+        download_history_cutoff = (started_at - timedelta(days=download_history_days)).strftime("%Y-%m-%d")
+        site_userdata_cutoff = (started_at - timedelta(days=site_userdata_days)).strftime("%Y-%m-%d")
+        transfer_history_cutoff = (started_at - timedelta(days=transfer_history_days)).strftime("%Y-%m-%d")
 
         return [
             {
@@ -247,10 +233,10 @@ class SchedulerChain(ChainBase):
 
     @staticmethod
     def _cleanup_in_batches(
-            db: Session,
-            table_name: str,
-            delete_batch: Callable[[Session], int],
-    ) -> Dict[str, int]:
+        db: Session,
+        table_name: str,
+        delete_batch: Callable[[Session], int],
+    ) -> dict[str, int]:
         """
         循环执行单表分批删除，直到没有可删除数据。
         """
@@ -263,9 +249,7 @@ class SchedulerChain(ChainBase):
                 break
             batches += 1
             total_deleted += deleted
-            logger.info(
-                f"数据表 {table_name} 清理第 {batches} 批完成，删除 {deleted} 条记录"
-            )
+            logger.info(f"数据表 {table_name} 清理第 {batches} 批完成，删除 {deleted} 条记录")
 
         return {
             "deleted": total_deleted,
@@ -328,9 +312,9 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
 
     @staticmethod
     def _get_mediaserver_sync_interval(
-            mediaserver: schemas.MediaServerConf,
-            default_interval: Optional[int],
-    ) -> Optional[int]:
+        mediaserver: schemas.MediaServerConf,
+        default_interval: int | None,
+    ) -> int | None:
         """
         获取媒体服务器的有效同步间隔，未设置时回退旧全局配置。
         """
@@ -339,16 +323,16 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             interval = default_interval
         try:
             interval = int(interval)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         return interval if interval > 0 else None
 
     @classmethod
     def _build_mediaserver_sync_schedules(
-            cls,
-            mediaservers: List[schemas.MediaServerConf],
-            default_interval: Optional[int],
-    ) -> List[dict]:
+        cls,
+        mediaservers: builtins.list[schemas.MediaServerConf],
+        default_interval: int | None,
+    ) -> builtins.list[dict]:
         """
         构建已启用媒体服务器的独立自动同步任务描述。
         """
@@ -386,7 +370,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         return f"{SCHEDULER_PROGRESS_PREFIX}:{job_id}"
 
     @staticmethod
-    def _format_time(value: Optional[datetime] = None) -> str:
+    def _format_time(value: datetime | None = None) -> str:
         """
         格式化进度事件时间。
         """
@@ -520,10 +504,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             )
 
             # CookieCloud定时同步
-            if (
-                    settings.COOKIECLOUD_INTERVAL
-                    and str(settings.COOKIECLOUD_INTERVAL).isdigit()
-            ):
+            if settings.COOKIECLOUD_INTERVAL and str(settings.COOKIECLOUD_INTERVAL).isdigit():
                 self._scheduler.add_job(
                     self.start,
                     "interval",
@@ -603,10 +584,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                     )
             else:
                 # RSS订阅模式
-                if (
-                        not settings.SUBSCRIBE_RSS_INTERVAL
-                        or not str(settings.SUBSCRIBE_RSS_INTERVAL).isdigit()
-                ):
+                if not settings.SUBSCRIBE_RSS_INTERVAL or not str(settings.SUBSCRIBE_RSS_INTERVAL).isdigit():
                     settings.SUBSCRIBE_RSS_INTERVAL = 30
                 elif int(settings.SUBSCRIBE_RSS_INTERVAL) < 5:
                     settings.SUBSCRIBE_RSS_INTERVAL = 5
@@ -771,7 +749,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             # 启动定时服务
             self._scheduler.start()
 
-    def __prepare_job(self, job_id: str) -> Optional[dict]:
+    def __prepare_job(self, job_id: str) -> dict | None:
         """
         准备定时任务
         """
@@ -806,10 +784,10 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         return job
 
     def __finish_job(
-            self,
-            job_id: str,
-            success: bool = True,
-            error: Optional[str] = None,
+        self,
+        job_id: str,
+        success: bool = True,
+        error: str | None = None,
     ) -> None:
         """
         完成定时任务
@@ -840,7 +818,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             value=progress_value,
         )
 
-    def get_progress(self, job_id: str) -> Optional[schemas.ScheduleProgress]:
+    def get_progress(self, job_id: str) -> schemas.ScheduleProgress | None:
         """
         查询指定定时服务的执行进度。
         """
@@ -861,7 +839,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         value = detail.get("value", 0)
         try:
             value = float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             value = 0.0
         return schemas.ScheduleProgress(
             id=job_id,
@@ -883,12 +861,8 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         """
         记录定时任务执行异常并发送系统错误事件。
         """
-        logger.error(
-            f"定时任务 {job.get('name')} 执行失败：{str(error)} - {traceback.format_exc()}"
-        )
-        MessageHelper().put(
-            title=f"{job.get('name')} 执行失败", message=str(error), role="system"
-        )
+        logger.error(f"定时任务 {job.get('name')} 执行失败：{str(error)} - {traceback.format_exc()}")
+        MessageHelper().put(title=f"{job.get('name')} 执行失败", message=str(error), role="system")
         eventmanager.send_event(
             EventType.SystemError,
             {
@@ -906,9 +880,9 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         """
 
         def update_progress(
-                value: Optional[float] = None,
-                text: Optional[str] = None,
-                data: Optional[dict] = None,
+            value: float | None = None,
+            text: str | None = None,
+            data: dict | None = None,
         ) -> None:
             """
             更新当前定时任务进度。
@@ -937,21 +911,16 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         """
         try:
             parameters = inspect.signature(func).parameters
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         return "progress_callback" in parameters
 
     @staticmethod
-    def __get_result_error(result: Any) -> Optional[str]:
+    def __get_result_error(result: Any) -> str | None:
         """
         从定时任务标准失败返回值中提取错误信息。
         """
-        if (
-                isinstance(result, tuple)
-                and result
-                and isinstance(result[0], bool)
-                and result[0] is False
-        ):
+        if isinstance(result, tuple) and result and isinstance(result[0], bool) and result[0] is False:
             return str(result[1]) if len(result) > 1 and result[1] else "定时任务返回失败"
         return None
 
@@ -1013,9 +982,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             if not func:
                 return
             if self.__supports_progress_callback(func) and "progress_callback" not in kwargs:
-                kwargs["progress_callback"] = self.__build_progress_callback(
-                    job_id=job_id, job=job
-                )
+                kwargs["progress_callback"] = self.__build_progress_callback(job_id=job_id, job=job)
             # 是否多进程运行
             run_in_process = job.get("run_in_process", False)
             if inspect.iscoroutinefunction(func):
@@ -1076,7 +1043,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                 )
             self.update_agent_task_job(task.id)
 
-    def update_agent_task_job(self, task_id: int) -> Optional[str]:
+    def update_agent_task_job(self, task_id: int) -> str | None:
         """
         按数据库中的最新配置新增或替换 Agent 自主定时任务。
 
@@ -1085,17 +1052,10 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         """
         self.remove_agent_task_job(task_id)
         task = AgentTaskOper().get(task_id)
-        if (
-                not settings.AI_AGENT_ENABLE
-                or not task
-                or not task.enabled
-                or not self._scheduler
-        ):
+        if not settings.AI_AGENT_ENABLE or not task or not task.enabled or not self._scheduler:
             return None
 
-        trigger_value = (
-            task.cron_expression if task.trigger_type == "cron" else task.run_at
-        )
+        trigger_value = task.cron_expression if task.trigger_type == "cron" else task.run_at
         try:
             trigger = TimerUtils.build_schedule_trigger(
                 trigger_type=task.trigger_type,
@@ -1144,7 +1104,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             except JobLookupError:
                 pass
 
-    def get_agent_task_next_run(self, task_id: int) -> Optional[str]:
+    def get_agent_task_next_run(self, task_id: int) -> str | None:
         """
         查询 Agent 自主定时任务的下一次执行时间。
 
@@ -1161,22 +1121,16 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         task = AgentTaskOper().get(task_id)
         if not task or not task.enabled:
             return None
-        trigger_value = (
-            task.cron_expression if task.trigger_type == "cron" else task.run_at
-        )
+        trigger_value = task.cron_expression if task.trigger_type == "cron" else task.run_at
         try:
             next_run_time = TimerUtils.get_schedule_next_run_time(
                 trigger_type=task.trigger_type,
                 trigger_value=trigger_value,
                 timezone_name=settings.TZ,
             )
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
-        return (
-            next_run_time.isoformat(timespec="seconds")
-            if next_run_time
-            else None
-        )
+        return next_run_time.isoformat(timespec="seconds") if next_run_time else None
 
     async def execute_agent_task(self, task_id: int) -> tuple[bool, str]:
         """
@@ -1248,7 +1202,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                     role="system",
                 )
 
-    def remove_plugin_job(self, pid: str, job_id: Optional[str] = None):
+    def remove_plugin_job(self, pid: str, job_id: str | None = None):
         """
         移除定时服务，可以是单个服务（包括默认服务）或整个插件的所有服务
         :param pid: 插件 ID
@@ -1266,9 +1220,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             else:
                 # 移除插件的所有服务
                 jobs_to_remove = [
-                    (job_id, service)
-                    for job_id, service in self._jobs.items()
-                    if service.get("pid") == pid
+                    (job_id, service) for job_id, service in self._jobs.items() if service.get("pid") == pid
                 ]
                 for job_id, _ in jobs_to_remove:
                     self._jobs.pop(job_id, None)
@@ -1289,9 +1241,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                             except JobLookupError:
                                 pass
                     if job_removed:
-                        logger.info(
-                            f"移除插件服务({plugin_name})：{service.get('name')}"
-                        )  # noqa
+                        logger.info(f"移除插件服务({plugin_name})：{service.get('name')}")  # noqa
                 except Exception as e:
                     logger.error(f"移除插件服务失败：{str(e)} - {job_id}: {service}")
                     SchedulerChain().messagehelper.put(
@@ -1349,9 +1299,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
             try:
                 plugin_services = plugin_manager.get_plugin_services(pid=pid)
             except Exception as e:
-                logger.error(
-                    f"运行插件 {pid} 服务失败：{str(e)} - {traceback.format_exc()}"
-                )
+                logger.error(f"运行插件 {pid} 服务失败：{str(e)} - {traceback.format_exc()}")
                 return
             # 获取插件名称
             plugin_name = plugin_manager.get_plugin_attr(pid, "plugin_name")
@@ -1378,9 +1326,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                         kwargs={"job_id": job_id},
                         replace_existing=True,
                     )
-                    logger.info(
-                        f"注册插件{plugin_name}服务：{service['name']} - {service['trigger']}"
-                    )
+                    logger.info(f"注册插件{plugin_name}服务：{service['name']} - {service['trigger']}")
                 except Exception as e:
                     logger.error(f"注册插件{plugin_name}服务失败：{str(e)} - {service}")
                     SchedulerChain().messagehelper.put(
@@ -1389,7 +1335,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                         role="system",
                     )
 
-    def list(self) -> List[schemas.ScheduleInfo]:
+    def list(self) -> builtins.list[schemas.ScheduleInfo]:
         """
         当前所有任务
         """
@@ -1489,9 +1435,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         collected = gc.collect()
         memory_after = get_memory_usage()
         memory_freed = memory_before - memory_after
-        logger.info(
-            f"主动内存回收完成，回收对象数: {collected}，释放内存: {memory_freed:.2f} MB"
-        )
+        logger.info(f"主动内存回收完成，回收对象数: {collected}，释放内存: {memory_freed:.2f} MB")
 
     @staticmethod
     async def agent_heartbeat():
@@ -1513,7 +1457,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
         if self._auth_count > __max_try__:
             if not self._auth_message:
                 SchedulerChain().messagehelper.put(
-                    title=f"用户认证失败",
+                    title="用户认证失败",
                     message="用户认证失败次数过多，将不再尝试认证！",
                     role="system",
                 )

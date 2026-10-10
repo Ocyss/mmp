@@ -1,7 +1,7 @@
 from pathlib import Path
-from typing import Optional, Dict, Union, List, Any
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.types import MediaType
 
@@ -10,132 +10,137 @@ class ExistMediaInfo(BaseModel):
     """
     媒体服务器存在媒体信息
     """
+
     # 类型 电影、电视剧
-    type: Optional[MediaType] = None
+    type: MediaType | None = None
     # 季
-    seasons: Optional[Dict[int, list]] = Field(default_factory=dict)
+    seasons: dict[int, list] | None = Field(default_factory=dict)
     # 媒体服务器类型：plex、jellyfin、emby、zspace、trimemedia、ugreen
-    server_type: Optional[str] = None
+    server_type: str | None = None
     # 媒体服务器名称
-    server: Optional[str] = None
+    server: str | None = None
     # 媒体ID
-    itemid: Optional[Union[str, int]] = None
+    itemid: str | int | None = None
 
 
 class NotExistMediaInfo(BaseModel):
     """
     媒体服务器不存在媒体信息
     """
+
     # 季
-    season: Optional[int] = None
+    season: int | None = None
     # 剧集列表
-    episodes: Optional[list] = Field(default_factory=list)
+    episodes: list | None = Field(default_factory=list)
     # 总集数
-    total_episode: Optional[int] = 0
+    total_episode: int | None = 0
     # 开始集
-    start_episode: Optional[int] = 0
+    start_episode: int | None = 0
     # 候选资源须完整覆盖目标范围
-    require_complete_coverage: Optional[bool] = False
+    require_complete_coverage: bool | None = False
 
 
 class RefreshMediaItem(BaseModel):
     """
     媒体库刷新信息
     """
+
     # 标题
-    title: Optional[str] = None
+    title: str | None = None
     # 年份
-    year: Optional[Union[str, int]] = None
+    year: str | int | None = None
     # 类型
-    type: Optional[MediaType] = None
+    type: MediaType | None = None
     # 类别
-    category: Optional[str] = None
+    category: str | None = None
     # 目录
-    target_path: Optional[Path] = None
+    target_path: Path | None = None
 
 
 class MediaServerLibrary(BaseModel):
     """
     媒体服务器媒体库信息
     """
+
     # 服务器
-    server: Optional[str] = None
+    server: str | None = None
     # ID
-    id: Optional[Union[str, int]] = None
+    id: str | int | None = None
     # 媒体服务器项目ID
-    item_id: Optional[Union[str, int]] = None
+    item_id: str | int | None = None
     # 媒体服务器ID
-    server_id: Optional[str] = None
+    server_id: str | None = None
     # 名称
-    name: Optional[str] = None
+    name: str | None = None
     # 路径
-    path: Optional[Union[str, list]] = None
+    path: str | list | None = None
     # 类型
-    type: Optional[str] = None
+    type: str | None = None
     # 媒体库内媒体数量
-    item_count: Optional[int] = None
+    item_count: int | None = None
     # 封面图
-    image: Optional[str] = None
+    image: str | None = None
     # 封面图列表
-    image_list: Optional[List[str]] = None
+    image_list: list[str] | None = None
     # 跳转链接
-    link: Optional[str] = None
+    link: str | None = None
     # 服务器类型
-    server_type: Optional[str] = None
+    server_type: str | None = None
     # 飞牛的图片需要Cookies
-    use_cookies: Optional[bool] = None
+    use_cookies: bool | None = None
 
 
 class MediaServerItemUserState(BaseModel):
     # 已播放
-    played: Optional[bool] = None
+    played: bool | None = None
     # 继续播放
-    resume: Optional[bool] = None
+    resume: bool | None = None
     # 上次播放时间 10位时间戳
-    last_played_date: Optional[str] = None
+    last_played_date: str | None = None
     # 播放次数(不等于完播次数，理解为浏览次数)
-    play_count: Optional[int] = None
+    play_count: int | None = None
     # 播放进度
-    percentage: Optional[float] = None
+    percentage: float | None = None
 
 
 class MediaServerItem(BaseModel):
     """
     媒体服务器媒体信息
     """
+
     # ID
-    id: Optional[Union[str, int]] = None
+    id: str | int | None = None
     # 服务器
-    server: Optional[str] = None
+    server: str | None = None
     # 媒体库ID
-    library: Optional[Union[str, int]] = None
+    library: str | int | None = None
     # 媒体服务器ID
-    server_id: Optional[str] = None
+    server_id: str | None = None
     # ID
-    item_id: Optional[str] = None
+    item_id: str | None = None
     # 类型
-    item_type: Optional[str] = None
+    item_type: str | None = None
     # 标题
-    title: Optional[str] = None
+    title: str | None = None
     # 原标题
-    original_title: Optional[str] = None
+    original_title: str | None = None
     # 年份
-    year: Optional[Union[str, int]] = None
+    year: str | int | None = None
     # TMDBID
-    tmdbid: Optional[int] = None
+    tmdbid: int | None = None
     # IMDBID
-    imdbid: Optional[str] = None
+    imdbid: str | None = None
     # TVDBID
-    tvdbid: Optional[str] = None
+    tvdbid: str | None = None
     # 路径
-    path: Optional[str] = None
+    path: str | None = None
     # 季集
-    seasoninfo: Optional[Dict[int, list]] = None
+    seasoninfo: dict[int, list] | None = None
     # 备注
-    note: Optional[Any] = None
+    note: Any | None = None
     # 同步时间
-    lst_mod_date: Optional[str] = None
-    user_state: Optional[MediaServerItemUserState] = None
+    lst_mod_date: str | None = None
+    user_state: MediaServerItemUserState | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -144,52 +149,55 @@ class MediaServerSeasonInfo(BaseModel):
     """
     媒体服务器媒体剧集信息
     """
-    season: Optional[int] = None
-    episodes: Optional[List[int]] = Field(default_factory=list)
+
+    season: int | None = None
+    episodes: list[int] | None = Field(default_factory=list)
 
 
 class WebhookEventInfo(BaseModel):
     """
     Webhook事件信息
     """
-    event: Optional[str] = None
-    channel: Optional[str] = None
-    server_name: Optional[str] = None
-    item_type: Optional[str] = None
-    item_name: Optional[str] = None
-    item_id: Optional[str] = None
-    item_path: Optional[str] = None
-    season_id: Optional[str] = None
-    episode_id: Optional[str] = None
-    tmdb_id: Optional[str] = None
-    overview: Optional[str] = None
-    percentage: Optional[float] = None
-    ip: Optional[str] = None
-    device_name: Optional[str] = None
-    client: Optional[str] = None
-    user_name: Optional[str] = None
-    image_url: Optional[str] = None
-    item_favorite: Optional[bool] = None
-    save_reason: Optional[str] = None
-    item_isvirtual: Optional[bool] = None
-    media_type: Optional[str] = None
-    json_object: Optional[dict] = Field(default_factory=dict)
+
+    event: str | None = None
+    channel: str | None = None
+    server_name: str | None = None
+    item_type: str | None = None
+    item_name: str | None = None
+    item_id: str | None = None
+    item_path: str | None = None
+    season_id: str | None = None
+    episode_id: str | None = None
+    tmdb_id: str | None = None
+    overview: str | None = None
+    percentage: float | None = None
+    ip: str | None = None
+    device_name: str | None = None
+    client: str | None = None
+    user_name: str | None = None
+    image_url: str | None = None
+    item_favorite: bool | None = None
+    save_reason: str | None = None
+    item_isvirtual: bool | None = None
+    media_type: str | None = None
+    json_object: dict | None = Field(default_factory=dict)
 
 
 class MediaServerPlayItem(BaseModel):
     """
     媒体服务器可播放项目信息
     """
-    id: Optional[Union[str, int]] = None
-    item_id: Optional[Union[str, int]] = None
-    server_id: Optional[str] = None
-    title: Optional[str] = None
-    subtitle: Optional[str] = None
-    type: Optional[str] = None
-    image: Optional[str] = None
-    link: Optional[str] = None
-    percent: Optional[float] = None
-    BackdropImageTags: Optional[list] = Field(default_factory=list)
-    server_type: Optional[str] = None
+
+    id: str | int | None = None
+    item_id: str | int | None = None
+    server_id: str | None = None
+    title: str | None = None
+    subtitle: str | None = None
+    type: str | None = None
+    image: str | None = None
+    link: str | None = None
+    percent: float | None = None
+    BackdropImageTags: list | None = Field(default_factory=list)
+    server_type: str | None = None
     # 飞牛的图片需要Cookies
-    use_cookies: Optional[bool] = None
+    use_cookies: bool | None = None

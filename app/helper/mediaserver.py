@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.helper.service import ServiceBaseHelper
 from app.schemas import MediaServerConf, ServiceInfo
-from app.schemas.types import SystemConfigKey, ModuleType
+from app.schemas.types import ModuleType, SystemConfigKey
 
 
 class MediaServerHelper(ServiceBaseHelper[MediaServerConf]):
@@ -12,16 +12,14 @@ class MediaServerHelper(ServiceBaseHelper[MediaServerConf]):
 
     def __init__(self):
         super().__init__(
-            config_key=SystemConfigKey.MediaServers,
-            conf_type=MediaServerConf,
-            module_type=ModuleType.MediaServer
+            config_key=SystemConfigKey.MediaServers, conf_type=MediaServerConf, module_type=ModuleType.MediaServer
         )
 
     def is_media_server(
-            self,
-            service_type: Optional[str] = None,
-            service: Optional[ServiceInfo] = None,
-            name: Optional[str] = None,
+        self,
+        service_type: str | None = None,
+        service: ServiceInfo | None = None,
+        name: str | None = None,
     ) -> bool:
         """
         通用的媒体服务器类型判断方法

@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 from app.utils.singleton import Singleton
 
@@ -7,7 +7,8 @@ class StreamingPlatforms(metaclass=Singleton):
     """
     流媒体平台简称与全称。
     """
-    STREAMING_PLATFORMS: List[Tuple[str, str]] = [
+
+    STREAMING_PLATFORMS: list[tuple[str, str]] = [
         ("AMZN", "Amazon"),
         ("NF", "Netflix"),
         ("ATVP", "Apple TV+"),
@@ -303,7 +304,7 @@ class StreamingPlatforms(metaclass=Singleton):
         """
         return dict(self._lookup_cache)
 
-    def get_streaming_platform_name(self, platform_code: str) -> Optional[str]:
+    def get_streaming_platform_name(self, platform_code: str) -> str | None:
         """
         根据流媒体平台简称或全称获取标准名称。
         """

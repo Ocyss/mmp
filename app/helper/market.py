@@ -2,19 +2,16 @@ import re
 from typing import Optional
 from urllib.parse import urlparse
 
-
 PLUGIN_MARKET_WIKI_START = "<!-- plugin-market-repos:start -->"
 PLUGIN_MARKET_WIKI_END = "<!-- plugin-market-repos:end -->"
-PLUGIN_MARKET_WIKI_URL = (
-    "https://raw.githubusercontent.com/jxxghp/MoviePilot-Wiki/main/plugin.md"
-)
+PLUGIN_MARKET_WIKI_URL = "https://raw.githubusercontent.com/jxxghp/MoviePilot-Wiki/main/plugin.md"
 PLUGIN_MARKET_REPO_PATTERN = re.compile(
     r"https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?/?",
     re.IGNORECASE,
 )
 
 
-def normalize_plugin_market_repo_url(repo_url: str) -> Optional[str]:
+def normalize_plugin_market_repo_url(repo_url: str) -> str | None:
     """
     规范化插件仓库地址，便于跨来源合并去重。
     """
@@ -33,7 +30,7 @@ def normalize_plugin_market_repo_url(repo_url: str) -> Optional[str]:
     return f"https://github.com/{paths[0]}/{paths[1]}"
 
 
-def split_plugin_market_repo_urls(value: Optional[str]) -> list[str]:
+def split_plugin_market_repo_urls(value: str | None) -> list[str]:
     """
     拆分插件市场仓库配置并保持原有顺序去重。
     """
@@ -48,9 +45,7 @@ def split_plugin_market_repo_urls(value: Optional[str]) -> list[str]:
     return repos
 
 
-def extract_plugin_market_repos_from_wiki(
-    markdown: str, require_markers: bool = False
-) -> list[str]:
+def extract_plugin_market_repos_from_wiki(markdown: str, require_markers: bool = False) -> list[str]:
     """
     从 Wiki 插件文档中提取插件仓库地址。
 
@@ -64,9 +59,7 @@ def extract_plugin_market_repos_from_wiki(
     start_index = content.find(PLUGIN_MARKET_WIKI_START)
     end_index = content.find(PLUGIN_MARKET_WIKI_END)
     if start_count == 1 and end_count == 1 and start_index < end_index:
-        content = content[
-            start_index + len(PLUGIN_MARKET_WIKI_START):end_index
-        ]
+        content = content[start_index + len(PLUGIN_MARKET_WIKI_START) : end_index]
     elif require_markers:
         raise ValueError("Wiki 插件仓库清单必须包含唯一且有序的开始和结束标记")
 
@@ -81,9 +74,7 @@ def extract_plugin_market_repos_from_wiki(
     return repos
 
 
-def merge_plugin_market_repos(
-    local_repos: list[str], wiki_repos: list[str]
-) -> list[str]:
+def merge_plugin_market_repos(local_repos: list[str], wiki_repos: list[str]) -> list[str]:
     """
     合并本地与 Wiki 插件仓库地址，保留本地顺序并追加 Wiki 新地址。
     """

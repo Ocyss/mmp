@@ -6,12 +6,12 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     get_rule_groups,
     remove_rule_group_references,
     save_system_config,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -33,10 +33,10 @@ class DeleteRuleGroupTool(MoviePilotTool):
         "Delete a filter rule group from UserFilterRuleGroups. "
         "The tool also removes dangling references from global settings and subscriptions."
     )
-    args_schema: Type[BaseModel] = DeleteRuleGroupInput
+    args_schema: type[BaseModel] = DeleteRuleGroupInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         return f"删除规则组 {kwargs.get('name', '')}"
 
     async def run(self, name: str, **kwargs) -> str:
@@ -53,9 +53,7 @@ class DeleteRuleGroupTool(MoviePilotTool):
                     ensure_ascii=False,
                 )
 
-            remaining_groups = [
-                group for group in rule_groups if group.name != name
-            ]
+            remaining_groups = [group for group in rule_groups if group.name != name]
             await save_system_config(
                 SystemConfigKey.UserFilterRuleGroups,
                 [group.model_dump(exclude_none=True) for group in remaining_groups],

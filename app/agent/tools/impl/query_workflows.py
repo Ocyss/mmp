@@ -13,9 +13,16 @@ from app.log import logger
 
 class QueryWorkflowsInput(BaseModel):
     """查询工作流工具的输入参数模型"""
-    state: Optional[str] = Field("all", description="Filter workflows by state: 'W' for waiting, 'R' for running, 'P' for paused, 'S' for success, 'F' for failed, 'all' for all workflows (default: 'all')")
-    name: Optional[str] = Field(None, description="Filter workflows by name (partial match, optional)")
-    trigger_type: Optional[str] = Field("all", description="Filter workflows by trigger type: 'timer' for scheduled, 'event' for event-triggered, 'manual' for manual, 'all' for all types (default: 'all')")
+
+    state: str | None = Field(
+        "all",
+        description="Filter workflows by state: 'W' for waiting, 'R' for running, 'P' for paused, 'S' for success, 'F' for failed, 'all' for all workflows (default: 'all')",
+    )
+    name: str | None = Field(None, description="Filter workflows by name (partial match, optional)")
+    trigger_type: str | None = Field(
+        "all",
+        description="Filter workflows by trigger type: 'timer' for scheduled, 'event' for event-triggered, 'manual' for manual, 'all' for all types (default: 'all')",
+    )
 
 
 class QueryWorkflowsTool(MoviePilotTool):
@@ -25,32 +32,32 @@ class QueryWorkflowsTool(MoviePilotTool):
         ToolTag.Workflow,
     ]
     description: str = "Query workflow list and status. Shows workflow name, description, trigger type, state, execution count, and other workflow details. Supports filtering by state, name, and trigger type."
-    args_schema: Type[BaseModel] = QueryWorkflowsInput
+    args_schema: type[BaseModel] = QueryWorkflowsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据查询参数生成友好的提示消息"""
         state = kwargs.get("state", "all")
         name = kwargs.get("name")
         trigger_type = kwargs.get("trigger_type", "all")
-        
+
         parts = ["查询工作流"]
-        
+
         if state != "all":
             state_map = {"W": "等待", "R": "运行中", "P": "暂停", "S": "成功", "F": "失败"}
             parts.append(f"状态: {state_map.get(state, state)}")
-        
+
         if trigger_type != "all":
             trigger_map = {"timer": "定时触发", "event": "事件触发", "manual": "手动触发"}
             parts.append(f"触发类型: {trigger_map.get(trigger_type, trigger_type)}")
-        
+
         if name:
             parts.append(f"名称: {name}")
-        
+
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(self, state: Optional[str] = "all",
-                  name: Optional[str] = None,
-                  trigger_type: Optional[str] = "all", **kwargs) -> str:
+    async def run(
+        self, state: str | None = "all", name: str | None = None, trigger_type: str | None = "all", **kwargs
+    ) -> str:
         logger.info(f"执行工具: {self.name}, 参数: state={state}, name={name}, trigger_type={trigger_type}")
 
         try:
@@ -86,21 +93,11 @@ class QueryWorkflowsTool(MoviePilotTool):
             simplified_workflows = []
             for wf in filtered_workflows:
                 # 状态说明
-                state_map = {
-                    "W": "等待",
-                    "R": "运行中",
-                    "P": "暂停",
-                    "S": "成功",
-                    "F": "失败"
-                }
+                state_map = {"W": "等待", "R": "运行中", "P": "暂停", "S": "成功", "F": "失败"}
                 state_desc = state_map.get(wf.state, wf.state)
 
                 # 触发类型说明
-                trigger_type_map = {
-                    "timer": "定时触发",
-                    "event": "事件触发",
-                    "manual": "手动触发"
-                }
+                trigger_type_map = {"timer": "定时触发", "event": "事件触发", "manual": "手动触发"}
                 trigger_type_desc = trigger_type_map.get(wf.trigger_type, wf.trigger_type or "定时触发")
 
                 simplified = {
@@ -114,7 +111,7 @@ class QueryWorkflowsTool(MoviePilotTool):
                     "event_type": wf.event_type,
                     "add_time": wf.add_time,
                     "last_time": wf.last_time,
-                    "current_action": wf.current_action
+                    "current_action": wf.current_action,
                 }
                 # wf.result 往往是执行日志或上下文快照，不适合作为列表查询结果返回。
                 simplified_workflows.append(simplified)

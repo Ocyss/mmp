@@ -16,23 +16,25 @@ class TransferDispatcher:
     """
     将监控事件分发到整理链：候选判定、TTL 去重、整理历史查重与整理触发。
     """
+
     # 历史查询失败待重试队列上限，防止长时间故障期间无限增长
     MAX_PENDING_RETRIES = 1000
     # 单个文件的最大重试次数（按健康检查周期计，60 次约 1 小时）
     MAX_RETRY_ATTEMPTS = 60
 
-    def __init__(self, all_exts: Optional[List[str]] = None, cache: Optional[Any] = None):
+    def __init__(self, all_exts: list[str] | None = None, cache: Any | None = None):
         """
         初始化整理分发器。
         :param all_exts: 监控的文件扩展名，默认取系统配置
         :param cache: 去重缓存，默认使用 10 秒 TTL 缓存
         """
-        self.all_exts = all_exts if all_exts is not None else (
-                settings.RMT_MEDIAEXT + settings.RMT_SUBEXT + settings.RMT_AUDIOEXT)
+        self.all_exts = (
+            all_exts if all_exts is not None else (settings.RMT_MEDIAEXT + settings.RMT_SUBEXT + settings.RMT_AUDIOEXT)
+        )
         self._cache = cache if cache is not None else TTLCache(region="monitor", maxsize=1024, ttl=10)
         self._lock = Lock()
         # 历史查询失败待重试的文件
-        self._pending_retries: Dict[str, Dict[str, Any]] = {}
+        self._pending_retries: dict[str, dict[str, Any]] = {}
         self._pending_guard = Lock()
 
     @staticmethod
@@ -43,7 +45,7 @@ class TransferDispatcher:
         return True if re.search(r"BDMV[/\\]STREAM", _path.as_posix(), re.IGNORECASE) else False
 
     @staticmethod
-    def _get_bluray_dir(_path: Path) -> Optional[Path]:
+    def _get_bluray_dir(_path: Path) -> Path | None:
         """
         获取蓝光原盘BDMV目录的上级目录。
         """
@@ -53,7 +55,7 @@ class TransferDispatcher:
         return None
 
     @staticmethod
-    def _has_suffix_in(file_path: Path, extensions: List[str]) -> bool:
+    def _has_suffix_in(file_path: Path, extensions: list[str]) -> bool:
         """
         判断路径后缀是否命中给定扩展名列表。
         """
@@ -79,7 +81,7 @@ class TransferDispatcher:
         return event_path.as_posix()
 
     @staticmethod
-    def _has_transfer_history(storage: str, src_path: str) -> Optional[bool]:
+    def _has_transfer_history(storage: str, src_path: str) -> bool | None:
         """
         判断源文件是否已经存在整理记录。
         :return: True/False 查询成功，None 查询失败
@@ -120,7 +122,7 @@ class TransferDispatcher:
                 "storage": storage,
                 "event_path": event_path,
                 "file_size": file_size,
-                "attempts": 1
+                "attempts": 1,
             }
         logger.warn(f"整理历史查询失败，已登记待重试: {key}")
 
@@ -142,8 +144,7 @@ class TransferDispatcher:
             items = list(self._pending_retries.values())
         for item in items:
             logger.info(f"重试整理: {item['storage']}:{item['event_path']}")
-            self.handle_file(storage=item["storage"], event_path=item["event_path"],
-                             file_size=item["file_size"])
+            self.handle_file(storage=item["storage"], event_path=item["event_path"], file_size=item["file_size"])
 
     def handle_file(self, storage: str, event_path: Path, file_size: float = None) -> bool:
         """
@@ -201,7 +202,7 @@ class TransferDispatcher:
                         name=event_path.name,
                         basename=event_path.stem,
                         extension=event_path.suffix[1:],
-                        size=file_size
+                        size=file_size,
                     )
                 )
                 return True

@@ -1,24 +1,24 @@
 """查询内置过滤规则工具。"""
 
 import json
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
+    RULE_STRING_SYNTAX,
     get_builtin_rules,
     serialize_builtin_rule,
-    RULE_STRING_SYNTAX,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 
 
 class QueryBuiltinFilterRulesInput(BaseModel):
     """查询内置过滤规则工具的输入参数模型"""
 
-    rule_ids: Optional[List[str]] = Field(
+    rule_ids: list[str] | None = Field(
         None,
         description="Optional list of built-in rule IDs to query. If omitted, return all built-in rules.",
     )
@@ -35,9 +35,9 @@ class QueryBuiltinFilterRulesTool(MoviePilotTool):
         "These rule IDs can be used directly inside rule_string expressions for filter rule groups. "
         "Use this tool before add_rule_group or update_rule_group to learn valid built-in rule IDs."
     )
-    args_schema: Type[BaseModel] = QueryBuiltinFilterRulesInput
+    args_schema: type[BaseModel] = QueryBuiltinFilterRulesInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         rule_ids = kwargs.get("rule_ids") or []
         if rule_ids:
             return f"查询内置过滤规则: {', '.join(rule_ids)}"
@@ -45,7 +45,7 @@ class QueryBuiltinFilterRulesTool(MoviePilotTool):
 
     async def run(
         self,
-        rule_ids: Optional[List[str]] = None,
+        rule_ids: list[str] | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}")
@@ -55,15 +55,10 @@ class QueryBuiltinFilterRulesTool(MoviePilotTool):
             if rule_ids:
                 target_ids = set(rule_ids)
                 builtin_rules = {
-                    rule_id: payload
-                    for rule_id, payload in builtin_rules.items()
-                    if rule_id in target_ids
+                    rule_id: payload for rule_id, payload in builtin_rules.items() if rule_id in target_ids
                 }
 
-            serialized = [
-                serialize_builtin_rule(rule_id, payload)
-                for rule_id, payload in builtin_rules.items()
-            ]
+            serialized = [serialize_builtin_rule(rule_id, payload) for rule_id, payload in builtin_rules.items()]
             return json.dumps(
                 {
                     "success": True,

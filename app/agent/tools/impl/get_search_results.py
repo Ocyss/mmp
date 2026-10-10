@@ -10,6 +10,7 @@ from app.agent.tools.base import MoviePilotTool
 from app.agent.tools.tags import ToolTag
 from app.chain.search import SearchChain
 from app.log import logger
+
 from ._torrent_search_utils import (
     TORRENT_RESULT_LIMIT,
     build_filter_options,
@@ -21,36 +22,34 @@ from ._torrent_search_utils import (
 class GetSearchResultsInput(BaseModel):
     """获取搜索结果工具的输入参数模型"""
 
-    site: Optional[List[str]] = Field(None, description="Site name filters")
-    season: Optional[List[str]] = Field(None, description="Season or episode filters")
-    free_state: Optional[List[str]] = Field(None, description="Promotion state filters")
-    video_code: Optional[List[str]] = Field(None, description="Video codec filters")
-    edition: Optional[List[str]] = Field(None, description="Edition filters")
-    resolution: Optional[List[str]] = Field(None, description="Resolution filters")
-    release_group: Optional[List[str]] = Field(
-        None, description="Release group filters"
-    )
-    title_pattern: Optional[str] = Field(
+    site: list[str] | None = Field(None, description="Site name filters")
+    season: list[str] | None = Field(None, description="Season or episode filters")
+    free_state: list[str] | None = Field(None, description="Promotion state filters")
+    video_code: list[str] | None = Field(None, description="Video codec filters")
+    edition: list[str] | None = Field(None, description="Edition filters")
+    resolution: list[str] | None = Field(None, description="Resolution filters")
+    release_group: list[str] | None = Field(None, description="Release group filters")
+    title_pattern: str | None = Field(
         None,
         description="Regular expression pattern to filter torrent titles (e.g., '4K|2160p|UHD', '1080p.*BluRay')",
     )
-    content_pattern: Optional[str] = Field(
+    content_pattern: str | None = Field(
         None,
         description="Regular expression pattern to filter torrent titles, descriptions, and labels (e.g., '特效字幕|国语|DIY')",
     )
-    include_description: Optional[bool] = Field(
+    include_description: bool | None = Field(
         False,
         description="Whether to include torrent descriptions in returned results",
     )
-    include_labels: Optional[bool] = Field(
+    include_labels: bool | None = Field(
         False,
         description="Whether to include torrent labels in returned results",
     )
-    show_filter_options: Optional[bool] = Field(
+    show_filter_options: bool | None = Field(
         False,
         description="Whether to return only optional filter options for re-checking available conditions",
     )
-    page: Optional[int] = Field(
+    page: int | None = Field(
         1,
         description="Page number for pagination (default: 1, each page returns up to 50 results)",
     )
@@ -65,27 +64,27 @@ class GetSearchResultsTool(MoviePilotTool):
         ToolTag.Resource,
     ]
     description: str = "Get cached torrent search results from search_torrents with optional filters. Supports pagination with up to 50 results per page."
-    args_schema: Type[BaseModel] = GetSearchResultsInput
+    args_schema: type[BaseModel] = GetSearchResultsInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """返回工具执行提示"""
         return "获取搜索结果"
 
     async def run(
         self,
-        site: Optional[List[str]] = None,
-        season: Optional[List[str]] = None,
-        free_state: Optional[List[str]] = None,
-        video_code: Optional[List[str]] = None,
-        edition: Optional[List[str]] = None,
-        resolution: Optional[List[str]] = None,
-        release_group: Optional[List[str]] = None,
-        title_pattern: Optional[str] = None,
-        content_pattern: Optional[str] = None,
+        site: list[str] | None = None,
+        season: list[str] | None = None,
+        free_state: list[str] | None = None,
+        video_code: list[str] | None = None,
+        edition: list[str] | None = None,
+        resolution: list[str] | None = None,
+        release_group: list[str] | None = None,
+        title_pattern: str | None = None,
+        content_pattern: str | None = None,
         include_description: bool = False,
         include_labels: bool = False,
         show_filter_options: bool = False,
-        page: Optional[int] = 1,
+        page: int | None = 1,
         **kwargs,
     ) -> str:
         """
@@ -166,11 +165,7 @@ class GetSearchResultsTool(MoviePilotTool):
                         continue
                     content_values = [torrent_info.title, torrent_info.description]
                     content_values.extend(torrent_info.labels or [])
-                    if any(
-                        content_regex_pattern.search(str(value))
-                        for value in content_values
-                        if value
-                    ):
+                    if any(content_regex_pattern.search(str(value)) for value in content_values if value):
                         content_filtered_items.append(item)
                 filtered_items = content_filtered_items
             if not filtered_items:
@@ -178,11 +173,7 @@ class GetSearchResultsTool(MoviePilotTool):
 
             total_count = len(filtered_items)
             filtered_ids = {id(item) for item in filtered_items}
-            matched_indices = [
-                index
-                for index, item in enumerate(items, start=1)
-                if id(item) in filtered_ids
-            ]
+            matched_indices = [index for index, item in enumerate(items, start=1) if id(item) in filtered_ids]
 
             # 分页
             page_size = TORRENT_RESULT_LIMIT

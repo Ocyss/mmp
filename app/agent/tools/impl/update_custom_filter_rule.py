@@ -6,7 +6,6 @@ from typing import Optional, Type
 from pydantic import BaseModel, Field
 
 from app.agent.tools.base import MoviePilotTool
-from app.agent.tools.tags import ToolTag
 from app.agent.tools.impl._filter_rule_utils import (
     collect_custom_rule_group_refs,
     get_custom_rules,
@@ -16,6 +15,7 @@ from app.agent.tools.impl._filter_rule_utils import (
     save_system_config,
     serialize_custom_rule,
 )
+from app.agent.tools.tags import ToolTag
 from app.log import logger
 from app.schemas.types import SystemConfigKey
 
@@ -23,33 +23,29 @@ from app.schemas.types import SystemConfigKey
 class UpdateCustomFilterRuleInput(BaseModel):
     """更新自定义过滤规则工具的输入参数模型"""
 
-    current_rule_id: str = Field(
-        ..., description="Existing custom rule ID to update."
-    )
-    new_rule_id: Optional[str] = Field(
+    current_rule_id: str = Field(..., description="Existing custom rule ID to update.")
+    new_rule_id: str | None = Field(
         None,
         description="New rule ID. If omitted, keep the original rule ID.",
     )
-    name: Optional[str] = Field(
-        None, description="New display name. If omitted, keep the original name."
-    )
-    include: Optional[str] = Field(
+    name: str | None = Field(None, description="New display name. If omitted, keep the original name.")
+    include: str | None = Field(
         None,
         description="New include regex. Pass an empty string to clear it.",
     )
-    exclude: Optional[str] = Field(
+    exclude: str | None = Field(
         None,
         description="New exclude regex. Pass an empty string to clear it.",
     )
-    size_range: Optional[str] = Field(
+    size_range: str | None = Field(
         None,
         description="New size range in MB. Pass an empty string to clear it.",
     )
-    seeders: Optional[str] = Field(
+    seeders: str | None = Field(
         None,
         description="New minimum seeder count. Pass an empty string to clear it.",
     )
-    publish_time: Optional[str] = Field(
+    publish_time: str | None = Field(
         None,
         description="New publish-time filter in minutes. Pass an empty string to clear it.",
     )
@@ -66,10 +62,10 @@ class UpdateCustomFilterRuleTool(MoviePilotTool):
         "Update an existing custom filter rule. "
         "If the rule ID is renamed, all rule groups that reference the old ID are updated automatically."
     )
-    args_schema: Type[BaseModel] = UpdateCustomFilterRuleInput
+    args_schema: type[BaseModel] = UpdateCustomFilterRuleInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         current_rule_id = kwargs.get("current_rule_id", "")
         new_rule_id = kwargs.get("new_rule_id")
         if new_rule_id and new_rule_id != current_rule_id:
@@ -79,13 +75,13 @@ class UpdateCustomFilterRuleTool(MoviePilotTool):
     async def run(
         self,
         current_rule_id: str,
-        new_rule_id: Optional[str] = None,
-        name: Optional[str] = None,
-        include: Optional[str] = None,
-        exclude: Optional[str] = None,
-        size_range: Optional[str] = None,
-        seeders: Optional[str] = None,
-        publish_time: Optional[str] = None,
+        new_rule_id: str | None = None,
+        name: str | None = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        size_range: str | None = None,
+        seeders: str | None = None,
+        publish_time: str | None = None,
         **kwargs,
     ) -> str:
         logger.info(f"执行工具: {self.name}, current_rule_id={current_rule_id}")
@@ -108,15 +104,9 @@ class UpdateCustomFilterRuleTool(MoviePilotTool):
                 name=name if name is not None else current_rule.name,
                 include=include if include is not None else current_rule.include,
                 exclude=exclude if exclude is not None else current_rule.exclude,
-                size_range=(
-                    size_range if size_range is not None else current_rule.size_range
-                ),
+                size_range=(size_range if size_range is not None else current_rule.size_range),
                 seeders=seeders if seeders is not None else current_rule.seeders,
-                publish_time=(
-                    publish_time
-                    if publish_time is not None
-                    else current_rule.publish_time
-                ),
+                publish_time=(publish_time if publish_time is not None else current_rule.publish_time),
                 existing_rules=custom_rules,
                 original_rule_id=current_rule.id,
             )
@@ -139,17 +129,12 @@ class UpdateCustomFilterRuleTool(MoviePilotTool):
                         updated_rule_groups.append(group)
                         continue
                     renamed_group_refs.append(group.name)
-                    updated_rule_groups.append(
-                        group.model_copy(update={"rule_string": new_rule_string})
-                    )
+                    updated_rule_groups.append(group.model_copy(update={"rule_string": new_rule_string}))
 
                 # 先保存规则组引用，再保存规则自身，避免在过滤模块重载时出现新规则 ID 尚未同步的问题。
                 await save_system_config(
                     SystemConfigKey.UserFilterRuleGroups,
-                    [
-                        group.model_dump(exclude_none=True)
-                        for group in updated_rule_groups
-                    ],
+                    [group.model_dump(exclude_none=True) for group in updated_rule_groups],
                 )
 
             final_rules = []

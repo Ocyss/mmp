@@ -4,7 +4,6 @@ import json
 
 from app.doctor.models import DoctorFinding, DoctorReport
 
-
 STATUS_LABELS = {
     "healthy": "healthy",
     "degraded": "degraded",
@@ -36,12 +35,14 @@ def format_text_report(report: DoctorReport) -> str:
     for finding in report.findings:
         lines.extend(_format_finding(finding))
     summary = report.summary
-    lines.extend([
-        "",
-        f"汇总: total={summary['total']} error={summary['error']} "
-        f"warn={summary['warn']} advisory={summary['advisory']} "
-        f"fixed={summary['fixed']}",
-    ])
+    lines.extend(
+        [
+            "",
+            f"汇总: total={summary['total']} error={summary['error']} "
+            f"warn={summary['warn']} advisory={summary['advisory']} "
+            f"fixed={summary['fixed']}",
+        ]
+    )
     return "\n".join(lines)
 
 

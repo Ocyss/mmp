@@ -3,7 +3,7 @@
 from typing import Dict
 
 # 内置规则只在这里维护一份，便于过滤模块和 Agent 工具共享同一套事实来源。
-BUILTIN_RULE_SET: Dict[str, dict] = {
+BUILTIN_RULE_SET: dict[str, dict] = {
     # 蓝光原盘
     "BLU": {
         "include": [

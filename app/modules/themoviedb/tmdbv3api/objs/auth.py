@@ -31,9 +31,7 @@ class Authentication(TMDb):
         You can use this method to create a fully valid session ID once a user has validated the request token.
         """
         response = self._request_obj(
-            self._urls["create_session"],
-            method="POST",
-            json={"request_token": self.request_token}
+            self._urls["create_session"], method="POST", json={"request_token": self.request_token}
         )
         self.session_id = response.session_id
 
@@ -48,7 +46,7 @@ class Authentication(TMDb):
                 "username": self.username,
                 "password": self.password,
                 "request_token": self.request_token,
-            }
+            },
         )
 
     def delete_session(self):
@@ -56,9 +54,5 @@ class Authentication(TMDb):
         If you would like to delete (or "logout") from a session, call this method with a valid session ID.
         """
         if self.has_session:
-            self._request_obj(
-                self._urls["delete_session"],
-                method="DELETE",
-                json={"session_id": self.session_id}
-            )
+            self._request_obj(self._urls["delete_session"], method="DELETE", json={"session_id": self.session_id})
             self.session_id = ""

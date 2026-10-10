@@ -1,13 +1,14 @@
-from app.workflow.actions import BaseAction, ActionChain
 from app.core.config import global_vars
-from app.schemas import ActionParams, ActionContext
 from app.log import logger
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import ActionChain, BaseAction
 
 
 class FetchDownloadsParams(ActionParams):
     """
     获取下载任务参数
     """
+
     pass
 
 
@@ -28,17 +29,17 @@ class FetchDownloadsAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "获取下载任务"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "获取下载队列中的任务状态"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return FetchDownloadsParams().model_dump()
 
     @property

@@ -8,7 +8,8 @@
 - poller.py      远程目录轮询监控
 - monitor.py     Monitor 门面：装配、生命周期与健康检查
 """
-from app.monitor.watcher import DirectoryChangeEvent, LocalDirectoryWatcher
+
 from app.monitor.monitor import Monitor
+from app.monitor.watcher import DirectoryChangeEvent, LocalDirectoryWatcher
 
 __all__ = ["DirectoryChangeEvent", "LocalDirectoryWatcher", "Monitor"]

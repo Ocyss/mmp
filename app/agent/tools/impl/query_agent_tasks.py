@@ -12,12 +12,12 @@ from app.db.agenttask_oper import AgentTaskOper
 class QueryAgentTasksInput(BaseModel):
     """查询 Agent 自主定时任务的输入参数。"""
 
-    task_id: Optional[int] = Field(
+    task_id: int | None = Field(
         None,
         ge=1,
         description="Optional task ID. Omit it to list tasks owned by the current user.",
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         None,
         description="Optional enabled-state filter used when listing tasks.",
     )
@@ -34,18 +34,18 @@ class QueryAgentTasksTool(MoviePilotTool):
         "task_id, instructions, trigger, enabled state, next run time, and latest result. "
         "Do not use this for MoviePilot system, plugin, or workflow scheduler services."
     )
-    args_schema: Type[BaseModel] = QueryAgentTasksInput
+    args_schema: type[BaseModel] = QueryAgentTasksInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs: object) -> Optional[str]:
+    def get_tool_message(self, **kwargs: object) -> str | None:
         """生成查询定时任务的提示消息。"""
         task_id = kwargs.get("task_id")
         return f"查询自主定时任务：{task_id}" if task_id else "查询自主定时任务"
 
     def _query_tasks(
-            self,
-            task_id: Optional[int],
-            enabled: Optional[bool],
+        self,
+        task_id: int | None,
+        enabled: bool | None,
     ) -> list[dict]:
         """读取当前用户的任务及运行时下一次触发时间。"""
         from app.scheduler import Scheduler
@@ -68,10 +68,10 @@ class QueryAgentTasksTool(MoviePilotTool):
         return result
 
     async def run(
-            self,
-            task_id: Optional[int] = None,
-            enabled: Optional[bool] = None,
-            **kwargs: object,
+        self,
+        task_id: int | None = None,
+        enabled: bool | None = None,
+        **kwargs: object,
     ) -> str:
         """查询 Agent 自主定时任务。"""
         payload = QueryAgentTasksInput(task_id=task_id, enabled=enabled)

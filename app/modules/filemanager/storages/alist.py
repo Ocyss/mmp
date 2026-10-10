@@ -1,13 +1,14 @@
+import builtins
 import hashlib
 import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from app import schemas
 from app.core.cache import cached
-from app.core.config import settings, global_vars
+from app.core.config import global_vars, settings
 from app.log import logger
 from app.modules.filemanager.storages import StorageBase, transfer_process
 from app.schemas.exception import OperationInterrupted
@@ -15,7 +16,6 @@ from app.schemas.types import StorageSchema
 from app.utils.http import RequestUtils
 from app.utils.singleton import WeakSingleton
 from app.utils.url import UrlUtils
-
 
 # OpenList/AList 在 per_page<=0 时会退回后端默认 200，显式指定最大页大小避免大目录被截断。
 OPENLIST_MAX_LIST_PAGE_SIZE = 500
@@ -52,9 +52,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             self, self.__get_base_url, conf.get("username"), conf.get("password")
         )
 
-    def _delay_get_item(
-        self, path: Path, /, refresh: bool = False
-    ) -> Optional[schemas.FileItem]:
+    def _delay_get_item(self, path: Path, /, refresh: bool = False) -> schemas.FileItem | None:
         """
         自动延迟重试 get_item 模块
 
@@ -69,9 +67,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
                 return fileitem
         return None
 
-    def __build_transfer_item(
-            self, source_item: schemas.FileItem, target_path: Path
-    ) -> schemas.FileItem:
+    def __build_transfer_item(self, source_item: schemas.FileItem, target_path: Path) -> schemas.FileItem:
         """
         根据目标路径构造文件项，用于 OpenList 操作成功但元数据短时间不可见的场景。
         目录项路径需要遵循 FileItem 以斜杠结尾的约定。
@@ -128,14 +124,10 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         token = conf.get("token")
         if token:
             return str(token)
-        return self.__login_token(
-            self.__get_base_url, conf.get("username"), conf.get("password")
-        )
+        return self.__login_token(self.__get_base_url, conf.get("username"), conf.get("password"))
 
     @cached(maxsize=8, ttl=60 * 60 * 24 * 2 - 60 * 5, skip_empty=True)
-    def __login_token(
-        self, base_url: str, username: Optional[str], password: Optional[str]
-    ) -> str:
+    def __login_token(self, base_url: str, username: str | None, password: str | None) -> str:
         """
         使用账号密码生成一个临时 token
         缓存2天，提前5分钟更新
@@ -169,9 +161,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             return ""
 
         if resp.status_code != 200:
-            logger.warning(
-                f"【OpenList】更新令牌请求发送失败，状态码：{resp.status_code}"
-            )
+            logger.warning(f"【OpenList】更新令牌请求发送失败，状态码：{resp.status_code}")
             return ""
 
         result = resp.json()
@@ -198,11 +188,11 @@ class Alist(StorageBase, metaclass=WeakSingleton):
     def list(
         self,
         fileitem: schemas.FileItem,
-        password: Optional[str] = "",
+        password: str | None = "",
         page: int = 1,
         per_page: int = 0,
         refresh: bool = False,
-    ) -> List[schemas.FileItem]:
+    ) -> builtins.list[schemas.FileItem]:
         """
         浏览文件
         :param fileitem: 文件项
@@ -269,22 +259,16 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             """
 
             if resp is None:
-                logger.warn(
-                    f"【OpenList】请求获取目录 {fileitem.path} 的文件列表失败，无法连接alist服务"
-                )
+                logger.warn(f"【OpenList】请求获取目录 {fileitem.path} 的文件列表失败，无法连接alist服务")
                 return []
             if resp.status_code != 200:
-                logger.warn(
-                    f"【OpenList】请求获取目录 {fileitem.path} 的文件列表失败，状态码：{resp.status_code}"
-                )
+                logger.warn(f"【OpenList】请求获取目录 {fileitem.path} 的文件列表失败，状态码：{resp.status_code}")
                 return []
 
             result = resp.json()
 
             if result["code"] != 200:
-                logger.warn(
-                    f"【OpenList】获取目录 {fileitem.path} 的文件列表失败，错误信息：{result['message']}"
-                )
+                logger.warn(f"【OpenList】获取目录 {fileitem.path} 的文件列表失败，错误信息：{result['message']}")
                 return []
 
             page_data = result["data"]
@@ -294,8 +278,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
                     schemas.FileItem(
                         storage=self.schema.value,
                         type="dir" if item["is_dir"] else "file",
-                        path=(Path(fileitem.path) / item["name"]).as_posix()
-                        + ("/" if item["is_dir"] else ""),
+                        path=(Path(fileitem.path) / item["name"]).as_posix() + ("/" if item["is_dir"] else ""),
                         name=item["name"],
                         basename=Path(item["name"]).stem,
                         extension=Path(item["name"]).suffix[1:] if not item["is_dir"] else None,
@@ -320,9 +303,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
 
             current_page += 1
 
-    def create_folder(
-        self, fileitem: schemas.FileItem, name: str
-    ) -> Optional[schemas.FileItem]:
+    def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:
         """
         创建目录
         :param fileitem: 父目录
@@ -349,21 +330,15 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             logger.warn(f"【OpenList】请求创建目录 {path} 失败，无法连接alist服务")
             return None
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求创建目录 {path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求创建目录 {path} 失败，状态码：{resp.status_code}")
             return None
 
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】创建目录 {path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】创建目录 {path} 失败，错误信息：{result['message']}")
             return None
 
-        return self._delay_get_item(
-            path, refresh=True
-        ) or self.__build_transfer_item(
+        return self._delay_get_item(path, refresh=True) or self.__build_transfer_item(
             schemas.FileItem(
                 storage=self.schema.value,
                 type="dir",
@@ -374,7 +349,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             path,
         )
 
-    def get_folder(self, path: Path) -> Optional[schemas.FileItem]:
+    def get_folder(self, path: Path) -> schemas.FileItem | None:
         """
         获取目录，如目录不存在则创建
 
@@ -400,11 +375,11 @@ class Alist(StorageBase, metaclass=WeakSingleton):
     def get_item(
         self,
         path: Path,
-        password: Optional[str] = "",
+        password: str | None = "",
         page: int = 1,
         per_page: int = 0,
         refresh: bool = False,
-    ) -> Optional[schemas.FileItem]:
+    ) -> schemas.FileItem | None:
         """
         获取文件或目录，不存在返回None
         :param path: 文件路径
@@ -459,16 +434,12 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             logger.warn(f"【OpenList】请求获取文件 {path} 失败，无法连接alist服务")
             return None
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求获取文件 {path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求获取文件 {path} 失败，状态码：{resp.status_code}")
             return None
 
         result = resp.json()
         if result["code"] != 200:
-            logger.debug(
-                f"【OpenList】获取文件 {path} 失败，错误信息：{result['message']}"
-            )
+            logger.debug(f"【OpenList】获取文件 {path} 失败，错误信息：{result['message']}")
             return None
 
         return schemas.FileItem(
@@ -483,7 +454,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             thumbnail=result["data"]["thumb"],
         )
 
-    def get_parent(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def get_parent(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取父目录
 
@@ -513,20 +484,14 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             },
         )
         if resp is None:
-            logger.warn(
-                f"【OpenList】请求删除文件 {fileitem.path} 失败，无法连接alist服务"
-            )
+            logger.warn(f"【OpenList】请求删除文件 {fileitem.path} 失败，无法连接alist服务")
             return False
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求删除文件 {fileitem.path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求删除文件 {fileitem.path} 失败，状态码：{resp.status_code}")
             return False
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】删除文件 {fileitem.path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】删除文件 {fileitem.path} 失败，错误信息：{result['message']}")
             return False
         return True
 
@@ -558,21 +523,15 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         }
         """
         if not resp:
-            logger.warn(
-                f"【OpenList】请求重命名文件 {fileitem.path} 失败，无法连接alist服务"
-            )
+            logger.warn(f"【OpenList】请求重命名文件 {fileitem.path} 失败，无法连接alist服务")
             return False
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求重命名文件 {fileitem.path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求重命名文件 {fileitem.path} 失败，状态码：{resp.status_code}")
             return False
 
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】重命名文件 {fileitem.path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】重命名文件 {fileitem.path} 失败，错误信息：{result['message']}")
             return False
 
         return True
@@ -581,8 +540,8 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         self,
         fileitem: schemas.FileItem,
         path: Path = None,
-        password: Optional[str] = "",
-    ) -> Optional[Path]:
+        password: str | None = "",
+    ) -> Path | None:
         """
         下载文件，保存到本地，返回本地临时文件地址
         :param fileitem: 文件项
@@ -627,24 +586,18 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             logger.warn(f"【OpenList】请求获取文件 {path} 失败，无法连接alist服务")
             return None
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求获取文件 {path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求获取文件 {path} 失败，状态码：{resp.status_code}")
             return None
 
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】获取文件 {path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】获取文件 {path} 失败，错误信息：{result['message']}")
             return None
 
         if result["data"]["raw_url"]:
             download_url = result["data"]["raw_url"]
         else:
-            download_url = UrlUtils.adapt_request_url(
-                self.__get_base_url, f"/d{fileitem.path}"
-            )
+            download_url = UrlUtils.adapt_request_url(self.__get_base_url, f"/d{fileitem.path}")
             if result["data"]["sign"]:
                 download_url = download_url + "?sign=" + result["data"]["sign"]
 
@@ -674,9 +627,9 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         self,
         fileitem: schemas.FileItem,
         path: Path,
-        new_name: Optional[str] = None,
+        new_name: str | None = None,
         task: bool = False,
-    ) -> Optional[schemas.FileItem]:
+    ) -> schemas.FileItem | None:
         """
         上传文件（带进度）
         :param fileitem: 上传目录项
@@ -746,9 +699,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
                 logger.warn(f"【OpenList】请求上传文件 {path} 失败")
                 return None
             if resp.status_code != 200:
-                logger.warn(
-                    f"【OpenList】请求上传文件 {path} 失败，状态码：{resp.status_code}"
-                )
+                logger.warn(f"【OpenList】请求上传文件 {path} 失败，状态码：{resp.status_code}")
                 return None
 
             # 完成上传
@@ -758,9 +709,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             new_item = self._delay_get_item(target_path, refresh=True)
             if new_item and new_name and new_name != path.name:
                 if self.rename(new_item, new_name):
-                    return self._delay_get_item(
-                        Path(new_item.path).with_name(new_name), refresh=True
-                    )
+                    return self._delay_get_item(Path(new_item.path).with_name(new_name), refresh=True)
 
             return new_item
 
@@ -790,7 +739,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
             "X-File-Sha256": sha256_hash.hexdigest(),
         }
 
-    def detail(self, fileitem: schemas.FileItem) -> Optional[schemas.FileItem]:
+    def detail(self, fileitem: schemas.FileItem) -> schemas.FileItem | None:
         """
         获取文件详情
         """
@@ -828,21 +777,15 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         }
         """
         if resp is None:
-            logger.warn(
-                f"【OpenList】请求复制文件 {fileitem.path} 失败，无法连接alist服务"
-            )
+            logger.warn(f"【OpenList】请求复制文件 {fileitem.path} 失败，无法连接alist服务")
             return False
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求复制文件 {fileitem.path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求复制文件 {fileitem.path} 失败，状态码：{resp.status_code}")
             return False
 
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】复制文件 {fileitem.path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】复制文件 {fileitem.path} 失败，错误信息：{result['message']}")
             return False
         # 重命名
         if fileitem.name != new_name:
@@ -851,9 +794,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
                 self.rename(new_item, new_name)
         return True
 
-    def copy_item(
-            self, fileitem: schemas.FileItem, path: Path, new_name: str
-    ) -> Optional[schemas.FileItem]:
+    def copy_item(self, fileitem: schemas.FileItem, path: Path, new_name: str) -> schemas.FileItem | None:
         """
         复制文件并返回目标文件项，兼容 OpenList 成功响应不携带目标对象的格式。
         """
@@ -868,9 +809,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
 
         copied_item = self._delay_get_item(path / fileitem.name, refresh=True)
         if copied_item and self.rename(copied_item, new_name):
-            return self._delay_get_item(
-                target_path, refresh=True
-            ) or self.__build_transfer_item(fileitem, target_path)
+            return self._delay_get_item(target_path, refresh=True) or self.__build_transfer_item(fileitem, target_path)
         return None
 
     def move(self, fileitem: schemas.FileItem, path: Path, new_name: str) -> bool:
@@ -908,36 +847,26 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         }
         """
         if resp is None:
-            logger.warn(
-                f"【OpenList】请求移动文件 {fileitem.path} 失败，无法连接alist服务"
-            )
+            logger.warn(f"【OpenList】请求移动文件 {fileitem.path} 失败，无法连接alist服务")
             return False
         if resp.status_code != 200:
-            logger.warn(
-                f"【OpenList】请求移动文件 {fileitem.path} 失败，状态码：{resp.status_code}"
-            )
+            logger.warn(f"【OpenList】请求移动文件 {fileitem.path} 失败，状态码：{resp.status_code}")
             return False
 
         result = resp.json()
         if result["code"] != 200:
-            logger.warn(
-                f"【OpenList】移动文件 {fileitem.path} 失败，错误信息：{result['message']}"
-            )
+            logger.warn(f"【OpenList】移动文件 {fileitem.path} 失败，错误信息：{result['message']}")
             return False
         return True
 
-    def move_item(
-            self, fileitem: schemas.FileItem, path: Path, new_name: str
-    ) -> Optional[schemas.FileItem]:
+    def move_item(self, fileitem: schemas.FileItem, path: Path, new_name: str) -> schemas.FileItem | None:
         """
         移动文件并返回目标文件项，兼容 OpenList 成功响应不携带目标对象的格式。
         """
         if not self.move(fileitem=fileitem, path=path, new_name=new_name):
             return None
         target_path = path / new_name
-        return self._delay_get_item(target_path, refresh=True) or self.__build_transfer_item(
-            fileitem, target_path
-        )
+        return self._delay_get_item(target_path, refresh=True) or self.__build_transfer_item(fileitem, target_path)
 
     def link(self, fileitem: schemas.FileItem, target_file: Path) -> bool:
         """
@@ -951,7 +880,7 @@ class Alist(StorageBase, metaclass=WeakSingleton):
         """
         pass
 
-    def usage(self) -> Optional[schemas.StorageUsage]:
+    def usage(self) -> schemas.StorageUsage | None:
         """
         存储使用情况
         """

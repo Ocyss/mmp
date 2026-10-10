@@ -1,4 +1,5 @@
 """整理记录 AI 重新整理提示词构造。"""
+
 from typing import Any
 
 from app.agent.prompt import prompt_manager
@@ -81,9 +82,7 @@ def build_batch_manual_redo_template_context(histories: list[Any]) -> dict[str, 
     return {
         "history_ids_csv": ", ".join(str(history.id) for history in histories),
         "history_count": len(histories),
-        "records_context": "\n\n".join(
-            format_manual_redo_record_context(history) for history in histories
-        ),
+        "records_context": "\n\n".join(format_manual_redo_record_context(history) for history in histories),
     }
 
 

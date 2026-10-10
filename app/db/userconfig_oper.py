@@ -1,4 +1,4 @@
-from typing import Any, Union, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from app.db import DbOper
 from app.db.models.userconfig import UserConfig
@@ -10,6 +10,7 @@ class UserConfigOper(DbOper, metaclass=Singleton):
     """
     用户配置管理
     """
+
     def __init__(self):
         """
         加载配置到内存
@@ -19,7 +20,7 @@ class UserConfigOper(DbOper, metaclass=Singleton):
         for item in UserConfig.list(self._db):
             self.__set_config_cache(username=item.username, key=item.key, value=item.value)
 
-    def set(self, username: str, key: Union[str, UserConfigKey], value: Any):
+    def set(self, username: str, key: str | UserConfigKey, value: Any):
         """
         设置用户配置
         """
@@ -38,7 +39,7 @@ class UserConfigOper(DbOper, metaclass=Singleton):
             conf = UserConfig(username=username, key=key, value=value)
             conf.create(self._db)
 
-    def get(self, username: str, key: Union[str, UserConfigKey] = None) -> Any:
+    def get(self, username: str, key: str | UserConfigKey = None) -> Any:
         """
         获取用户配置
         """
@@ -66,7 +67,7 @@ class UserConfigOper(DbOper, metaclass=Singleton):
         user_cache[key] = value
         self.__USERCONF = cache
 
-    def __get_config_caches(self, username: str) -> Optional[Dict[str, Any]]:
+    def __get_config_caches(self, username: str) -> dict[str, Any] | None:
         """
         获取配置缓存
         """

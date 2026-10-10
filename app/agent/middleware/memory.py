@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from typing import Annotated, NotRequired, TypedDict, Dict
+from typing import Annotated, Dict, NotRequired, TypedDict
 
 from anyio import Path as AsyncPath
 from langchain.agents.middleware.types import (
@@ -228,9 +228,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):  # no
             return True
         return all(not content.strip() for content in contents.values())
 
-    def _format_agent_memory(
-        self, contents: dict[str, str], memory_empty: bool = False
-    ) -> str:
+    def _format_agent_memory(self, contents: dict[str, str], memory_empty: bool = False) -> str:
         """格式化记忆，将位置和内容成对组合。
 
         当记忆为空时，返回初始化引导提示词，引导智能体主动询问用户偏好。
@@ -316,7 +314,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):  # no
         # 扫描目录下所有 .md 文件
         md_files = await self._scan_memory_files()
 
-        contents: Dict[str, str] = {}
+        contents: dict[str, str] = {}
         for path in md_files:
             file_path = AsyncPath(path)
             try:
@@ -346,9 +344,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):  # no
         # 检测记忆是否为空（文件不存在、文件内容为空白）
         is_empty = self._is_memory_empty(contents)
         if is_empty:
-            logger.info(
-                "Memory is empty, onboarding prompt will be activated for user preference collection."
-            )
+            logger.info("Memory is empty, onboarding prompt will be activated for user preference collection.")
 
         return MemoryStateUpdate(memory_contents=contents, memory_empty=is_empty)
 
@@ -365,18 +361,14 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):  # no
         memory_empty = request.state.get("memory_empty", False)  # noqa
         agent_memory = self._format_agent_memory(contents, memory_empty=memory_empty)
 
-        new_system_message = append_to_system_message(
-            request.system_message, agent_memory
-        )
+        new_system_message = append_to_system_message(request.system_message, agent_memory)
 
         return request.override(system_message=new_system_message)
 
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[
-            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
-        ],
+        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
         """异步包装模型调用，将记忆注入系统提示词。
 

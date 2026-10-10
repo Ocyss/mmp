@@ -7,7 +7,7 @@ from app.core.context import MediaInfo, settings
 from app.log import logger
 from app.modules import _ModuleBase
 from app.schemas.types import MediaType, ModuleType, OtherModulesType
-from app.utils.http import RequestUtils, AsyncRequestUtils
+from app.utils.http import AsyncRequestUtils, RequestUtils
 
 
 class FanartModule(_ModuleBase):
@@ -308,12 +308,8 @@ class FanartModule(_ModuleBase):
     _proxies: dict = settings.PROXY
 
     # Fanart Api
-    _movie_url: str = (
-        f"https://webservice.fanart.tv/v3/movies/%s?api_key={settings.FANART_API_KEY}"
-    )
-    _tv_url: str = (
-        f"https://webservice.fanart.tv/v3/tv/%s?api_key={settings.FANART_API_KEY}"
-    )
+    _movie_url: str = f"https://webservice.fanart.tv/v3/movies/%s?api_key={settings.FANART_API_KEY}"
+    _tv_url: str = f"https://webservice.fanart.tv/v3/tv/%s?api_key={settings.FANART_API_KEY}"
 
     def init_module(self) -> None:
         pass
@@ -321,7 +317,7 @@ class FanartModule(_ModuleBase):
     def stop(self):
         pass
 
-    def test(self) -> Tuple[bool, str]:
+    def test(self) -> tuple[bool, str]:
         """
         测试模块连接性
         """
@@ -332,7 +328,7 @@ class FanartModule(_ModuleBase):
             return False, f"无法连接fanart，错误码：{ret.status_code}"
         return False, "fanart网络连接失败"
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         return "FANART_API_KEY", True
 
     @staticmethod
@@ -360,7 +356,7 @@ class FanartModule(_ModuleBase):
         """
         return 0
 
-    def obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    def obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         获取图片
         :param mediainfo:  识别的媒体信息
@@ -373,7 +369,7 @@ class FanartModule(_ModuleBase):
         self.__set_mediainfo_images(mediainfo=mediainfo, images=images)
         return mediainfo
 
-    async def async_obtain_images(self, mediainfo: MediaInfo) -> Optional[MediaInfo]:
+    async def async_obtain_images(self, mediainfo: MediaInfo) -> MediaInfo | None:
         """
         获取图片（异步版本）
         :param mediainfo:  识别的媒体信息
@@ -400,9 +396,9 @@ class FanartModule(_ModuleBase):
     def metadata_img(
         self,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-        episode: Optional[int] = None,
-    ) -> Optional[dict]:
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> dict | None:
         """
         获取图片名称和url
         :param mediainfo: 媒体信息
@@ -414,9 +410,7 @@ class FanartModule(_ModuleBase):
             return None
         return self.__obtain_fanart_images(mediainfo=mediainfo, season=season)
 
-    def __obtain_fanart_images(
-        self, mediainfo: MediaInfo, season: Optional[int] = None
-    ) -> Optional[dict]:
+    def __obtain_fanart_images(self, mediainfo: MediaInfo, season: int | None = None) -> dict | None:
         """
         获取 Fanart 图片并转换为刮削图片名称
         """
@@ -429,8 +423,8 @@ class FanartModule(_ModuleBase):
     async def __async_obtain_fanart_images(
         self,
         mediainfo: MediaInfo,
-        season: Optional[int] = None,
-    ) -> Optional[dict]:
+        season: int | None = None,
+    ) -> dict | None:
         """
         异步获取 Fanart 图片并转换为刮削图片名称
         """
@@ -443,7 +437,7 @@ class FanartModule(_ModuleBase):
     @staticmethod
     def __fanart_query(
         mediainfo: MediaInfo,
-    ) -> Optional[Tuple[MediaType, Union[str, int]]]:
+    ) -> tuple[MediaType, str | int] | None:
         """
         获取 Fanart 查询参数
         """
@@ -461,9 +455,9 @@ class FanartModule(_ModuleBase):
     def __extract_images(
         self,
         mediainfo: MediaInfo,
-        result: Optional[dict],
-        season: Optional[int] = None,
-    ) -> Optional[dict]:
+        result: dict | None,
+        season: int | None = None,
+    ) -> dict | None:
         """
         从 Fanart 响应中提取图片名称和地址
         """
@@ -493,13 +487,9 @@ class FanartModule(_ModuleBase):
                         if image_season == "0":
                             season_image = f"season-specials-{image_type}"
                         else:
-                            season_image = (
-                                f"season{str(image_season).rjust(2, '0')}-{image_type}"
-                            )
+                            season_image = f"season{str(image_season).rjust(2, '0')}-{image_type}"
                         if image_url := image_obj.get("url"):
-                            ret.setdefault(
-                                f"{season_image}{Path(image_url).suffix}", image_url
-                            )
+                            ret.setdefault(f"{season_image}{Path(image_url).suffix}", image_url)
             else:
                 if season is not None:
                     continue
@@ -510,7 +500,7 @@ class FanartModule(_ModuleBase):
         return ret or None
 
     @staticmethod
-    def __mediainfo_image_attr(image_name: str) -> Optional[str]:
+    def __mediainfo_image_attr(image_name: str) -> str | None:
         """
         将 Fanart 刮削图片名映射为 MediaInfo 的显式图片字段
         """
@@ -579,14 +569,10 @@ class FanartModule(_ModuleBase):
 
     @classmethod
     @cached(maxsize=settings.CONF.fanart, ttl=settings.CONF.meta, shared_key="get")
-    def __request_fanart(
-        cls, media_type: MediaType, queryid: Union[str, int]
-    ) -> Optional[dict]:
+    def __request_fanart(cls, media_type: MediaType, queryid: str | int) -> dict | None:
         image_url = cls.__fanart_url(media_type=media_type, queryid=queryid)
         try:
-            ret = RequestUtils(proxies=cls._proxies, timeout=10).get_res(
-                image_url, raise_exception=True
-            )
+            ret = RequestUtils(proxies=cls._proxies, timeout=10).get_res(image_url, raise_exception=True)
             if ret:
                 return ret.json()
             else:
@@ -598,14 +584,10 @@ class FanartModule(_ModuleBase):
 
     @classmethod
     @cached(maxsize=settings.CONF.fanart, ttl=settings.CONF.meta, shared_key="get")
-    async def __async_request_fanart(
-        cls, media_type: MediaType, queryid: Union[str, int]
-    ) -> Optional[dict]:
+    async def __async_request_fanart(cls, media_type: MediaType, queryid: str | int) -> dict | None:
         image_url = cls.__fanart_url(media_type=media_type, queryid=queryid)
         try:
-            ret = await AsyncRequestUtils(proxies=cls._proxies, timeout=10).get_json(
-                image_url
-            )
+            ret = await AsyncRequestUtils(proxies=cls._proxies, timeout=10).get_json(image_url)
             if ret:
                 return ret
             logger.debug(f"未能获取到 {queryid} 的Fanart图片")
@@ -615,7 +597,7 @@ class FanartModule(_ModuleBase):
             return None
 
     @classmethod
-    def __fanart_url(cls, media_type: MediaType, queryid: Union[str, int]) -> str:
+    def __fanart_url(cls, media_type: MediaType, queryid: str | int) -> str:
         """
         生成 Fanart 请求地址
         """

@@ -16,9 +16,16 @@ from app.schemas.types import media_type_to_agent
 
 class RecognizeMediaInput(BaseModel):
     """识别媒体信息工具的输入参数模型"""
-    title: Optional[str] = Field(None, description="The title of the torrent/media to recognize (required for torrent recognition)")
-    subtitle: Optional[str] = Field(None, description="The subtitle or description of the torrent (optional, helps improve recognition accuracy)")
-    path: Optional[str] = Field(None, description="The file path to recognize (required for file recognition, mutually exclusive with title)")
+
+    title: str | None = Field(
+        None, description="The title of the torrent/media to recognize (required for torrent recognition)"
+    )
+    subtitle: str | None = Field(
+        None, description="The subtitle or description of the torrent (optional, helps improve recognition accuracy)"
+    )
+    path: str | None = Field(
+        None, description="The file path to recognize (required for file recognition, mutually exclusive with title)"
+    )
 
 
 class RecognizeMediaTool(MoviePilotTool):
@@ -29,14 +36,14 @@ class RecognizeMediaTool(MoviePilotTool):
         ToolTag.Metadata,
     ]
     description: str = "Extract/identify media information from torrent titles or file paths (NOT database search). Supports two modes: 1) Extract from torrent title and optional subtitle, 2) Extract from file path. Returns detailed media information. Use 'search_media' to search TMDB database, or 'scrape_metadata' to generate metadata files for existing files."
-    args_schema: Type[BaseModel] = RecognizeMediaInput
+    args_schema: type[BaseModel] = RecognizeMediaInput
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据识别参数生成友好的提示消息"""
         title = kwargs.get("title")
         subtitle = kwargs.get("subtitle")
         path = kwargs.get("path")
-        
+
         if path:
             message = f"识别文件媒体信息: {path}"
         elif title:
@@ -45,13 +52,14 @@ class RecognizeMediaTool(MoviePilotTool):
                 message += f" ({subtitle})"
         else:
             message = "识别媒体信息"
-        
+
         return message
 
-    async def run(self, title: Optional[str] = None, subtitle: Optional[str] = None,
-                  path: Optional[str] = None, **kwargs) -> str:
+    async def run(
+        self, title: str | None = None, subtitle: str | None = None, path: str | None = None, **kwargs
+    ) -> str:
         logger.info(f"执行工具: {self.name}, 参数: title={title}, subtitle={subtitle}, path={path}")
-        
+
         try:
             media_chain = MediaChain()
 
@@ -59,11 +67,8 @@ class RecognizeMediaTool(MoviePilotTool):
             if path:
                 # 文件路径识别
                 if not path:
-                    return json.dumps({
-                        "success": False,
-                        "message": "文件路径不能为空"
-                    }, ensure_ascii=False)
-                
+                    return json.dumps({"success": False, "message": "文件路径不能为空"}, ensure_ascii=False)
+
                 context = await media_chain.async_recognize_by_path(
                     path,
                     obtain_images=False,
@@ -71,12 +76,10 @@ class RecognizeMediaTool(MoviePilotTool):
                 if context:
                     return self._format_context_result(context, "文件")
                 else:
-                    return json.dumps({
-                        "success": False,
-                        "message": f"无法识别文件媒体信息: {path}",
-                        "path": path
-                    }, ensure_ascii=False)
-            
+                    return json.dumps(
+                        {"success": False, "message": f"无法识别文件媒体信息: {path}", "path": path}, ensure_ascii=False
+                    )
+
             elif title:
                 # 种子标题识别
                 metainfo = MetaInfo(title, subtitle)
@@ -88,48 +91,40 @@ class RecognizeMediaTool(MoviePilotTool):
                     context = Context(meta_info=metainfo, media_info=mediainfo)
                     return self._format_context_result(context, "种子")
                 else:
-                    return json.dumps({
-                        "success": False,
-                        "message": f"无法识别种子媒体信息: {title}",
-                        "title": title,
-                        "subtitle": subtitle
-                    }, ensure_ascii=False)
-            
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "message": f"无法识别种子媒体信息: {title}",
+                            "title": title,
+                            "subtitle": subtitle,
+                        },
+                        ensure_ascii=False,
+                    )
+
             else:
-                return json.dumps({
-                    "success": False,
-                    "message": "必须提供 title（标题）或 path（文件路径）参数之一"
-                }, ensure_ascii=False)
-        
+                return json.dumps(
+                    {"success": False, "message": "必须提供 title（标题）或 path（文件路径）参数之一"},
+                    ensure_ascii=False,
+                )
+
         except Exception as e:
             error_message = f"识别媒体信息失败: {str(e)}"
             logger.error(f"识别媒体信息失败: {e}", exc_info=True)
-            return json.dumps({
-                "success": False,
-                "message": error_message
-            }, ensure_ascii=False)
+            return json.dumps({"success": False, "message": error_message}, ensure_ascii=False)
 
     @staticmethod
     def _format_context_result(context: Context, source_type: str) -> str:
         """格式化识别结果为JSON字符串"""
         if not context:
-            return json.dumps({
-                "success": False,
-                "message": "识别结果为空"
-            }, ensure_ascii=False)
-        
+            return json.dumps({"success": False, "message": "识别结果为空"}, ensure_ascii=False)
+
         context_dict = context.to_dict()
         media_info = context_dict.get("media_info")
         meta_info = context_dict.get("meta_info")
-        
+
         # 构建简化的结果
-        result = {
-            "success": True,
-            "source_type": source_type,
-            "media_info": None,
-            "meta_info": None
-        }
-        
+        result = {"success": True, "source_type": source_type, "media_info": None, "meta_info": None}
+
         # 处理媒体信息
         if media_info:
             result["media_info"] = {
@@ -151,9 +146,9 @@ class RecognizeMediaTool(MoviePilotTool):
                 "backdrop_path": media_info.get("backdrop_path"),
                 "detail_link": media_info.get("detail_link"),
                 "title_year": media_info.get("title_year"),
-                "source": media_info.get("source")
+                "source": media_info.get("source"),
             }
-        
+
         # 处理元数据信息
         if meta_info:
             result["meta_info"] = {
@@ -176,5 +171,5 @@ class RecognizeMediaTool(MoviePilotTool):
                 "media_source": meta_info.get("media_source"),
                 "media_id": meta_info.get("media_id"),
             }
-        
+
         return json.dumps(result, ensure_ascii=False, indent=2)

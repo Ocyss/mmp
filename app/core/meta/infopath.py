@@ -12,9 +12,7 @@ PARENT_LATIN_TITLE_RE = re.compile(r"[A-Za-z]{2,}")
 SEASON_EPISODE_CN_RE = re.compile(r"[第共]\s*[0-9一二三四五六七八九十百零]+\s*[季集话話]")
 
 
-def should_use_parent_title_for_file_stem(
-    stem: str, parent_dir_name: str, file_meta: MetaBase
-) -> bool:
+def should_use_parent_title_for_file_stem(stem: str, parent_dir_name: str, file_meta: MetaBase) -> bool:
     """
     文件名（无后缀）是否仅为简繁体/字幕/特效等辅助说明，应改用父目录标题识别。
     要求：
@@ -23,10 +21,15 @@ def should_use_parent_title_for_file_stem(
     """
     if not file_meta.isfile or not stem or not parent_dir_name:
         return False
-    if any((
-            file_meta.tmdbid, file_meta.doubanid,
-            file_meta.bangumiid, file_meta.anilistid, file_meta.media_id,
-    )):
+    if any(
+        (
+            file_meta.tmdbid,
+            file_meta.doubanid,
+            file_meta.bangumiid,
+            file_meta.anilistid,
+            file_meta.media_id,
+        )
+    ):
         return False
     if not PARENT_LATIN_TITLE_RE.search(parent_dir_name):
         return False

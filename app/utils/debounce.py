@@ -2,8 +2,9 @@ import asyncio
 import functools
 import inspect
 from abc import ABC, abstractmethod
-from threading import Timer, Lock
-from typing import Callable, Any, Optional
+from collections.abc import Callable
+from threading import Lock, Timer
+from typing import Any, Optional
 
 from app.log import logger
 
@@ -13,8 +14,10 @@ class BaseDebouncer(ABC):
     防抖器的抽象基类。定义了防抖器的基本接口和日志功能。
     所有防抖器实现类必须继承此类并实现其抽象方法。
     """
-    def __init__(self, func: Callable, interval: float, *,
-                 leading: bool = False, enable_logging: bool = False, source: str = ""):
+
+    def __init__(
+        self, func: Callable, interval: float, *, leading: bool = False, enable_logging: bool = False, source: str = ""
+    ):
         """
         初始化防抖器实例。
         :param func: 要防抖的函数或协程
@@ -98,7 +101,7 @@ class Debouncer(BaseDebouncer):
         初始化防抖器实例。
         """
         super().__init__(*args, **kwargs)
-        self.timer: Optional[Timer] = None
+        self.timer: Timer | None = None
         self.lock = Lock()
         # 用于前沿模式，标记是否处于“冷却”或“不应期”
         self.is_cooling_down = False
@@ -178,12 +181,13 @@ class AsyncDebouncer(BaseDebouncer):
     """
     异步防抖实现类。
     """
+
     def __init__(self, *args, **kwargs):
         """
         初始化异步防抖器实例。
         """
         super().__init__(*args, **kwargs)
-        self.task: Optional[asyncio.Task] = None
+        self.task: asyncio.Task | None = None
         self.lock = asyncio.Lock()
         self.is_cooling_down = False
 
@@ -256,8 +260,7 @@ class AsyncDebouncer(BaseDebouncer):
             self.is_cooling_down = False
 
 
-def debounce(interval: float, *, leading: bool = False,
-             enable_logging: bool = False, source: str = "") -> Callable:
+def debounce(interval: float, *, leading: bool = False, enable_logging: bool = False, source: str = "") -> Callable:
     """
     支持同步和异步的防抖装饰器工厂。
     """
@@ -266,10 +269,7 @@ def debounce(interval: float, *, leading: bool = False,
         # 检查函数类型，并选择合适的引擎
         if inspect.iscoroutinefunction(func):
             # 异步函数，使用 AsyncDebouncer
-            instance = AsyncDebouncer(func, interval,
-                                      leading=leading,
-                                      enable_logging=enable_logging,
-                                      source=source)
+            instance = AsyncDebouncer(func, interval, leading=leading, enable_logging=enable_logging, source=source)
 
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs) -> Any:
@@ -280,10 +280,7 @@ def debounce(interval: float, *, leading: bool = False,
 
         else:
             # 同步函数，使用 Debouncer
-            instance = Debouncer(func, interval,
-                                 leading=leading,
-                                 enable_logging=enable_logging,
-                                 source=source)
+            instance = Debouncer(func, interval, leading=leading, enable_logging=enable_logging, source=source)
 
             @functools.wraps(func)
             def wrapper(*args, **kwargs) -> Any:

@@ -1,13 +1,13 @@
-from sqlalchemy import Column, String, JSON, Index, select
+from sqlalchemy import JSON, Column, Index, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.db import (
+    Base,
+    async_db_query,
     db_query,
     db_update,
-    async_db_query,
     get_id_column,
-    Base,
 )
 
 
@@ -15,14 +15,13 @@ class PluginData(Base):
     """
     插件数据表
     """
+
     id = get_id_column()
     plugin_id = Column(String, nullable=False)
     key = Column(String, nullable=False)
     value = Column(JSON)
 
-    __table_args__ = (
-        Index('ix_plugindata_plugin_id_key', 'plugin_id', 'key'),
-    )
+    __table_args__ = (Index("ix_plugindata_plugin_id_key", "plugin_id", "key"),)
 
     @classmethod
     @db_query
@@ -42,12 +41,8 @@ class PluginData(Base):
 
     @classmethod
     @async_db_query
-    async def async_get_plugin_data_by_key(
-        cls, db: AsyncSession, plugin_id: str, key: str
-    ):
-        result = await db.execute(
-            select(cls).where(cls.plugin_id == plugin_id, cls.key == key)
-        )
+    async def async_get_plugin_data_by_key(cls, db: AsyncSession, plugin_id: str, key: str):
+        result = await db.execute(select(cls).where(cls.plugin_id == plugin_id, cls.key == key))
         return result.scalar_one_or_none()
 
     @classmethod
@@ -67,8 +62,6 @@ class PluginData(Base):
 
     @classmethod
     @async_db_query
-    async def async_get_plugin_data_by_plugin_id(
-        cls, db: AsyncSession, plugin_id: str
-    ):
+    async def async_get_plugin_data_by_plugin_id(cls, db: AsyncSession, plugin_id: str):
         result = await db.execute(select(cls).where(cls.plugin_id == plugin_id))
         return result.scalars().all()

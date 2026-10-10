@@ -29,14 +29,13 @@ class McpExternalTool(MoviePilotTool):
             session_id=session_id,
             user_id=user_id,
             name=spec.agent_tool_name,
-            description=spec.description
-            or f"Call external MCP tool {spec.name} on {spec.server.name}.",
+            description=spec.description or f"Call external MCP tool {spec.name} on {spec.server.name}.",
             args_schema=spec.input_schema,
             require_admin=spec.server.require_admin,
         )
         self._spec = spec
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据 MCP 工具信息生成友好的提示消息。"""
         return f"调用 MCP 工具: {self._spec.server.name}/{self._spec.name}"
 
@@ -81,11 +80,11 @@ async def create_external_mcp_tools(
     *,
     session_id: str,
     user_id: str,
-    channel: Optional[str] = None,
-    source: Optional[str] = None,
-    username: Optional[str] = None,
+    channel: str | None = None,
+    source: str | None = None,
+    username: str | None = None,
     stream_handler=None,
-    agent_context: Optional[dict] = None,
+    agent_context: dict | None = None,
 ) -> list[McpExternalTool]:
     """创建当前已启用的外部 MCP Agent 工具列表。"""
     tools = []

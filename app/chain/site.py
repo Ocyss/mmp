@@ -1,10 +1,10 @@
 import base64
 import re
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from app.helper.sites import SitesHelper  # noqa
 from lxml import etree
 
 from app.chain import ChainBase
@@ -27,6 +27,7 @@ from app.helper.interaction import (
     update_or_post_message,
 )
 from app.helper.rss import RssHelper
+from app.helper.sites import SitesHelper  # noqa
 from app.log import logger
 from app.schemas import MessageChannel, Notification, SiteUserData
 from app.schemas.types import EventType, NotificationType
@@ -63,7 +64,7 @@ class SiteChain(ChainBase):
             "sunnypt.top": self.__sunnypt_test,
         }
 
-    def refresh_userdata(self, site: dict = None) -> Optional[SiteUserData]:
+    def refresh_userdata(self, site: dict = None) -> SiteUserData | None:
         """
         刷新站点的用户数据
         :param site:  站点
@@ -71,22 +72,27 @@ class SiteChain(ChainBase):
         """
         userdata: SiteUserData = self.run_module("refresh_userdata", site=site)
         if userdata:
-            SiteOper().update_userdata(domain=StringUtils.get_url_domain(site.get("domain")),
-                                       name=site.get("name"),
-                                       payload=userdata.model_dump())
+            SiteOper().update_userdata(
+                domain=StringUtils.get_url_domain(site.get("domain")),
+                name=site.get("name"),
+                payload=userdata.model_dump(),
+            )
             # 发送事件
-            eventmanager.send_event(EventType.SiteRefreshed, {
-                "site_id": site.get("id")
-            })
+            eventmanager.send_event(EventType.SiteRefreshed, {"site_id": site.get("id")})
             self._post_site_messages(site=site, userdata=userdata)
             # 低分享率警告
-            if userdata.ratio and float(userdata.ratio) < 1 and not bool(
-                    re.search(r"(贵宾|VIP?)", userdata.user_level or "", re.IGNORECASE)):
-                self.post_message(Notification(
-                    mtype=NotificationType.SiteMessage,
-                    title=f"【站点分享率低预警】",
-                    text=f"站点 {site.get('name')} 分享率 {userdata.ratio}，请注意！"
-                ))
+            if (
+                userdata.ratio
+                and float(userdata.ratio) < 1
+                and not bool(re.search(r"(贵宾|VIP?)", userdata.user_level or "", re.IGNORECASE))
+            ):
+                self.post_message(
+                    Notification(
+                        mtype=NotificationType.SiteMessage,
+                        title="【站点分享率低预警】",
+                        text=f"站点 {site.get('name')} 分享率 {userdata.ratio}，请注意！",
+                    )
+                )
         return userdata
 
     def _post_site_messages(self, site: dict, userdata: SiteUserData) -> None:
@@ -99,12 +105,13 @@ class SiteChain(ChainBase):
         if not userdata.message_unread:
             return
         if not userdata.message_unread_contents:
-            self.post_message(Notification(
-                mtype=NotificationType.SiteMessage,
-                title=f"站点 {site.get('name')} 收到 "
-                      f"{userdata.message_unread} 条新消息，请登陆查看",
-                link=site.get("url")
-            ))
+            self.post_message(
+                Notification(
+                    mtype=NotificationType.SiteMessage,
+                    title=f"站点 {site.get('name')} 收到 {userdata.message_unread} 条新消息，请登陆查看",
+                    link=site.get("url"),
+                )
+            )
             return
         for message in userdata.message_unread_contents:
             head, date, content, *metadata = message
@@ -113,18 +120,20 @@ class SiteChain(ChainBase):
                 continue
             msg_title = f"【站点 {site.get('name')} 消息】"
             msg_text = f"时间：{date}\n标题：{head}\n内容：\n{content}"
-            self.post_message(Notification(
-                source=message_source,
-                mtype=NotificationType.SiteMessage,
-                title=msg_title,
-                text=msg_text,
-                link=site.get("url")
-            ))
+            self.post_message(
+                Notification(
+                    source=message_source,
+                    mtype=NotificationType.SiteMessage,
+                    title=msg_title,
+                    text=msg_text,
+                    link=site.get("url"),
+                )
+            )
 
     def refresh_userdatas(
-            self,
-            progress_callback: Optional[Callable[..., None]] = None,
-    ) -> Optional[Dict[str, SiteUserData]]:
+        self,
+        progress_callback: Callable[..., None] | None = None,
+    ) -> dict[str, SiteUserData] | None:
         """
         刷新所有站点的用户数据
 
@@ -164,9 +173,7 @@ class SiteChain(ChainBase):
                     data={"total": total_num, "finished": index},
                 )
         if any_site_updated:
-            eventmanager.send_event(EventType.SiteRefreshed, {
-                "site_id": "*"
-            })
+            eventmanager.send_event(EventType.SiteRefreshed, {"site_id": "*"})
         if progress_callback:
             progress_callback(value=100, text="站点数据刷新完成")
 
@@ -179,7 +186,7 @@ class SiteChain(ChainBase):
         return domain in self.special_site_test
 
     @staticmethod
-    def __zhuque_test(site: Site) -> Tuple[bool, str]:
+    def __zhuque_test(site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：zhuique
         """
@@ -190,7 +197,7 @@ class SiteChain(ChainBase):
             ua=user_agent,
             cookies=site.cookie,
             proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            timeout=site.timeout or 15,
         ).get_res(url=site.url)
         if res is None:
             return False, "无法打开网站！"
@@ -205,13 +212,13 @@ class SiteChain(ChainBase):
         # 调用查询用户信息接口
         user_res = RequestUtils(
             headers={
-                'X-CSRF-TOKEN': token,
+                "X-CSRF-TOKEN": token,
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": f"{user_agent}"
+                "User-Agent": f"{user_agent}",
             },
             cookies=site.cookie,
             proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            timeout=site.timeout or 15,
         ).get_res(url=f"{site.url}api/user/getInfo")
         if user_res is None:
             return False, "无法打开网站！"
@@ -224,7 +231,7 @@ class SiteChain(ChainBase):
             return False, f"错误：{user_res.status_code} {user_res.reason}"
 
     @staticmethod
-    def __mteam_test(site: Site) -> Tuple[bool, str]:
+    def __mteam_test(site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：m-team
         """
@@ -237,9 +244,7 @@ class SiteChain(ChainBase):
             "x-api-key": site.apikey,
         }
         res = RequestUtils(
-            headers=headers,
-            proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
         ).post_res(url=url)
         if res is None:
             return False, "无法打开网站！"
@@ -252,7 +257,7 @@ class SiteChain(ChainBase):
             return False, f"错误：{res.status_code} {res.reason}"
 
     @staticmethod
-    def __sunnypt_test(site: Site) -> Tuple[bool, str]:
+    def __sunnypt_test(site: Site) -> tuple[bool, str]:
         """
         通过 profile 接口测试 SunnyPT API Key 和下载权限
 
@@ -260,9 +265,7 @@ class SiteChain(ChainBase):
         :return: 是否可用及状态信息
         """
         indexer = SitesHelper().get_indexer(site.domain) or {}
-        api_url = str(
-            indexer.get("api_url") or "https://api.sunnypt.top/api/v1/mp"
-        ).rstrip("/")
+        api_url = str(indexer.get("api_url") or "https://api.sunnypt.top/api/v1/mp").rstrip("/")
         res = RequestUtils(
             headers={
                 "Accept": "application/json",
@@ -278,7 +281,7 @@ class SiteChain(ChainBase):
             return False, f"错误：{res.status_code} {res.reason}"
         try:
             payload = res.json() or {}
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False, "SunnyPT API 响应不是有效 JSON"
         if str(payload.get("code")) != "0" or not isinstance(payload.get("data"), dict):
             return False, payload.get("msg") or "API Key 已过期或无效"
@@ -287,7 +290,7 @@ class SiteChain(ChainBase):
         return True, "连接成功"
 
     @staticmethod
-    def __yema_test(site: Site) -> Tuple[bool, str]:
+    def __yema_test(site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：yemapt
         """
@@ -302,7 +305,7 @@ class SiteChain(ChainBase):
             headers=headers,
             cookies=site.cookie,
             proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            timeout=site.timeout or 15,
         ).get_res(url=url)
         if res is None:
             return False, "无法打开网站！"
@@ -314,7 +317,7 @@ class SiteChain(ChainBase):
         else:
             return False, f"错误：{res.status_code} {res.reason}"
 
-    def __indexphp_test(self, site: Site) -> Tuple[bool, str]:
+    def __indexphp_test(self, site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：ptlsp/1ptba
         """
@@ -322,7 +325,7 @@ class SiteChain(ChainBase):
         return self.__test(site)
 
     @staticmethod
-    def __hddolby_test(site: Site) -> Tuple[bool, str]:
+    def __hddolby_test(site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：hddolby
         """
@@ -333,9 +336,7 @@ class SiteChain(ChainBase):
             "x-api-key": site.apikey,
         }
         res = RequestUtils(
-            headers=headers,
-            proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
         ).get_res(url=url)
         if res is None:
             return False, "无法打开网站！"
@@ -348,7 +349,7 @@ class SiteChain(ChainBase):
             return False, f"错误：{res.status_code} {res.reason}"
 
     @staticmethod
-    def __rousi_test(site: Site) -> Tuple[bool, str]:
+    def __rousi_test(site: Site) -> tuple[bool, str]:
         """
         判断站点是否已经登陆：rousi
         """
@@ -359,9 +360,7 @@ class SiteChain(ChainBase):
             "Authorization": f"Bearer {site.apikey}",
         }
         res = RequestUtils(
-            headers=headers,
-            proxies=settings.PROXY if site.proxy else None,
-            timeout=site.timeout or 15
+            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
         ).get_res(url=url)
         if res is None:
             return False, "无法打开网站！"
@@ -374,7 +373,7 @@ class SiteChain(ChainBase):
             return False, f"错误：{res.status_code} {res.reason}"
 
     @staticmethod
-    def __parse_favicon(url: str, cookie: str, ua: str) -> Tuple[str, Optional[str]]:
+    def __parse_favicon(url: str, cookie: str, ua: str) -> tuple[str, str | None]:
         """
         解析站点favicon,返回base64 fav图标
         :param url: 站点地址
@@ -407,10 +406,10 @@ class SiteChain(ChainBase):
         return favicon_url, None
 
     def sync_cookies(
-            self,
-            manual: bool = False,
-            progress_callback: Optional[Callable[..., None]] = None,
-    ) -> Tuple[bool, str]:
+        self,
+        manual: bool = False,
+        progress_callback: Callable[..., None] | None = None,
+    ) -> tuple[bool, str]:
         """
         通过CookieCloud同步站点Cookie
 
@@ -482,7 +481,7 @@ class SiteChain(ChainBase):
                             cookie=cookie,
                             ua=site_info.ua or settings.USER_AGENT,
                             proxy=True if site_info.proxy else False,
-                            timeout=site_info.timeout or 15
+                            timeout=site_info.timeout or 15,
                         )
                         if rss_url:
                             logger.info(f"更新站点 {domain} RSS地址 ...")
@@ -496,16 +495,15 @@ class SiteChain(ChainBase):
                 _update_count += 1
             elif indexer:
                 if settings.COOKIECLOUD_BLACKLIST and any(
-                        StringUtils.get_url_domain(domain) == StringUtils.get_url_domain(black_domain) for black_domain
-                        in str(settings.COOKIECLOUD_BLACKLIST).split(",")):
+                    StringUtils.get_url_domain(domain) == StringUtils.get_url_domain(black_domain)
+                    for black_domain in str(settings.COOKIECLOUD_BLACKLIST).split(",")
+                ):
                     logger.warn(f"站点 {domain} 已在黑名单中，不添加站点")
                     continue
                 # 新增站点
                 domain_url = __indexer_domain(inx=indexer, sub_domain=domain)
                 proxy = False
-                res = RequestUtils(cookies=cookie,
-                                   ua=settings.USER_AGENT
-                                   ).get_res(url=domain_url)
+                res = RequestUtils(cookies=cookie, ua=settings.USER_AGENT).get_res(url=domain_url)
                 if res and res.status_code in [200, 500, 403]:
                     content = res.text
                     if not indexer.get("public") and not SiteUtils.is_logged_in(content):
@@ -513,8 +511,7 @@ class SiteChain(ChainBase):
                         if under_challenge(content):
                             logger.warn(f"站点 {indexer.get('name')} 被Cloudflare防护，无法登录，无法添加站点")
                             continue
-                        logger.warn(
-                            f"站点 {indexer.get('name')} 登录失败，没有该站点账号或Cookie已失效，无法添加站点")
+                        logger.warn(f"站点 {indexer.get('name')} 登录失败，没有该站点账号或Cookie已失效，无法添加站点")
                         continue
                 elif res is not None:
                     _fail_count += 1
@@ -529,10 +526,9 @@ class SiteChain(ChainBase):
                         # 如果配置了代理，尝试通过代理重试
                         logger.info(f"站点 {indexer.get('name')} 初次连接失败，尝试通过代理重试...")
                         proxy = True
-                        res = RequestUtils(cookies=cookie,
-                                           ua=settings.USER_AGENT,
-                                           proxies=settings.PROXY
-                                           ).get_res(url=domain_url)
+                        res = RequestUtils(cookies=cookie, ua=settings.USER_AGENT, proxies=settings.PROXY).get_res(
+                            url=domain_url
+                        )
                         if res and res.status_code in [200, 500, 403]:
                             if not indexer.get("public") and not SiteUtils.is_logged_in(res.text):
                                 logger.warn(f"站点 {indexer.get('name')} 登录失败，即使通过代理，无法添加站点")
@@ -548,28 +544,32 @@ class SiteChain(ChainBase):
                 rss_url = None
                 if not indexer.get("public") and domain_url:
                     # 自动生成rss地址
-                    rss_url, errmsg = rsshelper.get_rss_link(url=domain_url,
-                                                             cookie=cookie,
-                                                             ua=settings.USER_AGENT,
-                                                             proxy=proxy)
+                    rss_url, errmsg = rsshelper.get_rss_link(
+                        url=domain_url, cookie=cookie, ua=settings.USER_AGENT, proxy=proxy
+                    )
                     if errmsg:
                         logger.warn(errmsg)
                 # 插入数据库
                 logger.info(f"新增站点 {indexer.get('name')} ...")
-                siteoper.add(name=indexer.get("name"),
-                             url=domain_url,
-                             domain=domain,
-                             cookie=cookie,
-                             rss=rss_url,
-                             proxy=1 if proxy else 0,
-                             public=1 if indexer.get("public") else 0)
+                siteoper.add(
+                    name=indexer.get("name"),
+                    url=domain_url,
+                    domain=domain,
+                    cookie=cookie,
+                    rss=rss_url,
+                    proxy=1 if proxy else 0,
+                    public=1 if indexer.get("public") else 0,
+                )
                 _add_count += 1
 
             # 通知站点更新
             if indexer:
-                eventmanager.send_event(EventType.SiteUpdated, {
-                    "domain": domain,
-                })
+                eventmanager.send_event(
+                    EventType.SiteUpdated,
+                    {
+                        "domain": domain,
+                    },
+                )
             if progress_callback:
                 progress_callback(
                     value=index / total_num * 100 if total_num else 100,
@@ -617,14 +617,9 @@ class SiteChain(ChainBase):
             return
         # 查询站点图标
         logger.info(f"开始缓存站点 {indexer.get('name')} 图标 ...")
-        icon_url, icon_base64 = self.__parse_favicon(url=indexer.get("domain"),
-                                                     cookie=cookie,
-                                                     ua=settings.USER_AGENT)
+        icon_url, icon_base64 = self.__parse_favicon(url=indexer.get("domain"), cookie=cookie, ua=settings.USER_AGENT)
         if icon_url:
-            siteoper.update_icon(name=indexer.get("name"),
-                                 domain=domain,
-                                 icon_url=icon_url,
-                                 icon_base64=icon_base64)
+            siteoper.update_icon(name=indexer.get("name"), domain=domain, icon_url=icon_url, icon_base64=icon_base64)
             logger.info(f"缓存站点 {indexer.get('name')} 图标成功")
         else:
             logger.warn(f"缓存站点 {indexer.get('name')} 图标失败")
@@ -671,7 +666,7 @@ class SiteChain(ChainBase):
         # 刷新站点用户数据
         self.refresh_userdata(site=indexer) or {}
 
-    def test(self, url: str) -> Tuple[bool, str]:
+    def test(self, url: str) -> tuple[bool, str]:
         """
         测试站点是否可用
         :param url: 站点域名
@@ -705,7 +700,7 @@ class SiteChain(ChainBase):
             return False, f"{str(e)}！"
 
     @staticmethod
-    def __test(site_info: Site) -> Tuple[bool, str]:
+    def __test(site_info: Site) -> tuple[bool, str]:
         """
         通用站点测试
         """
@@ -720,20 +715,15 @@ class SiteChain(ChainBase):
 
         # 访问链接
         if render:
-            page_source = PlaywrightHelper().get_page_source(url=site_url,
-                                                             cookies=site_cookie,
-                                                             ua=ua,
-                                                             proxies=proxy_server,
-                                                             timeout=timeout)
+            page_source = PlaywrightHelper().get_page_source(
+                url=site_url, cookies=site_cookie, ua=ua, proxies=proxy_server, timeout=timeout
+            )
             if not public and not SiteUtils.is_logged_in(page_source):
                 if under_challenge(page_source):
-                    return False, f"无法通过Cloudflare！"
-                return False, f"仿真登录失败，Cookie已失效！"
+                    return False, "无法通过Cloudflare！"
+                return False, "仿真登录失败，Cookie已失效！"
         else:
-            res = RequestUtils(cookies=site_cookie,
-                               ua=ua,
-                               proxies=proxies
-                               ).get_res(url=site_url)
+            res = RequestUtils(cookies=site_cookie, ua=ua, proxies=proxies).get_res(url=site_url)
             # 判断登录状态
             if res and res.status_code in [200, 500, 403]:
                 content = res.text
@@ -750,15 +740,15 @@ class SiteChain(ChainBase):
             elif res is not None:
                 return False, f"错误：{res.status_code} {res.reason}！"
             else:
-                return False, f"无法打开网站！"
+                return False, "无法打开网站！"
         return True, "连接成功"
 
     def remote_list(
-            self,
-            arg_str: str = "",
-            channel: MessageChannel = None,
-            userid: Union[str, int] = None,
-            source: Optional[str] = None,
+        self,
+        arg_str: str = "",
+        channel: MessageChannel = None,
+        userid: str | int = None,
+        source: str | None = None,
     ):
         """
         /sites 统一入口。
@@ -772,11 +762,11 @@ class SiteChain(ChainBase):
         )
         normalized_arg = (arg_str or "").strip()
         if normalized_arg and self.handle_text_interaction(
-                channel=channel,
-                source=source,
-                userid=userid,
-                username="",
-                text=normalized_arg,
+            channel=channel,
+            source=source,
+            userid=userid,
+            username="",
+            text=normalized_arg,
         ):
             return
         self._render_site_interaction(
@@ -788,7 +778,7 @@ class SiteChain(ChainBase):
         )
 
     @staticmethod
-    def parse_callback(callback_data: str) -> Optional[Tuple[str, str]]:
+    def parse_callback(callback_data: str) -> tuple[str, str] | None:
         """
         解析 /sites 按钮回调。
         """
@@ -800,14 +790,14 @@ class SiteChain(ChainBase):
         return parts[1], parts[2]
 
     def handle_callback_interaction(
-            self,
-            callback_data: str,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        callback_data: str,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> bool:
         """
         处理 /sites 按钮交互。
@@ -872,12 +862,12 @@ class SiteChain(ChainBase):
         return True
 
     def handle_text_interaction(
-            self,
-            channel: MessageChannel,
-            source: str,
-            userid: Union[str, int],
-            username: str,
-            text: str,
+        self,
+        channel: MessageChannel,
+        source: str,
+        userid: str | int,
+        username: str,
+        text: str,
     ) -> bool:
         """
         处理 /sites 文本补充输入。
@@ -959,9 +949,7 @@ class SiteChain(ChainBase):
             re.IGNORECASE,
         )
         enable_match = re.match(r"^(?:启用|enable)\s+(.+)$", normalized, re.IGNORECASE)
-        disable_match = re.match(
-            r"^(?:禁用|disable)\s+(.+)$", normalized, re.IGNORECASE
-        )
+        disable_match = re.match(r"^(?:禁用|disable)\s+(.+)$", normalized, re.IGNORECASE)
 
         if request.awaiting_input == "cookie":
             success, message = self._update_site_cookie_from_input(normalized)
@@ -1067,9 +1055,7 @@ class SiteChain(ChainBase):
             return True
 
         if disable_match:
-            success, message = self._set_sites_enabled(
-                disable_match.group(1), enabled=False
-            )
+            success, message = self._set_sites_enabled(disable_match.group(1), enabled=False)
             self.post_message(
                 Notification(
                     channel=channel,
@@ -1100,14 +1086,14 @@ class SiteChain(ChainBase):
         return True
 
     def _render_site_interaction(
-            self,
-            request,
-            channel: MessageChannel,
-            source: Optional[str],
-            userid: Union[str, int],
-            username: Optional[str],
-            original_message_id: Optional[Union[str, int]] = None,
-            original_chat_id: Optional[str] = None,
+        self,
+        request,
+        channel: MessageChannel,
+        source: str | None,
+        userid: str | int,
+        username: str | None,
+        original_message_id: str | int | None = None,
+        original_chat_id: str | None = None,
     ) -> None:
         """
         渲染 /sites 当前页面。
@@ -1174,9 +1160,7 @@ class SiteChain(ChainBase):
         )
 
     @staticmethod
-    def _format_site_list(
-            site_list: List[Site], channel: Optional[MessageChannel]
-    ) -> str:
+    def _format_site_list(site_list: list[Site], channel: MessageChannel | None) -> str:
         """
         根据渠道能力格式化站点列表。
         """
@@ -1208,7 +1192,7 @@ class SiteChain(ChainBase):
         return "\n".join(lines)
 
     @staticmethod
-    def _site_prompt(awaiting_input: Optional[str]) -> str:
+    def _site_prompt(awaiting_input: str | None) -> str:
         """
         返回当前输入模式提示。
         """
@@ -1221,7 +1205,7 @@ class SiteChain(ChainBase):
         return ""
 
     @staticmethod
-    def _site_usage_hint(awaiting_input: Optional[str]) -> str:
+    def _site_usage_hint(awaiting_input: str | None) -> str:
         """
         返回 /sites 的文本操作提示。
         """
@@ -1235,13 +1219,13 @@ class SiteChain(ChainBase):
         )
 
     @staticmethod
-    def _parse_site_ids(arg_str: str) -> List[int]:
+    def _parse_site_ids(arg_str: str) -> list[int]:
         """
         从输入中提取站点 ID。
         """
         return [int(item) for item in re.findall(r"\d+", arg_str or "")]
 
-    def _set_sites_enabled(self, arg_str: str, enabled: bool) -> Tuple[bool, str]:
+    def _set_sites_enabled(self, arg_str: str, enabled: bool) -> tuple[bool, str]:
         """
         批量启用或禁用站点。
         """
@@ -1271,7 +1255,7 @@ class SiteChain(ChainBase):
             message += f"；未找到：{', '.join(missing)}"
         return True, message
 
-    def _update_site_cookie_from_input(self, arg_str: str) -> Tuple[bool, str]:
+    def _update_site_cookie_from_input(self, arg_str: str) -> tuple[bool, str]:
         """
         根据输入更新单个站点 Cookie。
         """
@@ -1298,8 +1282,9 @@ class SiteChain(ChainBase):
             return False, f"【{site_info.name}】Cookie&UA 更新失败：{msg}"
         return True, f"【{site_info.name}】Cookie&UA 更新成功"
 
-    def remote_disable(self, arg_str: str, channel: MessageChannel,
-                       userid: Union[str, int] = None, source: Optional[str] = None):
+    def remote_disable(
+        self, arg_str: str, channel: MessageChannel, userid: str | int = None, source: str | None = None
+    ):
         """
         禁用站点
         """
@@ -1312,21 +1297,16 @@ class SiteChain(ChainBase):
         siteoper = SiteOper()
         site = siteoper.get(site_id)
         if not site:
-            self.post_message(Notification(
-                channel=channel,
-                title=f"站点编号 {site_id} 不存在！",
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False)
+            )
             return
         # 禁用站点
-        siteoper.update(site_id, {
-            "is_active": False
-        })
+        siteoper.update(site_id, {"is_active": False})
         # 重新发送消息
         self.remote_list(channel=channel, userid=userid, source=source)
 
-    def remote_enable(self, arg_str: str, channel: MessageChannel,
-                      userid: Union[str, int] = None, source: Optional[str] = None):
+    def remote_enable(self, arg_str: str, channel: MessageChannel, userid: str | int = None, source: str | None = None):
         """
         启用站点
         """
@@ -1341,22 +1321,21 @@ class SiteChain(ChainBase):
             site_id = int(arg_str)
             site = siteoper.get(site_id)
             if not site:
-                self.post_message(Notification(
-                    channel=channel,
-                    title=f"站点编号 {site_id} 不存在！",
-                    userid=userid,
-                    save_history=False))
+                self.post_message(
+                    Notification(
+                        channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False
+                    )
+                )
                 return
             # 禁用站点
-            siteoper.update(site_id, {
-                "is_active": True
-            })
+            siteoper.update(site_id, {"is_active": True})
         # 重新发送消息
         self.remote_list(channel=channel, userid=userid, source=source)
 
     @staticmethod
-    def update_cookie(site_info: Site,
-                      username: str, password: str, two_step_code: Optional[str] = None) -> Tuple[bool, str]:
+    def update_cookie(
+        site_info: Site, username: str, password: str, two_step_code: str | None = None
+    ) -> tuple[bool, str]:
         """
         根据用户名密码更新站点Cookie
         :param site_info: 站点信息
@@ -1372,33 +1351,28 @@ class SiteChain(ChainBase):
             password=password,
             two_step_code=two_step_code,
             proxies=settings.PROXY_SERVER if site_info.proxy else None,
-            timeout=site_info.timeout or 60
+            timeout=site_info.timeout or 60,
         )
         if result:
             cookie, ua, msg = result
             if not cookie:
                 return False, msg
-            SiteOper().update(site_info.id, {
-                "cookie": cookie,
-                "ua": ua
-            })
+            SiteOper().update(site_info.id, {"cookie": cookie, "ua": ua})
             return True, msg
         return False, "未知错误"
 
-    def remote_cookie(self, arg_str: str, channel: MessageChannel,
-                      userid: Union[str, int] = None, source: Optional[str] = None):
+    def remote_cookie(self, arg_str: str, channel: MessageChannel, userid: str | int = None, source: str | None = None):
         """
         使用用户名密码更新站点Cookie
         """
-        err_title = "请输入正确的命令格式：/site_cookie [id] [username] [password] [2fa_code/secret]，" \
-                    "[id]为站点编号，[uername]为站点用户名，[password]为站点密码，[2fa_code/secret]为站点二步验证码或密钥"
+        err_title = (
+            "请输入正确的命令格式：/site_cookie [id] [username] [password] [2fa_code/secret]，"
+            "[id]为站点编号，[uername]为站点用户名，[password]为站点密码，[2fa_code/secret]为站点二步验证码或密钥"
+        )
         if not arg_str:
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title=err_title,
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
+            )
             return
         arg_str = str(arg_str).strip()
         args = arg_str.split()
@@ -1407,79 +1381,85 @@ class SiteChain(ChainBase):
         if len(args) == 4:
             two_step_code = args[3]
         elif len(args) != 3:
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title=err_title,
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
+            )
             return
         site_id = args[0]
         if not site_id.isdigit():
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title=err_title,
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
+            )
             return
         # 站点ID
         site_id = int(site_id)
         # 站点信息
         site_info = SiteOper().get(site_id)
         if not site_info:
-            self.post_message(Notification(
+            self.post_message(
+                Notification(
+                    channel=channel,
+                    source=source,
+                    title=f"站点编号 {site_id} 不存在！",
+                    userid=userid,
+                    save_history=False,
+                )
+            )
+            return
+        self.post_message(
+            Notification(
                 channel=channel,
                 source=source,
-                title=f"站点编号 {site_id} 不存在！",
+                title=f"开始更新【{site_info.name}】Cookie&UA ...",
                 userid=userid,
-                save_history=False))
-            return
-        self.post_message(Notification(
-            channel=channel,
-            source=source,
-            title=f"开始更新【{site_info.name}】Cookie&UA ...",
-            userid=userid,
-            save_history=False))
+                save_history=False,
+            )
+        )
         # 用户名
         username = args[1]
         # 密码
         password = args[2]
         # 更新Cookie
-        status, msg = self.update_cookie(site_info=site_info,
-                                         username=username,
-                                         password=password,
-                                         two_step_code=two_step_code)
+        status, msg = self.update_cookie(
+            site_info=site_info, username=username, password=password, two_step_code=two_step_code
+        )
         if not status:
             logger.error(msg)
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title=f"【{site_info.name}】 Cookie&UA更新失败！",
-                text=f"错误原因：{msg}",
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(
+                    channel=channel,
+                    source=source,
+                    title=f"【{site_info.name}】 Cookie&UA更新失败！",
+                    text=f"错误原因：{msg}",
+                    userid=userid,
+                    save_history=False,
+                )
+            )
         else:
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title=f"【{site_info.name}】 Cookie&UA更新成功",
-                userid=userid,
-                save_history=False))
+            self.post_message(
+                Notification(
+                    channel=channel,
+                    source=source,
+                    title=f"【{site_info.name}】 Cookie&UA更新成功",
+                    userid=userid,
+                    save_history=False,
+                )
+            )
 
-    def remote_refresh_userdatas(self, channel: MessageChannel,
-                                 userid: Union[str, int] = None, source: Optional[str] = None):
+    def remote_refresh_userdatas(self, channel: MessageChannel, userid: str | int = None, source: str | None = None):
         """
         刷新所有站点用户数据
         """
         logger.info("收到命令，开始刷新站点数据 ...")
-        self.post_message(Notification(
-            channel=channel,
-            source=source,
-            title="开始刷新站点数据 ...",
-            userid=userid,
-            save_history=False,
-        ))
+        self.post_message(
+            Notification(
+                channel=channel,
+                source=source,
+                title="开始刷新站点数据 ...",
+                userid=userid,
+                save_history=False,
+            )
+        )
         # 刷新站点数据
         site_datas = self.refresh_userdatas()
         if site_datas:
@@ -1505,30 +1485,37 @@ class SiteChain(ChainBase):
                     incUploads += upload
                     incDownloads += download
                     messages[upload + (rand / 1000)] = (
-                            f"【{site}】{updated_date}\n"
-                            + f"上传量：{StringUtils.str_filesize(upload)}\n"
-                            + f"下载量：{StringUtils.str_filesize(download)}\n"
-                            + "————————————"
+                        f"【{site}】{updated_date}\n"
+                        + f"上传量：{StringUtils.str_filesize(upload)}\n"
+                        + f"下载量：{StringUtils.str_filesize(download)}\n"
+                        + "————————————"
                     )
             if incDownloads or incUploads:
                 sorted_messages = [messages[key] for key in sorted(messages.keys(), reverse=True)]
-                sorted_messages.insert(0, f"【汇总】\n"
-                                          f"总上传：{StringUtils.str_filesize(incUploads)}\n"
-                                          f"总下载：{StringUtils.str_filesize(incDownloads)}\n"
-                                          f"————————————")
-                self.post_message(Notification(
+                sorted_messages.insert(
+                    0,
+                    f"【汇总】\n"
+                    f"总上传：{StringUtils.str_filesize(incUploads)}\n"
+                    f"总下载：{StringUtils.str_filesize(incDownloads)}\n"
+                    f"————————————",
+                )
+                self.post_message(
+                    Notification(
+                        channel=channel,
+                        source=source,
+                        title="【站点数据统计】",
+                        text="\n".join(sorted_messages),
+                        userid=userid,
+                        save_history=False,
+                    )
+                )
+        else:
+            self.post_message(
+                Notification(
                     channel=channel,
                     source=source,
-                    title="【站点数据统计】",
-                    text="\n".join(sorted_messages),
+                    title="没有刷新到任何站点数据！",
                     userid=userid,
-                    save_history=False
-                ))
-        else:
-            self.post_message(Notification(
-                channel=channel,
-                source=source,
-                title="没有刷新到任何站点数据！",
-                userid=userid,
-                save_history=False,
-            ))
+                    save_history=False,
+                )
+            )

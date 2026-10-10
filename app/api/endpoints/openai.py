@@ -2,20 +2,21 @@ import asyncio
 import json
 import time
 import uuid
-from typing import AsyncIterator, List, Optional, Tuple
+from collections.abc import AsyncIterator
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Request, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app import schemas
+from app.agent import MoviePilotAgent, StreamingHandler
 from app.api.openai_utils import (
     build_completion_payload,
     build_prompt,
     build_responses_input,
     build_session_id,
 )
-from app.agent import MoviePilotAgent, StreamingHandler
 from app.core.config import settings
 from app.core.security import openai_bearer_scheme
 from app.schemas.types import MessageChannel
@@ -33,7 +34,7 @@ class _CollectingMoviePilotAgent(MoviePilotAgent):
 
     def __init__(self, *args, stream_mode: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.collected_messages: List[str] = []
+        self.collected_messages: list[str] = []
         self.stream_mode = stream_mode
         if stream_mode:
             self.stream_handler = _OpenAIStreamingHandler()
@@ -60,7 +61,7 @@ class _OpenAIStreamingHandler(StreamingHandler):
 
     def __init__(self):
         super().__init__()
-        self._event_queue: Optional[asyncio.Queue] = None
+        self._event_queue: asyncio.Queue | None = None
 
     def bind_queue(self, queue: asyncio.Queue):
         self._event_queue = queue
@@ -78,12 +79,12 @@ class _OpenAIStreamingHandler(StreamingHandler):
 
     async def start_streaming(
         self,
-        channel: Optional[str] = None,
-        source: Optional[str] = None,
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-        original_message_id: Optional[str] = None,
-        original_chat_id: Optional[str] = None,
+        channel: str | None = None,
+        source: str | None = None,
+        user_id: str | None = None,
+        username: str | None = None,
+        original_message_id: str | None = None,
+        original_chat_id: str | None = None,
         title: str = "",
     ):
         self._channel = channel
@@ -99,7 +100,7 @@ class _OpenAIStreamingHandler(StreamingHandler):
         self._msg_start_offset = 0
         self._max_message_length = 0
 
-    async def stop_streaming(self) -> Tuple[bool, str]:
+    async def stop_streaming(self) -> tuple[bool, str]:
         if not self._streaming_enabled:
             return False, ""
         self._streaming_enabled = False
@@ -119,7 +120,7 @@ def _sse_payload(data: dict) -> str:
 async def _stream_response(
     agent: _CollectingMoviePilotAgent,
     prompt: str,
-    images: List[str],
+    images: list[str],
 ) -> AsyncIterator[str]:
     event_queue: asyncio.Queue = asyncio.Queue()
     if isinstance(agent.stream_handler, _OpenAIStreamingHandler):
@@ -213,7 +214,7 @@ def _error_response(
     message: str,
     status_code: int,
     error_type: str = "invalid_request_error",
-    code: Optional[str] = None,
+    code: str | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
@@ -229,8 +230,8 @@ def _error_response(
 
 
 def _check_auth(
-    credentials: Optional[HTTPAuthorizationCredentials],
-) -> Optional[JSONResponse]:
+    credentials: HTTPAuthorizationCredentials | None,
+) -> JSONResponse | None:
     """
     OpenAI 兼容接口以 API_TOKEN 认证受信客户端，认证通过即按管理员级 Agent 集成处理。
     """
@@ -257,17 +258,13 @@ def _check_auth(
     response_model=schemas.OpenAIModelListResponse,
 )
 async def list_models(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(
-        openai_bearer_scheme
-    ),
+    credentials: HTTPAuthorizationCredentials | None = Security(openai_bearer_scheme),
 ):
     auth_error = _check_auth(credentials)
     if auth_error:
         return auth_error
     now = int(time.time())
-    return schemas.OpenAIModelListResponse(
-        data=[schemas.OpenAIModelInfo(id=MODEL_ID, created=now)]
-    )
+    return schemas.OpenAIModelListResponse(data=[schemas.OpenAIModelInfo(id=MODEL_ID, created=now)])
 
 
 @router.post(
@@ -278,9 +275,7 @@ async def list_models(
 async def chat_completions(
     payload: schemas.OpenAIChatCompletionsRequest,
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(
-        openai_bearer_scheme
-    ),
+    credentials: HTTPAuthorizationCredentials | None = Security(openai_bearer_scheme),
 ):
     auth_error = _check_auth(credentials)
     if auth_error:
@@ -302,19 +297,12 @@ async def chat_completions(
         )
 
     session_key = (
-        str(payload.user or "").strip()
-        or str(request.headers.get("x-session-id") or "").strip()
-        or str(uuid.uuid4())
+        str(payload.user or "").strip() or str(request.headers.get("x-session-id") or "").strip() or str(uuid.uuid4())
     )
-    use_server_session = bool(
-        str(payload.user or "").strip()
-        or str(request.headers.get("x-session-id") or "").strip()
-    )
+    use_server_session = bool(str(payload.user or "").strip() or str(request.headers.get("x-session-id") or "").strip())
 
     try:
-        prompt, images = build_prompt(
-            payload.messages, use_server_session=use_server_session
-        )
+        prompt, images = build_prompt(payload.messages, use_server_session=use_server_session)
     except ValueError as exc:
         return _error_response(str(exc), 400, code="invalid_messages")
 
@@ -352,9 +340,7 @@ async def chat_completions(
         )
 
     content = "\n\n".join(
-        message.strip()
-        for message in agent.collected_messages
-        if message and message.strip()
+        message.strip() for message in agent.collected_messages if message and message.strip()
     ).strip()
     if not content and result:
         content = str(result).strip()
@@ -371,9 +357,7 @@ async def chat_completions(
 )
 async def responses(
     payload: schemas.OpenAIResponsesRequest,
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(
-        openai_bearer_scheme
-    ),
+    credentials: HTTPAuthorizationCredentials | None = Security(openai_bearer_scheme),
 ):
     auth_error = _check_auth(credentials)
     if auth_error:
@@ -394,9 +378,7 @@ async def responses(
             code="unsupported_stream",
         )
 
-    normalized_messages = build_responses_input(
-        payload.input, instructions=payload.instructions
-    )
+    normalized_messages = build_responses_input(payload.input, instructions=payload.instructions)
     if not normalized_messages:
         return _error_response(
             "`input` must include at least one usable message.",
@@ -405,9 +387,7 @@ async def responses(
         )
 
     try:
-        prompt, images = build_prompt(
-            normalized_messages, use_server_session=bool(payload.user)
-        )
+        prompt, images = build_prompt(normalized_messages, use_server_session=bool(payload.user))
     except ValueError as exc:
         return _error_response(str(exc), 400, code="invalid_input")
 
@@ -434,9 +414,7 @@ async def responses(
         )
 
     content = "\n\n".join(
-        message.strip()
-        for message in agent.collected_messages
-        if message and message.strip()
+        message.strip() for message in agent.collected_messages if message and message.strip()
     ).strip()
     if not content and result:
         content = str(result).strip()

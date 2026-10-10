@@ -5,7 +5,7 @@ from app.core.context import MediaInfo
 from app.core.meta import MetaBase
 from app.db import DbOper
 from app.db.models.transferhistory import TransferHistory
-from app.schemas import TransferInfo, FileItem
+from app.schemas import FileItem, TransferInfo
 
 
 class TransferHistoryOper(DbOper):
@@ -29,31 +29,27 @@ class TransferHistoryOper(DbOper):
     async def async_list_by_title(
         self,
         title: str,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-        status: Optional[bool] = None,
-    ) -> List[TransferHistory]:
+        page: int | None = 1,
+        count: int | None = 30,
+        status: bool | None = None,
+    ) -> list[TransferHistory]:
         """
         异步按标题分页查询转移记录。
         """
-        return await TransferHistory.async_list_by_title(
-            self._db, title=title, page=page, count=count, status=status
-        )
+        return await TransferHistory.async_list_by_title(self._db, title=title, page=page, count=count, status=status)
 
     async def async_list_by_page(
         self,
-        page: Optional[int] = 1,
-        count: Optional[int] = 30,
-        status: Optional[bool] = None,
-    ) -> List[TransferHistory]:
+        page: int | None = 1,
+        count: int | None = 30,
+        status: bool | None = None,
+    ) -> list[TransferHistory]:
         """
         异步分页查询转移记录。
         """
-        return await TransferHistory.async_list_by_page(
-            self._db, page=page, count=count, status=status
-        )
+        return await TransferHistory.async_list_by_page(self._db, page=page, count=count, status=status)
 
-    async def async_count(self, status: Optional[bool] = None) -> int:
+    async def async_count(self, status: bool | None = None) -> int:
         """
         异步统计转移记录数量。
         """
@@ -62,25 +58,21 @@ class TransferHistoryOper(DbOper):
     async def async_count_by_title(
         self,
         title: str,
-        status: Optional[bool] = None,
+        status: bool | None = None,
     ) -> int:
         """
         异步按标题统计转移记录数量。
         """
-        return await TransferHistory.async_count_by_title(
-            self._db, title=title, status=status
-        )
+        return await TransferHistory.async_count_by_title(self._db, title=title, status=status)
 
-    def get_by_title(self, title: str) -> List[TransferHistory]:
+    def get_by_title(self, title: str) -> list[TransferHistory]:
         """
         按标题查询转移记录
         :param title: 数据key
         """
         return TransferHistory.list_by_title(self._db, title)
 
-    def get_by_src(
-            self, src: str, storage: Optional[str] = None
-    ) -> Optional[TransferHistory]:
+    def get_by_src(self, src: str, storage: str | None = None) -> TransferHistory | None:
         """
         按源查询转移记录
         :param src: 数据key
@@ -89,9 +81,7 @@ class TransferHistoryOper(DbOper):
         """
         return TransferHistory.get_by_src(self._db, src, storage)
 
-    def get_by_dest(
-            self, dest: str, storage: Optional[str] = None
-    ) -> Optional[TransferHistory]:
+    def get_by_dest(self, dest: str, storage: str | None = None) -> TransferHistory | None:
         """
         按转移路径查询转移记录
         :param dest: 数据key
@@ -100,11 +90,11 @@ class TransferHistoryOper(DbOper):
         return TransferHistory.get_by_dest(self._db, dest, storage)
 
     def list_success_by_src(
-            self,
-            src: str,
-            storage: Optional[str] = None,
-            recursive: bool = False,
-    ) -> List[TransferHistory]:
+        self,
+        src: str,
+        storage: str | None = None,
+        recursive: bool = False,
+    ) -> list[TransferHistory]:
         """
         按源路径查询成功整理记录。
 
@@ -121,11 +111,11 @@ class TransferHistoryOper(DbOper):
         )
 
     def list_success_move_by_dest(
-            self,
-            dest: str,
-            storage: Optional[str] = None,
-            recursive: bool = False,
-    ) -> List[TransferHistory]:
+        self,
+        dest: str,
+        storage: str | None = None,
+        recursive: bool = False,
+    ) -> list[TransferHistory]:
         """
         按目标路径查询成功移动记录。
 
@@ -141,7 +131,7 @@ class TransferHistoryOper(DbOper):
             recursive=recursive,
         )
 
-    def list_by_hash(self, download_hash: str) -> List[TransferHistory]:
+    def list_by_hash(self, download_hash: str) -> list[TransferHistory]:
         """
         按种子hash查询转移记录
         :param download_hash: 种子hash
@@ -152,39 +142,37 @@ class TransferHistoryOper(DbOper):
         """
         新增转移历史
         """
-        kwargs.update({
-            "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        })
+        kwargs.update({"date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())})
         TransferHistory(**kwargs).create(self._db)
 
-    def statistic(self, days: Optional[int] = 7) -> List[Any]:
+    def statistic(self, days: int | None = 7) -> list[Any]:
         """
         统计最近days天的下载历史数量
         """
         return TransferHistory.statistic(self._db, days)
 
-    def get_by(self, title: Optional[str] = None, year: Optional[str] = None, mtype: Optional[str] = None,
-               season: Optional[str] = None, episode: Optional[str] = None, tmdbid: Optional[int] = None,
-               dest: Optional[str] = None) -> List[TransferHistory]:
+    def get_by(
+        self,
+        title: str | None = None,
+        year: str | None = None,
+        mtype: str | None = None,
+        season: str | None = None,
+        episode: str | None = None,
+        tmdbid: int | None = None,
+        dest: str | None = None,
+    ) -> list[TransferHistory]:
         """
         按类型、标题、年份、季集查询转移记录
         """
-        return TransferHistory.list_by(db=self._db,
-                                       mtype=mtype,
-                                       title=title,
-                                       dest=dest,
-                                       year=year,
-                                       season=season,
-                                       episode=episode,
-                                       tmdbid=tmdbid)
+        return TransferHistory.list_by(
+            db=self._db, mtype=mtype, title=title, dest=dest, year=year, season=season, episode=episode, tmdbid=tmdbid
+        )
 
-    def get_by_type_tmdbid(self, mtype: Optional[str] = None, tmdbid: Optional[int] = None) -> TransferHistory:
+    def get_by_type_tmdbid(self, mtype: str | None = None, tmdbid: int | None = None) -> TransferHistory:
         """
         按类型、tmdb查询转移记录
         """
-        return TransferHistory.get_by_type_tmdbid(db=self._db,
-                                                  mtype=mtype,
-                                                  tmdbid=tmdbid)
+        return TransferHistory.get_by_type_tmdbid(db=self._db, mtype=mtype, tmdbid=tmdbid)
 
     def delete(self, historyid):
         """
@@ -212,9 +200,7 @@ class TransferHistoryOper(DbOper):
             transferhistory = TransferHistory.get_by_src(self._db, kwargs.get("src"))
             if transferhistory:
                 transferhistory.delete(self._db, transferhistory.id)
-        kwargs.update({
-            "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        })
+        kwargs.update({"date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())})
         TransferHistory(**kwargs).create(self._db)
         return TransferHistory.get_by_src(self._db, kwargs.get("src"))
 
@@ -224,9 +210,16 @@ class TransferHistoryOper(DbOper):
         """
         TransferHistory.update_download_hash(self._db, historyid, download_hash)
 
-    def add_success(self, fileitem: FileItem, mode: str, meta: MetaBase,
-                    mediainfo: MediaInfo, transferinfo: TransferInfo,
-                    downloader: Optional[str] = None, download_hash: Optional[str] = None):
+    def add_success(
+        self,
+        fileitem: FileItem,
+        mode: str,
+        meta: MetaBase,
+        mediainfo: MediaInfo,
+        transferinfo: TransferInfo,
+        downloader: str | None = None,
+        download_hash: str | None = None,
+    ):
         """
         新增转移成功历史记录
         """
@@ -256,11 +249,19 @@ class TransferHistoryOper(DbOper):
             downloader=downloader,
             download_hash=download_hash,
             status=1,
-            files=transferinfo.file_list
+            files=transferinfo.file_list,
         )
 
-    def add_fail(self, fileitem: FileItem, mode: str, meta: MetaBase, mediainfo: MediaInfo = None,
-                 transferinfo: TransferInfo = None, downloader: Optional[str] = None, download_hash: Optional[str] = None):
+    def add_fail(
+        self,
+        fileitem: FileItem,
+        mode: str,
+        meta: MetaBase,
+        mediainfo: MediaInfo = None,
+        transferinfo: TransferInfo = None,
+        downloader: str | None = None,
+        download_hash: str | None = None,
+    ):
         """
         新增转移失败历史记录
         """
@@ -292,8 +293,8 @@ class TransferHistoryOper(DbOper):
                 download_hash=download_hash,
                 episode_group=mediainfo.episode_group,
                 status=0,
-                errmsg=transferinfo.message or '未知错误',
-                files=transferinfo.file_list
+                errmsg=transferinfo.message or "未知错误",
+                files=transferinfo.file_list,
             )
         else:
             his = self.add_force(
@@ -314,11 +315,11 @@ class TransferHistoryOper(DbOper):
                 downloader=downloader,
                 download_hash=download_hash,
                 status=0,
-                errmsg="未识别到媒体信息"
+                errmsg="未识别到媒体信息",
             )
         return his
 
-    def list_by_date(self, date: str) -> List[TransferHistory]:
+    def list_by_date(self, date: str) -> list[TransferHistory]:
         """
         查询某时间之后的转移历史
         :param date: 日期

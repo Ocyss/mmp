@@ -17,7 +17,7 @@ from app.log import logger
 from app.modules import _ModuleBase
 from app.modules.indexer.spider.mtorrent import MTorrentSpider
 from app.schemas import TorrentInfo
-from app.schemas.file import FileURI 
+from app.schemas.file import FileURI
 from app.schemas.types import ModuleType, OtherModulesType
 from app.utils.http import RequestUtils
 from app.utils.system import SystemUtils
@@ -37,7 +37,7 @@ class SubtitleModule(_ModuleBase):
     _SITE_SUBTITLE_XPATH = [
         '//td[@class="rowhead"][text()="字幕"]/following-sibling::td//a[not(@class)]',
         '//td[@class="rowhead"][text()="字幕"]/following-sibling::td//a',
-        '//div[contains(@class, "font-bold")][text()="字幕"]/following-sibling::div[1]//a[not(@class)]', # 憨憨
+        '//div[contains(@class, "font-bold")][text()="字幕"]/following-sibling::div[1]//a[not(@class)]',  # 憨憨
     ]
     _SUBTITLE_URL_ATTRS = (
         "href",
@@ -80,7 +80,7 @@ class SubtitleModule(_ModuleBase):
         """
         return 0
 
-    def init_setting(self) -> Tuple[str, Union[str, bool]]:
+    def init_setting(self) -> tuple[str, str | bool]:
         pass
 
     def stop(self) -> None:
@@ -90,7 +90,7 @@ class SubtitleModule(_ModuleBase):
         pass
 
     @classmethod
-    def __normalize_subtitle_link(cls, page_url: str, sublink: str) -> Optional[str]:
+    def __normalize_subtitle_link(cls, page_url: str, sublink: str) -> str | None:
         """
         转换并过滤真实字幕下载链接
         """
@@ -113,7 +113,7 @@ class SubtitleModule(_ModuleBase):
         return sublink
 
     @classmethod
-    def _parse_subtitle_links(cls, html, page_url: str) -> List[str]:
+    def _parse_subtitle_links(cls, html, page_url: str) -> list[str]:
         """
         从站点详情页中解析字幕下载链接
         """
@@ -126,8 +126,7 @@ class SubtitleModule(_ModuleBase):
                 for sublink_node in sublink_nodes:
                     sublinks = [sublink_node.get(attr) for attr in cls._SUBTITLE_URL_ATTRS]
                     sublinks.extend(
-                        match.group("url")
-                        for match in cls._SCRIPT_URL_RE.finditer(sublink_node.get("onclick") or "")
+                        match.group("url") for match in cls._SCRIPT_URL_RE.finditer(sublink_node.get("onclick") or "")
                     )
                     for sublink in sublinks:
                         sublink = cls.__normalize_subtitle_link(page_url, sublink)
@@ -149,9 +148,7 @@ class SubtitleModule(_ModuleBase):
             site = SiteOper().get(torrent.site)
             if indexer := SitesHelper().get_indexer(site.domain):
                 if indexer.get("parser") == "mTorrent":
-                    return MTorrentSpider(indexer).get_subtitle_links(
-                        torrent.page_url
-                    )
+                    return MTorrentSpider(indexer).get_subtitle_links(torrent.page_url)
                 # TODO 其它采用API访问的站点
         # 普通站点通过解析网站代码的方式获取
         request = RequestUtils(
@@ -176,7 +173,7 @@ class SubtitleModule(_ModuleBase):
             logger.warn(f"无法打开链接：{torrent.page_url}")
         return None
 
-    def download_added(self, context: Context, download_dir: Path, torrent_content: Union[str, bytes] = None):
+    def download_added(self, context: Context, download_dir: Path, torrent_content: str | bytes = None):
         """
         添加下载任务成功后，从站点下载字幕，保存到下载目录
         :param context:  上下文，包括识别信息、媒体信息、种子信息
@@ -208,7 +205,7 @@ class SubtitleModule(_ModuleBase):
         storage = fileURI.storage
         download_dir = Path(fileURI.path)
         for _ in range(30):
-            found = storageChain.get_file_item(storage,  download_dir / folder_name)
+            found = storageChain.get_file_item(storage, download_dir / folder_name)
             if found:
                 working_dir_item = found
                 break
@@ -217,10 +214,7 @@ class SubtitleModule(_ModuleBase):
         if not working_dir_item and folder_name:
             parent_dir_item = storageChain.get_folder(storage, download_dir)
             if parent_dir_item:
-                working_dir_item = storageChain.create_folder(
-                    parent_dir_item,
-                    folder_name
-                )
+                working_dir_item = storageChain.create_folder(parent_dir_item, folder_name)
             else:
                 logger.error(f"下载根目录不存在，无法创建字幕文件夹：{download_dir}")
                 return

@@ -5,11 +5,12 @@ import pyotp
 
 class OtpUtils:
     @staticmethod
-    def generate_secret_key(username: str) -> Tuple[str, str]:
+    def generate_secret_key(username: str) -> tuple[str, str]:
         try:
             secret = pyotp.random_base32()
-            uri = pyotp.totp.TOTP(secret).provisioning_uri(name='MoviePilot',
-                                                           issuer_name='MoviePilot(' + username + ')')
+            uri = pyotp.totp.TOTP(secret).provisioning_uri(
+                name="MoviePilot", issuer_name="MoviePilot(" + username + ")"
+            )
             return secret, uri
         except Exception as err:
             print(str(err))

@@ -1,10 +1,11 @@
 import asyncio
 import json
 import time
-from typing import Any, AsyncIterator, Iterator, List, Optional
+from collections.abc import AsyncIterator, Iterator
+from typing import Any, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Body, Request
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from app import schemas
@@ -17,7 +18,7 @@ from app.core.security import verify_resource_token, verify_token
 from app.helper.locale import LocaleHelper
 from app.log import logger
 from app.schemas import MediaRecognizeConvertEventData
-from app.schemas.types import MediaType, ChainEventType
+from app.schemas.types import ChainEventType, MediaType
 from app.utils.media import parse_media_key, resolve_media_identity
 from app.utils.security import SecurityUtils
 
@@ -33,14 +34,14 @@ _SSE_RESPONSE_HEADERS = {
 }
 
 
-def _parse_site_list(sites: Optional[str]) -> Optional[List[int]]:
+def _parse_site_list(sites: str | None) -> list[int] | None:
     """
     解析站点ID列表
     """
     return [int(site) for site in sites.split(",") if site] if sites else None
 
 
-def _parse_media_type(mtype: Optional[str]) -> Optional[MediaType]:
+def _parse_media_type(mtype: str | None) -> MediaType | None:
     """
     解析媒体类型，兼容前端和 Agent 使用的 movie/tv 取值。
     """
@@ -50,34 +51,29 @@ def _parse_media_type(mtype: Optional[str]) -> Optional[MediaType]:
 
 
 def _resolve_media_season(
-        explicit_season: Optional[int],
-        recognized_season: Optional[int],
-) -> Optional[int]:
+    explicit_season: int | None,
+    recognized_season: int | None,
+) -> int | None:
     """合并显式季号与识别结果，显式值优先且季 0 属于有效业务值。"""
     return explicit_season if explicit_season is not None else recognized_season
 
 
 async def _resolve_media_search_params(
-        mediaid: str,
-        media_type: Optional[MediaType] = None,
-        title: Optional[str] = None,
-        year: Optional[str] = None,
-        media_season: Optional[int] = None,
-) -> tuple[Optional[dict], str]:
+    mediaid: str,
+    media_type: MediaType | None = None,
+    title: str | None = None,
+    year: str | None = None,
+    media_season: int | None = None,
+) -> tuple[dict | None, str]:
     """将任意来源媒体键解析为 SearchChain 可直接使用的识别参数。"""
     source, source_media_id = parse_media_key(mediaid)
     if source and source_media_id:
-        if source in {"themoviedb", "bangumi", "anilist"} \
-                and not source_media_id.isdigit():
+        if source in {"themoviedb", "bangumi", "anilist"} and not source_media_id.isdigit():
             return None, "媒体ID格式错误"
         return {"source": source, "mediaid": source_media_id}, ""
 
-    event_data = MediaRecognizeConvertEventData(
-        mediaid=mediaid, convert_type=settings.RECOGNIZE_SOURCE
-    )
-    event = await eventmanager.async_send_event(
-        ChainEventType.MediaRecognizeConvert, event_data
-    )
+    event_data = MediaRecognizeConvertEventData(mediaid=mediaid, convert_type=settings.RECOGNIZE_SOURCE)
+    event = await eventmanager.async_send_event(ChainEventType.MediaRecognizeConvert, event_data)
     if event and event.event_data and event.event_data.media_dict:
         event_data = event.event_data
         search_id = event_data.media_dict.get("id")
@@ -110,7 +106,7 @@ async def _resolve_media_search_params(
     return {"source": source, "mediaid": source_media_id}, ""
 
 
-def _sse_event(data: dict, locale: Optional[str] = None) -> str:
+def _sse_event(data: dict, locale: str | None = None) -> str:
     """
     转换为SSE事件
     """
@@ -120,9 +116,7 @@ def _sse_event(data: dict, locale: Optional[str] = None) -> str:
     if isinstance(message, str) or isinstance(text, str):
         payload = data.copy()
         if isinstance(message, str):
-            payload["message_i18n"] = LocaleHelper.translate_text(
-                message, locale=locale
-            )
+            payload["message_i18n"] = LocaleHelper.translate_text(message, locale=locale)
         if isinstance(text, str):
             payload["text_i18n"] = LocaleHelper.translate_text(text, locale=locale)
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -142,7 +136,7 @@ def _serialize_signed_subtitle_result(subtitle: Any) -> dict:
     return data
 
 
-def _serialize_signed_subtitle_results(subtitles: List[Any]) -> List[dict]:
+def _serialize_signed_subtitle_results(subtitles: list[Any]) -> list[dict]:
     """
     批量序列化字幕结果，确保返回给客户端的下载链接均已签名。
     """
@@ -155,9 +149,7 @@ def _sign_subtitle_search_event(event: dict) -> dict:
     """
     signed_event = dict(event)
     if "items" in signed_event:
-        signed_event["items"] = _serialize_signed_subtitle_results(
-            signed_event.get("items") or []
-        )
+        signed_event["items"] = _serialize_signed_subtitle_results(signed_event.get("items") or [])
     return signed_event
 
 
@@ -171,7 +163,7 @@ async def _iter_signed_subtitle_search_events(
         yield _sign_subtitle_search_event(event)
 
 
-def _merge_append_event(pending_event: Optional[dict], event: dict) -> dict:
+def _merge_append_event(pending_event: dict | None, event: dict) -> dict:
     """
     合并短时间内连续到达的 append 事件，降低前端刷新频率。
     """
@@ -193,11 +185,7 @@ def _iter_replace_event_batches(event: dict) -> Iterator[dict]:
     将超大的最终替换事件拆成有序批次，避免单个 SSE 消息承载全部完整对象。
     """
     items = event.get("items")
-    if (
-        event.get("type") != "replace"
-        or not isinstance(items, list)
-        or len(items) <= _SSE_REPLACE_MAX_ITEMS
-    ):
+    if event.get("type") != "replace" or not isinstance(items, list) or len(items) <= _SSE_REPLACE_MAX_ITEMS:
         yield event
         return
 
@@ -208,7 +196,7 @@ def _iter_replace_event_batches(event: dict) -> Iterator[dict]:
         batch_event.update(
             {
                 "type": "replace" if batch_index == 0 else "append",
-                "items": items[start:start + _SSE_REPLACE_MAX_ITEMS],
+                "items": items[start : start + _SSE_REPLACE_MAX_ITEMS],
                 "replace_batch": True,
                 "batch_index": batch_index,
                 "batch_count": batch_count,
@@ -224,19 +212,15 @@ async def _iter_batched_search_events(
     对搜索流事件做轻量批处理，并在上游长时间静默时发送心跳。
     """
     iterator = event_source.__aiter__()
-    pending_append_event: Optional[dict] = None
-    next_event_task: Optional[asyncio.Task] = None
+    pending_append_event: dict | None = None
+    next_event_task: asyncio.Task | None = None
 
     try:
         while True:
             if next_event_task is None:
                 next_event_task = asyncio.create_task(anext(iterator))
 
-            timeout = (
-                _SSE_APPEND_FLUSH_INTERVAL
-                if pending_append_event
-                else _SSE_HEARTBEAT_INTERVAL
-            )
+            timeout = _SSE_APPEND_FLUSH_INTERVAL if pending_append_event else _SSE_HEARTBEAT_INTERVAL
             done, _ = await asyncio.wait({next_event_task}, timeout=timeout)
 
             if not done:
@@ -258,10 +242,7 @@ async def _iter_batched_search_events(
 
             if event.get("type") == "append":
                 pending_append_event = _merge_append_event(pending_append_event, event)
-                if (
-                    len(pending_append_event.get("items") or [])
-                    >= _SSE_APPEND_MAX_ITEMS
-                ):
+                if len(pending_append_event.get("items") or []) >= _SSE_APPEND_MAX_ITEMS:
                     yield pending_append_event
                     pending_append_event = None
                 continue
@@ -349,7 +330,7 @@ async def _stream_search_events(request: Request, event_source: AsyncIterator[di
         )
 
 
-@router.get("/last", summary="查询搜索结果", response_model=List[schemas.Context])
+@router.get("/last", summary="查询搜索结果", response_model=list[schemas.Context])
 async def search_latest(_: schemas.TokenPayload = Depends(verify_token)) -> Any:
     """
     查询搜索结果
@@ -384,12 +365,12 @@ async def search_latest_context(_: schemas.TokenPayload = Depends(verify_token))
 async def search_by_id_stream(
     request: Request,
     mediaid: str,
-    mtype: Optional[str] = None,
-    area: Optional[str] = "title",
-    title: Optional[str] = None,
-    year: Optional[str] = None,
-    season: Optional[str] = None,
-    sites: Optional[str] = None,
+    mtype: str | None = None,
+    area: str | None = "title",
+    title: str | None = None,
+    year: str | None = None,
+    season: str | None = None,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_resource_token),
 ) -> Any:
     """
@@ -434,12 +415,12 @@ async def search_by_id_stream(
 @router.get("/media/{mediaid}", summary="精确搜索资源", response_model=schemas.Response)
 async def search_by_id(
     mediaid: str,
-    mtype: Optional[str] = None,
-    area: Optional[str] = "title",
-    title: Optional[str] = None,
-    year: Optional[str] = None,
-    season: Optional[str] = None,
-    sites: Optional[str] = None,
+    mtype: str | None = None,
+    area: str | None = "title",
+    title: str | None = None,
+    year: str | None = None,
+    season: str | None = None,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -466,17 +447,15 @@ async def search_by_id(
     )
     if not torrents:
         return schemas.Response(success=False, message="未搜索到任何资源")
-    return schemas.Response(
-        success=True, data=[torrent.to_dict() for torrent in torrents]
-    )
+    return schemas.Response(success=True, data=[torrent.to_dict() for torrent in torrents])
 
 
 @router.get("/title/stream", summary="渐进式模糊搜索资源")
 async def search_by_title_stream(
     request: Request,
-    keyword: Optional[str] = None,
-    page: Optional[int] = 0,
-    sites: Optional[str] = None,
+    keyword: str | None = None,
+    page: int | None = 0,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_resource_token),
 ) -> Any:
     """
@@ -495,9 +474,9 @@ async def search_by_title_stream(
 
 @router.get("/title", summary="模糊搜索资源", response_model=schemas.Response)
 async def search_by_title(
-    keyword: Optional[str] = None,
-    page: Optional[int] = 0,
-    sites: Optional[str] = None,
+    keyword: str | None = None,
+    page: int | None = 0,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -508,17 +487,15 @@ async def search_by_title(
     )
     if not torrents:
         return schemas.Response(success=False, message="未搜索到任何资源")
-    return schemas.Response(
-        success=True, data=[torrent.to_dict() for torrent in torrents]
-    )
+    return schemas.Response(success=True, data=[torrent.to_dict() for torrent in torrents])
 
 
 @router.get("/subtitle/title/stream", summary="渐进式模糊搜索字幕")
 async def search_subtitle_by_title_stream(
     request: Request,
-    keyword: Optional[str] = None,
-    page: Optional[int] = 0,
-    sites: Optional[str] = None,
+    keyword: str | None = None,
+    page: int | None = 0,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_resource_token),
 ) -> Any:
     """
@@ -540,9 +517,9 @@ async def search_subtitle_by_title_stream(
 
 @router.get("/subtitle/title", summary="模糊搜索字幕", response_model=schemas.Response)
 async def search_subtitle_by_title(
-    keyword: Optional[str] = None,
-    page: Optional[int] = 0,
-    sites: Optional[str] = None,
+    keyword: str | None = None,
+    page: int | None = 0,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -553,19 +530,17 @@ async def search_subtitle_by_title(
     )
     if not subtitles:
         return schemas.Response(success=False, message="未搜索到任何字幕")
-    return schemas.Response(
-        success=True, data=_serialize_signed_subtitle_results(subtitles)
-    )
+    return schemas.Response(success=True, data=_serialize_signed_subtitle_results(subtitles))
 
 
 async def _build_subtitle_search_source(
     mediaid: str,
-    mtype: Optional[str] = None,
-    title: Optional[str] = None,
-    year: Optional[str] = None,
-    season: Optional[str] = None,
-    episode: Optional[str] = None,
-    sites: Optional[str] = None,
+    mtype: str | None = None,
+    title: str | None = None,
+    year: str | None = None,
+    season: str | None = None,
+    episode: str | None = None,
+    sites: str | None = None,
     stream: bool = False,
 ) -> Any:
     """
@@ -609,12 +584,12 @@ async def _build_subtitle_search_source(
 async def search_subtitle_by_id_stream(
     request: Request,
     mediaid: str,
-    mtype: Optional[str] = None,
-    title: Optional[str] = None,
-    year: Optional[str] = None,
-    season: Optional[str] = None,
-    episode: Optional[str] = None,
-    sites: Optional[str] = None,
+    mtype: str | None = None,
+    title: str | None = None,
+    year: str | None = None,
+    season: str | None = None,
+    episode: str | None = None,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_resource_token),
 ) -> Any:
     """
@@ -654,12 +629,12 @@ async def search_subtitle_by_id_stream(
 @router.get("/subtitle/media/{mediaid}", summary="精确搜索字幕", response_model=schemas.Response)
 async def search_subtitle_by_id(
     mediaid: str,
-    mtype: Optional[str] = None,
-    title: Optional[str] = None,
-    year: Optional[str] = None,
-    season: Optional[str] = None,
-    episode: Optional[str] = None,
-    sites: Optional[str] = None,
+    mtype: str | None = None,
+    title: str | None = None,
+    year: str | None = None,
+    season: str | None = None,
+    episode: str | None = None,
+    sites: str | None = None,
     _: schemas.TokenPayload = Depends(verify_token),
 ) -> Any:
     """
@@ -680,16 +655,12 @@ async def search_subtitle_by_id(
     subtitles = await subtitles
     if not subtitles:
         return schemas.Response(success=False, message="未搜索到任何字幕")
-    return schemas.Response(
-        success=True, data=_serialize_signed_subtitle_results(subtitles)
-    )
+    return schemas.Response(success=True, data=_serialize_signed_subtitle_results(subtitles))
 
 
 @router.post("/recommend", summary="AI推荐资源", response_model=schemas.Response)
 async def recommend_search_results(
-    filtered_indices: Optional[List[int]] = Body(
-        None, embed=True, description="筛选后的索引列表"
-    ),
+    filtered_indices: list[int] | None = Body(None, embed=True, description="筛选后的索引列表"),
     check_only: bool = Body(False, embed=True, description="仅检查状态，不启动新任务"),
     force: bool = Body(False, embed=True, description="强制重新推荐，清除旧结果"),
     _: schemas.TokenPayload = Depends(verify_token),
@@ -717,9 +688,7 @@ async def recommend_search_results(
     # 从缓存获取上次搜索结果
     results = await SearchChain().async_last_search_results() or []
     if not results:
-        return schemas.Response(
-            success=False, message="没有可用的搜索结果", data={"status": "error"}
-        )
+        return schemas.Response(success=False, message="没有可用的搜索结果", data={"status": "error"})
 
     recommend_chain = SearchChain()
 
@@ -741,9 +710,7 @@ async def recommend_search_results(
         # 如果有错误，将错误信息放到message中
         if current_status.get("status") == "error":
             error_msg = current_status.pop("error", "未知错误")
-            return schemas.Response(
-                success=False, message=error_msg, data=current_status
-            )
+            return schemas.Response(success=False, message=error_msg, data=current_status)
         return schemas.Response(success=True, data=current_status)
 
     # 获取当前状态（会检测请求是否变化）

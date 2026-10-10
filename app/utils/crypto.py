@@ -1,19 +1,19 @@
 import base64
 import hashlib
 from hashlib import md5
-from typing import Union, Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from Crypto import Random
 from Crypto.Cipher import AES
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding as asym_padding, rsa
+from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 class RSAUtils:
-
     @staticmethod
-    def generate_rsa_key_pair(key_size: int = 2048) -> Tuple[str, str]:
+    def generate_rsa_key_pair(key_size: int = 2048) -> tuple[str, str]:
         """
         生成RSA密钥对
         :return: 私钥和公钥（Base64 编码，无标识符）
@@ -30,13 +30,12 @@ class RSAUtils:
         private_key_der = private_key.private_bytes(
             encoding=serialization.Encoding.DER,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
+            encryption_algorithm=serialization.NoEncryption(),
         )
 
         # 导出公钥为DER格式
         public_key_der = public_key.public_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
         # 将DER格式的密钥编码为Base64
@@ -46,7 +45,7 @@ class RSAUtils:
         return private_key_b64, public_key_b64
 
     @staticmethod
-    def verify_rsa_keys(private_key: Optional[str], public_key: Optional[str]) -> bool:
+    def verify_rsa_keys(private_key: str | None, public_key: str | None) -> bool:
         """
         使用 RSA 验证私钥和公钥是否匹配
 
@@ -66,27 +65,24 @@ class RSAUtils:
             public_key = serialization.load_der_public_key(public_key_bytes, backend=default_backend())
 
             # 加载私钥
-            private_key = serialization.load_der_private_key(private_key_bytes, password=None,
-                                                             backend=default_backend())
+            private_key = serialization.load_der_private_key(
+                private_key_bytes, password=None, backend=default_backend()
+            )
 
             # 测试加解密
-            message = b'test'
+            message = b"test"
             encrypted_message = public_key.encrypt(
                 message,
                 asym_padding.OAEP(
-                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
-                    algorithm=hashes.SHA256(),
-                    label=None
-                )
+                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+                ),
             )
 
             decrypted_message = private_key.decrypt(
                 encrypted_message,
                 asym_padding.OAEP(
-                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
-                    algorithm=hashes.SHA256(),
-                    label=None
-                )
+                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+                ),
             )
 
             return message == decrypted_message
@@ -97,7 +93,7 @@ class RSAUtils:
 
 class HashUtils:
     @staticmethod
-    def md5(data: Union[str, bytes], encoding: str = "utf-8") -> str:
+    def md5(data: str | bytes, encoding: str = "utf-8") -> str:
         """
         生成数据的MD5哈希值，并以字符串形式返回
 
@@ -110,7 +106,7 @@ class HashUtils:
         return hashlib.md5(data).hexdigest()
 
     @staticmethod
-    def sha1(data: Union[str, bytes], encoding: str = "utf-8") -> str:
+    def sha1(data: str | bytes, encoding: str = "utf-8") -> str:
         """
         生成数据的SHA-1哈希值，并以字符串形式返回
 
@@ -123,7 +119,7 @@ class HashUtils:
         return hashlib.sha1(data).hexdigest()
 
     @staticmethod
-    def md5_bytes(data: Union[str, bytes], encoding: str = "utf-8") -> bytes:
+    def md5_bytes(data: str | bytes, encoding: str = "utf-8") -> bytes:
         """
         生成数据的MD5哈希值，并以字节形式返回
 
@@ -137,7 +133,6 @@ class HashUtils:
 
 
 class CryptoJsUtils:
-
     @staticmethod
     def bytes_to_key(data: bytes, salt: bytes, output=48) -> bytes:
         """
@@ -179,7 +174,7 @@ class CryptoJsUtils:
         return base64.b64encode(salted_encrypted)
 
     @staticmethod
-    def decrypt(encrypted: Union[str, bytes], passphrase: bytes) -> bytes:
+    def decrypt(encrypted: str | bytes, passphrase: bytes) -> bytes:
         """
         使用 CryptoJS 兼容的解密策略对加密消息进行解密
         """

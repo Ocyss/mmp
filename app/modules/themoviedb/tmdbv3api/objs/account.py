@@ -30,20 +30,14 @@ class Account(TMDb):
         Get your account details.
         :return:
         """
-        return self._request_obj(
-            self._urls["details"],
-            params="session_id=%s" % self.session_id
-        )
+        return self._request_obj(self._urls["details"], params="session_id=%s" % self.session_id)
 
     async def async_details(self):
         """
         Get your account details.（异步版本）
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["details"],
-            params="session_id=%s" % self.session_id
-        )
+        return await self._async_request_obj(self._urls["details"], params="session_id=%s" % self.session_id)
 
     def created_lists(self, page=1):
         """
@@ -54,7 +48,7 @@ class Account(TMDb):
         return self._request_obj(
             self._urls["created_lists"] % self.account_id,
             params="session_id=%s&page=%s" % (self.session_id, page),
-            key="results"
+            key="results",
         )
 
     async def async_created_lists(self, page=1):
@@ -66,28 +60,20 @@ class Account(TMDb):
         return await self._async_request_obj(
             self._urls["created_lists"] % self.account_id,
             params="session_id=%s&page=%s" % (self.session_id, page),
-            key="results"
+            key="results",
         )
 
     def _get_list(self, url, asc_sort=True, page=1):
         params = "session_id=%s&page=%s" % (self.session_id, page)
         if asc_sort is False:
             params += "&sort_by=created_at.desc"
-        return self._request_obj(
-            self._urls[url] % self.account_id,
-            params=params,
-            key="results"
-        )
+        return self._request_obj(self._urls[url] % self.account_id, params=params, key="results")
 
     async def _async_get_list(self, url, asc_sort=True, page=1):
         params = "session_id=%s&page=%s" % (self.session_id, page)
         if asc_sort is False:
             params += "&sort_by=created_at.desc"
-        return await self._async_request_obj(
-            self._urls[url] % self.account_id,
-            params=params,
-            key="results"
-        )
+        return await self._async_request_obj(self._urls[url] % self.account_id, params=params, key="results")
 
     def favorite_movies(self, asc_sort=True, page=1):
         """
@@ -142,7 +128,7 @@ class Account(TMDb):
                 "media_type": media_type,
                 "media_id": media_id,
                 "favorite": favorite,
-            }
+            },
         )
 
     async def async_mark_as_favorite(self, media_id, media_type, favorite=True):
@@ -162,7 +148,7 @@ class Account(TMDb):
                 "media_type": media_type,
                 "media_id": media_id,
                 "favorite": favorite,
-            }
+            },
         )
 
     def unmark_as_favorite(self, media_id, media_type):
@@ -288,7 +274,7 @@ class Account(TMDb):
                 "media_type": media_type,
                 "media_id": media_id,
                 "watchlist": watchlist,
-            }
+            },
         )
 
     async def async_add_to_watchlist(self, media_id, media_type, watchlist=True):
@@ -308,7 +294,7 @@ class Account(TMDb):
                 "media_type": media_type,
                 "media_id": media_id,
                 "watchlist": watchlist,
-            }
+            },
         )
 
     def remove_from_watchlist(self, media_id, media_type):

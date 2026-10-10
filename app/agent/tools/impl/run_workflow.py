@@ -14,10 +14,8 @@ from app.log import logger
 class RunWorkflowInput(BaseModel):
     """执行工作流工具的输入参数模型"""
 
-    workflow_id: int = Field(
-        ..., description="Workflow ID (can be obtained from query_workflows tool)"
-    )
-    from_begin: Optional[bool] = Field(
+    workflow_id: int = Field(..., description="Workflow ID (can be obtained from query_workflows tool)")
+    from_begin: bool | None = Field(
         True,
         description="Whether to run workflow from the beginning (default: True, if False will continue from last executed action)",
     )
@@ -31,10 +29,10 @@ class RunWorkflowTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = "Execute a specific workflow manually by workflow ID. Supports running from the beginning or continuing from the last executed action."
-    args_schema: Type[BaseModel] = RunWorkflowInput
+    args_schema: type[BaseModel] = RunWorkflowInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据工作流参数生成友好的提示消息"""
         workflow_id = kwargs.get("workflow_id")
         from_begin = kwargs.get("from_begin", True)
@@ -48,18 +46,12 @@ class RunWorkflowTool(MoviePilotTool):
         return message
 
     @staticmethod
-    def _run_workflow_sync(
-        workflow_id: int, from_begin: Optional[bool] = True
-    ) -> tuple[bool, str]:
+    def _run_workflow_sync(workflow_id: int, from_begin: bool | None = True) -> tuple[bool, str]:
         """同步执行工作流，放到专用线程池避免长流程阻塞 API 响应。"""
         return WorkflowChain().process(workflow_id, from_begin=from_begin)
 
-    async def run(
-        self, workflow_id: int, from_begin: Optional[bool] = True, **kwargs
-    ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: workflow_id={workflow_id}, from_begin={from_begin}"
-        )
+    async def run(self, workflow_id: int, from_begin: bool | None = True, **kwargs) -> str:
+        logger.info(f"执行工具: {self.name}, 参数: workflow_id={workflow_id}, from_begin={from_begin}")
 
         try:
             workflow = await WorkflowOper().async_get(workflow_id)

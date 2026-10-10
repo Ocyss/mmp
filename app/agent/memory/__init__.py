@@ -19,9 +19,9 @@ class MemoryManager:
 
     def __init__(self):
         # 内存中的会话记忆缓存
-        self.memory_cache: Dict[str, ConversationMemory] = {}
+        self.memory_cache: dict[str, ConversationMemory] = {}
         # 内存缓存清理任务
-        self.cleanup_task: Optional[asyncio.Task] = None
+        self.cleanup_task: asyncio.Task | None = None
 
     def initialize(self):
         """
@@ -31,9 +31,7 @@ class MemoryManager:
             if self.cleanup_task and not self.cleanup_task.done():
                 return
             # 启动内存缓存清理任务（Redis通过TTL自动过期）
-            self.cleanup_task = asyncio.create_task(
-                self._cleanup_expired_memories()
-            )
+            self.cleanup_task = asyncio.create_task(self._cleanup_expired_memories())
             logger.info("对话记忆管理器初始化完成")
 
         except Exception as e:
@@ -60,16 +58,14 @@ class MemoryManager:
         """
         return f"{user_id}:{session_id}" if user_id else session_id
 
-    def get_memory(self, session_id: str, user_id: str) -> Optional[ConversationMemory]:
+    def get_memory(self, session_id: str, user_id: str) -> ConversationMemory | None:
         """
         获取内存中的记忆
         """
         cache_key = self._get_memory_key(session_id, user_id)
         return self.memory_cache.get(cache_key)
 
-    def get_agent_messages(
-            self, session_id: str, user_id: str
-    ) -> List[BaseMessage]:
+    def get_agent_messages(self, session_id: str, user_id: str) -> list[BaseMessage]:
         """
         为Agent获取最近的消息。
 
@@ -103,9 +99,7 @@ class MemoryManager:
         self.save_memory(memory)
         return memory.messages
 
-    def save_agent_messages(
-            self, session_id: str, user_id: str, messages: List[BaseMessage]
-    ):
+    def save_agent_messages(self, session_id: str, user_id: str, messages: list[BaseMessage]):
         """
         保存Agent消息到内存缓存与持久化会话表。
         """
@@ -163,9 +157,7 @@ class MemoryManager:
                 # 只检查内存缓存中的过期记忆
                 # Redis中的记忆会通过TTL自动过期，无需手动处理
                 for cache_key, memory in self.memory_cache.items():
-                    if (
-                            current_time - memory.updated_at
-                    ).days > settings.LLM_MEMORY_RETENTION_DAYS:
+                    if (current_time - memory.updated_at).days > settings.LLM_MEMORY_RETENTION_DAYS:
                         expired_sessions.append(cache_key)
 
                 # 只清理内存缓存，不删除Redis中的键（Redis会自动过期）

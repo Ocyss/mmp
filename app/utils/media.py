@@ -1,6 +1,5 @@
 from typing import Any, Optional, Tuple
 
-
 MEDIA_SOURCE_ALIASES = {
     "tmdb": "themoviedb",
     "themoviedb": "themoviedb",
@@ -24,7 +23,7 @@ MEDIA_SOURCE_ID_FIELDS = {
 }
 
 
-def normalize_media_source(source: Optional[str]) -> Optional[str]:
+def normalize_media_source(source: str | None) -> str | None:
     """规范化媒体数据源名称，兼容外部使用的 ``tmdb`` 前缀。"""
     if not source:
         return None
@@ -32,7 +31,7 @@ def normalize_media_source(source: Optional[str]) -> Optional[str]:
     return MEDIA_SOURCE_ALIASES.get(normalized, normalized or None)
 
 
-def parse_media_key(media_key: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+def parse_media_key(media_key: str | None) -> tuple[str | None, str | None]:
     """解析带来源前缀的媒体键，返回规范化数据源与原生 ID。"""
     if not media_key or ":" not in str(media_key):
         return None, None
@@ -45,14 +44,14 @@ def parse_media_key(media_key: Optional[str]) -> Tuple[Optional[str], Optional[s
 
 
 def resolve_media_identity(
-        media: Any = None,
-        source: Optional[str] = None,
-        media_id: Optional[Any] = None,
-        tmdbid: Optional[Any] = None,
-        doubanid: Optional[Any] = None,
-        bangumiid: Optional[Any] = None,
-        anilistid: Optional[Any] = None,
-) -> Tuple[Optional[str], Optional[str]]:
+    media: Any = None,
+    source: str | None = None,
+    media_id: Any | None = None,
+    tmdbid: Any | None = None,
+    doubanid: Any | None = None,
+    bangumiid: Any | None = None,
+    anilistid: Any | None = None,
+) -> tuple[str | None, str | None]:
     """
     从统一媒体对象、通用身份或兼容 ID 中解析主媒体身份。
 
@@ -83,9 +82,7 @@ def resolve_media_identity(
                     values[media_source] = value
                     break
 
-        legacy_source, legacy_media_id = parse_media_key(
-            getattr(media, "mediaid", None)
-        )
+        legacy_source, legacy_media_id = parse_media_key(getattr(media, "mediaid", None))
         if not normalized_source and legacy_source and legacy_media_id:
             return legacy_source, legacy_media_id
 
@@ -103,7 +100,7 @@ def resolve_media_identity(
     return None, None
 
 
-def build_media_key(source: Optional[str], media_id: Optional[Any]) -> str:
+def build_media_key(source: str | None, media_id: Any | None) -> str:
     """构造 API 使用的带来源前缀媒体键。"""
     normalized_source = normalize_media_source(source)
     if not normalized_source or media_id is None or not str(media_id).strip():

@@ -3,20 +3,21 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.workflow.actions import BaseAction
 from app.chain.storage import StorageChain
 from app.core.config import global_vars, settings
 from app.log import logger
-from app.schemas import ActionParams, ActionContext
+from app.schemas import ActionContext, ActionParams
+from app.workflow.actions import BaseAction
 
 
 class ScanFileParams(ActionParams):
     """
     整理文件参数
     """
+
     # 存储
-    storage: Optional[str] = Field(default="local", description="存储")
-    directory: Optional[str] = Field(default=None, description="目录")
+    storage: str | None = Field(default="local", description="存储")
+    directory: str | None = Field(default=None, description="目录")
 
 
 class ScanFileAction(BaseAction):
@@ -35,17 +36,17 @@ class ScanFileAction(BaseAction):
 
     @classmethod
     @property
-    def name(cls) -> str: # noqa
+    def name(cls) -> str:  # noqa
         return "扫描目录"
 
     @classmethod
     @property
-    def description(cls) -> str: # noqa
+    def description(cls) -> str:  # noqa
         return "扫描目录文件到队列"
 
     @classmethod
     @property
-    def data(cls) -> dict: # noqa
+    def data(cls) -> dict:  # noqa
         return ScanFileParams().model_dump()
 
     @property

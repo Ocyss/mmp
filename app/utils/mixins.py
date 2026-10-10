@@ -1,6 +1,6 @@
 import inspect
 
-from app.core.event import eventmanager, Event
+from app.core.event import Event, eventmanager
 from app.log import logger
 from app.schemas.types import EventType
 
@@ -33,28 +33,20 @@ class ConfigReloadMixin:
                 async def wrapper(self: ConfigReloadMixin, event: Event):
                     if not event:
                         return
-                    changed_keys = (
-                        getattr(event.event_data, "key", set()) & config_watch
-                    )
+                    changed_keys = getattr(event.event_data, "key", set()) & config_watch
                     if not changed_keys:
                         return
-                    logger.info(
-                        f"配置 {', '.join(changed_keys)} 变更，重载 {self.get_reload_name()}..."
-                    )
+                    logger.info(f"配置 {', '.join(changed_keys)} 变更，重载 {self.get_reload_name()}...")
                     await self.on_config_changed()
             else:
 
                 def wrapper(self: ConfigReloadMixin, event: Event):
                     if not event:
                         return
-                    changed_keys = (
-                        getattr(event.event_data, "key", set()) & config_watch
-                    )
+                    changed_keys = getattr(event.event_data, "key", set()) & config_watch
                     if not changed_keys:
                         return
-                    logger.info(
-                        f"配置 {', '.join(changed_keys)} 变更，重载 {self.get_reload_name()}..."
-                    )
+                    logger.info(f"配置 {', '.join(changed_keys)} 变更，重载 {self.get_reload_name()}...")
                     self.on_config_changed()
 
             return wrapper

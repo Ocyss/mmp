@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 from typing import Optional
 
@@ -29,7 +28,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
             if StringUtils.is_valid_html_element(html):
                 profile_routes = html.xpath(
                     '//span[contains(concat(" ", normalize-space(@class), " "), " centerTopBar ")]'
-                    '//*[@onclick]/@onclick'
+                    "//*[@onclick]/@onclick"
                 )
                 for route in profile_routes:
                     profile_view = re.search(r"/profile/([^/]+)/view", route)
@@ -74,12 +73,15 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
             if not StringUtils.is_valid_html_element(html):
                 return
 
-            username_html = html.xpath('//div[contains(concat(" ", normalize-space(@class), " "), '
-                                       '" profile-username ")]/text()')
+            username_html = html.xpath(
+                '//div[contains(concat(" ", normalize-space(@class), " "), " profile-username ")]/text()'
+            )
             if not username_html:
-                username_html = html.xpath('//table[contains(@class, "profileViewTable")]'
-                                           '//tr/td[normalize-space()="Username"]/'
-                                           'following-sibling::td[1]/text()')
+                username_html = html.xpath(
+                    '//table[contains(@class, "profileViewTable")]'
+                    '//tr/td[normalize-space()="Username"]/'
+                    "following-sibling::td[1]/text()"
+                )
             if username_html and username_html[0].strip():
                 self.username = username_html[0].strip()
 
@@ -91,17 +93,21 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
                 self.download = StringUtils.num_filesize(download_html[0])
             ratio_html = html.xpath('//div[contains(@class,"profile-ratio")]//span/text()')
             if ratio_html:
-                self.ratio = StringUtils.str_float(ratio_html[0].replace('∞', '0'))
+                self.ratio = StringUtils.str_float(ratio_html[0].replace("∞", "0"))
 
-            user_level_html = html.xpath('//table[contains(@class, "profileViewTable")]'
-                                         '//tr/td[normalize-space()="Class"]/'
-                                         'following-sibling::td[1]/text()')
+            user_level_html = html.xpath(
+                '//table[contains(@class, "profileViewTable")]'
+                '//tr/td[normalize-space()="Class"]/'
+                "following-sibling::td[1]/text()"
+            )
             if user_level_html:
                 self.user_level = user_level_html[0].strip()
 
-            join_at_html = html.xpath('//table[contains(@class, "profileViewTable")]'
-                                      '//tr/td[normalize-space()="Registration date"]/'
-                                      'following-sibling::td[1]/text()')
+            join_at_html = html.xpath(
+                '//table[contains(@class, "profileViewTable")]'
+                '//tr/td[normalize-space()="Registration date"]/'
+                "following-sibling::td[1]/text()"
+            )
             if join_at_html:
                 self.join_at = StringUtils.unify_datetime_str(join_at_html[0].strip())
 
@@ -120,7 +126,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
         """
         self._parse_user_traffic_info(html_text)
 
-    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: Optional[bool] = False) -> Optional[str]:
+    def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:
         """
         做种相关信息
         :param html_text:
@@ -138,8 +144,8 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
             page_seeding = 0
             page_seeding_size = 0
             page_seeding_info = []
-            seeding_sizes = html.xpath(f'//tbody/tr/td[{size_col}]')
-            seeding_seeders = html.xpath(f'//tbody/tr/td[{seeders_col}]/text()')
+            seeding_sizes = html.xpath(f"//tbody/tr/td[{size_col}]")
+            seeding_seeders = html.xpath(f"//tbody/tr/td[{seeders_col}]/text()")
             if seeding_sizes and seeding_seeders:
                 page_seeding = len(seeding_sizes)
 
@@ -162,7 +168,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
 
         return next_page
 
-    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> Optional[str]:
+    def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         """
         TorrentLeech 暂不解析未读消息链接
 

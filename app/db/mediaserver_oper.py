@@ -19,10 +19,7 @@ class MediaServerOper(DbOper):
         """
         过滤数据库模型不存在或不应由远端覆盖的字段
         """
-        return {
-            k: v for k, v in kwargs.items()
-            if hasattr(MediaServerItem, k) and k != "id"
-        }
+        return {k: v for k, v in kwargs.items() if hasattr(MediaServerItem, k) and k != "id"}
 
     def add(self, **kwargs) -> bool:
         """
@@ -57,7 +54,7 @@ class MediaServerOper(DbOper):
         MediaServerItem(**kwargs).create(self._db)
         return True
 
-    def empty(self, server: Optional[str] = None):
+    def empty(self, server: str | None = None):
         """
         清空媒体服务器数据
         """
@@ -75,18 +72,18 @@ class MediaServerOper(DbOper):
         """
         return MediaServerItem.delete_excluded_servers(self._db, servers)
 
-    def exists(self, **kwargs) -> Optional[MediaServerItem]:
+    def exists(self, **kwargs) -> MediaServerItem | None:
         """
         判断媒体服务器数据是否存在
         """
         if kwargs.get("tmdbid"):
             # 优先按TMDBID查
-            item = MediaServerItem.exist_by_tmdbid(self._db, tmdbid=kwargs.get("tmdbid"),
-                                                   mtype=kwargs.get("mtype"))
+            item = MediaServerItem.exist_by_tmdbid(self._db, tmdbid=kwargs.get("tmdbid"), mtype=kwargs.get("mtype"))
         elif kwargs.get("title"):
             # 按标题、类型、年份查
-            item = MediaServerItem.exists_by_title(self._db, title=kwargs.get("title"),
-                                                   mtype=kwargs.get("mtype"), year=kwargs.get("year"))
+            item = MediaServerItem.exists_by_title(
+                self._db, title=kwargs.get("title"), mtype=kwargs.get("mtype"), year=kwargs.get("year")
+            )
         else:
             return None
         if not item:
@@ -101,18 +98,20 @@ class MediaServerOper(DbOper):
                 return None
         return item
 
-    async def async_exists(self, **kwargs) -> Optional[MediaServerItem]:
+    async def async_exists(self, **kwargs) -> MediaServerItem | None:
         """
         异步判断媒体服务器数据是否存在
         """
         if kwargs.get("tmdbid"):
             # 优先按TMDBID查
-            item = await MediaServerItem.async_exist_by_tmdbid(self._db, tmdbid=kwargs.get("tmdbid"),
-                                                               mtype=kwargs.get("mtype"))
+            item = await MediaServerItem.async_exist_by_tmdbid(
+                self._db, tmdbid=kwargs.get("tmdbid"), mtype=kwargs.get("mtype")
+            )
         elif kwargs.get("title"):
             # 按标题、类型、年份查
-            item = await MediaServerItem.async_exists_by_title(self._db, title=kwargs.get("title"),
-                                                               mtype=kwargs.get("mtype"), year=kwargs.get("year"))
+            item = await MediaServerItem.async_exists_by_title(
+                self._db, title=kwargs.get("title"), mtype=kwargs.get("mtype"), year=kwargs.get("year")
+            )
         else:
             return None
         if not item:
@@ -127,7 +126,7 @@ class MediaServerOper(DbOper):
                 return None
         return item
 
-    def get_item_id(self, **kwargs) -> Optional[str]:
+    def get_item_id(self, **kwargs) -> str | None:
         """
         获取媒体服务器数据ID
         """
@@ -136,7 +135,7 @@ class MediaServerOper(DbOper):
             return None
         return str(item.item_id)
 
-    async def async_get_item_id(self, **kwargs) -> Optional[str]:
+    async def async_get_item_id(self, **kwargs) -> str | None:
         """
         异步获取媒体服务器数据ID
         """

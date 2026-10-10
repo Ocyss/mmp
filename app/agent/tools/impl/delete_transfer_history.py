@@ -15,9 +15,7 @@ from app.schemas import FileItem
 class DeleteTransferHistoryInput(BaseModel):
     """删除整理历史记录工具的输入参数模型"""
 
-    history_id: int = Field(
-        ..., description="The ID of the transfer history record to delete"
-    )
+    history_id: int = Field(..., description="The ID of the transfer history record to delete")
 
 
 class DeleteTransferHistoryTool(MoviePilotTool):
@@ -32,10 +30,10 @@ class DeleteTransferHistoryTool(MoviePilotTool):
         "destination file, the tool removes that media-library file before deleting the history record. This is "
         "useful before retrying or re-organizing because the system skips files that already have transfer history."
     )
-    args_schema: Type[BaseModel] = DeleteTransferHistoryInput
+    args_schema: type[BaseModel] = DeleteTransferHistoryInput
     require_admin: bool = True
 
-    def get_tool_message(self, **kwargs) -> Optional[str]:
+    def get_tool_message(self, **kwargs) -> str | None:
         """根据参数生成友好的提示消息"""
         history_id = kwargs.get("history_id")
         return f"删除整理历史记录: ID={history_id}"
@@ -61,9 +59,7 @@ class DeleteTransferHistoryTool(MoviePilotTool):
                         return f"错误：旧媒体库文件删除失败，路径={dest_fileitem.path}"
                     deleted_dest = True
             await transferhis.async_delete(history_id)
-            message = (
-                f"已删除整理历史记录：ID={history_id}，标题={title}，源路径={src}，状态={status}"
-            )
+            message = f"已删除整理历史记录：ID={history_id}，标题={title}，源路径={src}，状态={status}"
             if deleted_dest:
                 message += "，已删除旧媒体库文件"
             return message

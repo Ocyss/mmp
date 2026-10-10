@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, List, Optional, Annotated
+from typing import Annotated, Any, List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -19,13 +19,11 @@ from app.utils.system import SystemUtils
 router = APIRouter()
 
 
-def _build_statistic(db: Session, name: Optional[str] = None) -> schemas.Statistic:
+def _build_statistic(db: Session, name: str | None = None) -> schemas.Statistic:
     """
     构建媒体数量统计信息。
     """
-    media_statistics: Optional[List[schemas.Statistic]] = (
-        DashboardChain().media_statistic(name)
-    )
+    media_statistics: list[schemas.Statistic] | None = DashboardChain().media_statistic(name)
     if media_statistics:
         # 汇总各媒体库统计信息
         ret_statistic = schemas.Statistic()
@@ -67,7 +65,7 @@ def _build_storage() -> schemas.Storage:
     return schemas.Storage(total_storage=total, used_storage=total - available)
 
 
-def _build_downloader(name: Optional[str] = None) -> schemas.DownloaderInfo:
+def _build_downloader(name: str | None = None) -> schemas.DownloaderInfo:
     """
     构建下载器统计信息。
     """
@@ -92,7 +90,7 @@ def _build_downloader(name: Optional[str] = None) -> schemas.DownloaderInfo:
 
 @router.get("/statistic", summary="媒体数量统计", response_model=schemas.Statistic)
 def statistic(
-    name: Optional[str] = None,
+    name: str | None = None,
     db: Session = Depends(get_db),
     _: Any = Depends(get_current_active_superuser),
 ) -> Any:
@@ -102,9 +100,7 @@ def statistic(
     return _build_statistic(db, name)
 
 
-@router.get(
-    "/statistic2", summary="媒体数量统计（API_TOKEN）", response_model=schemas.Statistic
-)
+@router.get("/statistic2", summary="媒体数量统计（API_TOKEN）", response_model=schemas.Statistic)
 def statistic2(
     _: Annotated[str, Depends(verify_apitoken)],
     db: Session = Depends(get_db),
@@ -123,9 +119,7 @@ def storage(_: Any = Depends(get_current_active_superuser)) -> Any:
     return _build_storage()
 
 
-@router.get(
-    "/storage2", summary="本地存储空间（API_TOKEN）", response_model=schemas.Storage
-)
+@router.get("/storage2", summary="本地存储空间（API_TOKEN）", response_model=schemas.Storage)
 def storage2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     """
     查询本地存储空间信息 API_TOKEN认证（?token=xxx）
@@ -133,7 +127,7 @@ def storage2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     return _build_storage()
 
 
-@router.get("/processes", summary="进程信息", response_model=List[schemas.ProcessInfo])
+@router.get("/processes", summary="进程信息", response_model=list[schemas.ProcessInfo])
 def processes(_: Any = Depends(get_current_active_superuser)) -> Any:
     """
     查询进程信息
@@ -150,9 +144,7 @@ def system_info(_: Any = Depends(get_current_active_superuser)) -> Any:
 
 
 @router.get("/downloader", summary="下载器信息", response_model=schemas.DownloaderInfo)
-def downloader(
-    name: Optional[str] = None, _: Any = Depends(get_current_active_superuser)
-) -> Any:
+def downloader(name: str | None = None, _: Any = Depends(get_current_active_superuser)) -> Any:
     """
     查询下载器信息
     """
@@ -171,7 +163,7 @@ def downloader2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     return _build_downloader()
 
 
-@router.get("/schedule", summary="后台服务", response_model=List[schemas.ScheduleInfo])
+@router.get("/schedule", summary="后台服务", response_model=list[schemas.ScheduleInfo])
 async def schedule(_: Any = Depends(get_current_active_superuser)) -> Any:
     """
     查询后台服务信息
@@ -184,9 +176,7 @@ async def schedule(_: Any = Depends(get_current_active_superuser)) -> Any:
     summary="后台服务进度",
     response_model=schemas.Response,
 )
-async def schedule_progress(
-    job_id: str, _: Any = Depends(get_current_active_superuser)
-) -> Any:
+async def schedule_progress(job_id: str, _: Any = Depends(get_current_active_superuser)) -> Any:
     """
     查询指定后台服务的执行进度。
     """
@@ -199,7 +189,7 @@ async def schedule_progress(
 @router.get(
     "/schedule2",
     summary="后台服务（API_TOKEN）",
-    response_model=List[schemas.ScheduleInfo],
+    response_model=list[schemas.ScheduleInfo],
 )
 async def schedule2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     """
@@ -213,9 +203,7 @@ async def schedule2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     summary="后台服务进度（API_TOKEN）",
     response_model=schemas.Response,
 )
-async def schedule_progress2(
-    job_id: str, _: Annotated[str, Depends(verify_apitoken)]
-) -> Any:
+async def schedule_progress2(job_id: str, _: Annotated[str, Depends(verify_apitoken)]) -> Any:
     """
     查询指定后台服务的执行进度 API_TOKEN认证（?token=xxx）
     """
@@ -225,9 +213,9 @@ async def schedule_progress2(
     return schemas.Response(success=True, data=progress.model_dump())
 
 
-@router.get("/transfer", summary="文件整理统计", response_model=List[int])
+@router.get("/transfer", summary="文件整理统计", response_model=list[int])
 async def transfer(
-    days: Optional[int] = 7,
+    days: int | None = 7,
     db: Session = Depends(get_db),
     _: Any = Depends(get_current_active_superuser),
 ) -> Any:
@@ -278,7 +266,7 @@ def memory2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     return SystemUtils.memory_usage()
 
 
-@router.get("/network", summary="获取当前网络流量", response_model=List[int])
+@router.get("/network", summary="获取当前网络流量", response_model=list[int])
 def network(_: Any = Depends(get_current_active_superuser)) -> Any:
     """
     获取当前网络流量（上行和下行流量，单位：bytes/s）
@@ -286,9 +274,7 @@ def network(_: Any = Depends(get_current_active_superuser)) -> Any:
     return SystemUtils.network_usage()
 
 
-@router.get(
-    "/network2", summary="获取当前网络流量（API_TOKEN）", response_model=List[int]
-)
+@router.get("/network2", summary="获取当前网络流量（API_TOKEN）", response_model=list[int])
 def network2(_: Annotated[str, Depends(verify_apitoken)]) -> Any:
     """
     获取当前网络流量 API_TOKEN认证（?token=xxx）
