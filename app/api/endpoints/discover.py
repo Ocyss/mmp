@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -47,9 +47,7 @@ async def bangumi(
     """
     探索Bangumi
     """
-    medias = await BangumiChain().async_discover(
-        type=type, cat=cat, sort=sort, year=year, limit=count, offset=(page - 1) * count
-    )
+    medias = await BangumiChain().async_discover(type=type, cat=cat, sort=sort, year=year, limit=count, offset=(page - 1) * count)
     if medias:
         return [media.to_dict() for media in medias]
     return []
@@ -66,9 +64,7 @@ async def douban_movies(
     """
     浏览豆瓣电影信息
     """
-    movies = await DoubanChain().async_douban_discover(
-        mtype=MediaType.MOVIE, sort=sort, tags=tags, page=page, count=count
-    )
+    movies = await DoubanChain().async_douban_discover(mtype=MediaType.MOVIE, sort=sort, tags=tags, page=page, count=count)
     return [media.to_dict() for media in movies] if movies else []
 
 

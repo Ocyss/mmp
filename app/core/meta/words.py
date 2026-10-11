@@ -1,7 +1,7 @@
 import ast
 import operator
 from functools import lru_cache
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import cn2an
 import regex as re
@@ -161,9 +161,7 @@ class WordsMatcher(metaclass=Singleton):
             title, count = replaced_re.subn(rf"{replace}", title)
             return title, "", count > 0
         except Exception as err:
-            logger.warn(
-                f"自定义识别词正则替换失败：{str(err)} - 标题：{title}，被替换词：{replaced}，替换词：{replace}"
-            )
+            logger.warn(f"自定义识别词正则替换失败：{str(err)} - 标题：{title}，被替换词：{replaced}，替换词：{replace}")
             return title, str(err), False
 
     @staticmethod
@@ -176,9 +174,7 @@ class WordsMatcher(metaclass=Singleton):
                 return title, "", False
             if front and not _compile_custom_word_regex(rf"{front}").search(title):
                 return title, "", False
-            offset_word_info_re = _compile_custom_word_regex(
-                rf"(?<={front}.*?)[0-9一二三四五六七八九十]+(?=.*?{back})"
-            )
+            offset_word_info_re = _compile_custom_word_regex(rf"(?<={front}.*?)[0-9一二三四五六七八九十]+(?=.*?{back})")
             episode_nums_str = offset_word_info_re.findall(title)
             if not episode_nums_str:
                 return title, "", False
@@ -207,7 +203,5 @@ class WordsMatcher(metaclass=Singleton):
                 title = episode_offset_re.sub(rf"{episode_num[1]}", title)
             return title, "", True
         except Exception as err:
-            logger.warn(
-                f"自定义识别词集数偏移失败：{str(err)} - 标题：{title}，前定位词：{front}，后定位词：{back}，偏移量：{offset}"
-            )
+            logger.warn(f"自定义识别词集数偏移失败：{str(err)} - 标题：{title}，前定位词：{front}，后定位词：{back}，偏移量：{offset}")
             return title, str(err), False

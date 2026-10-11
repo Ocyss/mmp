@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.core.context import SubtitleInfo, TorrentInfo
 from app.db.site_oper import SiteOper
@@ -253,9 +253,7 @@ class IndexerModule(_ModuleBase):
             elif site.get("parser") == "RousiPro":
                 error_flag, result = RousiSpider(site).search(keyword=search_word, mtype=mtype, cat=cat, page=page)
             else:
-                error_flag, result = self.__spider_search(
-                    search_word=search_word, indexer=site, mtype=mtype, cat=cat, page=page
-                )
+                error_flag, result = self.__spider_search(search_word=search_word, indexer=site, mtype=mtype, cat=cat, page=page)
         except Exception as err:
             logger.error(f"{site.get('name')} 搜索出错：{str(err)}")
 
@@ -290,9 +288,7 @@ class IndexerModule(_ModuleBase):
         search_word = self.__clear_search_text(keyword)
 
         try:
-            error_flag, result = self.__spider_search(
-                search_word=search_word, indexer=site, page=page, search_type="subtitles"
-            )
+            error_flag, result = self.__spider_search(search_word=search_word, indexer=site, page=page, search_type="subtitles")
         except Exception as err:
             logger.error(f"{site.get('name')} 字幕搜索出错：{str(err)}")
 
@@ -334,13 +330,9 @@ class IndexerModule(_ModuleBase):
             elif site.get("parser") == "TorrentLeech":
                 error_flag, result = await TorrentLeech(site).async_search(keyword=search_word, page=page)
             elif site.get("parser") == "mTorrent":
-                error_flag, result = await MTorrentSpider(site).async_search(
-                    keyword=search_word, mtype=mtype, page=page
-                )
+                error_flag, result = await MTorrentSpider(site).async_search(keyword=search_word, mtype=mtype, page=page)
             elif site.get("parser") == "SunnyPT":
-                error_flag, result = await SunnyPTSpider(site).async_search(
-                    keyword=search_word, mtype=mtype, cat=cat, page=page
-                )
+                error_flag, result = await SunnyPTSpider(site).async_search(keyword=search_word, mtype=mtype, cat=cat, page=page)
             elif site.get("parser") == "Yema":
                 error_flag, result = await YemaSpider(site).async_search(keyword=search_word, mtype=mtype, page=page)
             elif site.get("parser") == "Haidan":
@@ -348,9 +340,7 @@ class IndexerModule(_ModuleBase):
             elif site.get("parser") == "HDDolby":
                 error_flag, result = await HddolbySpider(site).async_search(keyword=search_word, mtype=mtype, page=page)
             elif site.get("parser") == "RousiPro":
-                error_flag, result = await RousiSpider(site).async_search(
-                    keyword=search_word, mtype=mtype, cat=cat, page=page
-                )
+                error_flag, result = await RousiSpider(site).async_search(keyword=search_word, mtype=mtype, cat=cat, page=page)
             else:
                 error_flag, result = await self.__async_spider_search(
                     search_word=search_word, indexer=site, mtype=mtype, cat=cat, page=page
@@ -418,9 +408,7 @@ class IndexerModule(_ModuleBase):
         :param: timeout: 超时时间
         :return: 是否发生错误, 种子列表
         """
-        _spider = SiteSpider(
-            indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type
-        )
+        _spider = SiteSpider(indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type)
 
         try:
             result = _spider.get_torrents()
@@ -447,9 +435,7 @@ class IndexerModule(_ModuleBase):
         :param: timeout: 超时时间
         :return: 是否发生错误, 种子列表
         """
-        _spider = SiteSpider(
-            indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type
-        )
+        _spider = SiteSpider(indexer=indexer, keyword=search_word, mtype=mtype, cat=cat, page=page, search_type=search_type)
 
         try:
             result = await _spider.async_get_torrents()
@@ -535,9 +521,7 @@ class IndexerModule(_ModuleBase):
                 leeching=site_obj.leeching,
                 leeching_size=site_obj.leeching_size,
                 message_unread=site_obj.message_unread,
-                message_unread_contents=site_obj.message_unread_contents.copy()
-                if site_obj.message_unread_contents
-                else [],
+                message_unread_contents=site_obj.message_unread_contents.copy() if site_obj.message_unread_contents else [],
                 updated_day=datetime.now().strftime("%Y-%m-%d"),
                 err_msg=site_obj.err_msg,
             )

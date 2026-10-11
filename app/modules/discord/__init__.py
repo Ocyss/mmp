@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 from app.core.event import eventmanager
@@ -212,11 +212,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             audio_refs = self._extract_audio_refs(msg_json)
             files = self._extract_files(msg_json)
             if (text or images or audio_refs or files) and userid:
-                if (
-                    text
-                    and text.startswith("/")
-                    and self._should_reject_admin_command(client_config.config, userid, username)
-                ):
+                if text and text.startswith("/") and self._should_reject_admin_command(client_config.config, userid, username):
                     self._send_admin_denied(client, userid, chat_id)
                     return None
                 logger.info(
@@ -305,11 +301,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 continue
             content_type = (attachment.get("content_type") or "").lower()
             filename = (attachment.get("filename") or "").lower()
-            is_image = (
-                attachment.get("type") == "image"
-                or content_type.startswith("image/")
-                or filename.endswith(cls._IMAGE_SUFFIXES)
-            )
+            is_image = attachment.get("type") == "image" or content_type.startswith("image/") or filename.endswith(cls._IMAGE_SUFFIXES)
             is_audio = content_type.startswith("audio/") or filename.endswith(cls._AUDIO_SUFFIXES)
             if is_image or is_audio:
                 continue
@@ -349,9 +341,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             f"message.userid={message.userid}, message.channel={message.channel}"
         )
         logger.debug(f"[Discord] 当前配置数量: {len(configs)}, 配置名称: {list(configs.keys())}")
-        logger.debug(
-            f"[Discord] 当前实例数量: {len(self.get_instances())}, 实例名称: {list(self.get_instances().keys())}"
-        )
+        logger.debug(f"[Discord] 当前实例数量: {len(self.get_instances())}, 实例名称: {list(self.get_instances().keys())}")
 
         if not configs:
             logger.debug("[Discord] get_configs() 返回空，没有可用的 Discord 配置")
@@ -373,9 +363,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
             client: Discord = self.get_instance(conf.name)
             logger.debug(f"[Discord] get_instance('{conf.name}') 返回: {client is not None}")
             if client:
-                logger.debug(
-                    f"[Discord] 调用 client 发送, userid={userid}, title={message.title[:50] if message.title else None}..."
-                )
+                logger.debug(f"[Discord] 调用 client 发送, userid={userid}, title={message.title[:50] if message.title else None}...")
                 if message.file_path:
                     result = client.send_file(
                         file_path=message.file_path,
@@ -538,9 +526,7 @@ class DiscordModule(_ModuleBase, _MessageBase[Discord]):
                 event_data: CommandRegisterEventData = event.event_data
                 if event_data.cancel:
                     client.delete_commands()
-                    logger.debug(
-                        f"Command registration for {client_config.name} canceled by event: {event_data.source}"
-                    )
+                    logger.debug(f"Command registration for {client_config.name} canceled by event: {event_data.source}")
                     continue
                 scoped_commands = event_data.commands or {}
                 if not scoped_commands:

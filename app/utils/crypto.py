@@ -1,7 +1,7 @@
 import base64
 import hashlib
 from hashlib import md5
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from Crypto import Random
 from Crypto.Cipher import AES
@@ -65,24 +65,18 @@ class RSAUtils:
             public_key = serialization.load_der_public_key(public_key_bytes, backend=default_backend())
 
             # 加载私钥
-            private_key = serialization.load_der_private_key(
-                private_key_bytes, password=None, backend=default_backend()
-            )
+            private_key = serialization.load_der_private_key(private_key_bytes, password=None, backend=default_backend())
 
             # 测试加解密
             message = b"test"
             encrypted_message = public_key.encrypt(
                 message,
-                asym_padding.OAEP(
-                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
-                ),
+                asym_padding.OAEP(mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
             )
 
             decrypted_message = private_key.decrypt(
                 encrypted_message,
-                asym_padding.OAEP(
-                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
-                ),
+                asym_padding.OAEP(mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
             )
 
             return message == decrypted_message

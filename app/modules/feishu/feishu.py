@@ -5,7 +5,7 @@ import tempfile
 import threading
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import urlparse
 
 import lark_oapi as lark
@@ -283,9 +283,7 @@ class Feishu:
     @staticmethod
     def _parse_message_content(
         message,
-    ) -> tuple[
-        str, list[CommingMessage.MessageImage] | None, list[str] | None, list[CommingMessage.MessageAttachment] | None
-    ]:
+    ) -> tuple[str, list[CommingMessage.MessageImage] | None, list[str] | None, list[CommingMessage.MessageAttachment] | None]:
         """从飞书事件消息体中提取文本、图片、音频和文件引用。"""
         raw_content = getattr(message, "content", None)
         if not raw_content:
@@ -687,10 +685,9 @@ class Feishu:
             audio_refs = [str(item).strip() for item in message.get("audio_refs") if str(item).strip()] or None
         files = None
         if isinstance(message.get("files"), list):
-            normalized_files = []
-            for item in message.get("files"):
-                if isinstance(item, dict) and item.get("ref"):
-                    normalized_files.append(CommingMessage.MessageAttachment(**item))
+            normalized_files = [
+                CommingMessage.MessageAttachment(**item) for item in message.get("files") if isinstance(item, dict) and item.get("ref")
+            ]
             files = normalized_files or None
 
         if not text and not images and not audio_refs and not files:
@@ -1213,9 +1210,7 @@ class Feishu:
     ) -> list[str]:
         """将 Agent 流式回复中的图片作为独立图片卡片发送，避免污染流式文本组件。"""
         sent_images = list(sent_image_urls or [])
-        pending_image_urls = [
-            image_url for image_url in self._dedupe_image_urls(image_urls) if image_url not in sent_images
-        ]
+        pending_image_urls = [image_url for image_url in self._dedupe_image_urls(image_urls) if image_url not in sent_images]
         for image_url in pending_image_urls:
             image_key = self._upload_remote_image(image_url)
             if not image_key:
@@ -1258,18 +1253,12 @@ class Feishu:
             .card_id(card_id)
             .element_id(element_id)
             .request_body(
-                ContentCardElementRequestBody.builder()
-                .uuid(str(uuid.uuid4()))
-                .content(content or " ")
-                .sequence(sequence)
-                .build()
+                ContentCardElementRequestBody.builder().uuid(str(uuid.uuid4())).content(content or " ").sequence(sequence).build()
             )
             .build()
         )
         if response.success():
-            logger.debug(
-                "飞书流式卡片更新成功：card_id=%s, sequence=%s, content_len=%s", card_id, sequence, len(content)
-            )
+            logger.debug("飞书流式卡片更新成功：card_id=%s, sequence=%s, content_len=%s", card_id, sequence, len(content))
             return True
         logger.warn(
             "飞书流式卡片内容更新失败：card_id=%s, element_id=%s, sequence=%s, code=%s, msg=%s, log_id=%s",
@@ -1441,9 +1430,7 @@ class Feishu:
             )
             if duration is not None:
                 builder.duration(duration)
-            response = self._api_client.im.v1.file.create(
-                CreateFileRequest.builder().request_body(builder.build()).build()
-            )
+            response = self._api_client.im.v1.file.create(CreateFileRequest.builder().request_body(builder.build()).build())
         if not response.success():
             logger.error(
                 "飞书文件上传失败：code=%s, msg=%s, log_id=%s",
@@ -1526,9 +1513,7 @@ class Feishu:
 
         if not result:
             return {"success": False}
-        result["chat_id"] = (
-            result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
-        )
+        result["chat_id"] = result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
         return result
 
     def send_file(
@@ -1616,9 +1601,7 @@ class Feishu:
 
         if not result:
             return {"success": False}
-        result["chat_id"] = (
-            result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
-        )
+        result["chat_id"] = result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
         return result
 
     def send_voice(
@@ -1672,9 +1655,7 @@ class Feishu:
 
         if not result:
             return {"success": False}
-        result["chat_id"] = (
-            result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
-        )
+        result["chat_id"] = result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
         return result
 
     def send_notification(
@@ -1706,9 +1687,7 @@ class Feishu:
                 return {"success": False}
             if not result:
                 return {"success": False}
-            result["chat_id"] = (
-                result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
-            )
+            result["chat_id"] = result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
             sent_image_urls = self._send_agent_streaming_images(
                 stream_image_urls,
                 userid=userid,
@@ -1753,9 +1732,7 @@ class Feishu:
 
         if not result:
             return {"success": False}
-        result["chat_id"] = (
-            result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
-        )
+        result["chat_id"] = result.get("chat_id") or chat_id or self._user_chat_mapping.get(userid or "") or self._default_chat_id
         return result
 
     def edit_message(
@@ -1837,9 +1814,7 @@ class Feishu:
                 CreateMessageReactionRequest.builder()
                 .message_id(message_id)
                 .request_body(
-                    CreateMessageReactionRequestBody.builder()
-                    .reaction_type(Emoji.builder().emoji_type(emoji_type).build())
-                    .build()
+                    CreateMessageReactionRequestBody.builder().reaction_type(Emoji.builder().emoji_type(emoji_type).build()).build()
                 )
                 .build()
             )

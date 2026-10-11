@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import cn2an
 
@@ -164,9 +164,7 @@ class DoubanModule(_ModuleBase):
         if info:
             mediainfo = MediaInfo(douban_info=info)
             if meta:
-                logger.info(
-                    f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}"
-                )
+                logger.info(f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}")
             else:
                 logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
@@ -233,9 +231,7 @@ class DoubanModule(_ModuleBase):
         if info:
             mediainfo = MediaInfo(douban_info=info)
             if meta:
-                logger.info(
-                    f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}"
-                )
+                logger.info(f"{meta.name} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year} {mediainfo.douban_id}")
             else:
                 logger.info(f"{doubanid} 豆瓣识别结果：{mediainfo.type.value} {mediainfo.title_year}")
             return mediainfo
@@ -600,9 +596,7 @@ class DoubanModule(_ModuleBase):
             return __douban_movie() or __douban_tv()
 
     @rate_limit_exponential(source="douban_info")
-    async def async_douban_info(
-        self, doubanid: str, mtype: MediaType = None, raise_exception: bool = True
-    ) -> dict | None:
+    async def async_douban_info(self, doubanid: str, mtype: MediaType = None, raise_exception: bool = True) -> dict | None:
         """
         获取豆瓣信息（异步版本）
         :param doubanid: 豆瓣ID
@@ -656,9 +650,7 @@ class DoubanModule(_ModuleBase):
                 return movie_result
             return await __async_douban_tv()
 
-    def douban_discover(
-        self, mtype: MediaType, sort: str, tags: str, page: int = 1, count: int = 30
-    ) -> list[MediaInfo] | None:
+    def douban_discover(self, mtype: MediaType, sort: str, tags: str, page: int = 1, count: int = 30) -> list[MediaInfo] | None:
         """
         发现豆瓣电影、剧集
         :param mtype:  媒体类型
@@ -701,9 +693,7 @@ class DoubanModule(_ModuleBase):
         """
         logger.info(f"开始发现豆瓣 {mtype.value} ...")
         if mtype == MediaType.MOVIE:
-            infos = await self.doubanapi.async_movie_recommend(
-                start=(page - 1) * count, count=count, sort=sort, tags=tags
-            )
+            infos = await self.doubanapi.async_movie_recommend(start=(page - 1) * count, count=count, sort=sort, tags=tags)
         else:
             infos = await self.doubanapi.async_tv_recommend(start=(page - 1) * count, count=count, sort=sort, tags=tags)
         if infos and infos.get("items"):
@@ -889,9 +879,7 @@ class DoubanModule(_ModuleBase):
                         "name": item.get("target", {}).get("title"),
                         "url": item.get("target", {}).get("url"),
                         "images": item.get("target", {}).get("cover", {}),
-                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace(
-                            "/l/public/", "/s/public/"
-                        ),
+                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace("/l/public/", "/s/public/"),
                     },
                 )
                 for item in result.get("items")
@@ -922,9 +910,7 @@ class DoubanModule(_ModuleBase):
                         "name": item.get("target", {}).get("title"),
                         "url": item.get("target", {}).get("url"),
                         "images": item.get("target", {}).get("cover", {}),
-                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace(
-                            "/l/public/", "/s/public/"
-                        ),
+                        "avatar": (item.get("target", {}).get("cover_img", {}).get("url") or "").replace("/l/public/", "/s/public/"),
                     },
                 )
                 for item in result.get("items")
@@ -952,9 +938,7 @@ class DoubanModule(_ModuleBase):
         return None
 
     @staticmethod
-    def _process_search_results(
-        result: dict, name: str, mtype: MediaType = None, year: str = None, season: int = None
-    ) -> dict:
+    def _process_search_results(result: dict, name: str, mtype: MediaType = None, year: str = None, season: int = None) -> dict:
         """
         处理搜索结果并进行匹配
         :param result: 搜索返回的结果
@@ -1369,9 +1353,7 @@ class DoubanModule(_ModuleBase):
                 collection_id = module.get("payload", {}).get("id")
         # 查询作品集内容
         if collection_id:
-            collections = await self.doubanapi.async_person_work(
-                subject_id=collection_id, start=(page - 1) * 20, count=20
-            )
+            collections = await self.doubanapi.async_person_work(subject_id=collection_id, start=(page - 1) * 20, count=20)
             if collections:
                 works = collections.get("works")
                 return [MediaInfo(douban_info=work.get("subject")) for work in works]

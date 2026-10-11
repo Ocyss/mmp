@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.chain import ChainBase
 
@@ -167,9 +167,7 @@ class DoubanChain(ChainBase):
         :param count:  数量
         :return: 媒体信息列表
         """
-        return await self.async_run_module(
-            "async_douban_discover", mtype=mtype, sort=sort, tags=tags, page=page, count=count
-        )
+        return await self.async_run_module("async_douban_discover", mtype=mtype, sort=sort, tags=tags, page=page, count=count)
 
     async def async_tv_animation(self, page: int | None = 1, count: int | None = 30) -> list[MediaInfo] | None:
         """

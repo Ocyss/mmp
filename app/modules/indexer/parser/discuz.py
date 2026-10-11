@@ -92,22 +92,12 @@ class DiscuzUserInfo(SiteParserBase):
             # 搜索size列
             if html.xpath('//tr[position()=1]/td[.//img[@class="size"] and .//img[@alt="size"]]'):
                 size_col = (
-                    len(
-                        html.xpath(
-                            '//tr[position()=1]/td[.//img[@class="size"] and .//img[@alt="size"]]/preceding-sibling::td'
-                        )
-                    )
-                    + 1
+                    len(html.xpath('//tr[position()=1]/td[.//img[@class="size"] and .//img[@alt="size"]]/preceding-sibling::td')) + 1
                 )
             # 搜索seeders列
             if html.xpath('//tr[position()=1]/td[.//img[@class="seeders"] and .//img[@alt="seeders"]]'):
                 seeders_col = (
-                    len(
-                        html.xpath(
-                            '//tr[position()=1]/td[.//img[@class="seeders"] '
-                            'and .//img[@alt="seeders"]]/preceding-sibling::td'
-                        )
-                    )
+                    len(html.xpath('//tr[position()=1]/td[.//img[@class="seeders"] and .//img[@alt="seeders"]]/preceding-sibling::td'))
                     + 1
                 )
 

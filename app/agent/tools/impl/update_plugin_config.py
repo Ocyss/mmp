@@ -1,7 +1,7 @@
 """修改插件配置工具"""
 
 import json
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -33,8 +33,7 @@ class UpdatePluginConfigInput(BaseModel):
     replace: bool | None = Field(
         False,
         description=(
-            "Whether to replace the entire saved config with 'updates'. "
-            "Default false, which performs a partial merge update."
+            "Whether to replace the entire saved config with 'updates'. Default false, which performs a partial merge update."
         ),
     )
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import transmission_rpc
 from transmission_rpc import Client, File, Torrent
@@ -135,9 +135,7 @@ class Transmission:
         """
         self.trc = self.__login_transmission()
 
-    def get_torrents(
-        self, ids: str | list = None, status: str | list = None, tags: str | list = None
-    ) -> tuple[list[Torrent], bool]:
+    def get_torrents(self, ids: str | list = None, status: str | list = None, tags: str | list = None) -> tuple[list[Torrent], bool]:
         """
         获取种子列表
         返回结果 种子列表, 是否有错误
@@ -249,9 +247,7 @@ class Transmission:
         if not self.trc:
             return None
         try:
-            return self.trc.add_torrent(
-                torrent=content, download_dir=download_dir, paused=is_paused, labels=labels, cookies=cookie
-            )
+            return self.trc.add_torrent(torrent=content, download_dir=download_dir, paused=is_paused, labels=labels, cookies=cookie)
         except Exception as err:
             logger.error(f"添加种子出错：{str(err)}")
             return None
@@ -499,9 +495,7 @@ class Transmission:
             if tracker_list:
                 return list(tracker_list)
             trackers = getattr(torrent, "trackers", None) or []
-            return [
-                tracker.get("announce") for tracker in trackers if isinstance(tracker, dict) and tracker.get("announce")
-            ]
+            return [tracker.get("announce") for tracker in trackers if isinstance(tracker, dict) and tracker.get("announce")]
         except Exception as err:
             logger.error(f"获取tracker出错：{str(err)}")
             return None

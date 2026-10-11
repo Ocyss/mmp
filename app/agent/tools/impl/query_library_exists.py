@@ -3,7 +3,7 @@
 import asyncio
 import json
 from collections import OrderedDict
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -27,8 +27,7 @@ def _sort_seasons(seasons: dict | None) -> dict:
             return str(value)
 
     return OrderedDict(
-        (season, sorted(episodes, key=_sort_key))
-        for season, episodes in sorted(seasons.items(), key=lambda item: _sort_key(item[0]))
+        (season, sorted(episodes, key=_sort_key)) for season, episodes in sorted(seasons.items(), key=lambda item: _sort_key(item[0]))
     )
 
 

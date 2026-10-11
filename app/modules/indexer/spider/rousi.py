@@ -1,6 +1,6 @@
 import base64
 import json
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
@@ -206,9 +206,7 @@ class RousiSpider:
             torrents.append(torrent)
         return torrents
 
-    def search(
-        self, keyword: str, mtype: MediaType = None, cat: str | None = None, page: int | None = 0
-    ) -> tuple[bool, list[dict]]:
+    def search(self, keyword: str, mtype: MediaType = None, cat: str | None = None, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         同步搜索种子
 
@@ -225,9 +223,7 @@ class RousiSpider:
         params = self.__get_params(keyword, mtype, cat, page)
         headers = {"Authorization": f"Bearer {self._apikey}", "Accept": "application/json"}
 
-        res = RequestUtils(headers=headers, proxies=self._proxy, timeout=self._timeout).get_res(
-            url=self._searchurl, params=params
-        )
+        res = RequestUtils(headers=headers, proxies=self._proxy, timeout=self._timeout).get_res(url=self._searchurl, params=params)
 
         return self.__process_response(res)
 

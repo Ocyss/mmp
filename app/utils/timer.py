@@ -1,6 +1,6 @@
 import datetime
 import random
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pytz
 from apscheduler.triggers.cron import CronTrigger
@@ -145,9 +145,7 @@ class TimerUtils:
         return trigger
 
     @staticmethod
-    def random_even_scheduler(
-        num_executions: int = 1, begin_hour: int = 7, end_hour: int = 23
-    ) -> list[datetime.datetime]:
+    def random_even_scheduler(num_executions: int = 1, begin_hour: int = 7, end_hour: int = 23) -> list[datetime.datetime]:
         """
         按执行次数尽可能平均生成随机定时器
         :param num_executions: 执行次数

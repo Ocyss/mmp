@@ -17,9 +17,7 @@ class AddDownloadParams(ActionParams):
     """
 
     downloader: str | None = Field(default=None, description="下载器")
-    save_path: str | None = Field(
-        default=None, description="保存路径, 支持<storage>:<path>, 如rclone:/MP, smb:/server/share/Movies等"
-    )
+    save_path: str | None = Field(default=None, description="保存路径, 支持<storage>:<path>, 如rclone:/MP, smb:/server/share/Movies等")
     labels: str | None = Field(default=None, description="标签（,分隔）")
     only_lack: bool | None = Field(default=False, description="仅下载缺失的资源")
 
@@ -118,9 +116,7 @@ class AddDownloadAction(BaseAction):
 
         if self._added_downloads:
             logger.info(f"已添加 {len(self._added_downloads)} 个下载任务")
-            context.downloads.extend(
-                [DownloadTask(download_id=did, downloader=params.downloader) for did in self._added_downloads]
-            )
+            context.downloads.extend([DownloadTask(download_id=did, downloader=params.downloader) for did in self._added_downloads])
         elif _started:
             self._has_error = True
 

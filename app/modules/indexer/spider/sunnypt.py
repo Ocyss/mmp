@@ -1,7 +1,7 @@
 import base64
 import json
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.core.config import settings
 from app.log import logger
@@ -262,11 +262,7 @@ class SunnyPTSpider:
             promotion_active = bool(promotion.get("is_active"))
             download_factor = float(promotion.get("down_multiplier", 1.0)) if promotion_active else 1.0
             upload_factor = float(promotion.get("up_multiplier", 1.0)) if promotion_active else 1.0
-            freedate = (
-                StringUtils.unify_datetime_str(promotion.get("until"))
-                if promotion_active and promotion.get("until")
-                else None
-            )
+            freedate = StringUtils.unify_datetime_str(promotion.get("until")) if promotion_active and promotion.get("until") else None
             torrent_id = result.get("id")
             torrents.append(
                 {

@@ -1,7 +1,7 @@
 """查询系统目录设置工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -106,40 +106,37 @@ class QueryDirectorySettingsTool(MoviePilotTool):
         if not filtered_dirs:
             return "未找到相关目录配置"
 
-        simplified_dirs = []
-        for d in filtered_dirs:
-            simplified_dirs.append(
-                {
-                    "name": d.name,
-                    "priority": d.priority,
-                    "storage": d.storage,
-                    "download_path": d.download_path,
-                    "library_path": d.library_path,
-                    "library_storage": d.library_storage,
-                    "media_type": d.media_type,
-                    "media_category": d.media_category,
-                    "monitor_type": d.monitor_type,
-                    "monitor_mode": d.monitor_mode,
-                    "transfer_type": d.transfer_type,
-                    "overwrite_mode": d.overwrite_mode,
-                    "renaming": d.renaming,
-                    "scraping": d.scraping,
-                    "notify": d.notify,
-                    "download_type_folder": d.download_type_folder,
-                    "download_category_folder": d.download_category_folder,
-                    "library_type_folder": d.library_type_folder,
-                    "library_category_folder": d.library_category_folder,
-                }
-            )
+        simplified_dirs = [
+            {
+                "name": d.name,
+                "priority": d.priority,
+                "storage": d.storage,
+                "download_path": d.download_path,
+                "library_path": d.library_path,
+                "library_storage": d.library_storage,
+                "media_type": d.media_type,
+                "media_category": d.media_category,
+                "monitor_type": d.monitor_type,
+                "monitor_mode": d.monitor_mode,
+                "transfer_type": d.transfer_type,
+                "overwrite_mode": d.overwrite_mode,
+                "renaming": d.renaming,
+                "scraping": d.scraping,
+                "notify": d.notify,
+                "download_type_folder": d.download_type_folder,
+                "download_category_folder": d.download_category_folder,
+                "library_type_folder": d.library_type_folder,
+                "library_category_folder": d.library_category_folder,
+            }
+            for d in filtered_dirs
+        ]
 
         return json.dumps(simplified_dirs, ensure_ascii=False, indent=2)
 
     async def run(
         self, directory_type: str | None = "all", storage_type: str | None = "all", name: str | None = None, **kwargs
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: directory_type={directory_type}, storage_type={storage_type}, name={name}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: directory_type={directory_type}, storage_type={storage_type}, name={name}")
 
         try:
             return self._query_directory_settings(

@@ -1,7 +1,7 @@
 """文件精确编辑工具。"""
 
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from anyio import Path as AsyncPath
 from pydantic import BaseModel, Field
@@ -23,8 +23,7 @@ class EditFileInput(BaseModel):
     old_text: str = Field(
         ...,
         description=(
-            "The exact old text to replace. It must be non-empty and uniquely "
-            "identify one location unless replace_all is true."
+            "The exact old text to replace. It must be non-empty and uniquely identify one location unless replace_all is true."
         ),
     )
     new_text: str = Field(..., description="The new text to replace with")
@@ -39,8 +38,7 @@ class EditFileInput(BaseModel):
         None,
         pattern=r"^[0-9a-fA-F]{64}$",
         description=(
-            "Optional SHA-256 returned by read_file(include_metadata=true). The "
-            "edit fails if the file changed after it was read."
+            "Optional SHA-256 returned by read_file(include_metadata=true). The edit fails if the file changed after it was read."
         ),
     )
 

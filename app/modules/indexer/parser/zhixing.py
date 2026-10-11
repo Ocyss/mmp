@@ -5,7 +5,7 @@
 #
 # -*- coding: utf-8 -*-
 import re
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup

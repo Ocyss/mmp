@@ -1,7 +1,7 @@
 """查询整理历史记录工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -76,9 +76,7 @@ class QueryTransferHistoryTool(MoviePilotTool):
                 words = jieba_cut(title, HMM=False)
                 title_search = "%".join(words)
                 # 查询记录
-                result = await transferhis.async_list_by_title(
-                    title=title_search, page=page, count=count, status=status_bool
-                )
+                result = await transferhis.async_list_by_title(title=title_search, page=page, count=count, status=status_bool)
                 total = await transferhis.async_count_by_title(title=title_search, status=status_bool)
             else:
                 # 查询所有记录

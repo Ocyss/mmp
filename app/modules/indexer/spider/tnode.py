@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.core.cache import cached
 from app.core.config import settings
@@ -40,9 +40,7 @@ class TNodeSpider(metaclass=SingletonClass):
     def __get_token(self) -> str | None:
         if not self._domain:
             return
-        res = RequestUtils(ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout).get_res(
-            url=self._domain
-        )
+        res = RequestUtils(ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout).get_res(url=self._domain)
         if res and res.status_code == 200:
             csrf_token = re.search(r'<meta name="x-csrf-token" content="(.+?)">', res.text)
             if csrf_token:
@@ -53,9 +51,9 @@ class TNodeSpider(metaclass=SingletonClass):
     async def __async_get_token(self) -> str | None:
         if not self._domain:
             return
-        res = await AsyncRequestUtils(
-            ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout
-        ).get_res(url=self._domain)
+        res = await AsyncRequestUtils(ua=self._ua, cookies=self._cookie, proxies=self._proxy, timeout=self._timeout).get_res(
+            url=self._domain
+        )
         if res and res.status_code == 200:
             csrf_token = re.search(r'<meta name="x-csrf-token" content="(.+?)">', res.text)
             if csrf_token:

@@ -318,9 +318,7 @@ def passkey_authenticate_start(
             user_id = user.id
 
         # 生成认证选项
-        options_json, challenge = PassKeyHelper.generate_authentication_options(
-            existing_credentials=existing_credentials
-        )
+        options_json, challenge = PassKeyHelper.generate_authentication_options(existing_credentials=existing_credentials)
 
         transaction_token = PasskeyChallengeStore.issue(
             challenge=challenge,
@@ -356,7 +354,7 @@ def passkey_authenticate_finish(request: Request, response: Response, passkey_re
             credential_id = _extract_and_standardize_credential_id(passkey_req.credential)
         except ValueError as e:
             logger.warning(f"PassKey认证失败，提供的凭证无效: {e}")
-            raise HTTPException(status_code=401, detail="认证失败")
+            raise HTTPException(status_code=401, detail="认证失败") from e
 
         # 查找PassKey并获取用户
         passkey = PassKey.get_by_credential_id(db=None, credential_id=credential_id)
@@ -416,7 +414,7 @@ def passkey_authenticate_finish(request: Request, response: Response, passkey_re
         raise
     except Exception as e:
         logger.error(f"PassKey认证失败: {e}")
-        raise HTTPException(status_code=401, detail="认证失败")
+        raise HTTPException(status_code=401, detail="认证失败") from e
 
 
 @router.get(

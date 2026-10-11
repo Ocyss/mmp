@@ -1,6 +1,6 @@
 """添加订阅工具"""
 
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

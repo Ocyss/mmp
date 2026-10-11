@@ -493,14 +493,10 @@ class Subscribe(Base):
 
     @classmethod
     @async_db_query
-    async def async_list_by_username(
-        cls, db: AsyncSession, username: str, state: str | None = None, mtype: str | None = None
-    ):
+    async def async_list_by_username(cls, db: AsyncSession, username: str, state: str | None = None, mtype: str | None = None):
         if mtype:
             if state:
-                result = await db.execute(
-                    select(cls).filter(cls.state == state, cls.username == username, cls.type == mtype)
-                )
+                result = await db.execute(select(cls).filter(cls.state == state, cls.username == username, cls.type == mtype))
             else:
                 result = await db.execute(select(cls).filter(cls.username == username, cls.type == mtype))
         else:

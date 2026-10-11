@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import cn2an
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
@@ -205,9 +205,7 @@ async def update_subscribe(
     subscribe_dict["username"] = subscribe.username
     if subscribe_in.total_episode and subscribe_in.total_episode > (subscribe.total_episode or 0):
         # 扩大目标范围时，新增加的集数尚无下载事实，应同步计入缺失集数。
-        subscribe_dict["lack_episode"] = (subscribe.lack_episode or 0) + (
-            subscribe_in.total_episode - (subscribe.total_episode or 0)
-        )
+        subscribe_dict["lack_episode"] = (subscribe.lack_episode or 0) + (subscribe_in.total_episode - (subscribe.total_episode or 0))
     # 是否手动修改过总集数
     if subscribe_in.total_episode != subscribe.total_episode:
         subscribe_dict["manual_total_episode"] = 1

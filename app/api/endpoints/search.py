@@ -1,7 +1,7 @@
 import asyncio
 import json
 import time
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, Request
@@ -286,19 +286,13 @@ async def _stream_search_events(request: Request, event_source: AsyncIterator[di
             if await request.is_disconnected():
                 termination_reason = "client_disconnected"
                 logger.warning(
-                    f"渐进式搜索客户端已断开，搜索ID：{search_id}，路径：{request_path}，"
-                    f"事件：{last_event_type}，阶段：{last_stage}"
+                    f"渐进式搜索客户端已断开，搜索ID：{search_id}，路径：{request_path}，事件：{last_event_type}，阶段：{last_stage}"
                 )
                 break
             # 精确搜索会先发送 replace，再发送 done。done 再带整包 items 只会重复占用带宽和前端内存。
             if event.get("type") == "replace" and event.get("items"):
                 has_sent_final_replace = True
-            elif (
-                event.get("type") == "done"
-                and has_sent_final_replace
-                and event.get("stage") == "done"
-                and event.get("items")
-            ):
+            elif event.get("type") == "done" and has_sent_final_replace and event.get("stage") == "done" and event.get("items"):
                 event = {key: value for key, value in event.items() if key != "items"}
             payload = _sse_event(event, locale=locale)
             event_count += 1
@@ -308,10 +302,7 @@ async def _stream_search_events(request: Request, event_source: AsyncIterator[di
             yield payload
     except asyncio.CancelledError:
         termination_reason = "cancelled"
-        logger.warning(
-            f"渐进式搜索流已取消，搜索ID：{search_id}，路径：{request_path}，"
-            f"事件：{last_event_type}，阶段：{last_stage}"
-        )
+        logger.warning(f"渐进式搜索流已取消，搜索ID：{search_id}，路径：{request_path}，事件：{last_event_type}，阶段：{last_stage}")
         raise
     except Exception as err:
         termination_reason = "error"
@@ -484,9 +475,7 @@ async def search_by_title(
     """
     根据名称模糊搜索站点资源，支持分页，关键词为空是返回首页资源
     """
-    torrents = await SearchChain().async_search_by_title(
-        title=keyword, page=page, sites=_parse_site_list(sites), cache_local=True
-    )
+    torrents = await SearchChain().async_search_by_title(title=keyword, page=page, sites=_parse_site_list(sites), cache_local=True)
     if not torrents:
         return schemas.Response(success=False, message="未搜索到任何资源")
     return schemas.Response(success=True, data=[torrent.to_dict() for torrent in torrents])

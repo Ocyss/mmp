@@ -66,20 +66,14 @@ class SiteUserData(Base):
     @db_query
     def get_by_domain(cls, db: Session, domain: str, workdate: str | None = None, worktime: str | None = None):
         if workdate and worktime:
-            return (
-                db.query(cls)
-                .filter(cls.domain == domain, cls.updated_day == workdate, cls.updated_time == worktime)
-                .all()
-            )
+            return db.query(cls).filter(cls.domain == domain, cls.updated_day == workdate, cls.updated_time == worktime).all()
         elif workdate:
             return db.query(cls).filter(cls.domain == domain, cls.updated_day == workdate).all()
         return db.query(cls).filter(cls.domain == domain).all()
 
     @classmethod
     @async_db_query
-    async def async_get_by_domain(
-        cls, db: AsyncSession, domain: str, workdate: str | None = None, worktime: str | None = None
-    ):
+    async def async_get_by_domain(cls, db: AsyncSession, domain: str, workdate: str | None = None, worktime: str | None = None):
         query = select(cls).filter(cls.domain == domain)
         if workdate and worktime:
             query = query.filter(cls.updated_day == workdate, cls.updated_time == worktime)
@@ -146,10 +140,7 @@ class SiteUserData(Base):
         """
         分批删除指定日期之前的站点用户快照。
         """
-        ids = [
-            row[0]
-            for row in db.query(cls.id).filter(cls.updated_day < before_day).order_by(cls.id.asc()).limit(limit).all()
-        ]
+        ids = [row[0] for row in db.query(cls.id).filter(cls.updated_day < before_day).order_by(cls.id.asc()).limit(limit).all()]
         if not ids:
             return 0
         deleted = db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

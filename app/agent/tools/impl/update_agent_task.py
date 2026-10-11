@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from typing import Literal, Optional, Type
+from typing import Literal, Optional
 
 import pytz
 from pydantic import BaseModel, Field, model_validator
@@ -33,8 +33,7 @@ class UpdateAgentTaskInput(BaseModel):
         ge=1,
         le=525600,
         description=(
-            "For a one-time date task expressed as 'in N minutes', provide this instead "
-            "of trigger together with trigger_type='date'."
+            "For a one-time date task expressed as 'in N minutes', provide this instead of trigger together with trigger_type='date'."
         ),
     )
     enabled: bool | None = Field(
@@ -110,9 +109,7 @@ class UpdateAgentTaskTool(MoviePilotTool):
         trigger_value = payload.trigger
         if trigger_type == "date" and payload.delay_minutes is not None:
             timezone = pytz.timezone(settings.TZ)
-            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(
-                timespec="seconds"
-            )
+            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(timespec="seconds")
         if trigger_value is None:
             trigger_value = task.cron_expression if trigger_type == "cron" else task.run_at
         enabled = task.enabled if payload.enabled is None else payload.enabled

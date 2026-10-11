@@ -2,7 +2,7 @@ import fnmatch
 import math
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from starlette.responses import FileResponse, Response

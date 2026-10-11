@@ -2,7 +2,7 @@ import datetime
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import unquote
 
 from torrentool.api import Torrent
@@ -111,9 +111,9 @@ class TorrentHelper:
             url = req.headers["Location"]
             if url and url.startswith("magnet:"):
                 return None, url, "", [], "获取到磁力链接"
-            req = RequestUtils(
-                ua=ua, cookies=cookie, referer=referer, proxies=settings.PROXY if proxy else None
-            ).get_res(url=url, allow_redirects=False)
+            req = RequestUtils(ua=ua, cookies=cookie, referer=referer, proxies=settings.PROXY if proxy else None).get_res(
+                url=url, allow_redirects=False
+            )
         if req and req.status_code == 200:
             if not req.content:
                 return cache_path, None, "", [], "未下载到种子数据"
@@ -148,8 +148,7 @@ class TorrentHelper:
                                 skip_flag = True
                             elif req is not None:
                                 logger.warn(
-                                    f"触发了站点首次种子下载，且无法自动跳过，"
-                                    f"返回码：{req.status_code}，错误原因：{req.reason}"
+                                    f"触发了站点首次种子下载，且无法自动跳过，返回码：{req.status_code}，错误原因：{req.reason}"
                                 )
                             else:
                                 logger.warn("触发了站点首次种子下载，且无法自动跳过")
@@ -425,38 +424,26 @@ class TorrentHelper:
                 logger.info(f"{mediainfo.title} 通过词表指定豆瓣ID匹配到资源：{torrent.site_name} - {torrent.title}")
                 return True
             if torrent_meta.bangumiid and torrent_meta.bangumiid == mediainfo.bangumi_id:
-                logger.info(
-                    f"{mediainfo.title} 通过词表指定 Bangumi ID 匹配到资源：{torrent.site_name} - {torrent.title}"
-                )
+                logger.info(f"{mediainfo.title} 通过词表指定 Bangumi ID 匹配到资源：{torrent.site_name} - {torrent.title}")
                 return True
             if torrent_meta.anilistid and torrent_meta.anilistid == mediainfo.anilist_id:
-                logger.info(
-                    f"{mediainfo.title} 通过词表指定 AniList ID 匹配到资源：{torrent.site_name} - {torrent.title}"
-                )
+                logger.info(f"{mediainfo.title} 通过词表指定 AniList ID 匹配到资源：{torrent.site_name} - {torrent.title}")
                 return True
         # 要匹配的媒体标题、原标题
-        media_titles = {StringUtils.clear_upper(mediainfo.title), StringUtils.clear_upper(mediainfo.original_title)} - {
-            ""
-        }
+        media_titles = {StringUtils.clear_upper(mediainfo.title), StringUtils.clear_upper(mediainfo.original_title)} - {""}
         # 要匹配的媒体别名、译名
         media_names = {StringUtils.clear_upper(name) for name in mediainfo.names if name}
         # 识别的种子中英文名
-        meta_names = {StringUtils.clear_upper(torrent_meta.cn_name), StringUtils.clear_upper(torrent_meta.en_name)} - {
-            ""
-        }
+        meta_names = {StringUtils.clear_upper(torrent_meta.cn_name), StringUtils.clear_upper(torrent_meta.en_name)} - {""}
         # 比对种子识别类型
         if torrent_meta.type == MediaType.TV and mediainfo.type != MediaType.TV:
             logger.debug(
-                f"{torrent.site_name} - {torrent.title} 种子标题类型为 {torrent_meta.type.value}，"
-                f"不匹配 {mediainfo.type.value}"
+                f"{torrent.site_name} - {torrent.title} 种子标题类型为 {torrent_meta.type.value}，不匹配 {mediainfo.type.value}"
             )
             return False
         # 比对种子在站点中的类型
         if torrent.category == MediaType.TV.value and mediainfo.type != MediaType.TV:
-            logger.debug(
-                f"{torrent.site_name} - {torrent.title} 种子在站点中归类为 {torrent.category}，"
-                f"不匹配 {mediainfo.type.value}"
-            )
+            logger.debug(f"{torrent.site_name} - {torrent.title} 种子在站点中归类为 {torrent.category}，不匹配 {mediainfo.type.value}")
             return False
         # 比对年份
         if mediainfo.year:
@@ -498,14 +485,11 @@ class TorrentHelper:
         # 在副标题中（非英文单词）判断是否存在标题、原语种标题、别名、译名
         if torrent.description:
             subtitles = {
-                StringUtils.clear_upper(t)
-                for t in re.split(r"[\s/【】|]+", torrent.description)
-                if not StringUtils.is_english_word(t)
+                StringUtils.clear_upper(t) for t in re.split(r"[\s/【】|]+", torrent.description) if not StringUtils.is_english_word(t)
             }
             if media_titles.intersection(subtitles) or media_names.intersection(subtitles):
                 logger.info(
-                    f"{mediainfo.title} 通过副标题匹配到资源：{torrent.site_name} - {torrent.title}，"
-                    f"副标题：{torrent.description}"
+                    f"{mediainfo.title} 通过副标题匹配到资源：{torrent.site_name} - {torrent.title}，副标题：{torrent.description}"
                 )
                 return True
         # 未匹配
@@ -522,12 +506,7 @@ class TorrentHelper:
             return True
 
         # 匹配内容
-        content = (
-            f"{torrent_info.title} "
-            f"{torrent_info.description} "
-            f"{' '.join(torrent_info.labels or [])} "
-            f"{torrent_info.volume_factor}"
-        )
+        content = f"{torrent_info.title} {torrent_info.description} {' '.join(torrent_info.labels or [])} {torrent_info.volume_factor}"
 
         # 包含
         include = filter_params.get("include")
@@ -599,9 +578,7 @@ class TorrentHelper:
         torrent_episodes = meta.episode_list
         if not set(torrent_seasons).issubset(seasons_set):
             # 种子季不在过滤季中
-            logger.debug(
-                f"种子 {torrent.site_name} - {torrent.title} 包含季 {torrent_seasons} 不是需要的季 {list(seasons)}"
-            )
+            logger.debug(f"种子 {torrent.site_name} - {torrent.title} 包含季 {torrent_seasons} 不是需要的季 {list(seasons)}")
             return False
         if not torrent_episodes:
             # 整季按匹配处理
@@ -610,8 +587,6 @@ class TorrentHelper:
             need_episodes = season_episodes.get(torrent_seasons[0])
             if need_episodes and not set(torrent_episodes).intersection(need_episodes):
                 # 单季集没有交集的不要
-                logger.debug(
-                    f"种子 {torrent.site_name} - {torrent.title} 集 {torrent_episodes} 没有需要的集：{need_episodes}"
-                )
+                logger.debug(f"种子 {torrent.site_name} - {torrent.title} 集 {torrent_episodes} 没有需要的集：{need_episodes}")
                 return False
         return True

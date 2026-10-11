@@ -1,6 +1,6 @@
 import base64
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 from lxml import etree
 
@@ -299,9 +299,7 @@ class CookieHelper:
                         html_text = latest_text
                     # 页面已出现明确的登录错误信息时，以该快照为准并提前结束重试
                     latest_html = etree.HTML(latest_text)
-                    if latest_html is not None and any(
-                        latest_html.xpath(x) for x in self._SITE_LOGIN_XPATH.get("error")
-                    ):
+                    if latest_html is not None and any(latest_html.xpath(x) for x in self._SITE_LOGIN_XPATH.get("error")):
                         html_text = latest_text
                         break
                 if not html_text:

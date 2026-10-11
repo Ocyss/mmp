@@ -201,9 +201,7 @@ class Movie(TMDb):
         Remove your rating for a movie.
         :param movie_id: int
         """
-        self._request_obj(
-            self._urls["delete_rating"] % movie_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        self._request_obj(self._urls["delete_rating"] % movie_id, params=f"session_id={self.session_id}", method="DELETE")
 
     def latest(self):
         """
@@ -261,18 +259,14 @@ class Movie(TMDb):
         return self._request_obj(self._urls["upcoming"], params=params, key="results")
 
     # 异步版本方法
-    async def async_details(
-        self, movie_id, append_to_response="videos,trailers,images,casts,translations,keywords,release_dates"
-    ):
+    async def async_details(self, movie_id, append_to_response="videos,trailers,images,casts,translations,keywords,release_dates"):
         """
         Get the primary information about a movie.（异步版本）
         :param movie_id: int
         :param append_to_response: str
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["details"] % movie_id, params=f"append_to_response={append_to_response}"
-        )
+        return await self._async_request_obj(self._urls["details"] % movie_id, params=f"append_to_response={append_to_response}")
 
     async def async_account_states(self, movie_id):
         """
@@ -281,9 +275,7 @@ class Movie(TMDb):
         :param movie_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["account_states"] % movie_id, params=f"session_id={self.session_id}"
-        )
+        return await self._async_request_obj(self._urls["account_states"] % movie_id, params=f"session_id={self.session_id}")
 
     async def async_alternative_titles(self, movie_id, country=None):
         """
@@ -369,9 +361,7 @@ class Movie(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["recommendations"] % movie_id, params=f"page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["recommendations"] % movie_id, params=f"page={page}", key="results")
 
     async def async_release_dates(self, movie_id):
         """
@@ -442,9 +432,7 @@ class Movie(TMDb):
         Remove your rating for a movie.（异步版本）
         :param movie_id: int
         """
-        await self._async_request_obj(
-            self._urls["delete_rating"] % movie_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        await self._async_request_obj(self._urls["delete_rating"] % movie_id, params=f"session_id={self.session_id}", method="DELETE")
 
     async def async_latest(self):
         """

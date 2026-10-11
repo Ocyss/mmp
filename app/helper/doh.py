@@ -12,7 +12,7 @@ import struct
 import urllib
 import urllib.request
 from threading import Lock
-from typing import Dict, Optional
+from typing import Optional
 
 from app.core.config import settings
 from app.log import logger
@@ -135,8 +135,7 @@ def _doh_query(resolver: str, host: str) -> str | None:
     )
     question = b"".join(
         [
-            b"".join([struct.pack("B", len(item)) + item.encode("utf-8") for item in host.split(".")])
-            + b"\x00",  # QNAME: 域名序列
+            b"".join([struct.pack("B", len(item)) + item.encode("utf-8") for item in host.split(".")]) + b"\x00",  # QNAME: 域名序列
             b"\x00\x01",  # QTYPE: A
             b"\x00\x01",  # QCLASS: IN
         ]

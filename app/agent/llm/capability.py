@@ -9,7 +9,7 @@ import subprocess
 from abc import ABC
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from app.core.config import settings
@@ -717,9 +717,7 @@ class AgentCapabilityManager:
             logger.info("语音转文字跳过：音频输入能力未启用或 provider 不可用")
             return None
         provider_name = cls._get_provider_log_name(provider)
-        logger.info(
-            f"语音转文字开始：provider={provider_name}, filename={filename}, bytes={len(content) if content else 0}"
-        )
+        logger.info(f"语音转文字开始：provider={provider_name}, filename={filename}, bytes={len(content) if content else 0}")
         transcript = provider.transcribe_audio(content=content, filename=filename)
         if transcript:
             logger.info(f"语音转文字完成：provider={provider_name}, filename={filename}, text_len={len(transcript)}")

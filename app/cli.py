@@ -7,7 +7,7 @@ import sys
 import time
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, get_args, get_origin
+from typing import TYPE_CHECKING, Any, Optional, get_args, get_origin
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import ProxyHandler, Request, build_opener, urlopen
@@ -704,9 +704,7 @@ def _wait_until_backend_ready(runtime: dict[str, Any], timeout: int) -> dict[str
             return payload or {}
         time.sleep(1)
 
-    raise click.ClickException(
-        f"后端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --stdio` 查看启动日志"
-    )
+    raise click.ClickException(f"后端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --stdio` 查看启动日志")
 
 
 def _wait_until_frontend_ready(runtime: dict[str, Any], timeout: int) -> dict[str, Any]:
@@ -724,9 +722,7 @@ def _wait_until_frontend_ready(runtime: dict[str, Any], timeout: int) -> dict[st
             return payload or {}
         time.sleep(1)
 
-    raise click.ClickException(
-        f"前端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --frontend` 查看前端日志"
-    )
+    raise click.ClickException(f"前端进程已启动，但在 {timeout} 秒内未通过健康检查，请执行 `moviepilot logs --frontend` 查看前端日志")
 
 
 def _start_backend_service(timeout: int, safe: bool = False) -> dict[str, Any]:
@@ -734,9 +730,7 @@ def _start_backend_service(timeout: int, safe: bool = False) -> dict[str, Any]:
     if state in {"running", "starting"} and runtime and process:
         return {"status": state, "runtime": runtime, "process": process, "health": health_payload, "started": False}
     if state == "running-unmanaged":
-        raise click.ClickException(
-            "检测到本地端口上已有 MoviePilot 后端正在运行，但不是由当前 CLI 管理，请先手动停止它"
-        )
+        raise click.ClickException("检测到本地端口上已有 MoviePilot 后端正在运行，但不是由当前 CLI 管理，请先手动停止它")
 
     _ensure_local_api_token()
     _clear_json_file(BACKEND_RUNTIME_FILE)
@@ -763,9 +757,7 @@ def _start_frontend_service(timeout: int, backend_port: int) -> dict[str, Any]:
     if state in {"running", "starting"} and runtime and process:
         return {"status": state, "runtime": runtime, "process": process, "health": health_payload, "started": False}
     if state == "running-unmanaged":
-        raise click.ClickException(
-            "检测到本地端口上已有 MoviePilot 前端正在运行，但不是由当前 CLI 管理，请先手动停止它"
-        )
+        raise click.ClickException("检测到本地端口上已有 MoviePilot 前端正在运行，但不是由当前 CLI 管理，请先手动停止它")
 
     _clear_json_file(FRONTEND_RUNTIME_FILE)
     process = _spawn_frontend_process(backend_port=backend_port)
@@ -798,9 +790,7 @@ def _terminate_process(runtime_file: Path, timeout: int, force: bool, component_
         process.wait(timeout=timeout)
     except psutil.TimeoutExpired:
         if not force:
-            raise click.ClickException(
-                f"{component_name} 在 {timeout} 秒内没有退出，可重新执行 `moviepilot stop --force` 强制终止"
-            )
+            raise click.ClickException(f"{component_name} 在 {timeout} 秒内没有退出，可重新执行 `moviepilot stop --force` 强制终止") from None
         process.kill()
         process.wait(timeout=10)
 
@@ -876,18 +866,12 @@ def start(timeout: int, safe: bool) -> None:
         "BACKEND_VERSION", APP_VERSION
     )
     frontend_version = (
-        ((frontend_result.get("health") or {}) if isinstance(frontend_result.get("health"), dict) else {}).get(
-            "version"
-        )
+        ((frontend_result.get("health") or {}) if isinstance(frontend_result.get("health"), dict) else {}).get("version")
         or _installed_frontend_version()
         or "unknown"
     )
 
-    click.echo(
-        "MoviePilot 已启动"
-        if backend_result.get("started") or frontend_result.get("started")
-        else "MoviePilot 已在运行"
-    )
+    click.echo("MoviePilot 已启动" if backend_result.get("started") or frontend_result.get("started") else "MoviePilot 已在运行")
     click.echo(f"Backend PID: {backend_result['process'].pid}")
     click.echo(f"Backend URL: {_backend_base_url(backend_runtime)}")
     click.echo(f"Frontend PID: {frontend_result['process'].pid}")
@@ -925,9 +909,7 @@ def restart(start_timeout: int, stop_timeout: int, force: bool) -> None:
     _stop_backend_service(timeout=stop_timeout, force=force)
     _best_effort_auto_update()
     backend_result = _start_backend_service(timeout=start_timeout)
-    frontend_result = _start_frontend_service(
-        timeout=start_timeout, backend_port=int(backend_result["runtime"]["port"])
-    )
+    frontend_result = _start_frontend_service(timeout=start_timeout, backend_port=int(backend_result["runtime"]["port"]))
     click.echo("MoviePilot 已重启")
     click.echo(f"Backend URL: {_backend_base_url(backend_result['runtime'])}")
     click.echo(f"Frontend URL: {_frontend_base_url(frontend_result['runtime'])}")

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, Column, Index, Integer, String, or_, select
 
@@ -82,9 +82,7 @@ class MediaServerItem(Base):
     def delete_excluded_servers(cls, db: Session, servers: list[str]):
         if not servers:
             return db.query(cls).delete(synchronize_session=False)
-        return (
-            db.query(cls).filter(or_(cls.server.is_(None), ~cls.server.in_(servers))).delete(synchronize_session=False)
-        )
+        return db.query(cls).filter(or_(cls.server.is_(None), ~cls.server.in_(servers))).delete(synchronize_session=False)
 
     @classmethod
     @db_query
@@ -124,7 +122,5 @@ class MediaServerItem(Base):
         elif not mtype:
             result = await db.execute(select(cls).filter(cls.title == title, cls.year == str(year)))
         else:
-            result = await db.execute(
-                select(cls).filter(cls.title == title, cls.item_type == mtype, cls.year == str(year))
-            )
+            result = await db.execute(select(cls).filter(cls.title == title, cls.item_type == mtype, cls.year == str(year)))
         return result.scalars().first()

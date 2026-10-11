@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Any, List
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -577,13 +577,7 @@ def arr_series_lookup(term: str, _: Annotated[str, Depends(verify_apikey)], db: 
         else:
             subid = None
             monitored = False
-            for sea in seas:
-                seasons.append(
-                    {
-                        "seasonNumber": sea,
-                        "monitored": False,
-                    }
-                )
+            seasons.extend({"seasonNumber": sea, "monitored": False} for sea in seas)
         sonarr_series = SonarrSeries(
             id=subid,
             title=mediainfo.title,

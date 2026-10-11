@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -144,7 +144,7 @@ class AuthCredentials(ChainEventData):
         mfa_code (Optional[str]): 一次性密码，目前仅适用于 "password" 认证类型
         code (Optional[str]): 授权码，适用于 "authorization_code" grant_type
         grant_type (str): 认证类型，如 "password", "authorization_code", "client_credentials"
-        # scope (List[str]): 权限范围，如 ["read", "write"]
+        # scope (list[str]): 权限范围，如 ["read", "write"]
         token (Optional[str]): 认证令牌
         channel (Optional[str]): 认证渠道
         service (Optional[str]): 服务名称
@@ -159,7 +159,7 @@ class AuthCredentials(ChainEventData):
         ...,
         description="认证类型，如 'password', 'authorization_code', 'client_credentials'",
     )
-    # scope: List[str] = Field(default_factory=list, description="权限范围，如 ['read', 'write']")
+    # scope: list[str] = Field(default_factory=list, description="权限范围，如 ['read', 'write']")
 
     # 输出参数
     # grant_type 为 authorization_code 时，输出参数包括 username、token、channel、service
@@ -266,7 +266,7 @@ class TransferRenameBuildEventData(ChainEventData):
 
     Attributes:
         template_string (str): Jinja2 模板字符串
-        rename_dict (Dict[str, Any]): 渲染上下文，可直接修改
+        rename_dict (dict[str, Any]): 渲染上下文，可直接修改
         source_path (Optional[str]): 源文件路径，即待整理的文件路径
         source_item (Optional[FileItem]): 源文件信息，即待整理的文件信息
     """
@@ -316,12 +316,12 @@ class ResourceSelectionEventData(BaseModel):
 
     Attributes:
         # 输入参数
-        contexts (List[Context]): 当前待选择的资源上下文列表
+        contexts (list[Context]): 当前待选择的资源上下文列表
         source (str): 事件源，指示事件的触发来源
 
         # 输出参数
         updated (bool): 是否已更新，默认值为 False
-        updated_contexts (Optional[List[Context]]): 已更新的资源上下文列表，默认值为 None
+        updated_contexts (Optional[list[Context]]): 已更新的资源上下文列表，默认值为 None
         source (str): 更新源，默认值为 "未知更新源"
     """
 
@@ -343,7 +343,7 @@ class ResourceDownloadEventData(ChainEventData):
     Attributes:
         # 输入参数
         context (Context): 当前资源上下文
-        episodes (Set[int]): 需要下载的集数
+        episodes (set[int]): 需要下载的集数
         channel (MessageChannel): 通知渠道
         origin (str): 来源（消息通知、Subscribe、Manual等）
         downloader (str): 下载器
@@ -468,7 +468,7 @@ class DiscoverSourceEventData(ChainEventData):
 
     Attributes:
         # 输出参数
-        extra_sources (List[DiscoverMediaSource]): 额外媒体数据源
+        extra_sources (list[DiscoverMediaSource]): 额外媒体数据源
     """
 
     # 输出参数
@@ -491,7 +491,7 @@ class RecommendSourceEventData(ChainEventData):
 
     Attributes:
         # 输出参数
-        extra_sources (List[RecommendMediaSource]): 额外媒体数据源
+        extra_sources (list[RecommendMediaSource]): 额外媒体数据源
     """
 
     # 输出参数

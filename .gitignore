@@ -52,3 +52,6 @@ pylint-report.json
 docs/superpowers/
 
 .pytest_cache
+.ruff_cache/
+__pycache__/
+.venv/

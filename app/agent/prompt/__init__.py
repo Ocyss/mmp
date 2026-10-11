@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from string import Formatter
 from time import strftime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -339,11 +339,7 @@ class PromptManager:
     def _generate_button_choice_instructions(
         channel: MessageChannel = None,
     ) -> str:
-        if (
-            channel
-            and ChannelCapabilityManager.supports_buttons(channel)
-            and ChannelCapabilityManager.supports_callbacks(channel)
-        ):
+        if channel and ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel):
             return (
                 "- User questions: If you need the user to choose from a few clear options, "
                 "call `ask_user_choice` to send button options. `ask_user_choice` is a terminal "
@@ -363,8 +359,7 @@ class PromptManager:
         version = self._normalize_positive_int(data.get("version"), "version", default=1)
         if version < SYSTEM_TASKS_SCHEMA_VERSION:
             raise PromptConfigError(
-                f"{path} 的 version={version} 过旧，"
-                f"当前要求 System Tasks schema v{SYSTEM_TASKS_SCHEMA_VERSION} 或更高版本"
+                f"{path} 的 version={version} 过旧，当前要求 System Tasks schema v{SYSTEM_TASKS_SCHEMA_VERSION} 或更高版本"
             )
 
         shared_rules = self._normalize_string_list(data.get("shared_rules"), "shared_rules")

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field
 
@@ -137,9 +137,7 @@ class FetchMediasAction(BaseAction):
                         results = source["func"]()
                     else:
                         # 调用内部API获取数据
-                        api_url = (
-                            f"http://127.0.0.1:{settings.PORT}/api/v1/{source['api_path']}?token={settings.API_TOKEN}"
-                        )
+                        api_url = f"http://127.0.0.1:{settings.PORT}/api/v1/{source['api_path']}?token={settings.API_TOKEN}"
                         res = RequestUtils(timeout=15).post_res(api_url)
                         if res:
                             results = res.json()

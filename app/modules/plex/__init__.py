@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.core.event import eventmanager
@@ -84,9 +84,7 @@ class PlexModule(_ModuleBase, _MediaServerBase[Plex]):
                 logger.info(f"Plex {name} 服务器连接断开，尝试重连 ...")
                 server.reconnect()
 
-    def user_authenticate(
-        self, credentials: AuthCredentials, service_name: str | None = None
-    ) -> AuthCredentials | None:
+    def user_authenticate(self, credentials: AuthCredentials, service_name: str | None = None) -> AuthCredentials | None:
         """
         使用Plex用户辅助完成用户认证
         :param credentials: 认证数据
@@ -174,9 +172,7 @@ class PlexModule(_ModuleBase, _MediaServerBase[Plex]):
                     movie = s.get_iteminfo(itemid)
                     if movie:
                         logger.info(f"媒体库 {name} 中找到了 {movie}")
-                        return schemas.ExistMediaInfo(
-                            type=MediaType.MOVIE, server_type="plex", server=name, itemid=movie.item_id
-                        )
+                        return schemas.ExistMediaInfo(type=MediaType.MOVIE, server_type="plex", server=name, itemid=movie.item_id)
                 movies = s.get_movies(
                     title=mediainfo.title,
                     original_title=mediainfo.original_title,
@@ -188,9 +184,7 @@ class PlexModule(_ModuleBase, _MediaServerBase[Plex]):
                     continue
                 else:
                     logger.info(f"媒体库 {name} 中找到了 {movies}")
-                    return schemas.ExistMediaInfo(
-                        type=MediaType.MOVIE, server_type="plex", server=name, itemid=movies[0].item_id
-                    )
+                    return schemas.ExistMediaInfo(type=MediaType.MOVIE, server_type="plex", server=name, itemid=movies[0].item_id)
             else:
                 item_id, tvs = s.get_tv_episodes(
                     title=mediainfo.title,
@@ -204,9 +198,7 @@ class PlexModule(_ModuleBase, _MediaServerBase[Plex]):
                     continue
                 else:
                     logger.info(f"{mediainfo.title_year} 在媒体库 {name} 中找到了这些季集：{tvs}")
-                    return schemas.ExistMediaInfo(
-                        type=MediaType.TV, seasons=tvs, server_type="plex", server=name, itemid=item_id
-                    )
+                    return schemas.ExistMediaInfo(type=MediaType.TV, seasons=tvs, server_type="plex", server=name, itemid=item_id)
         return None
 
     def media_statistic(self, server: str | None = None) -> list[schemas.Statistic] | None:
@@ -290,13 +282,9 @@ class PlexModule(_ModuleBase, _MediaServerBase[Plex]):
         _, seasoninfo = server_obj.get_tv_episodes(item_id=item_id)
         if not seasoninfo:
             return []
-        return [
-            schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()
-        ]
+        return [schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()]
 
-    def mediaserver_playing(
-        self, server: str, count: int | None = 20, **kwargs
-    ) -> list[schemas.MediaServerPlayItem] | None:
+    def mediaserver_playing(self, server: str, count: int | None = 20, **kwargs) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取媒体服务器正在播放信息
         """

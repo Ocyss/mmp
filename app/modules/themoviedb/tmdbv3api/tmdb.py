@@ -273,8 +273,7 @@ class TMDb:
         if len(payload_preview) > 200:
             payload_preview = f"{payload_preview[:200]}..."
         raise TMDbException(
-            "TheMovieDb 返回数据格式异常：期望JSON对象或数组，"
-            f"实际为{type(json_data).__name__}，内容：{payload_preview}"
+            f"TheMovieDb 返回数据格式异常：期望JSON对象或数组，实际为{type(json_data).__name__}，内容：{payload_preview}"
         )
 
     @staticmethod
@@ -283,9 +282,7 @@ class TMDb:
         从TMDB对象响应中读取指定字段，避免异常顶层结构触发AttributeError。
         """
         if not isinstance(json_data, dict):
-            raise TMDbException(
-                f"TheMovieDb 返回数据格式异常：期望JSON对象包含字段 {key!r}，实际为{type(json_data).__name__}"
-            )
+            raise TMDbException(f"TheMovieDb 返回数据格式异常：期望JSON对象包含字段 {key!r}，实际为{type(json_data).__name__}")
         return json_data.get(key)
 
     def cache_clear(self):
@@ -313,7 +310,7 @@ class TMDb:
             sleep_time = self._reset - current_time
 
             if self.wait_on_rate_limit:
-                logger.warning("达到请求频率限制，休眠：%d 秒..." % sleep_time)
+                logger.warning("达到请求频率限制，休眠：%d 秒...", sleep_time)
                 return abs(sleep_time)
             else:
                 raise TMDbException("达到请求频率限制，请稍后再试！")
@@ -363,7 +360,7 @@ class TMDb:
 
         rate_limit_result = self._handle_rate_limit()
         if rate_limit_result:
-            logger.warning("达到请求频率限制，将在 %d 秒后重试..." % rate_limit_result)
+            logger.warning("达到请求频率限制，将在 %d 秒后重试...", rate_limit_result)
             time.sleep(rate_limit_result)
             return self._request_obj(action, params, False, method, data, json, key)
 
@@ -376,9 +373,7 @@ class TMDb:
             return self._get_json_key(json_data, key)
         return json_data
 
-    async def _async_request_obj(
-        self, action, params="", call_cached=True, method="GET", data=None, json=None, key=None
-    ):
+    async def _async_request_obj(self, action, params="", call_cached=True, method="GET", data=None, json=None, key=None):
         self._validate_api_key()
         url = self._build_url(action, params)
 
@@ -392,7 +387,7 @@ class TMDb:
 
         rate_limit_result = self._handle_rate_limit()
         if rate_limit_result:
-            logger.warning("达到请求频率限制，将在 %d 秒后重试..." % rate_limit_result)
+            logger.warning("达到请求频率限制，将在 %d 秒后重试...", rate_limit_result)
             await asyncio.sleep(rate_limit_result)
             return await self._async_request_obj(action, params, False, method, data, json, key)
 

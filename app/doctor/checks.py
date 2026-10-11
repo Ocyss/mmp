@@ -358,18 +358,13 @@ def _aggregate_log_entries(
         if path.name not in sources:
             sources.append(path.name)
 
-    details = [
-        f"[{', '.join(item['sources'])}] {item['line']}" for item in list(unique_entries.values())[-max_matches:]
-    ]
+    details = [f"[{', '.join(item['sources'])}] {item['line']}" for item in list(unique_entries.values())[-max_matches:]]
     return details, log_files
 
 
 def _find_error_lines(lines: list[str], max_matches: int = 12) -> list[str]:
     """从近期日志中提取错误关键词命中的行。"""
-    matches: list[str] = []
-    for line in lines:
-        if any(pattern.search(line) for pattern in LOG_ERROR_PATTERNS):
-            matches.append(line)
+    matches: list[str] = [line for line in lines if any(pattern.search(line) for pattern in LOG_ERROR_PATTERNS)]
     return matches[-max_matches:]
 
 
@@ -393,9 +388,7 @@ def _partition_error_lines(
         if LOG_RECORD_PATTERN.search(line):
             logger_match = CONSOLE_LOGGER_PATTERN.search(line)
             console_logger = logger_match.group(1).strip().lower() if logger_match else ""
-            plugin_context = console_logger in plugin_logger_names or any(
-                pattern.search(line) for pattern in PLUGIN_ERROR_PATTERNS
-            )
+            plugin_context = console_logger in plugin_logger_names or any(pattern.search(line) for pattern in PLUGIN_ERROR_PATTERNS)
         if not any(pattern.search(line) for pattern in LOG_ERROR_PATTERNS):
             continue
         if plugin_context or any(pattern.search(line) for pattern in PLUGIN_ERROR_PATTERNS):
@@ -462,8 +455,7 @@ def _check_config(runner: DoctorRunnerProtocol) -> None:
             title="API_TOKEN 不可用",
             detail=detail,
             recommendation=(
-                "执行 `moviepilot doctor --fix` 自动生成安全 token，或使用 "
-                "`moviepilot config set API_TOKEN <token>` 手动设置。"
+                "执行 `moviepilot doctor --fix` 自动生成安全 token，或使用 `moviepilot config set API_TOKEN <token>` 手动设置。"
             ),
             fixable="API_TOKEN" not in os.environ,
             fixed=fixed,
@@ -714,10 +706,7 @@ def _check_sqlite_database(runner: DoctorRunnerProtocol) -> None:
 
 
 def _check_postgresql_database(runner: DoctorRunnerProtocol) -> None:
-    missing = []
-    for key in ("DB_POSTGRESQL_HOST", "DB_POSTGRESQL_DATABASE", "DB_POSTGRESQL_USERNAME"):
-        if not str(getattr(settings, key, "") or "").strip():
-            missing.append(key)
+    missing = [key for key in ("DB_POSTGRESQL_HOST", "DB_POSTGRESQL_DATABASE", "DB_POSTGRESQL_USERNAME") if not str(getattr(settings, key, "") or "").strip()]
     if missing:
         runner.add(
             finding_id="database.postgresql_config_incomplete",

@@ -84,9 +84,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         html = etree.HTML(html_text)
         try:
             if StringUtils.is_valid_html_element(html):
-                head = self.__extract_first_text(
-                    html, '//*[contains(concat(" ", normalize-space(@class), " "), " pm-hero__title ")]'
-                )
+                head = self.__extract_first_text(html, '//*[contains(concat(" ", normalize-space(@class), " "), " pm-hero__title ")]')
                 date = self.__extract_pm_view_meta(html, "日期")
                 content = self.__extract_first_text(
                     html, '//*[contains(concat(" ", normalize-space(@class), " "), " pm-view__body ")]'
@@ -106,9 +104,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         self.__reset_unread_message_parse_state()
         unread_msg_links = []
         if self.message_unread > 0 or self.message_read_force:
-            next_page = self.__parse_unread_message_list_page(
-                link=self._user_mail_unread_page, unread_msg_links=unread_msg_links
-            )
+            next_page = self.__parse_unread_message_list_page(link=self._user_mail_unread_page, unread_msg_links=unread_msg_links)
             while next_page:
                 next_page = self.__parse_unread_message_list_page(link=next_page, unread_msg_links=unread_msg_links)
         if self.message_unread == self.__UNKNOWN_UNREAD_COUNT:
@@ -206,15 +202,9 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         """
         缓存新版列表页预览，用于详情页结构变化时兜底生成站点消息。
         """
-        head = self.__extract_pm_item_text(
-            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__subject ")]'
-        )
-        date = self.__extract_pm_item_text(
-            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__time ")]'
-        )
-        content = self.__extract_pm_item_text(
-            row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__preview ")]'
-        )
+        head = self.__extract_pm_item_text(row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__subject ")]')
+        date = self.__extract_pm_item_text(row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__time ")]')
+        content = self.__extract_pm_item_text(row, './/*[contains(concat(" ", normalize-space(@class), " "), " pm-item__preview ")]')
         self.__message_list_previews[urljoin(self._base_url, message_link)] = (head, date, content)
 
     @staticmethod
@@ -405,8 +395,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
         )
         if not values:
             values = html.xpath(
-                f'//*[contains(concat(" ", normalize-space(@class), " "), " site-userbar__compact-metric--{metric} ")]'
-                "/text()"
+                f'//*[contains(concat(" ", normalize-space(@class), " "), " site-userbar__compact-metric--{metric} ")]/text()'
             )
         if values:
             self.__set_metric_value(field=field, value=values[-1].strip())
@@ -445,9 +434,7 @@ class NexusAudiencesSiteUserInfo(NexusPhpSiteUserInfo):
             if unread is not None:
                 return unread
 
-        for inbox_text in message_link.xpath(
-            './/*[contains(@class, "site-userbar__compact-tool-badge--unread")]/text()'
-        ):
+        for inbox_text in message_link.xpath('.//*[contains(@class, "site-userbar__compact-tool-badge--unread")]/text()'):
             unread = self.__extract_inbox_unread_badge(inbox_text)
             if unread is not None:
                 return unread

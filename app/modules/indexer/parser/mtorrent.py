@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urljoin
 
 from app.log import logger
@@ -170,9 +170,7 @@ class MTorrentSiteUserInfo(SiteParserBase):
             if head and date and content:
                 self.message_unread_contents.append((head, date, content))
                 # 设置已读
-                self._get_page_content(
-                    url=urljoin(self._base_url, "api/msg/markRead"), params={"msgId": message.get("id")}
-                )
+                self._get_page_content(url=urljoin(self._base_url, "api/msg/markRead"), params={"msgId": message.get("id")})
         # 是否存在下页数据
         return None
 

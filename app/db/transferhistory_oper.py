@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.db import DbOper
 from app.db.models.transferhistory import TransferHistory

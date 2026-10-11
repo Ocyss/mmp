@@ -80,11 +80,7 @@ class Workflow(Base):
     @db_query
     def get_timer_triggered_workflows(cls, db):
         """获取定时触发的工作流"""
-        return (
-            db.query(cls)
-            .filter(and_(or_(cls.trigger_type == "timer", cls.trigger_type.is_(None)), cls.state != "P"))
-            .all()
-        )
+        return db.query(cls).filter(and_(or_(cls.trigger_type == "timer", cls.trigger_type.is_(None)), cls.state != "P")).all()
 
     @classmethod
     @async_db_query

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, Column, Index, Integer, String, and_, or_, select
 
@@ -75,9 +75,7 @@ class Message(Base):
         """
         异步分页获取消息记录。
         """
-        result = await db.execute(
-            select(cls).order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
-        )
+        result = await db.execute(select(cls).order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count))
         return result.scalars().all()
 
     @classmethod
@@ -113,9 +111,7 @@ class Message(Base):
                 )
             )
 
-        result = await db.execute(
-            statement.order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
-        )
+        result = await db.execute(statement.order_by(cls.reg_time.desc(), cls.id.desc()).offset((page - 1) * count).limit(count))
         return result.scalars().all()
 
     @classmethod
@@ -129,10 +125,7 @@ class Message(Base):
         """
         分批删除指定时间之前的消息记录。
         """
-        ids = [
-            row[0]
-            for row in db.query(cls.id).filter(cls.reg_time < before_time).order_by(cls.id.asc()).limit(limit).all()
-        ]
+        ids = [row[0] for row in db.query(cls.id).filter(cls.reg_time < before_time).order_by(cls.id.asc()).limit(limit).all()]
         if not ids:
             return 0
         return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

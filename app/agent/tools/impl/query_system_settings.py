@@ -1,7 +1,7 @@
 """统一查询系统设置工具。"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,9 +43,7 @@ class QuerySystemSettingsInput(BaseModel):
     )
     keyword: str | None = Field(
         None,
-        description=(
-            "Optional keyword used to fuzzy match setting keys, group names, or labels when listing settings."
-        ),
+        description=("Optional keyword used to fuzzy match setting keys, group names, or labels when listing settings."),
     )
     include_values: bool | None = Field(
         None,

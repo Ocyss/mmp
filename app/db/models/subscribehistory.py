@@ -91,14 +91,7 @@ class SubscribeHistory(Base):
     @classmethod
     @db_query
     def list_by_type(cls, db: Session, mtype: str, page: int | None = 1, count: int | None = 30):
-        return (
-            db.query(cls)
-            .filter(cls.type == mtype)
-            .order_by(cls.date.desc())
-            .offset((page - 1) * count)
-            .limit(count)
-            .all()
-        )
+        return db.query(cls).filter(cls.type == mtype).order_by(cls.date.desc()).offset((page - 1) * count).limit(count).all()
 
     @classmethod
     @async_db_query

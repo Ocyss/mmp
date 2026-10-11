@@ -237,10 +237,12 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         valid_tool_names: list[str],
     ) -> list[tuple[str, list[str]]]:
         """返回已选工具命中的标签能力组。"""
-        groups_by_tag = dict(cls._build_tool_groups(
+        groups_by_tag = dict(
+            cls._build_tool_groups(
                 available_tools=available_tools,
                 valid_tool_names=valid_tool_names,
-            ))
+            )
+        )
         tools_by_name = {tool.name: tool for tool in available_tools if getattr(tool, "name", None)}
         matched_groups: list[tuple[str, list[str]]] = []
         seen_tags = set()
@@ -280,9 +282,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         if not matched_groups:
             return completed_names[:limit]
 
-        matched_group_tool_names = {
-            tool_name for _, group_tool_names in matched_groups for tool_name in group_tool_names
-        }
+        matched_group_tool_names = {tool_name for _, group_tool_names in matched_groups for tool_name in group_tool_names}
         target_count = min(
             max(MIN_SELECTED_TOOL_COUNT, len(matched_group_tool_names)),
             limit,
@@ -392,9 +392,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         """
         limit_instruction = ""
         if self.max_tools:
-            limit_instruction = (
-                f"- Select up to {self.max_tools} tools. Return an empty array if no tools are relevant."
-            )
+            limit_instruction = f"- Select up to {self.max_tools} tools. Return an empty array if no tools are relevant."
 
         return (
             f"{selection_request.system_message}\n\n"
@@ -485,9 +483,7 @@ class ToolSelectorMiddleware(LLMToolSelectorMiddleware):
         原样保留，避免破坏 LangChain/provider 自身的工具绑定约定。
         """
         current_tools_by_name = {tool.name: tool for tool in request.tools if not isinstance(tool, dict)}
-        selected_tools = [
-            current_tools_by_name[tool_name] for tool_name in selected_tool_names if tool_name in current_tools_by_name
-        ]
+        selected_tools = [current_tools_by_name[tool_name] for tool_name in selected_tool_names if tool_name in current_tools_by_name]
         provider_tools = [tool for tool in request.tools if isinstance(tool, dict)]
         return request.override(tools=[*selected_tools, *provider_tools])
 

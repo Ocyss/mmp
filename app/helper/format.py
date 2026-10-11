@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from re import Match
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anitopy
 
@@ -187,9 +187,7 @@ class FormatParser:
                 return int(eval(start_ep)), int(eval(end_ep)), self.part
         if not self._format:
             # 未填入`集数定位` 且没有`指定集数` 仅处理`集数偏移`
-            start_ep = (
-                eval(self.__offset.replace("EP", str(file_meta.begin_episode))) if file_meta.begin_episode else None
-            )
+            start_ep = eval(self.__offset.replace("EP", str(file_meta.begin_episode))) if file_meta.begin_episode else None
             end_ep = eval(self.__offset.replace("EP", str(file_meta.end_episode))) if file_meta.end_episode else None
             return int(start_ep) if start_ep else None, int(end_ep) if end_ep else None, self.part
         else:
@@ -372,15 +370,12 @@ class EpisodeFormatRuleHelper:
             file_name = item.name or ""
             if self._is_special_sample(file_name):
                 continue
-            normalized_episode, native_episode, used_native_fallback, native_verified = (
-                self._extract_episode_with_native_fallback(item)
+            normalized_episode, native_episode, used_native_fallback, native_verified = self._extract_episode_with_native_fallback(
+                item
             )
             if normalized_episode and native_episode and not (used_native_fallback or native_verified):
                 native_conflict_count += 1
-                logger.warn(
-                    "自动推荐样本与原生集数识别冲突，跳过："
-                    f"{file_name} - auto={normalized_episode}, native={native_episode}"
-                )
+                logger.warn(f"自动推荐样本与原生集数识别冲突，跳过：{file_name} - auto={normalized_episode}, native={native_episode}")
                 continue
             expected_start, _ = self._parse_episode_value(normalized_episode)
             if expected_start is None:
@@ -419,13 +414,9 @@ class EpisodeFormatRuleHelper:
             if item.source_kind == "media":
                 valid_media_count += 1
 
-        if (
-            candidate_media_count > 1
-            and valid_media_count / candidate_media_count < self._MIN_AUTO_VALID_MEDIA_COVERAGE
-        ):
+        if candidate_media_count > 1 and valid_media_count / candidate_media_count < self._MIN_AUTO_VALID_MEDIA_COVERAGE:
             logger.warn(
-                "有效正片样本覆盖率不足，放弃智能生成："
-                f"valid_media={valid_media_count}, candidate_media={candidate_media_count}"
+                f"有效正片样本覆盖率不足，放弃智能生成：valid_media={valid_media_count}, candidate_media={candidate_media_count}"
             )
             return False, "有效正片样本覆盖率不足，建议补充集数定位规则", None
 
@@ -548,11 +539,7 @@ class EpisodeFormatRuleHelper:
             file_kind = EpisodeFormatRuleHelper._get_file_kind(item)
             if file_kind == "other":
                 continue
-            if (
-                file_kind == "media"
-                and not ignore_size
-                and (item.size or 0) < EpisodeFormatRuleHelper._MIN_MEDIA_FILE_SIZE_BYTES
-            ):
+            if file_kind == "media" and not ignore_size and (item.size or 0) < EpisodeFormatRuleHelper._MIN_MEDIA_FILE_SIZE_BYTES:
                 continue
             candidates.append(item)
         return candidates
@@ -597,8 +584,8 @@ class EpisodeFormatRuleHelper:
             if self._is_special_sample(file_name):
                 # SP/NCOP/NCED/OP/ED/MENU 等明显特典样本不参与正片模板自动推荐。
                 continue
-            normalized_episode, native_episode, used_native_fallback, native_verified = (
-                self._extract_episode_with_native_fallback(item)
+            normalized_episode, native_episode, used_native_fallback, native_verified = self._extract_episode_with_native_fallback(
+                item
             )
             if normalized_episode and native_episode and not (used_native_fallback or native_verified):
                 continue
@@ -722,8 +709,7 @@ class EpisodeFormatRuleHelper:
             return []
         candidates: list[str] = []
         if end_episode is None:
-            for width in range(1, 5):
-                candidates.append(str(start_episode).zfill(width))
+            candidates.extend(str(start_episode).zfill(width) for width in range(1, 5))
         else:
             for width in range(1, 5):
                 start_text = str(start_episode).zfill(width)
@@ -844,8 +830,7 @@ class EpisodeFormatRuleHelper:
                 native_episode,
             ):
                 logger.info(
-                    "原生集数识别疑似命中标题序号，降级冲突权重："
-                    f"{file_name} - auto={normalized_episode}, native={native_episode}"
+                    f"原生集数识别疑似命中标题序号，降级冲突权重：{file_name} - auto={normalized_episode}, native={native_episode}"
                 )
                 native_episode = None
             else:
@@ -1005,14 +990,15 @@ class EpisodeFormatRuleHelper:
         )
         if not parser:
             return list(file_names)
-        failed: list[str] = []
-        for name in file_names:
+        failed: list[str] = [
+            name
+            for name in file_names
             if not EpisodeFormatRuleHelper._safe_match_template(
                 parser,
                 name,
                 context="多文件对比预校验",
-            ):
-                failed.append(name)
+            )
+        ]
         return failed
 
     def _insert_variable_placeholder(
@@ -1129,17 +1115,13 @@ class EpisodeFormatRuleHelper:
         end_pos = len(base_text) - suffix_len
         if prefix_len >= end_pos:
             base_part = base_text[prefix_len:end_pos]
-            compare_parts = [
-                text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts
-            ]
+            compare_parts = [text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts]
             if not base_part and any(compare_parts):
                 return prefix_len, prefix_len
             return None
 
         base_part = base_text[prefix_len:end_pos]
-        compare_parts = [
-            text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts
-        ]
+        compare_parts = [text[prefix_len : len(text) - suffix_len if suffix_len else len(text)] for text in compare_texts]
         if any(not part for part in [base_part] + compare_parts):
             if not base_part and any(compare_parts):
                 return prefix_len, prefix_len

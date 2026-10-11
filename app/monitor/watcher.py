@@ -38,9 +38,7 @@ class LocalDirectoryWatcher:
     # 网络/FUSE 挂载轮询降频，减少监控自身对挂载后端的持续 stat 压力
     POLL_DELAY_NETWORK_MS = 5000
 
-    def __init__(
-        self, mon_path: Path, callback: Any, force_polling: bool | None = None, poll_delay_ms: int | None = None
-    ):
+    def __init__(self, mon_path: Path, callback: Any, force_polling: bool | None = None, poll_delay_ms: int | None = None):
         """
         初始化本地目录监控。
         :param mon_path: 监控目录
@@ -105,9 +103,7 @@ class LocalDirectoryWatcher:
             return
         self._stop_event.clear()
         self._mark_activity()
-        self._thread = threading.Thread(
-            target=self._run, name=f"MoviePilot-DirectoryWatcher-{self._watch_path.name}", daemon=True
-        )
+        self._thread = threading.Thread(target=self._run, name=f"MoviePilot-DirectoryWatcher-{self._watch_path.name}", daemon=True)
         self._thread.start()
 
     def stop(self):
@@ -178,8 +174,7 @@ class LocalDirectoryWatcher:
                 attempt += 1
                 self._restart_count += 1
                 logger.error(
-                    f"本地目录监控发生错误，{delay} 秒后自动重启"
-                    f"（累计第 {self._restart_count} 次）: {self._watch_path} - {err}"
+                    f"本地目录监控发生错误，{delay} 秒后自动重启（累计第 {self._restart_count} 次）: {self._watch_path} - {err}"
                 )
                 if self._stop_event.wait(timeout=delay):
                     return

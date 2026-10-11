@@ -105,9 +105,7 @@ class MediaServerOper(DbOper):
         """
         if kwargs.get("tmdbid"):
             # 优先按TMDBID查
-            item = await MediaServerItem.async_exist_by_tmdbid(
-                self._db, tmdbid=kwargs.get("tmdbid"), mtype=kwargs.get("mtype")
-            )
+            item = await MediaServerItem.async_exist_by_tmdbid(self._db, tmdbid=kwargs.get("tmdbid"), mtype=kwargs.get("mtype"))
         elif kwargs.get("title"):
             # 按标题、类型、年份查
             item = await MediaServerItem.async_exists_by_title(

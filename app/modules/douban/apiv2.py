@@ -152,9 +152,7 @@ class DoubanApi(metaclass=WeakSingleton):
         """
         url_path = parse.urlparse(url).path
         raw_sign = "&".join([method.upper(), parse.quote(url_path, safe=""), ts])
-        return base64.b64encode(
-            hmac.new(cls._api_secret_key.encode(), raw_sign.encode(), hashlib.sha1).digest()
-        ).decode()
+        return base64.b64encode(hmac.new(cls._api_secret_key.encode(), raw_sign.encode(), hashlib.sha1).digest()).decode()
 
     def __invoke_recommend(self, url: str, **kwargs) -> dict:
         """
@@ -191,9 +189,7 @@ class DoubanApi(metaclass=WeakSingleton):
             params.update(kwargs)
 
         ts = params.pop("_ts", datetime.strftime(datetime.now(), "%Y%m%d"))
-        params.update(
-            {"os_rom": "android", "apiKey": self._api_key, "_ts": ts, "_sig": self.__sign(url=req_url, ts=ts)}
-        )
+        params.update({"os_rom": "android", "apiKey": self._api_key, "_ts": ts, "_sig": self.__sign(url=req_url, ts=ts)})
         return req_url, params
 
     @staticmethod
@@ -264,16 +260,18 @@ class DoubanApi(metaclass=WeakSingleton):
         resp = await AsyncRequestUtils(ua=settings.NORMAL_USER_AGENT).post_res(url=req_url, data=params)
         return self._handle_response(resp)
 
-    def imdbid(self, imdbid: str, ts=datetime.strftime(datetime.now(), "%Y%m%d")):
+    def imdbid(self, imdbid: str, ts: str = ""):
         """
         IMDBID搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__post(self._urls["imdbid"] % imdbid, _ts=ts)
 
-    async def async_imdbid(self, imdbid: str, ts=datetime.strftime(datetime.now(), "%Y%m%d")):
+    async def async_imdbid(self, imdbid: str, ts: str = ""):
         """
         IMDBID搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_post(self._urls["imdbid"] % imdbid, _ts=ts)
 
     def search(
@@ -281,11 +279,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ) -> dict:
         """
         关键字搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["search"], q=keyword, start=start, count=count, _ts=ts)
 
     async def async_search(
@@ -293,11 +292,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ) -> dict:
         """
         关键字搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["search"], q=keyword, start=start, count=count, _ts=ts)
 
     def movie_search(
@@ -305,11 +305,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["movie_search"], q=keyword, start=start, count=count, _ts=ts)
 
     async def async_movie_search(
@@ -317,11 +318,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["movie_search"], q=keyword, start=start, count=count, _ts=ts)
 
     def tv_search(
@@ -329,11 +331,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["tv_search"], q=keyword, start=start, count=count, _ts=ts)
 
     async def async_tv_search(
@@ -341,11 +344,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["tv_search"], q=keyword, start=start, count=count, _ts=ts)
 
     def book_search(
@@ -353,11 +357,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         书籍搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["book_search"], q=keyword, start=start, count=count, _ts=ts)
 
     async def async_book_search(
@@ -365,11 +370,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         书籍搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["book_search"], q=keyword, start=start, count=count, _ts=ts)
 
     def group_search(
@@ -377,11 +383,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         小组搜索
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["group_search"], q=keyword, start=start, count=count, _ts=ts)
 
     async def async_group_search(
@@ -389,11 +396,12 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         小组搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["group_search"], q=keyword, start=start, count=count, _ts=ts)
 
     def person_search(
@@ -401,149 +409,143 @@ class DoubanApi(metaclass=WeakSingleton):
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         人物搜索
         """
-        return self.__invoke_search(
-            self._urls["search_subject"], type="person", q=keyword, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return self.__invoke_search(self._urls["search_subject"], type="person", q=keyword, start=start, count=count, _ts=ts)
 
     async def async_person_search(
         self,
         keyword: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         人物搜索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(
             self._urls["search_subject"], type="person", q=keyword, start=start, count=count, _ts=ts
         )
 
-    def movie_showing(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def movie_showing(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         正在热映
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["movie_showing"], start=start, count=count, _ts=ts)
 
-    async def async_movie_showing(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_movie_showing(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         正在热映（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["movie_showing"], start=start, count=count, _ts=ts)
 
-    def movie_soon(self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")):
+    def movie_soon(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         即将上映
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["movie_soon"], start=start, count=count, _ts=ts)
 
-    async def async_movie_soon(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_movie_soon(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         即将上映（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["movie_soon"], start=start, count=count, _ts=ts)
 
-    def movie_hot_gaia(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def movie_hot_gaia(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         热门电影
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["movie_hot_gaia"], start=start, count=count, _ts=ts)
 
     async def async_movie_hot_gaia(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
+        self, start: int | None = 0, count: int | None = 20, ts: str = ""
     ):
         """
         热门电影（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["movie_hot_gaia"], start=start, count=count, _ts=ts)
 
-    def tv_hot(self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")):
+    def tv_hot(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         热门剧集
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_hot"], start=start, count=count, _ts=ts)
 
-    async def async_tv_hot(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_tv_hot(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         热门剧集（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["tv_hot"], start=start, count=count, _ts=ts)
 
-    def tv_animation(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def tv_animation(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         动画
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_animation"], start=start, count=count, _ts=ts)
 
-    async def async_tv_animation(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_tv_animation(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         动画（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["tv_animation"], start=start, count=count, _ts=ts)
 
-    def tv_variety_show(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def tv_variety_show(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         综艺
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_variety_show"], start=start, count=count, _ts=ts)
 
     async def async_tv_variety_show(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
+        self, start: int | None = 0, count: int | None = 20, ts: str = ""
     ):
         """
         综艺（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["tv_variety_show"], start=start, count=count, _ts=ts)
 
-    def tv_rank_list(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def tv_rank_list(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         电视剧排行榜
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_rank_list"], start=start, count=count, _ts=ts)
 
-    async def async_tv_rank_list(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_tv_rank_list(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         电视剧排行榜（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["tv_rank_list"], start=start, count=count, _ts=ts)
 
-    def show_hot(self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")):
+    def show_hot(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         综艺热门
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["show_hot"], start=start, count=count, _ts=ts)
 
-    async def async_show_hot(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_show_hot(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         综艺热门（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["show_hot"], start=start, count=count, _ts=ts)
 
     def movie_detail(self, subject_id: str):
@@ -606,20 +608,18 @@ class DoubanApi(metaclass=WeakSingleton):
         """
         return await self.__async_invoke_search(self._urls["book_detail"] + subject_id)
 
-    def movie_top250(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def movie_top250(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         电影TOP250
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["movie_top250"], start=start, count=count, _ts=ts)
 
-    async def async_movie_top250(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    async def async_movie_top250(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         电影TOP250（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(self._urls["movie_top250"], start=start, count=count, _ts=ts)
 
     def movie_recommend(
@@ -628,14 +628,13 @@ class DoubanApi(metaclass=WeakSingleton):
         sort="R",
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影探索
         """
-        return self.__invoke_recommend(
-            self._urls["movie_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return self.__invoke_recommend(self._urls["movie_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts)
 
     async def async_movie_recommend(
         self,
@@ -643,11 +642,12 @@ class DoubanApi(metaclass=WeakSingleton):
         sort="R",
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影探索（异步版本）
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_recommend(
             self._urls["movie_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts
         )
@@ -658,14 +658,13 @@ class DoubanApi(metaclass=WeakSingleton):
         sort="R",
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧探索
         """
-        return self.__invoke_recommend(
-            self._urls["tv_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return self.__invoke_recommend(self._urls["tv_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts)
 
     async def async_tv_recommend(
         self,
@@ -673,50 +672,45 @@ class DoubanApi(metaclass=WeakSingleton):
         sort="R",
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧探索（异步版本）
         """
-        return await self.__async_invoke_recommend(
-            self._urls["tv_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_recommend(self._urls["tv_recommend"], tags=tags, sort=sort, start=start, count=count, _ts=ts)
 
-    def tv_chinese_best_weekly(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def tv_chinese_best_weekly(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         华语口碑周榜
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_chinese_best_weekly"], start=start, count=count, _ts=ts)
 
     async def async_tv_chinese_best_weekly(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
+        self, start: int | None = 0, count: int | None = 20, ts: str = ""
     ):
         """
         华语口碑周榜（异步版本）
         """
-        return await self.__async_invoke_recommend(
-            self._urls["tv_chinese_best_weekly"], start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_recommend(self._urls["tv_chinese_best_weekly"], start=start, count=count, _ts=ts)
 
-    def tv_global_best_weekly(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
-    ):
+    def tv_global_best_weekly(self, start: int | None = 0, count: int | None = 20, ts: str = ""):
         """
         全球口碑周榜
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_global_best_weekly"], start=start, count=count, _ts=ts)
 
     async def async_tv_global_best_weekly(
-        self, start: int | None = 0, count: int | None = 20, ts=datetime.strftime(datetime.now(), "%Y%m%d")
+        self, start: int | None = 0, count: int | None = 20, ts: str = ""
     ):
         """
         全球口碑周榜（异步版本）
         """
-        return await self.__async_invoke_recommend(
-            self._urls["tv_global_best_weekly"], start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_recommend(self._urls["tv_global_best_weekly"], start=start, count=count, _ts=ts)
 
     def doulist_detail(self, subject_id: str):
         """
@@ -737,7 +731,7 @@ class DoubanApi(metaclass=WeakSingleton):
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         豆列列表
@@ -746,6 +740,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["doulist_items"] % subject_id, start=start, count=count, _ts=ts)
 
     async def async_doulist_items(
@@ -753,7 +748,7 @@ class DoubanApi(metaclass=WeakSingleton):
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         豆列列表（异步版本）
@@ -762,16 +757,15 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
-        return await self.__async_invoke_search(
-            self._urls["doulist_items"] % subject_id, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_search(self._urls["doulist_items"] % subject_id, start=start, count=count, _ts=ts)
 
     def movie_recommendations(
         self,
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影推荐
@@ -780,16 +774,15 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
-        return self.__invoke_recommend(
-            self._urls["movie_recommendations"] % subject_id, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return self.__invoke_recommend(self._urls["movie_recommendations"] % subject_id, start=start, count=count, _ts=ts)
 
     async def async_movie_recommendations(
         self,
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影推荐（异步版本）
@@ -798,16 +791,15 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
-        return await self.__async_invoke_recommend(
-            self._urls["movie_recommendations"] % subject_id, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_recommend(self._urls["movie_recommendations"] % subject_id, start=start, count=count, _ts=ts)
 
     def tv_recommendations(
         self,
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧推荐
@@ -816,6 +808,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_recommend(self._urls["tv_recommendations"] % subject_id, start=start, count=count, _ts=ts)
 
     async def async_tv_recommendations(
@@ -823,7 +816,7 @@ class DoubanApi(metaclass=WeakSingleton):
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧推荐（异步版本）
@@ -832,16 +825,15 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
-        return await self.__async_invoke_recommend(
-            self._urls["tv_recommendations"] % subject_id, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_recommend(self._urls["tv_recommendations"] % subject_id, start=start, count=count, _ts=ts)
 
     def movie_photos(
         self,
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影剧照
@@ -850,6 +842,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["movie_photos"] % subject_id, start=start, count=count, _ts=ts)
 
     async def async_movie_photos(
@@ -857,7 +850,7 @@ class DoubanApi(metaclass=WeakSingleton):
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电影剧照（异步版本）
@@ -866,16 +859,15 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
-        return await self.__async_invoke_search(
-            self._urls["movie_photos"] % subject_id, start=start, count=count, _ts=ts
-        )
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
+        return await self.__async_invoke_search(self._urls["movie_photos"] % subject_id, start=start, count=count, _ts=ts)
 
     def tv_photos(
         self,
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧剧照
@@ -884,6 +876,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(self._urls["tv_photos"] % subject_id, start=start, count=count, _ts=ts)
 
     async def async_tv_photos(
@@ -891,7 +884,7 @@ class DoubanApi(metaclass=WeakSingleton):
         subject_id: str,
         start: int | None = 0,
         count: int | None = 20,
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         电视剧剧照（异步版本）
@@ -900,6 +893,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param count: 数量
         :param ts: 时间戳
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(self._urls["tv_photos"] % subject_id, start=start, count=count, _ts=ts)
 
     def person_detail(self, subject_id: int):
@@ -925,7 +919,7 @@ class DoubanApi(metaclass=WeakSingleton):
         count: int | None = 20,
         sort_by: str | None = "time",
         collection_title: str | None = "影视",
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         用户作品集
@@ -937,6 +931,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param ts: 时间戳
         :return:
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return self.__invoke_search(
             self._urls["person_work"] % subject_id,
             sortby=sort_by,
@@ -953,7 +948,7 @@ class DoubanApi(metaclass=WeakSingleton):
         count: int | None = 20,
         sort_by: str | None = "time",
         collection_title: str | None = "影视",
-        ts=datetime.strftime(datetime.now(), "%Y%m%d"),
+        ts: str = "",
     ):
         """
         用户作品集（异步版本）
@@ -965,6 +960,7 @@ class DoubanApi(metaclass=WeakSingleton):
         :param ts: 时间戳
         :return:
         """
+        ts = ts or datetime.strftime(datetime.now(), "%Y%m%d")
         return await self.__async_invoke_search(
             self._urls["person_work"] % subject_id,
             sortby=sort_by,

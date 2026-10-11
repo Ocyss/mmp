@@ -7,7 +7,7 @@ import hashlib
 import io
 import pickle
 import threading
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from PIL import Image
 
@@ -335,9 +335,7 @@ class QQBot:
                 targets_to_send = broadcast
                 logger.debug(f"QQ Bot: 广播模式，共 {len(targets_to_send)} 个目标")
             else:
-                logger.warn(
-                    "QQ Bot: 未指定接收者且无互动用户，请在配置中设置 QQ_OPENID/QQ_GROUP_OPENID 或先让用户发消息"
-                )
+                logger.warn("QQ Bot: 未指定接收者且无互动用户，请在配置中设置 QQ_OPENID/QQ_GROUP_OPENID 或先让用户发消息")
                 return False
 
         # 使用 Markdown 格式发送（类似 Telegram）

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Optional
 from urllib.parse import quote
 
 from app.core.config import settings
@@ -41,8 +41,7 @@ class TorrentLeech:
         for result in results:
             torrent = {
                 "title": result.get("name"),
-                "enclosure": self._downloadurl
-                % (self._indexer.get("domain"), result.get("fid"), result.get("filename")),
+                "enclosure": self._downloadurl % (self._indexer.get("domain"), result.get("fid"), result.get("filename")),
                 "pubdate": StringUtils.format_timestamp(result.get("addedTimestamp")),
                 "size": result.get("size"),
                 "seeders": result.get("seeders"),

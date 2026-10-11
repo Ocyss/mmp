@@ -17,8 +17,7 @@ class PatchToolCallsMiddleware(AgentMiddleware):
         tool_name = tool_call.get("name") or "unknown_tool"
         tool_call_id = tool_call.get("id") or ""
         tool_msg = (
-            f"Tool call {tool_name} with id {tool_call_id} was "
-            "cancelled - another message came in before it could be completed."
+            f"Tool call {tool_name} with id {tool_call_id} was cancelled - another message came in before it could be completed."
         )
         return ToolMessage(
             content=tool_msg,

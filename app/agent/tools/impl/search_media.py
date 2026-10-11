@@ -1,7 +1,7 @@
 """搜索媒体工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,9 +19,7 @@ class SearchMediaInput(BaseModel):
     title: str = Field(..., description="The title of the media to search for (e.g., 'The Matrix', 'Breaking Bad')")
     year: str | None = Field(None, description="Release year of the media (optional, helps narrow down results)")
     media_type: str | None = Field(None, description="Allowed values: movie, tv")
-    season: int | None = Field(
-        None, description="Season number for TV shows and anime (optional, only applicable for series)"
-    )
+    season: int | None = Field(None, description="Season number for TV shows and anime (optional, only applicable for series)")
 
 
 class SearchMediaTool(MoviePilotTool):
@@ -53,9 +51,7 @@ class SearchMediaTool(MoviePilotTool):
     async def run(
         self, title: str, year: str | None = None, media_type: str | None = None, season: int | None = None, **kwargs
     ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: title={title}, year={year}, media_type={media_type}, season={season}"
-        )
+        logger.info(f"执行工具: {self.name}, 参数: title={title}, year={year}, media_type={media_type}, season={season}")
 
         try:
             media_chain = MediaChain()
@@ -101,9 +97,7 @@ class SearchMediaTool(MoviePilotTool):
                             "anilist_id": r.anilist_id,
                             "media_source": media_source,
                             "media_id": media_id,
-                            "overview": r.overview[:200] + "..."
-                            if r.overview and len(r.overview) > 200
-                            else r.overview,
+                            "overview": r.overview[:200] + "..." if r.overview and len(r.overview) > 200 else r.overview,
                             "vote_average": r.vote_average,
                             "poster_path": r.poster_path,
                             "detail_link": r.detail_link,

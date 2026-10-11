@@ -1,7 +1,7 @@
 import asyncio
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -199,9 +199,7 @@ async def transfer_history(
             words = jieba_cut(title, HMM=False)
             like_pattern = "%".join(words)
             total = await TransferHistory.async_count_by_title(db, title=like_pattern, status=status)
-            result = await TransferHistory.async_list_by_title(
-                db, title=like_pattern, page=page, count=count, status=status
-            )
+            result = await TransferHistory.async_list_by_title(db, title=like_pattern, page=page, count=count, status=status)
     else:
         result = await TransferHistory.async_list_by_page(db, page=page, count=count, status=status)
         total = await TransferHistory.async_count(db, status=status)

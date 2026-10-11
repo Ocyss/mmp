@@ -1,7 +1,7 @@
 """查询剧集上映时间工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -49,9 +49,7 @@ class QueryEpisodeScheduleTool(MoviePilotTool):
             episodes = await tmdb_chain.async_tmdb_episodes(tmdbid=tmdb_id, season=season, episode_group=episode_group)
 
             if not episodes:
-                return json.dumps(
-                    {"success": False, "message": f"未找到 TMDB ID {tmdb_id} 第{season}季的集信息"}, ensure_ascii=False
-                )
+                return json.dumps({"success": False, "message": f"未找到 TMDB ID {tmdb_id} 第{season}季的集信息"}, ensure_ascii=False)
 
             # 过滤掉没有上映日期的集，并构建每集的详细信息
             episode_list = []
@@ -98,6 +96,4 @@ class QueryEpisodeScheduleTool(MoviePilotTool):
         except Exception as e:
             error_message = f"查询剧集上映时间失败: {str(e)}"
             logger.error(f"查询剧集上映时间失败: {e}", exc_info=True)
-            return json.dumps(
-                {"success": False, "message": error_message, "tmdb_id": tmdb_id, "season": season}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "message": error_message, "tmdb_id": tmdb_id, "season": season}, ensure_ascii=False)

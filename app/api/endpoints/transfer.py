@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -89,9 +89,7 @@ async def remove_queue(fileitem: schemas.FileItem, _: schemas.TokenPayload = Dep
     return schemas.Response(success=True)
 
 
-def _resolve_manual_transfer_source_fileitems(
-    transer_item: ManualTransferItem, db: Session
-) -> tuple[list[FileItem], str | None]:
+def _resolve_manual_transfer_source_fileitems(transer_item: ManualTransferItem, db: Session) -> tuple[list[FileItem], str | None]:
     """
     从手动整理请求中解析源文件项。
     """
@@ -318,12 +316,12 @@ def manual_transfer(
                 if "-" in str(history.episodes):
                     # E01-E03多集合并
                     episode_start, episode_end = str(history.episodes).split("-")
-                    episode_list: list[int] = []
-                    for i in range(
-                        int(episode_start.replace("E", "")),
-                        int(episode_end.replace("E", "")) + 1,
-                    ):
-                        episode_list.append(i)
+                    episode_list: list[int] = list(
+                        range(
+                            int(episode_start.replace("E", "")),
+                            int(episode_end.replace("E", "")) + 1,
+                        )
+                    )
                     transer_item.episode_detail = ",".join(str(e) for e in episode_list)
                 else:
                     # E01单集
@@ -362,12 +360,7 @@ def manual_transfer(
             return schemas.Response(success=False, message=f"不支持的媒体类型：{type_name}")
     # 自定义格式
     epformat = None
-    if (
-        transer_item.episode_offset
-        or transer_item.episode_part
-        or transer_item.episode_detail
-        or transer_item.episode_format
-    ):
+    if transer_item.episode_offset or transer_item.episode_part or transer_item.episode_detail or transer_item.episode_format:
         epformat = schemas.EpisodeFormat(
             format=transer_item.episode_format,
             detail=transer_item.episode_detail,

@@ -1,6 +1,6 @@
 import asyncio
 import threading
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from fastapi.concurrency import run_in_threadpool
 

@@ -8,7 +8,7 @@ import re
 import threading
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from jinja2 import Template
 
@@ -136,9 +136,7 @@ class TemplateContextBuilder:
             # 背景图
             "backdrop": mediainfo.get_backdrop_image(),
             # 季年份根据season值获取
-            "season_year": mediainfo.season_years.get(int(_meta_season), None)
-            if (mediainfo.season_years and _meta_season)
-            else None,
+            "season_year": mediainfo.season_years.get(int(_meta_season), None) if (mediainfo.season_years and _meta_season) else None,
             # 演员
             "actors": "、 ".join([actor["name"] for actor in mediainfo.actors[:5]]),
             # 简介
@@ -441,9 +439,7 @@ class TemplateHelper(metaclass=SingletonClass):
         return template.render(context)
 
     @staticmethod
-    def parse_template_content(
-        template_content: str | dict, template_type: Literal["string", "dict", "literal"] = None
-    ) -> str | None:
+    def parse_template_content(template_content: str | dict, template_type: Literal["string", "dict", "literal"] = None) -> str | None:
         """
         解析模板字符
         :param template_content 模板格式字符
@@ -455,14 +451,12 @@ class TemplateHelper(metaclass=SingletonClass):
             解析Python字面量
             """
             try:
-                template_dict = (
-                    ast.literal_eval(_template_content) if isinstance(_template_content, str) else _template_content
-                )
+                template_dict = ast.literal_eval(_template_content) if isinstance(_template_content, str) else _template_content
                 if not isinstance(template_dict, dict):
                     raise ValueError("解析结果必须是一个字典")
                 return json.dumps(template_dict, ensure_ascii=False)
             except (ValueError, SyntaxError) as err:
-                raise ValueError(f"无效的Python字面量格式: {str(err)}")
+                raise ValueError(f"无效的Python字面量格式: {str(err)}") from err
 
         try:
             if template_type:
@@ -502,13 +496,7 @@ class TemplateHelper(metaclass=SingletonClass):
         def restore_chars(obj: Any) -> Any:
             """恢复特殊字符"""
             if isinstance(obj, str):
-                return (
-                    obj.replace("\\n", "\n")
-                    .replace("\\r", "\r")
-                    .replace("\\t", "\t")
-                    .replace("\\b", "\b")
-                    .replace("\\f", "\f")
-                )
+                return obj.replace("\\n", "\n").replace("\\r", "\r").replace("\\t", "\t").replace("\\b", "\b").replace("\\f", "\f")
             elif isinstance(obj, dict):
                 return {k: restore_chars(v) for k, v in obj.items()}
             elif isinstance(obj, list):
@@ -591,7 +579,7 @@ class MessageTemplateHelper:
         """
         try:
             if template := MessageTemplateHelper._get_template(message):
-                rendered = TemplateHelper().render(template_content=template, *args, **kwargs)
+                rendered = TemplateHelper().render(*args, template_content=template, **kwargs)
                 for key, value in rendered.items():
                     if hasattr(message, key):
                         setattr(message, key, value)
@@ -810,9 +798,7 @@ class MessageHelper(metaclass=Singleton):
             sort_keys=True,
         )
 
-    def _is_recent_system_notification(
-        self, message: Any, role: str, title: str = None, note: list | dict = None
-    ) -> bool:
+    def _is_recent_system_notification(self, message: Any, role: str, title: str = None, note: list | dict = None) -> bool:
         """
         判断系统通知是否在短时间内重复。
         """

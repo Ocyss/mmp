@@ -2,7 +2,7 @@ import importlib
 import pkgutil
 import traceback
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any
 
 from app.log import logger
 
@@ -80,9 +80,7 @@ class ModuleHelper:
 
         def reload_sub_modules(parent_module, parent_module_name):
             """重新加载一级子模块"""
-            for _sub_importer, sub_module_name, _sub_is_pkg in pkgutil.walk_packages(
-                parent_module.__path__, parent_module_name + "."
-            ):
+            for _sub_importer, sub_module_name, _sub_is_pkg in pkgutil.walk_packages(parent_module.__path__, parent_module_name + "."):
                 try:
                     full_sub_module = importlib.import_module(sub_module_name)
                     importlib.reload(full_sub_module)
@@ -98,9 +96,7 @@ class ModuleHelper:
                 module = importlib.import_module(full_package_name)
                 # 预检查模块中的对象
                 candidates = [
-                    (name, obj)
-                    for name, obj in module.__dict__.items()
-                    if not name.startswith("_") and isinstance(obj, type)
+                    (name, obj) for name, obj in module.__dict__.items() if not name.startswith("_") and isinstance(obj, type)
                 ]
                 # 确定是否需要重新加载
                 if any(filter_func(name, obj) for name, obj in candidates):

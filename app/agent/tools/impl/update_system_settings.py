@@ -2,7 +2,7 @@
 
 import copy
 import json
-from typing import Any, Literal, Optional, Type, Union
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ from app.log import logger
 from app.schemas.event import ConfigChangeEventData
 from app.schemas.types import EventType
 
-SettingValue = Optional[list | dict | bool | int | float | str]
+SettingValue = list | dict | bool | int | float | str | None
 
 
 class UpdateSystemSettingsInput(BaseModel):
@@ -67,9 +67,7 @@ class UpdateSystemSettingsInput(BaseModel):
     )
     match_value: SettingValue = Field(
         None,
-        description=(
-            "Optional explicit value used to locate a list item when operation is upsert_list_item or remove_list_item."
-        ),
+        description=("Optional explicit value used to locate a list item when operation is upsert_list_item or remove_list_item."),
     )
 
 

@@ -1,7 +1,7 @@
 """更新订阅工具"""
 
 import json
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

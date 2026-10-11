@@ -13,7 +13,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 from urllib.parse import urlencode, urlsplit
 
 import aiofiles
@@ -1266,9 +1266,7 @@ class LLMProviderManager(metaclass=Singleton):
 
     def list_providers(self) -> list[dict[str, Any]]:
         """返回前端可渲染的 provider 目录。"""
-        return [
-            self._serialize_provider(spec) for spec in sorted(self._provider_specs(), key=lambda item: item.sort_order)
-        ]
+        return [self._serialize_provider(spec) for spec in sorted(self._provider_specs(), key=lambda item: item.sort_order)]
 
     def get_provider(self, provider_id: str) -> ProviderSpec:
         """按 provider id 获取定义。"""
@@ -1812,9 +1810,7 @@ class LLMProviderManager(metaclass=Singleton):
         supports_image_input = live_supports_image if live_supports_image is not None else "image" in input_modalities
         supports_audio_input = live_supports_audio if live_supports_audio is not None else "audio" in input_modalities
         supports_tools = live_supports_tools if live_supports_tools is not None else bool(metadata.get("tool_call"))
-        supports_reasoning = (
-            live_supports_reasoning if live_supports_reasoning is not None else bool(metadata.get("reasoning"))
-        )
+        supports_reasoning = live_supports_reasoning if live_supports_reasoning is not None else bool(metadata.get("reasoning"))
 
         if context_tokens:
             try:
@@ -1913,9 +1909,7 @@ class LLMProviderManager(metaclass=Singleton):
             return not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES)
         region_prefixes = cls._BEDROCK_GEO_PREFIXES.get(prefix)
         if region_prefixes is not None:
-            return not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES) and region.startswith(
-                region_prefixes
-            )
+            return not region.startswith(cls._BEDROCK_NON_COMMERCIAL_REGION_PREFIXES) and region.startswith(region_prefixes)
         on_demand_regions = cls._BEDROCK_ON_DEMAND_MODEL_REGIONS.get(model_id)
         return on_demand_regions is not None and region in on_demand_regions
 
@@ -2352,9 +2346,7 @@ class LLMProviderManager(metaclass=Singleton):
             # 优先兼容 OpenAI 风格端点；仅在缺失时再切到 Anthropic 风格消息接口。
             transport = (
                 "anthropic"
-                if "/v1/messages" in endpoints
-                and "/v1/chat/completions" not in endpoints
-                and "/v1/responses" not in endpoints
+                if "/v1/messages" in endpoints and "/v1/chat/completions" not in endpoints and "/v1/responses" not in endpoints
                 else "openai"
             )
 
@@ -2384,9 +2376,7 @@ class LLMProviderManager(metaclass=Singleton):
                         or supports.get("max_thinking_budget") is not None
                         or supports.get("min_thinking_budget") is not None
                     ),
-                    live_supports_image=bool(
-                        supports.get("vision") or ((limits.get("vision") or {}).get("supported_media_types"))
-                    ),
+                    live_supports_image=bool(supports.get("vision") or ((limits.get("vision") or {}).get("supported_media_types"))),
                     source="provider",
                 )
             )
@@ -2880,9 +2870,7 @@ class LLMProviderManager(metaclass=Singleton):
             self._mark_session_error(session, str(err))
         return self.get_session_status(session_id)
 
-    async def _exchange_chatgpt_code_for_tokens(
-        self, code: str, redirect_uri: str, code_verifier: str
-    ) -> dict[str, Any]:
+    async def _exchange_chatgpt_code_for_tokens(self, code: str, redirect_uri: str, code_verifier: str) -> dict[str, Any]:
         """使用 authorization code 交换 ChatGPT 令牌。"""
         async with httpx.AsyncClient(**self._build_httpx_kwargs()) as client:
             response = await client.post(

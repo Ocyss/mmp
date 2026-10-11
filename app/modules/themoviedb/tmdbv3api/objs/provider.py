@@ -27,18 +27,14 @@ class Provider(TMDb):
         Returns a list of the watch provider (OTT/streaming) data we have available for movies.
         :return:
         """
-        return self._request_obj(
-            self._urls["movie"], params=f"watch_region={region}" if region else "", key="results"
-        )
+        return self._request_obj(self._urls["movie"], params=f"watch_region={region}" if region else "", key="results")
 
     async def async_movie_providers(self, region=None):
         """
         Returns a list of the watch provider (OTT/streaming) data we have available for movies.（异步版本）
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["movie"], params=f"watch_region={region}" if region else "", key="results"
-        )
+        return await self._async_request_obj(self._urls["movie"], params=f"watch_region={region}" if region else "", key="results")
 
     def tv_providers(self, region=None):
         """
@@ -52,6 +48,4 @@ class Provider(TMDb):
         Returns a list of the watch provider (OTT/streaming) data we have available for TV series.（异步版本）
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["tv"], params=f"watch_region={region}" if region else "", key="results"
-        )
+        return await self._async_request_obj(self._urls["tv"], params=f"watch_region={region}" if region else "", key="results")

@@ -1,7 +1,7 @@
 import json
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.agent.tools.base import ToolExecutionTimeoutError, format_tool_result_for_agent
 from app.agent.tools.factory import MoviePilotToolFactory
@@ -191,9 +191,7 @@ class MoviePilotToolsManager:
         if not trimmed:
             return []
         return [
-            MoviePilotToolsManager._normalize_scalar_value(item_type, item.strip(), key)
-            for item in trimmed.split(",")
-            if item.strip()
+            MoviePilotToolsManager._normalize_scalar_value(item_type, item.strip(), key) for item in trimmed.split(",") if item.strip()
         ]
 
     @staticmethod

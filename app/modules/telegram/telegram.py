@@ -5,7 +5,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, urljoin
 
 from app.modules.telegram.compat import ensure_urllib3_header_param_compat
@@ -432,9 +432,9 @@ class Telegram:
             for entity in entities:
                 if entity.type == "mention":
                     # Telegram offset/length 基于 UTF-16 代码单元，需用字节编码处理含 emoji 的消息
-                    mention_text = message_text.encode("utf-16-le")[
-                        entity.offset * 2 : (entity.offset + entity.length) * 2
-                    ].decode("utf-16-le")
+                    mention_text = message_text.encode("utf-16-le")[entity.offset * 2 : (entity.offset + entity.length) * 2].decode(
+                        "utf-16-le"
+                    )
                     if mention_text == f"@{self._bot_username}":
                         logger.debug(f"通过实体检测到@{self._bot_username}，处理群聊消息")
                         return True
@@ -469,9 +469,7 @@ class Telegram:
         # 使用独立 Event 避免同一 chat 新旧 typing 线程互相误改停止标记。
         stop_event = threading.Event()
         max_duration = max_duration_seconds or self._typing_max_duration_seconds
-        initial_delay = (
-            self._typing_initial_delay_seconds if initial_delay_seconds is None else max(initial_delay_seconds, 0)
-        )
+        initial_delay = self._typing_initial_delay_seconds if initial_delay_seconds is None else max(initial_delay_seconds, 0)
 
         def typing_worker():
             """延迟首发并定期发送 typing 状态的后台线程。"""
@@ -885,10 +883,7 @@ class Telegram:
                 type_text = f"类型：{media.type.value}"
                 if media.vote_average:
                     score_text = f"评分：{media.vote_average}"
-                    caption = (
-                        f"{caption}\n{index}. {media_link}\n"
-                        f"{self._format_italic(f'{type_text}，{score_text}', parse_mode)}"
-                    )
+                    caption = f"{caption}\n{index}. {media_link}\n{self._format_italic(f'{type_text}，{score_text}', parse_mode)}"
                 else:
                     caption = f"{caption}\n{index}. {media_link}\n{self._format_italic(type_text, parse_mode)}"
                 index += 1
@@ -973,10 +968,7 @@ class Telegram:
                 seeder = f"{torrent.seeders}↑"
                 site_name = html_utils.escape(site_name) if self._is_html_parse_mode(parse_mode) else site_name
                 title_link = self._format_link(title, link, parse_mode)
-                caption = (
-                    f"{caption}\n{index}.【{site_name}】{title_link} "
-                    f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}"
-                )
+                caption = f"{caption}\n{index}.【{site_name}】{title_link} {StringUtils.str_filesize(torrent.size)} {free} {seeder}"
                 index += 1
 
             if link:
@@ -1305,9 +1297,7 @@ class Telegram:
             # 图片消息的标题长度限制为1024，文本消息为4096
             caption_limit = 1024 if image else 4096
             if len(caption) < caption_limit:
-                ret = self.__send_short_message(
-                    image, caption, disable_web_page_preview=disable_web_page_preview, **kwargs
-                )
+                ret = self.__send_short_message(image, caption, disable_web_page_preview=disable_web_page_preview, **kwargs)
             elif self._is_html_parse_mode(parse_mode):
                 ret = self.__send_long_plain_message(
                     image,
@@ -1318,9 +1308,7 @@ class Telegram:
                 )
             else:
                 sent_idx = set()
-                ret = self.__send_long_message(
-                    image, caption, sent_idx, disable_web_page_preview=disable_web_page_preview, **kwargs
-                )
+                ret = self.__send_long_message(image, caption, sent_idx, disable_web_page_preview=disable_web_page_preview, **kwargs)
 
             return ret
         except Exception as e:
@@ -1340,9 +1328,7 @@ class Telegram:
         return image
 
     @retry(RetryException, logger=logger)
-    def __send_short_message(
-        self, image: bytes | None, caption: str, disable_web_page_preview: bool | None = None, **kwargs
-    ):
+    def __send_short_message(self, image: bytes | None, caption: str, disable_web_page_preview: bool | None = None, **kwargs):
         """
         发送短消息
         """
@@ -1361,7 +1347,7 @@ class Telegram:
                     **kwargs,
                 )
         except Exception:
-            raise RetryException(f"发送{'图片' if image else '文本'}消息失败")
+            raise RetryException(f"发送{'图片' if image else '文本'}消息失败") from None
 
     @retry(RetryException, logger=logger)
     def __send_long_plain_message(
@@ -1470,9 +1456,7 @@ class Telegram:
         # 设置bot命令
         if commands:
             self._bot.delete_my_commands()
-            self._bot.set_my_commands(
-                commands=[BotCommand(cmd[1:], str(desc.get("description"))) for cmd, desc in commands.items()]
-            )
+            self._bot.set_my_commands(commands=[BotCommand(cmd[1:], str(desc.get("description"))) for cmd, desc in commands.items()])
 
     def delete_commands(self):
         """

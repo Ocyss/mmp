@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
@@ -146,10 +146,7 @@ class HddolbySpider:
                 category = MediaType.UNKNOWN.value
             # 标签
             torrentLabelIds = result.get("tags", "").split(";") or []
-            torrentLabels = []
-            for labelId in torrentLabelIds:
-                if self._labels.get(labelId) is not None:
-                    torrentLabels.append(self._labels.get(labelId))
+            torrentLabels = [self._labels.get(labelId) for labelId in torrentLabelIds if self._labels.get(labelId) is not None]
             # 种子信息
             torrent = {
                 "title": result.get("name"),
@@ -203,9 +200,7 @@ class HddolbySpider:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
 
-    async def async_search(
-        self, keyword: str, mtype: MediaType = None, page: int | None = 0
-    ) -> tuple[bool, list[dict]]:
+    async def async_search(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         异步搜索
         """

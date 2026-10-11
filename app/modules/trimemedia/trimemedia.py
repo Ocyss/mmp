@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import app.modules.trimemedia.api as fnapi
 from app import schemas
@@ -117,12 +117,7 @@ class TrimeMedia:
         """
         是否已登录
         """
-        return (
-            self.is_configured()
-            and self._api is not None
-            and self._api.token is not None
-            and self._userinfo is not None
-        )
+        return self.is_configured() and self._api is not None and self._api.token is not None and self._userinfo is not None
 
     def is_inactive(self) -> bool:
         """
@@ -255,9 +250,7 @@ class TrimeMedia:
                 result.api.logout()
                 result.api.close()
 
-    def get_movies(
-        self, title: str, year: str | None = None, tmdb_id: int | None = None
-    ) -> list[schemas.MediaServerItem] | None:
+    def get_movies(self, title: str, year: str | None = None, tmdb_id: int | None = None) -> list[schemas.MediaServerItem] | None:
         """
         根据标题和年份，检查电影是否在飞牛中存在，存在则返回列表
 

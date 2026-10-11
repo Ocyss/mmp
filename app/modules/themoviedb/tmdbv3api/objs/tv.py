@@ -232,9 +232,7 @@ class TV(TMDb):
         Remove your rating for a TV show.
         :param tv_id: int
         """
-        self._request_obj(
-            self._urls["delete_rating"] % tv_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        self._request_obj(self._urls["delete_rating"] % tv_id, params=f"session_id={self.session_id}", method="DELETE")
 
     def latest(self):
         """
@@ -296,9 +294,7 @@ class TV(TMDb):
         :param tv_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["account_states"] % tv_id, params=f"session_id={self.session_id}"
-        )
+        return await self._async_request_obj(self._urls["account_states"] % tv_id, params=f"session_id={self.session_id}")
 
     async def async_aggregate_credits(self, tv_id):
         """
@@ -405,9 +401,7 @@ class TV(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["recommendations"] % tv_id, params=f"page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["recommendations"] % tv_id, params=f"page={page}", key="results")
 
     async def async_reviews(self, tv_id, page=1):
         """
@@ -482,9 +476,7 @@ class TV(TMDb):
         Remove your rating for a TV show.（异步版本）
         :param tv_id: int
         """
-        await self._async_request_obj(
-            self._urls["delete_rating"] % tv_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        await self._async_request_obj(self._urls["delete_rating"] % tv_id, params=f"session_id={self.session_id}", method="DELETE")
 
     async def async_latest(self):
         """

@@ -11,7 +11,8 @@ import secrets
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db import SessionFactory
-from app.db.models import *
+from app.db.models import *  # noqa: F403
+from app.db.models import User
 from app.db.systemconfig_oper import SystemConfigOper
 from app.log import logger
 from app.schemas.types import SystemConfigKey

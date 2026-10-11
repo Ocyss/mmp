@@ -14,7 +14,7 @@ import zipfile
 from collections import deque
 from importlib.metadata import distributions
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 import aiofiles
@@ -174,8 +174,7 @@ class PluginHelper(metaclass=WeakSingleton):
             return True, ""
         if not isinstance(raw_specifier, str):
             return False, (
-                f"插件限定的系统版本范围 {PLUGIN_SYSTEM_VERSION_FIELD} 必须是字符串，"
-                f"请使用 pip 依赖版本格式，例如 >=2.12.0,<3"
+                f"插件限定的系统版本范围 {PLUGIN_SYSTEM_VERSION_FIELD} 必须是字符串，请使用 pip 依赖版本格式，例如 >=2.12.0,<3"
             )
 
         system_version = cls.get_current_system_version()
@@ -185,9 +184,7 @@ class PluginHelper(metaclass=WeakSingleton):
         try:
             specifier_set = SpecifierSet(raw_specifier)
         except InvalidSpecifier:
-            return False, (
-                f"插件限定的系统版本范围格式不正确：{raw_specifier}，请使用 pip 依赖版本格式，例如 >=2.12.0,<3"
-            )
+            return False, (f"插件限定的系统版本范围格式不正确：{raw_specifier}，请使用 pip 依赖版本格式，例如 >=2.12.0,<3")
 
         if specifier_set.contains(system_version, prereleases=True):
             return True, ""
@@ -261,9 +258,7 @@ class PluginHelper(metaclass=WeakSingleton):
 
             package_candidates = []
             if settings.VERSION_FLAG:
-                package_candidates.append(
-                    (settings.VERSION_FLAG, self.__get_local_package(repo_path, settings.VERSION_FLAG))
-                )
+                package_candidates.append((settings.VERSION_FLAG, self.__get_local_package(repo_path, settings.VERSION_FLAG)))
             package_candidates.append(("", self.__get_local_package(repo_path)))
 
             for package_version, local_plugins in package_candidates:
@@ -273,11 +268,7 @@ class PluginHelper(metaclass=WeakSingleton):
                     if not isinstance(plugin_info, dict):
                         continue
                     # package.json 中的旧结构需要声明兼容当前版本。
-                    if (
-                        not package_version
-                        and settings.VERSION_FLAG
-                        and plugin_info.get(settings.VERSION_FLAG) is not True
-                    ):
+                    if not package_version and settings.VERSION_FLAG and plugin_info.get(settings.VERSION_FLAG) is not True:
                         continue
 
                     plugin_dir = self.__get_local_plugin_dir(repo_path, pid, package_version)
@@ -302,9 +293,7 @@ class PluginHelper(metaclass=WeakSingleton):
                     existing_version = str(existing.get("version") or "0")
                     if StringUtils.compare_version(candidate_version, ">", existing_version):
                         candidates[pid] = candidate
-                    elif candidate_version == existing_version and repo_order < int(
-                        existing.get("repo_order", repo_order)
-                    ):
+                    elif candidate_version == existing_version and repo_order < int(existing.get("repo_order", repo_order)):
                         logger.info(f"本地插件 {pid} 存在同版本来源，使用靠前目录：{repo_path}")
                         candidates[pid] = candidate
 
@@ -349,9 +338,7 @@ class PluginHelper(metaclass=WeakSingleton):
                         )
                         if not is_compatible and strict_compat:
                             continue
-                        plugin_dir = self.__get_local_plugin_dir(
-                            local_repo_path, candidate_pid, current_package_version or ""
-                        )
+                        plugin_dir = self.__get_local_plugin_dir(local_repo_path, candidate_pid, current_package_version or "")
                         if not plugin_dir.is_dir():
                             continue
                         candidate = plugin_info.copy()
@@ -479,9 +466,7 @@ class PluginHelper(metaclass=WeakSingleton):
                 "name": release_info.get("name"),
                 "published_at": release_info.get("published_at"),
                 "body": release_info.get("body"),
-                "assets": [
-                    {"name": asset.get("name")} for asset in release_info.get("assets") or [] if isinstance(asset, dict)
-                ],
+                "assets": [{"name": asset.get("name")} for asset in release_info.get("assets") or [] if isinstance(asset, dict)],
             }
             for release_info in payload
             if isinstance(release_info, dict)
@@ -684,9 +669,7 @@ class PluginHelper(metaclass=WeakSingleton):
         if release_version:
             if not is_release:
                 return False, f"{pid} 未声明 Release 安装，无法安装指定版本"
-            if not self.__has_installable_release_version(
-                self.get_plugin_release_versions(pid, repo_url), release_version
-            ):
+            if not self.__has_installable_release_version(self.get_plugin_release_versions(pid, repo_url), release_version):
                 return False, f"{pid} 未找到可安装的 Release 版本：{release_version}"
             if release_version == plugin_version:
                 compatible, message = self.check_plugin_system_version(meta)
@@ -771,13 +754,10 @@ class PluginHelper(metaclass=WeakSingleton):
             pid=pid,
             force_install=force_install,
             prepare_content=prepare_local,
-            repo_url=repo_url
-            or self.make_local_repo_url(pid, candidate.get("repo_path"), candidate.get("package_version")),
+            repo_url=repo_url or self.make_local_repo_url(pid, candidate.get("repo_path"), candidate.get("package_version")),
         )
 
-    def __get_file_list(
-        self, pid: str, user_repo: str, package_version: str | None = None
-    ) -> tuple[list | None, str | None]:
+    def __get_file_list(self, pid: str, user_repo: str, package_version: str | None = None) -> tuple[list | None, str | None]:
         """
         获取插件的文件列表
         :param pid: 插件 ID
@@ -790,9 +770,7 @@ class PluginHelper(metaclass=WeakSingleton):
             file_api += f".{package_version}"
         file_api += f"/{pid.lower()}"
 
-        res = self.__request_with_fallback(
-            file_api, headers=settings.REPO_GITHUB_HEADERS(repo=user_repo), is_api=True, timeout=30
-        )
+        res = self.__request_with_fallback(file_api, headers=settings.REPO_GITHUB_HEADERS(repo=user_repo), is_api=True, timeout=30)
         if res is None:
             return None, "连接仓库失败"
         elif res.status_code != 200:
@@ -844,9 +822,7 @@ class PluginHelper(metaclass=WeakSingleton):
 
                 if item.get("download_url"):
                     logger.debug(f"正在下载文件：{item.get('path')}")
-                    res = self.__request_with_fallback(
-                        item.get("download_url"), headers=settings.REPO_GITHUB_HEADERS(repo=user_repo)
-                    )
+                    res = self.__request_with_fallback(item.get("download_url"), headers=settings.REPO_GITHUB_HEADERS(repo=user_repo))
                     if not res:
                         return False, f"文件 {item.get('path')} 下载失败！"
                     elif res.status_code != 200:
@@ -865,18 +841,14 @@ class PluginHelper(metaclass=WeakSingleton):
                     logger.debug(f"文件 {item.get('path')} 下载成功，保存路径：{file_path}")
                 else:
                     # 如果是子目录，则将子目录内容加入栈中继续处理
-                    sub_list, msg = self.__get_file_list(
-                        f"{current_pid}/{item.get('name')}", user_repo, package_version
-                    )
+                    sub_list, msg = self.__get_file_list(f"{current_pid}/{item.get('name')}", user_repo, package_version)
                     if not sub_list:
                         return False, msg
                     stack.append((f"{current_pid}/{item.get('name')}", sub_list))
 
         return True, ""
 
-    def __download_and_install_requirements(
-        self, requirements_file_info: dict, pid: str, user_repo: str
-    ) -> tuple[bool, str]:
+    def __download_and_install_requirements(self, requirements_file_info: dict, pid: str, user_repo: str) -> tuple[bool, str]:
         """
         下载并安装 requirements.txt 文件中的依赖
         :param requirements_file_info: requirements.txt 文件的元数据信息
@@ -1012,9 +984,7 @@ class PluginHelper(metaclass=WeakSingleton):
         """
         wheels_dirs = []
         try:
-            install_plugins = {
-                plugin_id.lower() for plugin_id in self.systemconfig.get(SystemConfigKey.UserInstalledPlugins) or []
-            }
+            install_plugins = {plugin_id.lower() for plugin_id in self.systemconfig.get(SystemConfigKey.UserInstalledPlugins) or []}
             for plugin_id in install_plugins:
                 wheels_dir = PLUGIN_DIR / plugin_id / "wheels"
                 if wheels_dir.is_dir():
@@ -1060,9 +1030,7 @@ class PluginHelper(metaclass=WeakSingleton):
             return False
 
     @classmethod
-    def __parse_project_requirement_roots(
-        cls, requirements_file: Path, visited_files: set[Path] | None = None
-    ) -> dict[str, set[str]]:
+    def __parse_project_requirement_roots(cls, requirements_file: Path, visited_files: set[Path] | None = None) -> dict[str, set[str]]:
         """
         解析主项目 requirements 文件，收集根依赖及其启用的 extras。
         支持递归处理 -r/--requirement，忽略索引、约束等 pip 选项。
@@ -1103,9 +1071,7 @@ class PluginHelper(metaclass=WeakSingleton):
                         if not include_path:
                             logger.debug(f"忽略无法识别的 requirements 引用：{line}")
                             continue
-                        included_roots = cls.__parse_project_requirement_roots(
-                            requirements_file.parent / include_path, visited_files
-                        )
+                        included_roots = cls.__parse_project_requirement_roots(requirements_file.parent / include_path, visited_files)
                         for package_name, extras in included_roots.items():
                             roots.setdefault(package_name, set()).update(extras)
                         continue
@@ -1179,9 +1145,7 @@ class PluginHelper(metaclass=WeakSingleton):
             return {}
 
     @classmethod
-    def __get_protected_runtime_packages(
-        cls, installed_packages: dict[str, Version] | None = None
-    ) -> dict[str, Version]:
+    def __get_protected_runtime_packages(cls, installed_packages: dict[str, Version] | None = None) -> dict[str, Version]:
         """
         仅收集主程序依赖图中的已安装包版本。
 
@@ -1226,9 +1190,7 @@ class PluginHelper(metaclass=WeakSingleton):
 
             active_extra_values = [""] + sorted(selected_extras)
             for requirement in requirements:
-                if requirement.marker and not any(
-                    cls.__marker_matches(requirement.marker, extra) for extra in active_extra_values
-                ):
+                if requirement.marker and not any(cls.__marker_matches(requirement.marker, extra) for extra in active_extra_values):
                     continue
 
                 dep_name = cls.__standardize_pkg_name(requirement.name)
@@ -1316,9 +1278,7 @@ class PluginHelper(metaclass=WeakSingleton):
                         )
                         continue
 
-                    if requirement.specifier and not requirement.specifier.contains(
-                        installed_version, prereleases=True
-                    ):
+                    if requirement.specifier and not requirement.specifier.contains(installed_version, prereleases=True):
                         is_core = package_name in cls._protected_runtime_packages
                         # 非核心包的纯升级冲突（插件要求更新版本）允许放行，由 pip 约束文件控制实际安装
                         if is_core or not cls.__is_upgrade_only_conflict(requirement.specifier, installed_version):
@@ -1342,16 +1302,12 @@ class PluginHelper(metaclass=WeakSingleton):
 
         details = []
         for package_name, installed_version, expected, _is_protected in sorted(conflicts, key=sort_key)[:5]:
-            details.append(
-                f"{cls.__format_pkg_name_for_pip(package_name)} 当前为 {installed_version}，插件要求 {expected}"
-            )
+            details.append(f"{cls.__format_pkg_name_for_pip(package_name)} 当前为 {installed_version}，插件要求 {expected}")
         if len(conflicts) > 5:
             details.append(f"其余 {len(conflicts) - 5} 项冲突已省略")
 
         scope = "主程序核心依赖" if any(item[3] for item in conflicts) else "主程序依赖"
-        return False, (
-            f"插件依赖与当前运行环境的{scope}冲突：{'；'.join(details)}。为避免共享运行环境被污染，已拒绝安装。"
-        )
+        return False, (f"插件依赖与当前运行环境的{scope}冲突：{'；'.join(details)}。为避免共享运行环境被污染，已拒绝安装。")
 
     @classmethod
     def __create_runtime_constraints_file(cls, protected_packages: dict[str, Version]) -> Path:
@@ -1485,9 +1441,7 @@ class PluginHelper(metaclass=WeakSingleton):
         return False, last_error or f"恢复{repair_desc}失败"
 
     @classmethod
-    def pip_install_with_fallback(
-        cls, requirements_file: Path, find_links_dirs: list[Path] | None = None
-    ) -> tuple[bool, str]:
+    def pip_install_with_fallback(cls, requirements_file: Path, find_links_dirs: list[Path] | None = None) -> tuple[bool, str]:
         """
         使用自动降级策略安装依赖，并确保新安装的包可被动态导入
         :param requirements_file: 依赖的 requirements.txt 文件路径
@@ -1554,10 +1508,7 @@ class PluginHelper(metaclass=WeakSingleton):
                 # 遍历策略进行安装
                 last_error = ""
                 for strategy in strategies:
-                    logger.debug(
-                        f"[PIP] 尝试使用策略：{strategy.strategy_name} 安装依赖，"
-                        f"命令：{' '.join(strategy.safe_log_command)}"
-                    )
+                    logger.debug(f"[PIP] 尝试使用策略：{strategy.strategy_name} 安装依赖，命令：{' '.join(strategy.safe_log_command)}")
                     success, message = SystemUtils.execute_with_subprocess(
                         strategy.command,
                         env=strategy.env,
@@ -1574,25 +1525,17 @@ class PluginHelper(metaclass=WeakSingleton):
                             )
                             if repair_ok:
                                 restored_health = cls.__run_runtime_healthcheck()
-                                restored_message = cls.__runtime_health_regression_message(
-                                    baseline_health, restored_health
-                                )
+                                restored_message = cls.__runtime_health_regression_message(baseline_health, restored_health)
                                 if not restored_message:
                                     cls.__refresh_import_system()
-                                    return False, (
-                                        f"依赖安装后运行环境自检失败，已自动恢复主程序依赖：{health_message}"
-                                    )
+                                    return False, (f"依赖安装后运行环境自检失败，已自动恢复主程序依赖：{health_message}")
                                 logger.error(f"[PIP] 主程序依赖恢复后仍未通过健康检查：{restored_message}")
-                                return False, (
-                                    f"依赖安装后运行环境自检失败，恢复主程序依赖后仍异常：{restored_message}"
-                                )
+                                return False, (f"依赖安装后运行环境自检失败，恢复主程序依赖后仍异常：{restored_message}")
                             return False, (f"依赖安装后运行环境自检失败，且自动恢复主程序依赖失败：{repair_message}")
 
                         remaining_health_message = cls.__runtime_health_regression_message({}, current_health)
                         if remaining_health_message:
-                            logger.warning(
-                                f"[PIP] 依赖安装成功，安装前已有的运行环境异常仍然存在：{remaining_health_message}"
-                            )
+                            logger.warning(f"[PIP] 依赖安装成功，安装前已有的运行环境异常仍然存在：{remaining_health_message}")
 
                         cls.__refresh_import_system()
                         loaded_modules_after_install = set(sys.modules.keys())
@@ -1657,9 +1600,7 @@ class PluginHelper(metaclass=WeakSingleton):
 
     def __get_plugin_meta(self, pid: str, repo_url: str, package_version: str | None) -> dict:
         try:
-            plugins = (
-                self.get_plugins(repo_url) if not package_version else self.get_plugins(repo_url, package_version)
-            ) or {}
+            plugins = (self.get_plugins(repo_url) if not package_version else self.get_plugins(repo_url, package_version)) or {}
             meta = plugins.get(pid)
             return meta if isinstance(meta, dict) else {}
         except Exception as e:
@@ -1801,9 +1742,7 @@ class PluginHelper(metaclass=WeakSingleton):
         return ""
 
     @classmethod
-    def __iter_release_zip_targets(
-        cls, zf: zipfile.ZipFile, dest_base: Path
-    ) -> list[tuple[zipfile.ZipInfo, Path, bool]]:
+    def __iter_release_zip_targets(cls, zf: zipfile.ZipFile, dest_base: Path) -> list[tuple[zipfile.ZipInfo, Path, bool]]:
         """
         将 release zip 成员解析为安装目标路径，并保证目标路径不会逃逸插件目录。
         """
@@ -2097,9 +2036,7 @@ class PluginHelper(metaclass=WeakSingleton):
             return name
         return name.lower().replace("-", "_").replace(".", "_")
 
-    async def async_get_plugin_package_version(
-        self, pid: str, repo_url: str, package_version: str | None = None
-    ) -> str | None:
+    async def async_get_plugin_package_version(self, pid: str, repo_url: str, package_version: str | None = None) -> str | None:
         """
         异步版本的获取插件版本方法，功能同 get_plugin_package_version
         """
@@ -2173,9 +2110,7 @@ class PluginHelper(metaclass=WeakSingleton):
         package_url = f"{raw_url}package.{package_version}.json" if package_version else f"{raw_url}package.json"
         package_url = self.__append_cache_buster(package_url)
 
-        res = await self.__async_request_with_fallback(
-            package_url, headers=settings.REPO_GITHUB_HEADERS(repo=f"{user}/{repo}")
-        )
+        res = await self.__async_request_with_fallback(package_url, headers=settings.REPO_GITHUB_HEADERS(repo=f"{user}/{repo}"))
         if res is None:
             return None
         if res.status_code == 404:
@@ -2248,9 +2183,7 @@ class PluginHelper(metaclass=WeakSingleton):
                     if pending_normal_task and pending_normal_task.done():
                         pending_normal_task = None
                     task_key = force_task_key
-                    task = loop.create_task(
-                        self._async_refresh_plugin_repo_releases(normalized_repo_url, pending_normal_task)
-                    )
+                    task = loop.create_task(self._async_refresh_plugin_repo_releases(normalized_repo_url, pending_normal_task))
                     self._release_tasks[task_key] = task
                     task.add_done_callback(lambda completed_task: self._remove_release_task(task_key, completed_task))
             else:
@@ -2384,9 +2317,7 @@ class PluginHelper(metaclass=WeakSingleton):
                     logger.debug(f"文件 {item.get('path')} 下载成功，保存路径：{file_path}")
                 else:
                     # 如果是子目录，则将子目录内容加入栈中继续处理
-                    sub_list, msg = await self.__async_get_file_list(
-                        f"{current_pid}/{item.get('name')}", user_repo, package_version
-                    )
+                    sub_list, msg = await self.__async_get_file_list(f"{current_pid}/{item.get('name')}", user_repo, package_version)
                     if not sub_list:
                         return False, msg
                     stack.append((f"{current_pid}/{item.get('name')}", sub_list))
@@ -2630,9 +2561,7 @@ class PluginHelper(metaclass=WeakSingleton):
         """
         try:
             # 收集所有插件的依赖项
-            plugin_dependencies = (
-                await self.__async_find_plugin_dependencies()
-            )  # 返回格式为 {package_name: version_specifier}
+            plugin_dependencies = await self.__async_find_plugin_dependencies()  # 返回格式为 {package_name: version_specifier}
             # 获取已安装的包及其版本
             installed_packages = self.__get_installed_packages()  # 返回格式为 {package_name: Version}
             # 需要安装或更新的依赖项列表
@@ -2820,9 +2749,7 @@ class PluginHelper(metaclass=WeakSingleton):
         await asyncio.to_thread(self.refresh_persistent_plugin_backup, pid)
         return True, ""
 
-    def __prepare_content_via_filelist_sync(
-        self, pid: str, user_repo: str, package_version: str | None
-    ) -> tuple[bool, str]:
+    def __prepare_content_via_filelist_sync(self, pid: str, user_repo: str, package_version: str | None) -> tuple[bool, str]:
         """
         同步准备插件内容，通过文件列表获取插件文件和依赖
         """
@@ -2841,9 +2768,7 @@ class PluginHelper(metaclass=WeakSingleton):
             return False, m
         return True, ""
 
-    async def __prepare_content_via_filelist_async(
-        self, pid: str, user_repo: str, package_version: str | None
-    ) -> tuple[bool, str]:
+    async def __prepare_content_via_filelist_async(self, pid: str, user_repo: str, package_version: str | None) -> tuple[bool, str]:
         """
         异步准备插件内容，通过文件列表获取插件文件和依赖
         """

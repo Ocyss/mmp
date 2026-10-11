@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app import schemas
 from app.core.config import global_vars, settings
@@ -79,16 +79,16 @@ class LocalStorage(StorageBase):
         if not fileitem.path or fileitem.path == "/":
             if SystemUtils.is_windows():
                 partitions = SystemUtils.get_windows_drives() or ["C:/"]
-                for partition in partitions:
-                    ret_items.append(
-                        schemas.FileItem(
-                            storage=self.schema.value,
-                            type="dir",
-                            path=partition + "/",
-                            name=partition,
-                            basename=partition,
-                        )
+                ret_items.extend(
+                    schemas.FileItem(
+                        storage=self.schema.value,
+                        type="dir",
+                        path=partition + "/",
+                        name=partition,
+                        basename=partition,
                     )
+                    for partition in partitions
+                )
                 return ret_items
             else:
                 path = "/"
@@ -110,12 +110,10 @@ class LocalStorage(StorageBase):
             return ret_items
 
         # 扁历所有目录
-        for item in SystemUtils.list_sub_directory(path_obj):
-            ret_items.append(self.__get_diritem(item))
+        ret_items.extend(self.__get_diritem(item) for item in SystemUtils.list_sub_directory(path_obj))
 
         # 遍历所有文件，不含子目录
-        for item in SystemUtils.list_sub_file(path_obj):
-            ret_items.append(self.__get_fileitem(item))
+        ret_items.extend(self.__get_fileitem(item) for item in SystemUtils.list_sub_file(path_obj))
         return ret_items
 
     def create_folder(self, fileitem: schemas.FileItem, name: str) -> schemas.FileItem | None:

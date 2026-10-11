@@ -1,7 +1,7 @@
 """查询媒体详情工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,9 +19,7 @@ SEASON_PREVIEW_LIMIT = 100
 class QueryMediaDetailInput(BaseModel):
     """查询媒体详情工具的输入参数模型"""
 
-    tmdb_id: int | None = Field(
-        None, description="TMDB ID of the media (movie or TV series, can be obtained from search_media tool)"
-    )
+    tmdb_id: int | None = Field(None, description="TMDB ID of the media (movie or TV series, can be obtained from search_media tool)")
     douban_id: str | None = Field(None, description="Douban ID of the media (alternative to tmdb_id)")
     bangumi_id: int | None = Field(None, description="Bangumi media ID")
     anilist_id: int | None = Field(None, description="AniList media ID")
@@ -105,9 +103,7 @@ class QueryMediaDetailTool(MoviePilotTool):
 
             # 精简 actors - 只保留姓名和角色
             actor_source = [a for a in (mediainfo.actors or []) if a.get("name")]
-            actors = [
-                {"name": a.get("name"), "character": a.get("character")} for a in actor_source[:ACTOR_PREVIEW_LIMIT]
-            ]
+            actors = [{"name": a.get("name"), "character": a.get("character")} for a in actor_source[:ACTOR_PREVIEW_LIMIT]]
 
             # 构建基础媒体详情信息
             result = {

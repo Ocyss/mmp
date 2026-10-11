@@ -123,9 +123,7 @@ class Person(TMDb):
         :param person_id: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["details"] % person_id, params=f"append_to_response={append_to_response}"
-        )
+        return await self._async_request_obj(self._urls["details"] % person_id, params=f"append_to_response={append_to_response}")
 
     async def async_changes(self, person_id, start_date=None, end_date=None, page=1):
         """
@@ -192,9 +190,7 @@ class Person(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["tagged_images"] % person_id, params=f"page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["tagged_images"] % person_id, params=f"page={page}", key="results")
 
     async def async_translations(self, person_id):
         """

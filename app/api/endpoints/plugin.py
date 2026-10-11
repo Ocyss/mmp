@@ -1,7 +1,7 @@
 import asyncio
 import mimetypes
 import shutil
-from typing import TYPE_CHECKING, Annotated, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import aiofiles
 from anyio import Path as AsyncPath
@@ -333,9 +333,7 @@ async def all_plugins(
     # 在线插件
     online_plugins = await plugin_manager.async_get_online_plugins(force)
     candidate_plugins = (
-        plugin_manager.process_plugins_list(online_plugins + local_repo_plugins, [])
-        if online_plugins or local_repo_plugins
-        else []
+        plugin_manager.process_plugins_list(online_plugins + local_repo_plugins, []) if online_plugins or local_repo_plugins else []
     )
     if not candidate_plugins:
         # 没有获取在线插件
@@ -356,9 +354,7 @@ async def all_plugins(
             market_plugins.append(plugin)
     # 未安装的本地插件，且不在线上插件中
     _plugin_ids = [plugin.id for plugin in market_plugins]
-    for plugin in not_installed_plugins:
-        if plugin.id not in _plugin_ids:
-            market_plugins.append(plugin)
+    market_plugins.extend(plugin for plugin in not_installed_plugins if plugin.id not in _plugin_ids)
     # 返回插件清单
     if state == "market":
         # 返回未安装的插件
@@ -724,7 +720,7 @@ async def plugin_static_file(
         resolved_base = await plugin_base_dir.resolve()
         resolved_file = await plugin_file_path.resolve()
     except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path") from None
 
     if not resolved_file.is_relative_to(resolved_base):
         logger.warning(f"Static File API: Path traversal attempt detected: {plugin_id}/{filepath}")
@@ -764,7 +760,7 @@ async def plugin_static_file(
             f"Error creating/sending StreamingResponse for {plugin_file_path}: {e}",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail="Internal Server Error") from e
 
 
 @router.get("/folders", summary="获取插件文件夹配置", response_model=dict)

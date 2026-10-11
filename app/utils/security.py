@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Optional, Union
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
 from cachetools import TTLCache
@@ -31,9 +31,7 @@ if TYPE_CHECKING:
 _DNS_CACHE_MAXSIZE = 1024
 _DNS_CACHE_TTL_POSITIVE = 120
 _DNS_CACHE_TTL_NEGATIVE = 15
-_dns_positive_cache: TTLCache[str, list[ipaddress._BaseAddress]] = TTLCache(
-    maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_POSITIVE
-)
+_dns_positive_cache: TTLCache[str, list[ipaddress._BaseAddress]] = TTLCache(maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_POSITIVE)
 _dns_negative_cache: TTLCache[str, bool] = TTLCache(maxsize=_DNS_CACHE_MAXSIZE, ttl=_DNS_CACHE_TTL_NEGATIVE)
 # 同步路径下保护 TTLCache 读写：`cachetools.TTLCache` 本身非线程安全。
 # 锁只覆盖缓存读写，不包 `getaddrinfo`，避免把 DNS 查询本身串行化。
@@ -840,8 +838,7 @@ _IMAGE_PROXY_BLOCK_LOG_WINDOW_SECONDS = 60.0
 # fake-ip / 旁路 DNS 用户最常因 IMAGE_PROXY_ALLOWED_PRIVATE_RANGES 未配置而踩坑，
 # 在 reason=NON_GLOBAL_DNS_RESULT 且当前未配置允许网段时随 warning 一起输出，指向正确的修复开关。
 _IMAGE_PROXY_FAKEIP_HINT = (
-    "提示：若使用 fake-ip / 旁路 DNS（常见网段 198.18.0.0/15、100.64.0.0/10），"
-    "请将对应网段加入 IMAGE_PROXY_ALLOWED_PRIVATE_RANGES"
+    "提示：若使用 fake-ip / 旁路 DNS（常见网段 198.18.0.0/15、100.64.0.0/10），请将对应网段加入 IMAGE_PROXY_ALLOWED_PRIVATE_RANGES"
 )
 
 # URL fragment 中实际携带代理签名但校验失败时附在 reason 末尾的标记。
@@ -942,11 +939,7 @@ async def _emit_image_proxy_block_warning(
     if signature_carried:
         reason_label = f"{reason_label}+{_INVALID_SIGNATURE_TAG}"
     allowed_ranges = [str(r) for r in (allowed_private_ranges or [])]
-    hint = (
-        _IMAGE_PROXY_FAKEIP_HINT
-        if diagnosis.reason is UrlSafetyReason.NON_GLOBAL_DNS_RESULT and not allowed_ranges
-        else None
-    )
+    hint = _IMAGE_PROXY_FAKEIP_HINT if diagnosis.reason is UrlSafetyReason.NON_GLOBAL_DNS_RESULT and not allowed_ranges else None
     key = (diagnosis.host or "", reason_label)
     payload = {"url": url, "ips": list(diagnosis.ips)}
     decision = await _image_proxy_block_log_coalescer.record(key=key, payload=payload)

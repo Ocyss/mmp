@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from app.db import DbOper
 from app.db.models.subscribe import Subscribe
@@ -300,9 +300,7 @@ class SubscribeOper(DbOper):
         """
         return Subscribe.get_by_tmdbid(self._db, tmdbid=tmdbid, season=season)
 
-    def list_by_username(
-        self, username: str, state: str | None = None, mtype: str | None = None
-    ) -> builtins.list[Subscribe]:
+    def list_by_username(self, username: str, state: str | None = None, mtype: str | None = None) -> builtins.list[Subscribe]:
         """
         获取指定用户的订阅
         """

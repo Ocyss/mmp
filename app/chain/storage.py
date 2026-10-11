@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from app.chain import ChainBase
 from app.core.config import settings
@@ -77,9 +77,7 @@ class StorageChain(ChainBase):
         """
         return self.run_module("download_file", fileitem=fileitem, path=path)
 
-    def upload_file(
-        self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None
-    ) -> schemas.FileItem | None:
+    def upload_file(self, fileitem: schemas.FileItem, path: Path, new_name: str | None = None) -> schemas.FileItem | None:
         """
         上传文件
         :param fileitem: 保存目录项

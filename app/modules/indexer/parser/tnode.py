@@ -55,9 +55,7 @@ class TNodeSiteUserInfo(SiteParserBase):
         self.ratio = 0 if self.download <= 0 else round(self.upload / self.download, 3)
         self.bonus = user_info.get("bonus")
 
-        self.message_unread = (
-            user_info.get("unreadAdmin", 0) + user_info.get("unreadInbox", 0) + user_info.get("unreadSystem", 0)
-        )
+        self.message_unread = user_info.get("unreadAdmin", 0) + user_info.get("unreadInbox", 0) + user_info.get("unreadSystem", 0)
         pass
 
     def _parse_user_torrent_seeding_info(self, html_text: str, multi_page: bool | None = False) -> str | None:

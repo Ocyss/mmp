@@ -8,7 +8,7 @@ from app.agent.llm.capability import (
     OpenAIAudioProvider,
     OpenAIChatAudioProvider,
 )
-from app.agent.llm.helper import LLMHelper, LLMTestError, LLMTestTimeout
+from app.agent.llm.helper import LLMHelper, LLMTestError, LLMTestTimeoutError
 from app.agent.llm.provider import (
     LLMProviderAuthError,
     LLMProviderError,
@@ -25,7 +25,7 @@ __all__ = [
     "LLMProviderError",
     "LLMProviderManager",
     "LLMTestError",
-    "LLMTestTimeout",
+    "LLMTestTimeoutError",
     "MiMoAudioProvider",
     "OpenAIChatAudioProvider",
     "OpenAIAudioProvider",

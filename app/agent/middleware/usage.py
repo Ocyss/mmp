@@ -86,19 +86,14 @@ class UsageMiddleware(AgentMiddleware):
 
         response_metadata = getattr(ai_message, "response_metadata", None) or {}
         token_usage = (
-            response_metadata.get("token_usage")
-            or response_metadata.get("usage")
-            or response_metadata.get("usage_metadata")
-            or {}
+            response_metadata.get("token_usage") or response_metadata.get("usage") or response_metadata.get("usage_metadata") or {}
         )
 
         input_token_details = None
         if usage_metadata:
             getter = getattr(usage_metadata, "get", None)
             input_token_details = (
-                getter("input_token_details")
-                if callable(getter)
-                else getattr(usage_metadata, "input_token_details", None)
+                getter("input_token_details") if callable(getter) else getattr(usage_metadata, "input_token_details", None)
             )
 
         cache_read_tokens = cls._first_int(

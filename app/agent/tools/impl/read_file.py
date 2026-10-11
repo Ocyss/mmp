@@ -3,7 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from anyio import Path as AsyncPath
 from pydantic import BaseModel, Field
@@ -14,9 +14,7 @@ from app.log import logger
 
 # 最大读取大小 50KB
 MAX_READ_SIZE = 50 * 1024
-READ_FILE_TRUNCATION_MESSAGE = (
-    "文件内容超过50KB，本次结果已截断。请使用 start_line 和 end_line 参数指定行号范围分段读取。"
-)
+READ_FILE_TRUNCATION_MESSAGE = "文件内容超过50KB，本次结果已截断。请使用 start_line 和 end_line 参数指定行号范围分段读取。"
 
 
 class ReadFileInput(BaseModel):
@@ -34,8 +32,7 @@ class ReadFileInput(BaseModel):
     include_metadata: bool = Field(
         False,
         description=(
-            "Return structured JSON containing content, size, truncation state, "
-            "and SHA-256. Use before a guarded full-file overwrite."
+            "Return structured JSON containing content, size, truncation state, and SHA-256. Use before a guarded full-file overwrite."
         ),
     )
 

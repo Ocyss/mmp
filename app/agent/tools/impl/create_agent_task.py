@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from typing import Literal, Optional, Type
+from typing import Literal, Optional
 
 import pytz
 from pydantic import BaseModel, Field, model_validator
@@ -104,9 +104,7 @@ class CreateAgentTaskTool(MoviePilotTool):
         trigger_value = payload.trigger
         if payload.trigger_type == "date" and payload.delay_minutes is not None:
             timezone = pytz.timezone(settings.TZ)
-            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(
-                timespec="seconds"
-            )
+            trigger_value = (datetime.now(timezone) + timedelta(minutes=payload.delay_minutes)).isoformat(timespec="seconds")
         _, trigger_value = TimerUtils.normalize_schedule_trigger(
             trigger_type=payload.trigger_type,
             trigger_value=trigger_value,

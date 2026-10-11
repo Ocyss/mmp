@@ -15,9 +15,7 @@ class ServerToolUnavailableError(ValueError):
         self.provider = provider
         self.model = model
         self.tool_id = tool_id
-        super().__init__(
-            f"当前模型 {provider}/{model} 或接口地址不支持服务端联网搜索，请改用“自动”或“MoviePilot 本地搜索”"
-        )
+        super().__init__(f"当前模型 {provider}/{model} 或接口地址不支持服务端联网搜索，请改用“自动”或“MoviePilot 本地搜索”")
 
 
 @dataclass(frozen=True)
@@ -176,9 +174,7 @@ class ServerToolRegistry:
         base_url: str | None = None,
     ) -> list[dict[str, Any]]:
         """列出指定模型可用的服务端工具能力。"""
-        return [
-            capability.serialize() for capability in cls._CAPABILITIES if capability.matches(provider, model, base_url)
-        ]
+        return [capability.serialize() for capability in cls._CAPABILITIES if capability.matches(provider, model, base_url)]
 
     @classmethod
     def resolve_web_search(
@@ -218,11 +214,7 @@ class ServerToolRegistry:
                 use_local_web_search=normalized_mode == "auto",
                 reason="builtin_web_search_unavailable",
             )
-        if (
-            normalized_mode == "auto"
-            and normalized_protocol == "chat_completions"
-            and capability.required_api_protocol == "responses"
-        ):
+        if normalized_mode == "auto" and normalized_protocol == "chat_completions" and capability.required_api_protocol == "responses":
             return ServerToolResolution(
                 mode=normalized_mode,
                 use_local_web_search=True,

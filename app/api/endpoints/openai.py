@@ -2,7 +2,7 @@ import asyncio
 import json
 import time
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Request, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -299,9 +299,7 @@ async def chat_completions(
             code="invalid_messages",
         )
 
-    session_key = (
-        str(payload.user or "").strip() or str(request.headers.get("x-session-id") or "").strip() or str(uuid.uuid4())
-    )
+    session_key = str(payload.user or "").strip() or str(request.headers.get("x-session-id") or "").strip() or str(uuid.uuid4())
     use_server_session = bool(str(payload.user or "").strip() or str(request.headers.get("x-session-id") or "").strip())
 
     try:
@@ -342,9 +340,7 @@ async def chat_completions(
             code="agent_execution_failed",
         )
 
-    content = "\n\n".join(
-        message.strip() for message in agent.collected_messages if message and message.strip()
-    ).strip()
+    content = "\n\n".join(message.strip() for message in agent.collected_messages if message and message.strip()).strip()
     if not content and result:
         content = str(result).strip()
     if not content:
@@ -416,9 +412,7 @@ async def responses(
             code="agent_execution_failed",
         )
 
-    content = "\n\n".join(
-        message.strip() for message in agent.collected_messages if message and message.strip()
-    ).strip()
+    content = "\n\n".join(message.strip() for message in agent.collected_messages if message and message.strip()).strip()
     if not content and result:
         content = str(result).strip()
     if not content:

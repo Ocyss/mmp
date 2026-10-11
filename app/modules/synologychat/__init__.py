@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 from app.log import logger
@@ -94,9 +94,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
         """
         解析 Synology Chat 管理员配置，兼容逗号分隔和首尾空白。
         """
-        return [
-            admin.strip() for admin in str((config or {}).get("SYNOLOGYCHAT_ADMINS") or "").split(",") if admin.strip()
-        ]
+        return [admin.strip() for admin in str((config or {}).get("SYNOLOGYCHAT_ADMINS") or "").split(",") if admin.strip()]
 
     @classmethod
     def _should_reject_admin_command(
@@ -159,11 +157,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
             audio_refs = self._extract_audio_refs(message)
             files = self._extract_files(message)
             if (text or images or audio_refs or files) and user_id:
-                if (
-                    text
-                    and text.startswith("/")
-                    and self._should_reject_admin_command(client_config.config, user_id, user_name)
-                ):
+                if text and text.startswith("/") and self._should_reject_admin_command(client_config.config, user_id, user_name):
                     self._send_admin_denied(client, user_id)
                     return None
                 logger.info(
@@ -250,11 +244,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                         continue
                     content_type = (item.get("content_type") or item.get("mime_type") or "").lower()
                     name = (item.get("name") or item.get("filename") or "").lower()
-                    if (
-                        content_type.startswith("audio/")
-                        or cls._looks_like_audio(url)
-                        or name.endswith(cls._AUDIO_SUFFIXES)
-                    ):
+                    if content_type.startswith("audio/") or cls._looks_like_audio(url) or name.endswith(cls._AUDIO_SUFFIXES):
                         audio_refs.append(f"synology://file/{quote(url, safe='')}")
 
         deduped = []
@@ -297,16 +287,8 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                     continue
                 content_type = (item.get("content_type") or item.get("mime_type") or "").lower()
                 name = (item.get("name") or item.get("filename") or "").lower()
-                is_image = (
-                    content_type.startswith("image/")
-                    or name.endswith(cls._IMAGE_SUFFIXES)
-                    or cls._looks_like_image(url)
-                )
-                is_audio = (
-                    content_type.startswith("audio/")
-                    or name.endswith(cls._AUDIO_SUFFIXES)
-                    or cls._looks_like_audio(url)
-                )
+                is_image = content_type.startswith("image/") or name.endswith(cls._IMAGE_SUFFIXES) or cls._looks_like_image(url)
+                is_audio = content_type.startswith("audio/") or name.endswith(cls._AUDIO_SUFFIXES) or cls._looks_like_audio(url)
                 if is_image or is_audio:
                     continue
                 files.append(
@@ -359,9 +341,7 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                     return
             client: SynologyChat = self.get_instance(conf.name)
             if client:
-                client.send_msg(
-                    title=message.title, text=message.text, image=message.image, userid=userid, link=message.link
-                )
+                client.send_msg(title=message.title, text=message.text, image=message.image, userid=userid, link=message.link)
 
     def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """
@@ -389,6 +369,4 @@ class SynologyChatModule(_ModuleBase, _MessageBase[SynologyChat]):
                 continue
             client: SynologyChat = self.get_instance(conf.name)
             if client:
-                client.send_torrents_msg(
-                    title=message.title, torrents=torrents, userid=message.userid, link=message.link
-                )
+                client.send_torrents_msg(title=message.title, torrents=torrents, userid=message.userid, link=message.link)

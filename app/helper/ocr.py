@@ -41,9 +41,7 @@ class OcrHelper:
                     image_b64 = base64.b64encode(image_bin).decode()
         if not image_b64:
             return ""
-        ret = RequestUtils(content_type="application/json").post_res(
-            url=self._ocr_b64_url, json={"base64_img": image_b64}
-        )
+        ret = RequestUtils(content_type="application/json").post_res(url=self._ocr_b64_url, json={"base64_img": image_b64})
         if ret:
             return ret.json().get("result") or ""
         return ""

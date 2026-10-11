@@ -12,7 +12,7 @@ import inspect
 from collections.abc import Awaitable, Callable, Hashable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from app.log import logger
 

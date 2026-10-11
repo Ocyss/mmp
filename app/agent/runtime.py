@@ -222,9 +222,7 @@ class AgentRuntimeConfig:
 
     def list_personas(self) -> list[dict[str, Any]]:
         """返回全部人格摘要。"""
-        return [
-            persona.to_dict(is_active=persona.persona_id == self.active_persona) for persona in self.available_personas
-        ]
+        return [persona.to_dict(is_active=persona.persona_id == self.active_persona) for persona in self.available_personas]
 
 
 class AgentRuntimeManager:
@@ -302,10 +300,7 @@ class AgentRuntimeManager:
         """返回当前运行时配置文件签名，供调用方判断缓存是否仍可复用。"""
         now = time.monotonic()
         with self._cache_lock:
-            if (
-                self._cached_signature is not None
-                and now - self._cached_signature_checked_at < self._signature_check_interval
-            ):
+            if self._cached_signature is not None and now - self._cached_signature_checked_at < self._signature_check_interval:
                 return self._cached_signature
 
         signature = self._build_signature()
@@ -380,9 +375,7 @@ class AgentRuntimeManager:
             created = True
 
         final_label = label.strip() if isinstance(label, str) and label.strip() else existing_label or target_persona_id
-        final_description = (
-            description.strip() if isinstance(description, str) and description.strip() else existing_description
-        )
+        final_description = description.strip() if isinstance(description, str) and description.strip() else existing_description
         final_aliases = self._normalize_persona_aliases(aliases, "aliases") if aliases is not None else existing_aliases
         final_body = (
             self._normalize_persona_body(instructions)
@@ -685,9 +678,7 @@ class AgentRuntimeManager:
         if not normalized:
             raise AgentRuntimeConfigError("新建人格时 persona_id 不能为空")
         if not PERSONA_ID_PATTERN.fullmatch(normalized):
-            raise AgentRuntimeConfigError(
-                "新建人格时 persona_id 只能使用小写字母、数字、下划线和中划线，且必须以字母或数字开头"
-            )
+            raise AgentRuntimeConfigError("新建人格时 persona_id 只能使用小写字母、数字、下划线和中划线，且必须以字母或数字开头")
         return normalized
 
     @staticmethod
@@ -831,9 +822,11 @@ class AgentRuntimeManager:
 
         deprecated_phrases = self._normalize_string_list(current_meta.get("deprecated_phrases"), "deprecated_phrases")
         if deprecated_phrases:
-            for phrase in deprecated_phrases:
-                if phrase and phrase in persona_text:
-                    warnings.append(f"检测到已废弃短语 `{phrase}` 仍出现在 persona 中")
+            warnings.extend(
+                f"检测到已废弃短语 `{phrase}` 仍出现在 persona 中"
+                for phrase in deprecated_phrases
+                if phrase and phrase in persona_text
+            )
         return warnings
 
     @staticmethod

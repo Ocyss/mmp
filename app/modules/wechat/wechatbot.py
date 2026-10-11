@@ -6,7 +6,7 @@ import re
 import threading
 import time
 import uuid
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import websocket
 from Crypto.Cipher import AES
@@ -348,16 +348,10 @@ class WeChatBot:
             return None
         payload = {
             "url": download_url,
-            "aeskey": image_payload.get("aeskey")
-            or image_payload.get("encoding_aes_key")
-            or image_payload.get("encrypt_key"),
+            "aeskey": image_payload.get("aeskey") or image_payload.get("encoding_aes_key") or image_payload.get("encrypt_key"),
             "mime_type": image_payload.get("mime_type") or image_payload.get("content_type"),
         }
-        encoded = (
-            base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-            .decode("ascii")
-            .rstrip("=")
-        )
+        encoded = base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8")).decode("ascii").rstrip("=")
         return f"wxbot://image/{encoded}"
 
     @classmethod
@@ -518,9 +512,7 @@ class WeChatBot:
         return target, 1
 
     @staticmethod
-    def _build_markdown(
-        title: str | None = None, text: str | None = None, image: str | None = None, link: str | None = None
-    ) -> str:
+    def _build_markdown(title: str | None = None, text: str | None = None, image: str | None = None, link: str | None = None) -> str:
         parts = []
         if title:
             parts.append(f"**{title}**")

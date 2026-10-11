@@ -1,7 +1,7 @@
 """查询下载工具"""
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -186,10 +186,7 @@ class QueryDownloadTasksTool(MoviePilotTool):
 
             for torrent in all_torrents:
                 history = history_map.get(torrent.hash)
-                matched = (
-                    title_lower in (torrent.title or "").lower()
-                    or title_lower in (getattr(torrent, "name", None) or "").lower()
-                )
+                matched = title_lower in (torrent.title or "").lower() or title_lower in (getattr(torrent, "name", None) or "").lower()
                 if not matched and history and history.title:
                     matched = title_lower in history.title.lower()
 
@@ -329,8 +326,7 @@ class QueryDownloadTasksTool(MoviePilotTool):
                         "dlspeed": getattr(d, "dlspeed", None),
                         "tags": d.tags,
                         "save_path": getattr(d, "save_path", None),
-                        "content_path": getattr(d, "content_path", None)
-                        or (d.path.as_posix() if getattr(d, "path", None) else None),
+                        "content_path": getattr(d, "content_path", None) or (d.path.as_posix() if getattr(d, "path", None) else None),
                         "category": getattr(d, "category", None),
                         "download_limit": getattr(d, "download_limit", None),
                         "upload_limit": getattr(d, "upload_limit", None),

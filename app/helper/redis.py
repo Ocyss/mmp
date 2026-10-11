@@ -2,7 +2,7 @@ import asyncio
 import json
 import pickle
 import threading
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 import redis

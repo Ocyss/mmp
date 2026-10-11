@@ -1,7 +1,7 @@
 import asyncio
 import json
 import uuid
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Header, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -35,9 +35,7 @@ def _anthropic_error_response(
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
-        content=schemas.AnthropicErrorResponse(
-            error=schemas.AnthropicErrorDetail(type=error_type, message=message)
-        ).model_dump(),
+        content=schemas.AnthropicErrorResponse(error=schemas.AnthropicErrorDetail(type=error_type, message=message)).model_dump(),
     )
 
 
@@ -154,9 +152,7 @@ async def messages(
     except Exception as exc:
         return _anthropic_error_response(str(exc), 500, error_type="api_error")
 
-    content = "\n\n".join(
-        message.strip() for message in agent.collected_messages if message and message.strip()
-    ).strip()
+    content = "\n\n".join(message.strip() for message in agent.collected_messages if message and message.strip()).strip()
     if not content and result:
         content = str(result).strip()
     if not content:

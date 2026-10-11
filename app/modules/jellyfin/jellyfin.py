@@ -1,7 +1,7 @@
 import json
 import posixpath
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -169,12 +169,7 @@ class Jellyfin:
             return None
         libraries = []
         for library in source_libraries:
-            if (
-                hidden
-                and self._sync_libraries
-                and "all" not in self._sync_libraries
-                and library.get("Id") not in self._sync_libraries
-            ):
+            if hidden and self._sync_libraries and "all" not in self._sync_libraries and library.get("Id") not in self._sync_libraries:
                 continue
             if library.get("CollectionType") == "movies":
                 library_type = MediaType.MOVIE.value
@@ -404,18 +399,14 @@ class Jellyfin:
                 res_items = res.json().get("Items")
                 if res_items:
                     for res_item in res_items:
-                        if res_item.get("Name") == name and (
-                            not year or str(res_item.get("ProductionYear")) == str(year)
-                        ):
+                        if res_item.get("Name") == name and (not year or str(res_item.get("ProductionYear")) == str(year)):
                             return res_item.get("Id")
         except Exception as e:
             logger.error("连接Items出错：" + str(e))
             return None
         return ""
 
-    def get_movies(
-        self, title: str, year: str | None = None, tmdb_id: int | None = None
-    ) -> list[schemas.MediaServerItem] | None:
+    def get_movies(self, title: str, year: str | None = None, tmdb_id: int | None = None) -> list[schemas.MediaServerItem] | None:
         """
         根据标题和年份，检查电影是否在Jellyfin中存在，存在则返回列表
         :param title: 标题
@@ -765,11 +756,7 @@ class Jellyfin:
         eventItem.user_name = message.get("NotificationUsername")
         eventItem.client = message.get("ClientName")
         eventItem.media_type = message.get("ItemType")
-        if (
-            message.get("ItemType") == "Episode"
-            or message.get("ItemType") == "Series"
-            or message.get("ItemType") == "Season"
-        ):
+        if message.get("ItemType") == "Episode" or message.get("ItemType") == "Series" or message.get("ItemType") == "Season":
             # 剧集
             eventItem.item_type = "TV"
             eventItem.season_id = message.get("SeasonNumber")
@@ -818,8 +805,7 @@ class Jellyfin:
                 user_state = None
             else:
                 resume = (
-                    item.get("UserData", {}).get("PlaybackPositionTicks")
-                    and item.get("UserData", {}).get("PlaybackPositionTicks") > 0
+                    item.get("UserData", {}).get("PlaybackPositionTicks") and item.get("UserData", {}).get("PlaybackPositionTicks") > 0
                 )
                 last_played_date = item.get("UserData", {}).get("LastPlayedDate")
                 if last_played_date is not None and "." in last_played_date:
@@ -827,9 +813,7 @@ class Jellyfin:
                 user_state = schemas.MediaServerItemUserState(
                     played=item.get("UserData", {}).get("Played"),
                     resume=resume,
-                    last_played_date=datetime.strptime(last_played_date, "%Y-%m-%dT%H:%M:%S").strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                    last_played_date=datetime.strptime(last_played_date, "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
                     if last_played_date
                     else None,
                     play_count=item.get("UserData", {}).get("PlayCount"),
@@ -945,11 +929,7 @@ class Jellyfin:
         """
         if not self._host or not self._apikey:
             return None
-        url = (
-            url.replace("[HOST]", self._host or "")
-            .replace("[APIKEY]", self._apikey or "")
-            .replace("[USER]", self.user or "")
-        )
+        url = url.replace("[HOST]", self._host or "").replace("[APIKEY]", self._apikey or "").replace("[USER]", self.user or "")
         try:
             return self._request(accept_type="application/json").get_res(url=url)
         except Exception as e:
@@ -965,11 +945,7 @@ class Jellyfin:
         """
         if not self._host or not self._apikey:
             return None
-        url = (
-            url.replace("[HOST]", self._host or "")
-            .replace("[APIKEY]", self._apikey or "")
-            .replace("[USER]", self.user or "")
-        )
+        url = url.replace("[HOST]", self._host or "").replace("[APIKEY]", self._apikey or "").replace("[USER]", self.user or "")
         try:
             return self._request(headers=headers).post_res(url=url, data=data)
         except Exception as e:
@@ -1044,18 +1020,12 @@ class Jellyfin:
                     if item.get("Type") not in ["Movie", "Episode"]:
                         continue
                     item_path = item.get("Path")
-                    if (
-                        item_path
-                        and library_folders
-                        and not any(str(item_path).startswith(folder) for folder in library_folders)
-                    ):
+                    if item_path and library_folders and not any(str(item_path).startswith(folder) for folder in library_folders):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))
                     if item.get("BackdropImageTags"):
-                        image = self.get_backdrop_url(
-                            item_id=item.get("Id"), image_tag=item.get("BackdropImageTags")[0]
-                        )
+                        image = self.get_backdrop_url(item_id=item.get("Id"), image_tag=item.get("BackdropImageTags")[0])
                     else:
                         image = self.__get_local_image_by_id(item.get("Id"))
                     # 小部分剧集无[xxx-S01E01-thumb.jpg]图片
@@ -1119,11 +1089,7 @@ class Jellyfin:
                     if item.get("Type") not in ["Movie", "Series"]:
                         continue
                     item_path = item.get("Path")
-                    if (
-                        item_path
-                        and library_folders
-                        and not any(str(item_path).startswith(folder) for folder in library_folders)
-                    ):
+                    if item_path and library_folders and not any(str(item_path).startswith(folder) for folder in library_folders):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))

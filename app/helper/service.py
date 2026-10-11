@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 
 from pydantic import ValidationError
 
@@ -104,11 +104,7 @@ class ServiceBaseHelper[TConf]:
         """
         configs: list[TConf] = ServiceConfigHelper.get_configs(self.config_key, self.conf_type)
         return (
-            {
-                config.name: config
-                for config in configs
-                if (config.name and config.type and config.enabled) or include_disabled
-            }
+            {config.name: config for config in configs if (config.name and config.type and config.enabled) or include_disabled}
             if configs
             else {}
         )
@@ -142,9 +138,7 @@ class ServiceBaseHelper[TConf]:
                 )
                 yield service_info
 
-    def get_services(
-        self, type_filter: str | None = None, name_filters: list[str] | None = None
-    ) -> dict[str, ServiceInfo]:
+    def get_services(self, type_filter: str | None = None, name_filters: list[str] | None = None) -> dict[str, ServiceInfo]:
         """
         获取服务信息列表，并根据类型和名称列表进行过滤
 

@@ -1,5 +1,5 @@
 import traceback
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.core.config import settings
 from app.core.event import eventmanager
@@ -27,7 +27,7 @@ class ModuleManager(metaclass=Singleton):
     """
 
     # 子模块类型集合
-    SubType = Union[DownloaderType, MediaServerType, MessageChannel, StorageSchema, OtherModulesType]
+    SubType = DownloaderType | MediaServerType | MessageChannel | StorageSchema | OtherModulesType
 
     def __init__(self):
         # 模块列表

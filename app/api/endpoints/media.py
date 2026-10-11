@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 
 from fastapi import APIRouter, Depends
 

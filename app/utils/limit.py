@@ -3,7 +3,7 @@ import inspect
 import threading
 import time
 from collections import deque
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.log import logger
 from app.schemas import LimitException, RateLimitExceededException

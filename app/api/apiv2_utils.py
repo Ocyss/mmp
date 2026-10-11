@@ -28,9 +28,7 @@ def _is_protocol_path(path: str) -> bool:
 def _is_json_response(response: StarletteResponse) -> bool:
     """判断响应是否为可安全解析的 JSON 响应。"""
     content_type = response.headers.get("content-type", "").split(";", 1)[0]
-    return any(
-        content_type == accepted_type or content_type.endswith(accepted_type) for accepted_type in _JSON_CONTENT_TYPES
-    )
+    return any(content_type == accepted_type or content_type.endswith(accepted_type) for accepted_type in _JSON_CONTENT_TYPES)
 
 
 def _is_response_payload(payload: Any) -> bool:
@@ -49,9 +47,7 @@ def _get_error_message(payload: Any) -> str:
         if isinstance(detail, str) and detail:
             return detail
         if isinstance(detail, list):
-            messages = [
-                item.get("msg") for item in detail if isinstance(item, dict) and isinstance(item.get("msg"), str)
-            ]
+            messages = [item.get("msg") for item in detail if isinstance(item, dict) and isinstance(item.get("msg"), str)]
             if messages:
                 return "; ".join(messages)
         if detail is not None:
@@ -169,10 +165,7 @@ def configure_v2_openapi(app: FastAPI) -> None:
         components["Response"] = Response.model_json_schema(ref_template="#/components/schemas/{model}")
 
         route_map = {
-            (route.path, method.lower()): route
-            for route in app.routes
-            if isinstance(route, APIRoute)
-            for method in route.methods
+            (route.path, method.lower()): route for route in app.routes if isinstance(route, APIRoute) for method in route.methods
         }
         response_ref = {"$ref": "#/components/schemas/Response"}
         for path, path_item in schema.get("paths", {}).items():

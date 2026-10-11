@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -127,9 +127,7 @@ class BangumiModule(_ModuleBase):
         if not bangumiid and (not meta or (source or settings.RECOGNIZE_SOURCE) != "bangumi"):
             return None
 
-        info = (
-            await self.async_bangumi_info(bangumiid=bangumiid) if bangumiid else await self._async_match_by_meta(meta)
-        )
+        info = await self.async_bangumi_info(bangumiid=bangumiid) if bangumiid else await self._async_match_by_meta(meta)
         if info:
             info["actors"] = await self.bangumiapi.async_credits(info.get("id"))
             mediainfo = MediaInfo(bangumi_info=info)
@@ -199,8 +197,7 @@ class BangumiModule(_ModuleBase):
             return [
                 MediaInfo(bangumi_info=info)
                 for info in infos
-                if meta.name.lower() in str(info.get("name")).lower()
-                or meta.name.lower() in str(info.get("name_cn")).lower()
+                if meta.name.lower() in str(info.get("name")).lower() or meta.name.lower() in str(info.get("name_cn")).lower()
             ]
         return []
 
@@ -222,8 +219,7 @@ class BangumiModule(_ModuleBase):
             return [
                 MediaInfo(bangumi_info=info)
                 for info in infos
-                if meta.name.lower() in str(info.get("name")).lower()
-                or meta.name.lower() in str(info.get("name_cn")).lower()
+                if meta.name.lower() in str(info.get("name")).lower() or meta.name.lower() in str(info.get("name_cn")).lower()
             ]
         return []
 

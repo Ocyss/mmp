@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode, urljoin
 
 from app.log import logger

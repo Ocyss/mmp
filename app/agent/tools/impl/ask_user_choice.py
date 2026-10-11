@@ -1,6 +1,6 @@
 """让用户通过按钮进行选择的工具。"""
 
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -139,9 +139,7 @@ class AskUserChoiceTool(MoviePilotTool):
         except ValueError:
             return f"不支持的消息渠道: {self._channel}"
 
-        if not (
-            ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel)
-        ):
+        if not (ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel)):
             return f"当前渠道 {channel.value} 不支持按钮选择"
 
         max_per_row = 1

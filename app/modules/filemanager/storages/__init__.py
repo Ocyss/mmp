@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from tqdm import tqdm
 
@@ -61,7 +61,7 @@ class StorageBase(metaclass=ABCMeta):
         pass
 
     def generate_qrcode(self, *args, **kwargs) -> tuple[dict, str] | None:
-        pass
+        return None
 
     def generate_auth_url(self, *args, **kwargs) -> tuple[dict, str] | None:
         """
@@ -70,7 +70,7 @@ class StorageBase(metaclass=ABCMeta):
         return {}, "此存储不支持 OAuth2 授权"
 
     def check_login(self, *args, **kwargs) -> dict[str, str] | None:
-        pass
+        return None
 
     def get_config(self) -> schemas.StorageConf | None:
         """

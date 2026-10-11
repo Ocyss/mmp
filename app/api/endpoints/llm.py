@@ -9,7 +9,7 @@ from app import schemas
 from app.agent.llm import (
     LLMHelper,
     LLMProviderManager,
-    LLMTestTimeout,
+    LLMTestTimeoutError,
     render_auth_result_html,
 )
 from app.core.config import settings
@@ -75,9 +75,7 @@ def _sanitize_llm_error(message: str, api_key: str | None = None) -> str:
     )
 
     normalized_message = sanitized.lower().replace("_", "").replace(" ", "")
-    if "str" in normalized_message and (
-        "modeldump" in normalized_message or "setprivateattributes" in normalized_message
-    ):
+    if "str" in normalized_message and ("modeldump" in normalized_message or "setprivateattributes" in normalized_message):
         return (
             "服务返回内容不是兼容的模型响应，请检查基础地址是否填写为 "
             "API Base URL，如果服务要求 /v1 等版本路径，请包含在基础地址中，"
@@ -315,7 +313,7 @@ async def llm_test(
                 data=result,
             )
         return schemas.Response(success=True, data=result)
-    except (LLMTestTimeout, TimeoutError) as err:
+    except (LLMTestTimeoutError, TimeoutError) as err:
         logger.warning(err)
         return schemas.Response(
             success=False,

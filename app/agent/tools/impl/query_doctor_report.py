@@ -1,7 +1,7 @@
 """查询 MoviePilot Doctor 诊断报告工具。"""
 
 import json
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 

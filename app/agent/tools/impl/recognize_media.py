@@ -1,7 +1,7 @@
 """识别媒体信息工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,9 +17,7 @@ from app.schemas.types import media_type_to_agent
 class RecognizeMediaInput(BaseModel):
     """识别媒体信息工具的输入参数模型"""
 
-    title: str | None = Field(
-        None, description="The title of the torrent/media to recognize (required for torrent recognition)"
-    )
+    title: str | None = Field(None, description="The title of the torrent/media to recognize (required for torrent recognition)")
     subtitle: str | None = Field(
         None, description="The subtitle or description of the torrent (optional, helps improve recognition accuracy)"
     )
@@ -55,9 +53,7 @@ class RecognizeMediaTool(MoviePilotTool):
 
         return message
 
-    async def run(
-        self, title: str | None = None, subtitle: str | None = None, path: str | None = None, **kwargs
-    ) -> str:
+    async def run(self, title: str | None = None, subtitle: str | None = None, path: str | None = None, **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: title={title}, subtitle={subtitle}, path={path}")
 
         try:
@@ -76,9 +72,7 @@ class RecognizeMediaTool(MoviePilotTool):
                 if context:
                     return self._format_context_result(context, "文件")
                 else:
-                    return json.dumps(
-                        {"success": False, "message": f"无法识别文件媒体信息: {path}", "path": path}, ensure_ascii=False
-                    )
+                    return json.dumps({"success": False, "message": f"无法识别文件媒体信息: {path}", "path": path}, ensure_ascii=False)
 
             elif title:
                 # 种子标题识别

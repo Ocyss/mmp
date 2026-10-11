@@ -1,5 +1,5 @@
 import random
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.chain import ChainBase
 
@@ -243,18 +243,14 @@ class TmdbChain(ChainBase):
         """
         return await self.async_run_module("async_tmdb_group_seasons", group_id=group_id)
 
-    async def async_tmdb_episodes(
-        self, tmdbid: int, season: int, episode_group: str | None = None
-    ) -> list[schemas.TmdbEpisode]:
+    async def async_tmdb_episodes(self, tmdbid: int, season: int, episode_group: str | None = None) -> list[schemas.TmdbEpisode]:
         """
         根据TMDBID查询某季的所有信信息（异步版本）
         :param tmdbid:  TMDBID
         :param season:  季
         :param episode_group:  剧集组
         """
-        return await self.async_run_module(
-            "async_tmdb_episodes", tmdbid=tmdbid, season=season, episode_group=episode_group
-        )
+        return await self.async_run_module("async_tmdb_episodes", tmdbid=tmdbid, season=season, episode_group=episode_group)
 
     async def async_movie_similar(self, tmdbid: int) -> list[MediaInfo] | None:
         """

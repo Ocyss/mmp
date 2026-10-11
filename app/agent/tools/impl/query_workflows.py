@@ -1,7 +1,7 @@
 """查询工作流工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -55,9 +55,7 @@ class QueryWorkflowsTool(MoviePilotTool):
 
         return " | ".join(parts) if len(parts) > 1 else parts[0]
 
-    async def run(
-        self, state: str | None = "all", name: str | None = None, trigger_type: str | None = "all", **kwargs
-    ) -> str:
+    async def run(self, state: str | None = "all", name: str | None = None, trigger_type: str | None = "all", **kwargs) -> str:
         logger.info(f"执行工具: {self.name}, 参数: state={state}, name={name}, trigger_type={trigger_type}")
 
         try:

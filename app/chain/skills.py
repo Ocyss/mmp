@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.chain import ChainBase
 from app.helper.interaction import (
@@ -638,9 +638,7 @@ class SkillsChain(ChainBase):
         构建根菜单视图，汇总本地技能和市场概览。
         """
         local_skills = self.skillhelper.list_local_skills()
-        market_skills = [
-            skill for skill in self.skillhelper.list_market_skills(force=force_market_refresh) if not skill.installed
-        ]
+        market_skills = [skill for skill in self.skillhelper.list_market_skills(force=force_market_refresh) if not skill.installed]
         source_entries = self.skillhelper.list_market_source_entries()
         source_lines = []
         for index, source_entry in enumerate(source_entries, start=1):
@@ -1004,9 +1002,7 @@ class SkillsChain(ChainBase):
         """
         获取当前 /skills 会话可见的市场技能，并应用搜索词过滤。
         """
-        skills = [
-            skill for skill in self.skillhelper.list_market_skills(force=force_market_refresh) if not skill.installed
-        ]
+        skills = [skill for skill in self.skillhelper.list_market_skills(force=force_market_refresh) if not skill.installed]
         if not request.market_query:
             return skills
         return self.skillhelper.filter_market_skills(

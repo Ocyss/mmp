@@ -1,7 +1,7 @@
 import copy
 import re
 import traceback
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.chain import ChainBase
 from app.chain.media import MediaChain
@@ -212,11 +212,7 @@ class TorrentsChain(ChainBase):
             )
         }
         context_types.discard(None)
-        return (
-            not subscribe_type
-            or not context_types
-            or all(context_type == subscribe_type for context_type in context_types)
-        )
+        return not subscribe_type or not context_types or all(context_type == subscribe_type for context_type in context_types)
 
     @classmethod
     def _context_season_matches_subscribe(cls, context: Context, subscribe) -> bool:
@@ -401,9 +397,7 @@ class TorrentsChain(ChainBase):
         await self.async_remove_cache(self._rss_file)
         logger.info("异步种子缓存数据清理完成")
 
-    def browse(
-        self, domain: str, keyword: str | None = None, cat: str | None = None, page: int | None = 0
-    ) -> list[TorrentInfo]:
+    def browse(self, domain: str, keyword: str | None = None, cat: str | None = None, page: int | None = 0) -> list[TorrentInfo]:
         """
         浏览站点首页内容，返回种子清单，TTL缓存5分钟
         :param domain: 站点域名
@@ -581,11 +575,7 @@ class TorrentsChain(ChainBase):
                     cached_signatures = {
                         f"{t.torrent_info.title}{t.torrent_info.description}" for t in torrents_cache.get(domain) or []
                     }
-                    torrents = [
-                        torrent
-                        for torrent in torrents
-                        if f"{torrent.title}{torrent.description}" not in cached_signatures
-                    ]
+                    torrents = [torrent for torrent in torrents if f"{torrent.title}{torrent.description}" not in cached_signatures]
                 if torrents:
                     logger.info(f"{indexer.get('name')} 有 {len(torrents)} 个新种子")
                 else:
@@ -682,14 +672,10 @@ class TorrentsChain(ChainBase):
                 if "resource_source" not in context_fields:
                     context.resource_source = "spider" if stype == "spider" else "rss"
                 if "candidate_recognized" not in context_fields:
-                    context.candidate_recognized = bool(
-                        context.media_info and all(resolve_media_identity(media=context.media_info))
-                    )
+                    context.candidate_recognized = bool(context.media_info and all(resolve_media_identity(media=context.media_info)))
                 if "match_source" not in context_fields:
                     context.match_source = (
-                        TorrentsChain._get_media_id_match_source(context.media_info)
-                        if context.candidate_recognized
-                        else "unknown"
+                        TorrentsChain._get_media_id_match_source(context.media_info) if context.candidate_recognized else "unknown"
                     )
                 if "media_info_is_target" not in context_fields:
                     context.media_info_is_target = False

@@ -117,9 +117,7 @@ class GazelleSiteUserInfo(SiteParserBase):
             page_seeding_size = 0
             page_seeding_info = []
             seeding_sizes = html.xpath(f'//table[contains(@id, "torrent")]//tr[position()>1]/td[{size_col}]')
-            seeding_seeders = html.xpath(
-                f'//table[contains(@id, "torrent")]//tr[position()>1]/td[{seeders_col}]/text()'
-            )
+            seeding_seeders = html.xpath(f'//table[contains(@id, "torrent")]//tr[position()>1]/td[{seeders_col}]/text()')
             if seeding_sizes and seeding_seeders:
                 page_seeding = len(seeding_sizes)
 

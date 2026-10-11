@@ -1,7 +1,7 @@
 """查询下载器工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

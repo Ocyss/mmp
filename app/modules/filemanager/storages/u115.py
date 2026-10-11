@@ -4,7 +4,7 @@ import time
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import httpx
 import oss2
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     import builtins
 
 lock = Lock()
-
 
 MIN_U115_UPLOAD_PART_SIZE = 1 * 1024 * 1024
 U115_UPLOAD_PART_COUNT_TARGET = 96
@@ -400,9 +399,7 @@ class U115Pan(StorageBase, metaclass=WeakSingleton):
                         self._limit_until,
                         time.time() + self.limit_sleep_seconds,
                     )
-                logger.warning(
-                    f"【115】触发风控(访问上限)，全体接口进入风控冷却 {self.limit_sleep_seconds} 秒，随后重试..."
-                )
+                logger.warning(f"【115】触发风控(访问上限)，全体接口进入风控冷却 {self.limit_sleep_seconds} 秒，随后重试...")
                 time.sleep(self.limit_sleep_seconds)
                 kwargs["retry_limit"] = retry_times - 1
                 kwargs["no_error_log"] = no_error_log
@@ -662,9 +659,7 @@ class U115Pan(StorageBase, metaclass=WeakSingleton):
                         type="file" if info_resp["file_category"] == "1" else "dir",
                         name=info_resp["file_name"],
                         basename=Path(info_resp["file_name"]).stem,
-                        extension=Path(info_resp["file_name"]).suffix[1:]
-                        if info_resp["file_category"] == "1"
-                        else None,
+                        extension=Path(info_resp["file_name"]).suffix[1:] if info_resp["file_category"] == "1" else None,
                         pickcode=info_resp["pick_code"],
                         size=StringUtils.num_filesize(info_resp["size"]) if info_resp["file_category"] == "1" else None,
                         modify_time=info_resp["utime"],
@@ -715,9 +710,7 @@ class U115Pan(StorageBase, metaclass=WeakSingleton):
         progress_callback = transfer_process(local_path.as_posix())
 
         # 初始化分片
-        upload_id = bucket.init_multipart_upload(
-            object_name, params={"encoding-type": "url", "sequential": ""}
-        ).upload_id
+        upload_id = bucket.init_multipart_upload(object_name, params={"encoding-type": "url", "sequential": ""}).upload_id
         parts = []
         # 逐个上传分片
         with open(local_path, "rb") as fileobj:

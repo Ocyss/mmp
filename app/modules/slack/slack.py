@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import quote
 
 import requests
@@ -69,9 +69,7 @@ class Slack:
         self._oauth_token = SLACK_OAUTH_TOKEN
         self._app_id = (SLACK_APP_ID or "").strip()
         self._command_request_url = (SLACK_COMMAND_REQUEST_URL or "").strip()
-        self._manifest_client = (
-            WebClient(token=SLACK_APP_CONFIG_TOKEN) if SLACK_APP_CONFIG_TOKEN and self._app_id else None
-        )
+        self._manifest_client = WebClient(token=SLACK_APP_CONFIG_TOKEN) if SLACK_APP_CONFIG_TOKEN and self._app_id else None
         self._registered_command_names: set[str] = set()
 
         # 标记消息来源
@@ -370,9 +368,7 @@ class Slack:
                 )
             else:
                 # 发送新消息
-                result = self._client.chat_postMessage(
-                    channel=channel, text=message_text[:1000], blocks=blocks, mrkdwn=True
-                )
+                result = self._client.chat_postMessage(channel=channel, text=message_text[:1000], blocks=blocks, mrkdwn=True)
             return True, result
         except Exception as msg_e:
             logger.error(f"Slack消息发送失败: {msg_e}")
@@ -592,9 +588,7 @@ class Slack:
             # 判断是编辑消息还是发送新消息
             if original_message_id and original_chat_id:
                 # 编辑消息
-                result = self._client.chat_update(
-                    channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or []
-                )
+                result = self._client.chat_update(channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or [])
             else:
                 # 发送新消息
                 result = self._client.chat_postMessage(channel=channel, text=title, blocks=blocks)
@@ -717,9 +711,7 @@ class Slack:
             # 判断是编辑消息还是发送新消息
             if original_message_id and original_chat_id:
                 # 编辑消息
-                result = self._client.chat_update(
-                    channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or []
-                )
+                result = self._client.chat_update(channel=original_chat_id, ts=original_message_id, text=title, blocks=blocks or [])
             else:
                 # 发送新消息
                 result = self._client.chat_postMessage(channel=channel, text=title, blocks=blocks)

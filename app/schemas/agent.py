@@ -1,7 +1,7 @@
 """AI智能体相关数据模型"""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 

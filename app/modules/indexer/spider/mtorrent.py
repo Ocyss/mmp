@@ -1,7 +1,7 @@
 import base64
 import json
 import re
-from typing import List, Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 from app.core.config import settings
@@ -186,9 +186,7 @@ class MTorrentSpider:
             logger.warn(f"{self._name} 搜索失败，无法连接 {self._domain}")
             return True, []
 
-    async def async_search(
-        self, keyword: str, mtype: MediaType = None, page: int | None = 0
-    ) -> tuple[bool, list[dict]]:
+    async def async_search(self, keyword: str, mtype: MediaType = None, page: int | None = 0) -> tuple[bool, list[dict]]:
         """
         搜索
         """
@@ -275,7 +273,7 @@ class MTorrentSpider:
         :param page_url: 种子详情页网址
         :type page_url: str
         :return: 字幕下载链接
-        :rtype: List[str]
+        :rtype: list[str]
         """
         if not page_url:
             return []
@@ -292,13 +290,15 @@ class MTorrentSpider:
         :param torrent_id: 种子ID
         :type torrent_id: str
         :return: 字幕下载链接
-        :rtype: List[str]
+        :rtype: list[str]
         """
         results = []
         try:
-            for subtitle_id in self.__subtitle_ids(torrent_id) or []:
-                if link := self.__subtitle_genlink(subtitle_id):
-                    results.append(link)
+            results.extend(
+                link
+                for subtitle_id in self.__subtitle_ids(torrent_id) or []
+                if (link := self.__subtitle_genlink(subtitle_id))
+            )
         except Exception as e:
             logger.error(f"{self._name} 获取字幕失败：{e}")
         return results
@@ -310,7 +310,7 @@ class MTorrentSpider:
         :param torrent_id: 种子ID
         :type torrent_id: str
         :return: 字幕ID
-        :rtype: List[str] | None
+        :rtype: list[str] | None
         """
         url = self._subtitle_list_url % self._domain
         # 发送请求

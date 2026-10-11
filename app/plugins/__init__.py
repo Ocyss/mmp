@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, List, Dict, Tuple, Optional, Type
+from typing import Any, Optional
 
 from app.chain import ChainBase
 from app.core.config import settings
@@ -10,13 +10,11 @@ from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.message import MessageHelper
 from app.schemas import Notification, NotificationType, MessageChannel
 
-
 class PluginChian(ChainBase):
     """
     插件处理链
     """
     pass
-
 
 class _PluginBase(metaclass=ABCMeta):
     """
@@ -72,7 +70,7 @@ class _PluginBase(metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def get_command() -> List[Dict[str, Any]]:
+    def get_command() -> list[dict[str, Any]]:
         """
         注册插件远程命令
         [{
@@ -86,7 +84,7 @@ class _PluginBase(metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def get_render_mode() -> Tuple[str, Optional[str]]:
+    def get_render_mode() -> tuple[str, Optional[str]]:
         """
         获取插件渲染模式
         :return: 1、渲染模式，支持：vue/vuetify，默认vuetify；2、vue模式下编译后文件的相对路径，默认为`dist/asserts`，vuetify模式下为None
@@ -94,7 +92,7 @@ class _PluginBase(metaclass=ABCMeta):
         return "vuetify", None
 
     @abstractmethod
-    def get_api(self) -> List[Dict[str, Any]]:
+    def get_api(self) -> list[dict[str, Any]]:
         """
         注册插件API
         [{
@@ -109,7 +107,7 @@ class _PluginBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
+    def get_form(self) -> tuple[Optional[list[dict]], dict[str, Any]]:
         """
         拼装插件配置页面，插件配置页面使用Vuetify组件拼装，参考：https://vuetifyjs.com/
         :return: 1、页面配置（vuetify模式）或 None（vue模式）；2、默认数据结构
@@ -117,7 +115,7 @@ class _PluginBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_page(self) -> Optional[List[dict]]:
+    def get_page(self) -> Optional[list[dict]]:
         """
         拼装插件详情页面，需要返回页面配置，同时附带数据
         插件详情页面使用Vuetify组件拼装，参考：https://vuetifyjs.com/
@@ -125,7 +123,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_service(self) -> List[Dict[str, Any]]:
+    def get_service(self) -> list[dict[str, Any]]:
         """
         注册插件公共服务
         [{
@@ -138,7 +136,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_dashboard(self, key: str, **kwargs) -> Optional[Tuple[Dict[str, Any], Dict[str, Any], Optional[List[dict]]]]:
+    def get_dashboard(self, key: str, **kwargs) -> Optional[tuple[dict[str, Any], dict[str, Any], Optional[list[dict]]]]:
         """
         获取插件仪表盘页面，需要返回：1、仪表板col配置字典；2、全局配置（布局、自动刷新等）；3、仪表板页面元素配置含数据json（vuetify）或 None（vue模式）
         1、col配置参考：
@@ -160,7 +158,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_dashboard_meta(self) -> Optional[List[Dict[str, str]]]:
+    def get_dashboard_meta(self) -> Optional[list[dict[str, str]]]:
         """
         获取插件仪表盘元信息
         返回示例：
@@ -174,7 +172,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_auth_providers(self) -> List[Dict[str, Any]]:
+    def get_auth_providers(self) -> list[dict[str, Any]]:
         """
         声明插件提供的登录认证入口。
 
@@ -189,7 +187,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_module(self) -> Dict[str, Any]:
+    def get_module(self) -> dict[str, Any]:
         """
         获取插件模块声明，用于胁持系统模块实现（方法名：方法实现）
         {
@@ -199,7 +197,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_actions(self) -> List[Dict[str, Any]]:
+    def get_actions(self) -> list[dict[str, Any]]:
         """
         获取插件工作流动作
         [{
@@ -215,7 +213,7 @@ class _PluginBase(metaclass=ABCMeta):
         """
         pass
 
-    def get_agent_tools(self) -> List[Type]:
+    def get_agent_tools(self) -> list[Type]:
         """
         获取插件智能体工具
         返回工具类列表，每个工具类必须继承自 MoviePilotTool

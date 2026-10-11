@@ -1,6 +1,5 @@
 """动态注入 Agent 根层运行时配置的中间件。"""
 
-
 from typing import TYPE_CHECKING
 
 from langchain.agents.middleware.types import (

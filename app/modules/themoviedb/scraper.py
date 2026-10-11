@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 from xml.dom import minidom
 
 from app.core.config import settings
@@ -118,12 +118,7 @@ class TmdbScraper:
             self.__ensure_main_images(mediainfo)
             # 获取媒体信息中原有图片
             for attr_name, attr_value in vars(mediainfo).items():
-                if (
-                    attr_value
-                    and attr_name.endswith("_path")
-                    and isinstance(attr_value, str)
-                    and attr_value.startswith("http")
-                ):
+                if attr_value and attr_name.endswith("_path") and isinstance(attr_value, str) and attr_value.startswith("http"):
                     image_name = attr_name.replace("_path", "") + Path(attr_value).suffix
                     images[image_name] = attr_value
 

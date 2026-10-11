@@ -7,7 +7,7 @@ import json
 import re
 import threading
 import time
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import websocket
 

@@ -1,6 +1,6 @@
 """发送语音消息工具。"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -64,10 +64,7 @@ class SendVoiceMessageTool(MoviePilotTool):
         fallback_reason = "当前渠道不支持语音回复"
         if not AgentCapabilityManager.supports_audio_output():
             fallback_reason = "当前未启用音频输出"
-        if (
-            reply_mode == AgentCapabilityManager.REPLY_MODE_NATIVE
-            and AgentCapabilityManager.is_audio_output_available()
-        ):
+        if reply_mode == AgentCapabilityManager.REPLY_MODE_NATIVE and AgentCapabilityManager.is_audio_output_available():
             voice_file = await self.run_blocking("default", AgentCapabilityManager.synthesize_speech, message)
             if voice_file:
                 voice_path = str(voice_file)

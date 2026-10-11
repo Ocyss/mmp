@@ -1,7 +1,7 @@
 import time
 import traceback
 from http.cookies import SimpleCookie
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import urlparse
 
 import qbittorrentapi
@@ -220,9 +220,7 @@ class Qbittorrent:
                     qbt.auth_log_in()
             except Exception as e:
                 if e.__class__.__name__ in {"LoginFailed", "Forbidden403Error", "Unauthorized401Error"}:
-                    error_hint = (
-                        "请检查 API Key 是否正确" if self.__use_api_key_auth() else "请检查用户名和密码是否正确"
-                    )
+                    error_hint = "请检查 API Key 是否正确" if self.__use_api_key_auth() else "请检查用户名和密码是否正确"
                     logger.error(f"qbittorrent 登录失败：{str(e).strip() or error_hint}")
                     return None
                 stack_trace = "".join(traceback.format_exception(None, e, e.__traceback__))[:2000]
@@ -300,9 +298,7 @@ class Qbittorrent:
                 ret_torrents.append(torrent)
         return ret_torrents
 
-    def get_downloading_torrents(
-        self, ids: str | list = None, tags: str | list = None
-    ) -> list[TorrentDictionary] | None:
+    def get_downloading_torrents(self, ids: str | list = None, tags: str | list = None) -> list[TorrentDictionary] | None:
         """
         获取正在下载的种子
         return: 种子列表, 如发生异常则返回None

@@ -1,7 +1,7 @@
 """种子搜索工具辅助函数"""
 
 import re
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.utils.crypto import HashUtils
 from app.utils.string import StringUtils

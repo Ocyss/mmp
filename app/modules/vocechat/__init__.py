@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 from app.log import logger
@@ -218,20 +218,11 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
-        mime_type = (
-            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
-        ).lower()
-        file_path = (
-            properties.get("path")
-            or properties.get("file_path")
-            or properties.get("storage_path")
-            or detail.get("content")
-        )
+        mime_type = (properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or "").lower()
+        file_path = properties.get("path") or properties.get("file_path") or properties.get("storage_path") or detail.get("content")
         direct_url = properties.get("url") or properties.get("download_url") or properties.get("file_url")
         file_name = (
-            properties.get("name")
-            or properties.get("filename")
-            or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
+            properties.get("name") or properties.get("filename") or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
         ).lower()
 
         is_image = mime_type.startswith("image/") or file_name.endswith(cls._IMAGE_SUFFIXES)
@@ -264,19 +255,10 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
-        mime_type = (
-            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
-        ).lower()
-        file_path = (
-            properties.get("path")
-            or properties.get("file_path")
-            or properties.get("storage_path")
-            or detail.get("content")
-        )
+        mime_type = (properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or "").lower()
+        file_path = properties.get("path") or properties.get("file_path") or properties.get("storage_path") or detail.get("content")
         file_name = (
-            properties.get("name")
-            or properties.get("filename")
-            or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
+            properties.get("name") or properties.get("filename") or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
         ).lower()
 
         is_audio = mime_type.startswith("audio/") or file_name.endswith(cls._AUDIO_SUFFIXES)
@@ -293,20 +275,9 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
         if content_type != "vocechat/file":
             return None
         properties = detail.get("properties") or {}
-        mime_type = (
-            properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or ""
-        ).lower()
-        file_path = (
-            properties.get("path")
-            or properties.get("file_path")
-            or properties.get("storage_path")
-            or detail.get("content")
-        )
-        file_name = (
-            properties.get("name")
-            or properties.get("filename")
-            or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
-        )
+        mime_type = (properties.get("content_type") or properties.get("mime_type") or properties.get("contentType") or "").lower()
+        file_path = properties.get("path") or properties.get("file_path") or properties.get("storage_path") or detail.get("content")
+        file_name = properties.get("name") or properties.get("filename") or (str(file_path).rsplit("/", 1)[-1] if file_path else "")
         lowered_name = str(file_name).lower()
         is_image = mime_type.startswith("image/") or lowered_name.endswith(cls._IMAGE_SUFFIXES)
         is_audio = mime_type.startswith("audio/") or lowered_name.endswith(cls._AUDIO_SUFFIXES)
@@ -316,9 +287,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
             CommingMessage.MessageAttachment(
                 ref=f"vocechat://file/{quote(file_path, safe='')}",
                 name=file_name,
-                mime_type=properties.get("content_type")
-                or properties.get("mime_type")
-                or properties.get("contentType"),
+                mime_type=properties.get("content_type") or properties.get("mime_type") or properties.get("contentType"),
                 size=properties.get("size"),
             )
         ]
@@ -338,9 +307,7 @@ class VoceChatModule(_ModuleBase, _MessageBase[VoceChat]):
                 userid = targets.get("vocechat_userid")
             client: VoceChat = self.get_instance(conf.name)
             if client:
-                client.send_msg(
-                    title=message.title, text=message.text, image=message.image, userid=userid, link=message.link
-                )
+                client.send_msg(title=message.title, text=message.text, image=message.image, userid=userid, link=message.link)
 
     def post_medias_message(self, message: Notification, medias: list[MediaInfo]) -> None:
         """

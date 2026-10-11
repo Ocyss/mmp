@@ -13,7 +13,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastapi import HTTPException
 from starlette import status
@@ -196,9 +196,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         logger.info("插件停止完成")
 
     @staticmethod
-    def _load_selective_plugins(
-        pid: str | None, installed_plugins: list[str], check_module_func: Callable
-    ) -> list[Any]:
+    def _load_selective_plugins(pid: str | None, installed_plugins: list[str], check_module_func: Callable) -> list[Any]:
         """
         选择性加载插件，只import符合条件的插件
         :param pid: 指定插件ID，为空则加载所有已安装插件
@@ -340,15 +338,15 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         """
         # 监视插件目录
         plugin_paths = [str(settings.ROOT_PATH / "app" / "plugins")]
-        for local_repo_path in PluginHelper.get_local_repo_paths():
-            if local_repo_path.exists() and local_repo_path.is_dir():
-                plugin_paths.append(str(local_repo_path))
+        plugin_paths.extend(
+            str(local_repo_path)
+            for local_repo_path in PluginHelper.get_local_repo_paths()
+            if local_repo_path.exists() and local_repo_path.is_dir()
+        )
         logger.info(">>> 监控线程已启动，准备进入watch循环...")
         # 使用 watchfiles 监视目录变化，并响应变化事件
         # Todo: yield_on_timeout = True 时，每秒检查停止事件，会返回空集合；后续可以考虑用来做心跳之类的功能？
-        for changes in watch(
-            *plugin_paths, stop_event=self._stop_monitor_event, rust_timeout=1000, yield_on_timeout=True
-        ):
+        for changes in watch(*plugin_paths, stop_event=self._stop_monitor_event, rust_timeout=1000, yield_on_timeout=True):
             # 如果收到停止事件，退出循环
             if not changes:
                 continue
@@ -368,8 +366,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
                     if candidate:
                         if candidate.get("compatible") is False:
                             logger.info(
-                                f"检测到本地插件 {candidate.get('id')} 依赖文件变化，"
-                                f"但跳过处理：{candidate.get('skip_reason')}"
+                                f"检测到本地插件 {candidate.get('id')} 依赖文件变化，但跳过处理：{candidate.get('skip_reason')}"
                             )
                             continue
                         logger.warn(f"检测到本地插件 {candidate.get('id')} 依赖文件变化，请重新安装本地插件以安装依赖")
@@ -381,9 +378,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
                     # 运行目录由构建方直接写入；外部本地仓库只在入口完整时同步运行副本。
                     if candidate and remote_entry_ready:
                         if candidate.get("compatible") is False:
-                            logger.info(
-                                f"检测到本地插件 {pid} 联邦构建产物变化，但跳过同步：{candidate.get('skip_reason')}"
-                            )
+                            logger.info(f"检测到本地插件 {pid} 联邦构建产物变化，但跳过同步：{candidate.get('skip_reason')}")
                         elif pid not in local_plugins_to_sync:
                             local_plugins_to_sync[pid] = (candidate, event_path, False)
                     continue
@@ -453,11 +448,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
                     return None
                 plugin_dir = runtime_root / relative_parts[0]
                 pid = next(
-                    (
-                        plugin_id
-                        for plugin_id in self._running_plugins
-                        if plugin_id.lower() == relative_parts[0].lower()
-                    ),
+                    (plugin_id for plugin_id in self._running_plugins if plugin_id.lower() == relative_parts[0].lower()),
                     None,
                 )
 
@@ -477,11 +468,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
 
             plugin_dir = plugin_dir.resolve()
             dist_dir = (plugin_dir / relative_dist_path).resolve()
-            if (
-                dist_dir == plugin_dir
-                or not dist_dir.is_relative_to(plugin_dir)
-                or not event_path.is_relative_to(dist_dir)
-            ):
+            if dist_dir == plugin_dir or not dist_dir.is_relative_to(plugin_dir) or not event_path.is_relative_to(dist_dir):
                 return None
 
             remote_entry = dist_dir / "remoteEntry.js"
@@ -663,10 +650,11 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
             plugin_module_prefix = "app.plugins"
 
         # 收集需要删除的模块名（创建模块名列表的副本以避免迭代时修改字典）
-        modules_to_remove = []
-        for module_name in list(sys.modules.keys()):
-            if module_name == plugin_module_prefix or module_name.startswith(plugin_module_prefix + "."):
-                modules_to_remove.append(module_name)
+        modules_to_remove = [
+            module_name
+            for module_name in list(sys.modules.keys())
+            if module_name == plugin_module_prefix or module_name.startswith(plugin_module_prefix + ".")
+        ]
 
         # 删除模块
         for module_name in modules_to_remove:
@@ -697,14 +685,10 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
             elapsed_time = time.time() - start_time
             if state:
                 MoviePilotServerHelper.install_plugin_reg(plugin_id=plugin.id, repo_url=plugin.repo_url)
-                logger.info(
-                    f"插件 {plugin.plugin_name} 安装成功，版本：{plugin.plugin_version}，耗时：{elapsed_time:.2f} 秒"
-                )
+                logger.info(f"插件 {plugin.plugin_name} 安装成功，版本：{plugin.plugin_version}，耗时：{elapsed_time:.2f} 秒")
                 sync_plugins.append(plugin.id)
             else:
-                logger.error(
-                    f"插件 {plugin.plugin_name} v{plugin.plugin_version} 安装失败：{msg}，耗时：{elapsed_time:.2f} 秒"
-                )
+                logger.error(f"插件 {plugin.plugin_name} v{plugin.plugin_version} 安装失败：{msg}，耗时：{elapsed_time:.2f} 秒")
                 failed_plugins.append(plugin.id)
 
         if SystemUtils.is_frozen():
@@ -716,9 +700,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         online_plugins = self.get_online_plugins()
         local_repo_plugins = self.get_local_repo_plugins()
         candidate_plugins = (
-            self.process_plugins_list(online_plugins + local_repo_plugins, [])
-            if online_plugins or local_repo_plugins
-            else []
+            self.process_plugins_list(online_plugins + local_repo_plugins, []) if online_plugins or local_repo_plugins else []
         )
         # 确定需要安装的插件
         plugins_to_install = [
@@ -748,8 +730,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
 
         total_elapsed_time = time.time() - total_start_time
         logger.info(
-            f"第三方插件安装完成，成功：{len(sync_plugins)} 个，"
-            f"失败：{len(failed_plugins)} 个，总耗时：{total_elapsed_time:.2f} 秒"
+            f"第三方插件安装完成，成功：{len(sync_plugins)} 个，失败：{len(failed_plugins)} 个，总耗时：{total_elapsed_time:.2f} 秒"
         )
         return sync_plugins
 
@@ -977,9 +958,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
                         continue
                     actions = plugin.get_actions()
                     if actions:
-                        ret_actions.append(
-                            {"plugin_id": plugin_id, "plugin_name": plugin.plugin_name, "actions": actions}
-                        )
+                        ret_actions.append({"plugin_id": plugin_id, "plugin_name": plugin.plugin_name, "actions": actions})
                 except Exception as e:
                     logger.error(f"获取插件 {plugin_id} 动作出错：{str(e)}")
         return ret_actions
@@ -1026,9 +1005,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
                             continue
                         tools = plugin.get_agent_tools()
                         if tools:
-                            ret_tools.append(
-                                {"plugin_id": plugin_id, "plugin_name": plugin.plugin_name, "tools": tools}
-                            )
+                            ret_tools.append({"plugin_id": plugin_id, "plugin_name": plugin.plugin_name, "tools": tools})
                     except Exception as e:
                         logger.error(f"获取插件 {plugin_id} 智能体工具出错：{str(e)}")
             with self._plugin_agent_tools_cache_lock:
@@ -1256,14 +1233,12 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"插件 {pid} 调用方法 get_dashboard 出错: {str(e)}",
-            )
+            ) from e
         if dashboard is None:
             return None
         if not isinstance(dashboard, (tuple, list)) or len(dashboard) != 3:
             logger.error(f"插件 {pid} 返回的仪表盘数据格式错误")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"插件 {pid} 返回的仪表盘数据格式错误"
-            )
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"插件 {pid} 返回的仪表盘数据格式错误")
         cols, attrs, elements = dashboard
         return schemas.PluginDashboard(
             id=pid,
@@ -1358,9 +1333,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
 
                 # 提交任务获取高版本插件（如 v2、v3），存储 future 到 version 的映射
                 if settings.VERSION_FLAG:
-                    higher_version_future = executor.submit(
-                        self.get_plugins_from_market, m, settings.VERSION_FLAG, force
-                    )
+                    higher_version_future = executor.submit(self.get_plugins_from_market, m, settings.VERSION_FLAG, force)
                     futures_to_version[higher_version_future] = "higher_version"
 
             # 按照完成顺序处理结果
@@ -1543,9 +1516,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         with fresh(force):
             online_plugins = PluginHelper().get_plugins(market, package_version)
         if online_plugins is None:
-            logger.warning(
-                f"获取{package_version if package_version else ''}插件库失败：{market}，请检查 GitHub 网络连接"
-            )
+            logger.warning(f"获取{package_version if package_version else ''}插件库失败：{market}，请检查 GitHub 网络连接")
             return []
         ret_plugins = []
         add_time = len(online_plugins)
@@ -1840,9 +1811,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
         async with async_fresh(force):
             online_plugins = await PluginHelper().async_get_plugins(market, package_version)
         if online_plugins is None:
-            logger.warning(
-                f"获取{package_version if package_version else ''}插件库失败：{market}，请检查 GitHub 网络连接"
-            )
+            logger.warning(f"获取{package_version if package_version else ''}插件库失败：{market}，请检查 GitHub 网络连接")
             return []
         ret_plugins = []
         add_time = len(online_plugins)
@@ -2138,9 +2107,7 @@ class PluginManager(ConfigReloadMixin, metaclass=Singleton):
             logger.error(f"修改Python文件失败：{str(e)}")
             return False, f"修改Python文件失败：{str(e)}"
 
-    def _modify_federation_files(
-        self, dist_dir: Path, original_class_name: str, clone_class_name: str
-    ) -> tuple[bool, str]:
+    def _modify_federation_files(self, dist_dir: Path, original_class_name: str, clone_class_name: str) -> tuple[bool, str]:
         """
         修改联邦插件的前端文件
         """

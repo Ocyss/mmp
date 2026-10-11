@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -28,9 +28,7 @@ class AddDownloadTasksInput(BaseModel):
         ...,
         description="One or more torrent_url values. Supports refs from get_search_results (`hash:id`) and magnet links.",
     )
-    downloader: str | None = Field(
-        None, description="Name of the downloader to use (optional, uses default if not specified)"
-    )
+    downloader: str | None = Field(None, description="Name of the downloader to use (optional, uses default if not specified)")
     save_path: str | None = Field(
         None,
         description="Directory path where the downloaded files should be saved. Using `<storage>:<path>` for remote storage. e.g. rclone:/MP, smb:/server/share/Movies. (optional, uses default path if not specified)",

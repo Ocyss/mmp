@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.core.config import settings
 from app.core.metainfo import MetaInfo
@@ -479,14 +479,8 @@ class MediaInfo:
             _credits = tmdbinfo.get("credits")
             if not _credits:
                 return [], []
-            directors = []
-            actors = []
-            for cast in _credits.get("cast") or []:
-                if cast.get("known_for_department") == "Acting":
-                    actors.append(cast)
-            for crew in _credits.get("crew") or []:
-                if crew.get("job") in ["Director", "Writer", "Editor", "Producer"]:
-                    directors.append(crew)
+            actors = [cast for cast in _credits.get("cast") or [] if cast.get("known_for_department") == "Acting"]
+            directors = [crew for crew in _credits.get("crew") or [] if crew.get("job") in ["Director", "Writer", "Editor", "Producer"]]
             return directors, actors
 
         if not info:
@@ -830,9 +824,7 @@ class MediaInfo:
                 self.number_of_seasons = 1
         # 风格
         if not self.genres:
-            self.genres = [
-                {"id": tag.get("name"), "name": tag.get("name")} for tag in info.get("tags") or [] if tag.get("name")
-            ]
+            self.genres = [{"id": tag.get("name"), "name": tag.get("name")} for tag in info.get("tags") or [] if tag.get("name")]
         # 制作公司与导演
         if info.get("infobox"):
             companies = []
@@ -897,9 +889,7 @@ class MediaInfo:
         ):
             return str(translated_title)
         for synonym in reversed(info.get("synonyms") or []):
-            if ANILIST_CHINESE_TITLE_PATTERN.search(str(synonym)) and not ANILIST_JAPANESE_KANA_PATTERN.search(
-                str(synonym)
-            ):
+            if ANILIST_CHINESE_TITLE_PATTERN.search(str(synonym)) and not ANILIST_JAPANESE_KANA_PATTERN.search(str(synonym)):
                 return str(synonym)
         return str(translated_title)
 
@@ -918,11 +908,7 @@ class MediaInfo:
 
         titles = info.get("title") or {}
         self.title = (
-            self.title
-            or self._anilist_chinese_title(info)
-            or titles.get("native")
-            or titles.get("romaji")
-            or titles.get("english")
+            self.title or self._anilist_chinese_title(info) or titles.get("native") or titles.get("romaji") or titles.get("english")
         )
         self.en_title = self.en_title or titles.get("english")
         self.original_title = self.original_title or titles.get("native") or titles.get("romaji")
@@ -969,9 +955,7 @@ class MediaInfo:
         self.adult = self.adult or bool(info.get("isAdult"))
         self.status = self.status or info.get("status")
         self.original_language = self.original_language or ("ja" if info.get("countryOfOrigin") == "JP" else None)
-        self.origin_country = self.origin_country or (
-            [info.get("countryOfOrigin")] if info.get("countryOfOrigin") else []
-        )
+        self.origin_country = self.origin_country or ([info.get("countryOfOrigin")] if info.get("countryOfOrigin") else [])
         self.production_companies = self.production_companies or [
             {"name": studio.get("name")} for studio in info.get("studios", {}).get("nodes") or [] if studio.get("name")
         ]

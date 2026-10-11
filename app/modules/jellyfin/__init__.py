@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.core.event import eventmanager
@@ -78,9 +78,7 @@ class JellyfinModule(_ModuleBase, _MediaServerBase[Jellyfin]):
                 return False, f"无法连接Jellyfin服务器：{name}"
         return True, ""
 
-    def user_authenticate(
-        self, credentials: AuthCredentials, service_name: str | None = None
-    ) -> AuthCredentials | None:
+    def user_authenticate(self, credentials: AuthCredentials, service_name: str | None = None) -> AuthCredentials | None:
         """
         使用Jellyfin用户辅助完成用户认证
         :param credentials: 认证数据
@@ -165,30 +163,22 @@ class JellyfinModule(_ModuleBase, _MediaServerBase[Jellyfin]):
                     movie = s.get_iteminfo(itemid)
                     if movie:
                         logger.info(f"媒体库 {name} 中找到了 {movie}")
-                        return schemas.ExistMediaInfo(
-                            type=MediaType.MOVIE, server_type="jellyfin", server=name, itemid=movie.item_id
-                        )
+                        return schemas.ExistMediaInfo(type=MediaType.MOVIE, server_type="jellyfin", server=name, itemid=movie.item_id)
                 movies = s.get_movies(title=mediainfo.title, year=mediainfo.year, tmdb_id=mediainfo.tmdb_id)
                 if not movies:
                     logger.info(f"{mediainfo.title_year} 没有在媒体库 {name} 中")
                     continue
                 else:
                     logger.info(f"媒体库 {name} 中找到了 {movies}")
-                    return schemas.ExistMediaInfo(
-                        type=MediaType.MOVIE, server_type="jellyfin", server=name, itemid=movies[0].item_id
-                    )
+                    return schemas.ExistMediaInfo(type=MediaType.MOVIE, server_type="jellyfin", server=name, itemid=movies[0].item_id)
             else:
-                itemid, tvs = s.get_tv_episodes(
-                    title=mediainfo.title, year=mediainfo.year, tmdb_id=mediainfo.tmdb_id, item_id=itemid
-                )
+                itemid, tvs = s.get_tv_episodes(title=mediainfo.title, year=mediainfo.year, tmdb_id=mediainfo.tmdb_id, item_id=itemid)
                 if not tvs:
                     logger.info(f"{mediainfo.title_year} 没有在媒体库 {name} 中")
                     continue
                 else:
                     logger.info(f"{mediainfo.title_year} 在媒体库 {name} 中找到了这些季集：{tvs}")
-                    return schemas.ExistMediaInfo(
-                        type=MediaType.TV, seasons=tvs, server_type="jellyfin", server=name, itemid=itemid
-                    )
+                    return schemas.ExistMediaInfo(type=MediaType.TV, seasons=tvs, server_type="jellyfin", server=name, itemid=itemid)
         return None
 
     def media_statistic(self, server: str | None = None) -> list[schemas.Statistic] | None:
@@ -272,9 +262,7 @@ class JellyfinModule(_ModuleBase, _MediaServerBase[Jellyfin]):
         _, seasoninfo = server_obj.get_tv_episodes(item_id=item_id)
         if not seasoninfo:
             return []
-        return [
-            schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()
-        ]
+        return [schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()]
 
     def mediaserver_playing(
         self, server: str, count: int | None = 20, username: str | None = None
@@ -345,9 +333,7 @@ class JellyfinModule(_ModuleBase, _MediaServerBase[Jellyfin]):
         items = self.mediaserver_latest(server=server, count=count, username=username) or []
         for item in items:
             if item.BackdropImageTags:
-                image_url = server_obj.get_backdrop_url(
-                    item_id=item.id, image_tag=item.BackdropImageTags[0], remote=remote
-                )
+                image_url = server_obj.get_backdrop_url(item_id=item.id, image_tag=item.BackdropImageTags[0], remote=remote)
                 if image_url:
                     links.append(image_url)
         return links

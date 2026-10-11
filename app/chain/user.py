@@ -1,6 +1,6 @@
 import secrets
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 
 from app.chain import ChainBase
 from app.core.config import settings
@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from app.db.models.user import User
 
 PASSWORD_INVALID_CREDENTIALS_MESSAGE = "用户名、密码或验证码错误"
-
 
 MfaMethod = Literal["otp"]
 
@@ -52,9 +51,7 @@ class UserChain(ChainBase):
             - 对于成功的认证，返回 (True, User)
             - 对于失败的认证，返回 (False, "错误信息")
         """
-        credentials = AuthCredentials(
-            username=username, password=password, mfa_code=mfa_code, code=code, grant_type=grant_type
-        )
+        credentials = AuthCredentials(username=username, password=password, mfa_code=mfa_code, code=code, grant_type=grant_type)
         logger.debug(f"认证类型：{grant_type}，开始准备对用户 {username} 进行身份校验")
         if credentials.grant_type == "password":
             # Password 认证
@@ -219,16 +216,12 @@ class UserChain(ChainBase):
         # 触发认证通过的拦截事件
         intercept_event = self.eventmanager.send_event(
             etype=ChainEventType.AuthIntercept,
-            data=AuthInterceptCredentials(
-                username=username, channel=channel, service=service, token=token, status="completed"
-            ),
+            data=AuthInterceptCredentials(username=username, channel=channel, service=service, token=token, status="completed"),
         )
         if intercept_event and intercept_event.event_data:
             intercept_data: AuthInterceptCredentials = intercept_event.event_data
             if intercept_data.cancel:
-                logger.warning(
-                    f"认证被拦截，用户：{username}，渠道：{channel}，服务：{service}，拦截源：{intercept_data.source}"
-                )
+                logger.warning(f"认证被拦截，用户：{username}，渠道：{channel}，服务：{service}，拦截源：{intercept_data.source}")
                 return False
 
         # 检查用户是否存在，如果不存在且当前为密码认证时则创建新用户

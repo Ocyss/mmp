@@ -1,5 +1,4 @@
 import urllib.parse
-from typing import List, Tuple
 
 from app.core.config import settings
 from app.db.systemconfig_oper import SystemConfigOper
@@ -167,9 +166,9 @@ class HaiDanSpider:
         params_str = self.__get_params(keyword, mtype)
 
         # 发送请求
-        res = await AsyncRequestUtils(
-            cookies=self._cookie, ua=self._ua, proxies=self._proxy, timeout=self._timeout
-        ).get_res(url=f"{self._searchurl}?{params_str}")
+        res = await AsyncRequestUtils(cookies=self._cookie, ua=self._ua, proxies=self._proxy, timeout=self._timeout).get_res(
+            url=f"{self._searchurl}?{params_str}"
+        )
 
         if res and res.status_code == 200:
             result = res.json()

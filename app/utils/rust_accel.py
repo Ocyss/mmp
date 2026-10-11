@@ -1,6 +1,6 @@
 import logging
 from functools import lru_cache
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.core.config import settings
 from app.log import log_settings, logger
@@ -115,18 +115,14 @@ def parse_indexer_torrents(
     if not is_enabled():
         return None
     try:
-        return _moviepilot_rust.parse_indexer_torrents_fast(
-            html_text, domain, list_config, fields, category, result_num
-        )
+        return _moviepilot_rust.parse_indexer_torrents_fast(html_text, domain, list_config, fields, category, result_num)
     except BaseException as err:
         _raise_non_rust_panic(err)
         logger.debug(f"Rust 站点列表解析失败，使用 Python 解析兜底：{err}")
         return None
 
 
-def parse_indexer_subtitles(
-    html_text: str, domain: str, list_config: dict, fields: dict, result_num: int = 100
-) -> list[dict] | None:
+def parse_indexer_subtitles(html_text: str, domain: str, list_config: dict, fields: dict, result_num: int = 100) -> list[dict] | None:
     """
     使用 Rust 批量解析普通配置站点字幕列表，不可用时返回 None。
     """

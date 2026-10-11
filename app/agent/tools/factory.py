@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Type
+from typing import TYPE_CHECKING, Optional
 
 from app.agent.llm.capability import AgentCapabilityManager
 from app.agent.tools.impl.add_custom_filter_rule import AddCustomFilterRuleTool
@@ -207,9 +207,9 @@ class MoviePilotToolFactory:
             message_channel = MessageChannel(channel)
         except ValueError:
             return False
-        return ChannelCapabilityManager.supports_buttons(
+        return ChannelCapabilityManager.supports_buttons(message_channel) and ChannelCapabilityManager.supports_callbacks(
             message_channel
-        ) and ChannelCapabilityManager.supports_callbacks(message_channel)
+        )
 
     @classmethod
     def get_tool_selector_always_include_names(cls, tools: list[MoviePilotTool]) -> list[str]:
@@ -253,8 +253,8 @@ class MoviePilotToolFactory:
         tools = []
         tool_definitions = cls._get_builtin_tool_classes(channel)
         # 创建内置工具
-        for ToolClass in tool_definitions:
-            tool = ToolClass(session_id=session_id, user_id=user_id)
+        for tool_class in tool_definitions:
+            tool = tool_class(session_id=session_id, user_id=user_id)
             if not allow_message_tools and getattr(tool, "sends_message", False):
                 continue
             tool.set_message_attr(channel=channel, source=source, username=username)
@@ -269,16 +269,16 @@ class MoviePilotToolFactory:
             plugin_id = plugin_info.get("plugin_id")
             plugin_name = plugin_info.get("plugin_name")
             tool_classes = plugin_info.get("tools", [])
-            for ToolClass in tool_classes:
+            for tool_class in tool_classes:
                 try:
                     # 验证工具类是否继承自 MoviePilotTool
-                    if not issubclass(ToolClass, MoviePilotTool):
+                    if not issubclass(tool_class, MoviePilotTool):
                         logger.warning(
-                            f"插件 {plugin_name}({plugin_id}) 提供的工具类 {ToolClass.__name__} 未继承自 MoviePilotTool，已跳过"
+                            f"插件 {plugin_name}({plugin_id}) 提供的工具类 {tool_class.__name__} 未继承自 MoviePilotTool，已跳过"
                         )
                         continue
                     # 创建工具实例
-                    tool = ToolClass(session_id=session_id, user_id=user_id)
+                    tool = tool_class(session_id=session_id, user_id=user_id)
                     if not allow_message_tools and getattr(tool, "sends_message", False):
                         continue
                     tool.set_message_attr(channel=channel, source=source, username=username)
@@ -286,9 +286,9 @@ class MoviePilotToolFactory:
                     tool.set_agent_context(agent_context=agent_context)
                     tools.append(tool)
                     plugin_tools_count += 1
-                    logger.debug(f"成功加载插件 {plugin_name}({plugin_id}) 的工具: {ToolClass.__name__}")
+                    logger.debug(f"成功加载插件 {plugin_name}({plugin_id}) 的工具: {tool_class.__name__}")
                 except Exception as e:
-                    logger.error(f"加载插件 {plugin_name}({plugin_id}) 的工具 {ToolClass.__name__} 失败: {str(e)}")
+                    logger.error(f"加载插件 {plugin_name}({plugin_id}) 的工具 {tool_class.__name__} 失败: {str(e)}")
 
         builtin_tools_count = len(tool_definitions)
         if plugin_tools_count > 0:

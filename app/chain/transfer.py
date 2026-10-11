@@ -7,7 +7,7 @@ import uuid
 from copy import deepcopy
 from pathlib import Path
 from time import monotonic
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.agent import ReplyMode, agent_manager, prompt_manager
@@ -307,9 +307,7 @@ class JobManager:
                 self._meta_to_media_ids.pop(metaid, None)
                 candidates.difference_update(related_ids)
 
-        referenced_ids = {
-            job_id for metaid, mediaids in self._meta_to_media_ids.items() for job_id in {metaid, *mediaids}
-        }
+        referenced_ids = {job_id for metaid, mediaids in self._meta_to_media_ids.items() for job_id in {metaid, *mediaids}}
         for job_id in candidates - referenced_ids:
             if self.__is_job_done(job_id):
                 self.__pop_job(job_id)
@@ -431,9 +429,7 @@ class JobManager:
                     break
             # 移除剧集信息
             if __mediaid__ in self._season_episodes:
-                self._season_episodes[__mediaid__] = list(
-                    set(self._season_episodes[__mediaid__]) - set(task.meta.episode_list)
-                )
+                self._season_episodes[__mediaid__] = list(set(self._season_episodes[__mediaid__]) - set(task.meta.episode_list))
 
     def fail_unfinished_task(self, task: TransferTask):
         """
@@ -453,9 +449,7 @@ class JobManager:
                         job_task.state = "failed"
                         self._task_state_changed_at[file_key] = monotonic()
                         if mediaid in self._season_episodes:
-                            self._season_episodes[mediaid] = list(
-                                set(self._season_episodes[mediaid]) - set(task.meta.episode_list)
-                            )
+                            self._season_episodes[mediaid] = list(set(self._season_episodes[mediaid]) - set(task.meta.episode_list))
                     return
 
     def remove_task(self, fileitem: FileItem) -> TransferJobTask | None:
@@ -490,9 +484,7 @@ class JobManager:
                             self._job_view.pop(mediaid)
                         # 移除季集信息
                         if mediaid in self._season_episodes:
-                            self._season_episodes[mediaid] = list(
-                                set(self._season_episodes[mediaid]) - set(task.meta.episode_list)
-                            )
+                            self._season_episodes[mediaid] = list(set(self._season_episodes[mediaid]) - set(task.meta.episode_list))
                         return task, mediaid
             return None, None
 
@@ -678,11 +670,7 @@ class JobManager:
                 [
                     task.fileitem.size
                     if task.fileitem.size is not None
-                    else (
-                        SystemUtils.get_directory_size(Path(task.fileitem.path))
-                        if task.fileitem.storage == "local"
-                        else 0
-                    )
+                    else (SystemUtils.get_directory_size(Path(task.fileitem.path)) if task.fileitem.storage == "local" else 0)
                     for task in self._job_view[__mediaid__].tasks
                     if task.state == "completed"
                 ]
@@ -974,9 +962,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             else Path(task.fileitem.path).parent
         )
         if source_directory not in mounted_filesystem_cache:
-            mounted_filesystem_cache[source_directory] = SystemUtils.is_network_filesystem(
-                source_directory, include_local_fuse=True
-            )
+            mounted_filesystem_cache[source_directory] = SystemUtils.is_network_filesystem(source_directory, include_local_fuse=True)
         return not mounted_filesystem_cache[source_directory]
 
     def __default_callback(self, task: TransferTask, transferinfo: TransferInfo, /) -> tuple[bool, str]:
@@ -1488,10 +1474,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         expire_tasks = getattr(self.jobview, "expire_stale_running_tasks", None)
         expired_tasks = expire_tasks(timeout_seconds=timeout_minutes * 60) if expire_tasks else []
         for fileitem, inactive_seconds in expired_tasks:
-            logger.error(
-                f"整理任务 {fileitem.path} 已连续 {inactive_seconds // 60} 分钟无状态心跳，"
-                "已标记失败并从整理队列视图清理"
-            )
+            logger.error(f"整理任务 {fileitem.path} 已连续 {inactive_seconds // 60} 分钟无状态心跳，已标记失败并从整理队列视图清理")
 
     def __fail_transfer_task(self, task: TransferTask):
         """
@@ -1579,9 +1562,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         # 检查是否所有任务都已完成且队列为空
                         if self._active_tasks == 0 and self._queue.empty():
                             # 结束进度
-                            __end_msg = (
-                                f"整理队列处理完成，共整理 {self._processed_num} 个文件，失败 {self._fail_num} 个"
-                            )
+                            __end_msg = f"整理队列处理完成，共整理 {self._processed_num} 个文件，失败 {self._fail_num} 个"
                             logger.info(__end_msg)
                             self._progress.update(value=100, text=__end_msg)
                             self._progress.end()
@@ -1699,9 +1680,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                     if his and settings.AI_AGENT_ENABLE and settings.AI_AGENT_RETRY_TRANSFER:
                         try:
                             # 使用 download_hash 或源文件父目录作为分组键
-                            group_key = (
-                                task.download_hash or str(task.fileitem.path).rsplit("/", 1)[0] if task.fileitem else ""
-                            )
+                            group_key = task.download_hash or str(task.fileitem.path).rsplit("/", 1)[0] if task.fileitem else ""
                             asyncio.run_coroutine_threadsafe(
                                 self.retry_scheduler.schedule_retry(his.id, group_key=group_key),
                                 global_vars.loop,
@@ -2007,9 +1986,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             download_dirs = DirectoryHelper().get_download_dirs()
 
             # 如果没有下载器监控的目录则不处理
-            if not any(
-                dir_info.monitor_type == "downloader" and dir_info.storage == "local" for dir_info in download_dirs
-            ):
+            if not any(dir_info.monitor_type == "downloader" and dir_info.storage == "local" for dir_info in download_dirs):
                 if progress_callback:
                     progress_callback(value=100, text="未配置下载器监控目录，跳过整理")
                 return True
@@ -2324,9 +2301,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 )
             ]
 
-        download_hashes = {
-            download_file.download_hash for download_file in download_files if download_file.download_hash
-        }
+        download_hashes = {download_file.download_hash for download_file in download_files if download_file.download_hash}
         if len(download_hashes) == 1:
             return downloadhis.get_by_hash(next(iter(download_hashes)))
         return None
@@ -2752,9 +2727,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             # 自定义识别
             if formaterHandler:
                 # 开始集、结束集、PART
-                begin_ep, end_ep, part = formaterHandler.split_episode(
-                    file_name=source_path.name, file_meta=current_meta
-                )
+                begin_ep, end_ep, part = formaterHandler.split_episode(file_name=source_path.name, file_meta=current_meta)
                 if begin_ep is not None:
                     current_meta.begin_episode = begin_ep
                 if part is not None:
@@ -2940,11 +2913,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             main_fileitems=sibling_main_items,
                         )
                         related_main_fileitem = next(
-                            (
-                                main_item
-                                for main_item in sibling_main_items
-                                if self.__get_file_key(main_item) == related_main_file_key
-                            ),
+                            (main_item for main_item in sibling_main_items if self.__get_file_key(main_item) == related_main_file_key),
                             None,
                         )
                         if related_main_fileitem:
@@ -3259,9 +3228,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         break
                     if not preview:
                         # 更新进度
-                        __process_msg = (
-                            f"正在整理 （{processed_num + fail_num + 1}/{total_num}）{transfer_task.fileitem.name} ..."
-                        )
+                        __process_msg = f"正在整理 （{processed_num + fail_num + 1}/{total_num}）{transfer_task.fileitem.name} ..."
                         logger.info(__process_msg)
                         progress.update(
                             value=(processed_num + fail_num) / total_num * 100,
@@ -3278,9 +3245,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             callback=_preview_callback if preview else self.__default_callback,
                         )
                     except Exception as e:
-                        logger.error(
-                            f"{transfer_task.fileitem.name} 整理任务处理出现错误：{e} - {traceback.format_exc()}"
-                        )
+                        logger.error(f"{transfer_task.fileitem.name} 整理任务处理出现错误：{e} - {traceback.format_exc()}")
                         if not preview:
                             self.__fail_transfer_task(transfer_task)
                         state, err_msg = False, str(e)
@@ -3294,9 +3259,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                             # 预览模式不走默认回调，这里需要手动收敛任务状态，避免残留 running
                             self.jobview.fail_task(transfer_task)
                             self.jobview.try_remove_job(transfer_task)
-                        if preview and (
-                            not preview_items or preview_items[-1].get("source") != transfer_task.fileitem.path
-                        ):
+                        if preview and (not preview_items or preview_items[-1].get("source") != transfer_task.fileitem.path):
                             preview_items.append(
                                 {
                                     "source": transfer_task.fileitem.path,
@@ -3372,8 +3335,7 @@ class TransferChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 Notification(
                     channel=channel,
                     source=source,
-                    title="请输入正确的命令格式：/redo [id] 或 /redo [id] [来源前缀:媒体ID]|[类型]，"
-                    "[id] 为整理记录编号",
+                    title="请输入正确的命令格式：/redo [id] 或 /redo [id] [来源前缀:媒体ID]|[类型]，[id] 为整理记录编号",
                     userid=userid,
                     save_history=False,
                 )

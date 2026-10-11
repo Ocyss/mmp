@@ -1,7 +1,7 @@
 import hashlib
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import regex as re
 

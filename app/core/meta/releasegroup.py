@@ -113,10 +113,7 @@ class ReleaseGroupsMatcher(metaclass=Singleton):
     }
 
     def __init__(self):
-        release_groups = []
-        for site_groups in self.RELEASE_GROUPS.values():
-            for release_group in site_groups:
-                release_groups.append(release_group)
+        release_groups = [release_group for site_groups in self.RELEASE_GROUPS.values() for release_group in site_groups]
         self.__release_groups = "|".join(release_groups)
         self.systemconfig = SystemConfigOper()
         self.__groups_re_cache = {}

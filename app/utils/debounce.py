@@ -17,9 +17,7 @@ class BaseDebouncer(ABC):
     所有防抖器实现类必须继承此类并实现其抽象方法。
     """
 
-    def __init__(
-        self, func: Callable, interval: float, *, leading: bool = False, enable_logging: bool = False, source: str = ""
-    ):
+    def __init__(self, func: Callable, interval: float, *, leading: bool = False, enable_logging: bool = False, source: str = ""):
         """
         初始化防抖器实例。
         :param func: 要防抖的函数或协程

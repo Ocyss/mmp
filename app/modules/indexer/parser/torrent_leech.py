@@ -27,8 +27,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
         try:
             if StringUtils.is_valid_html_element(html):
                 profile_routes = html.xpath(
-                    '//span[contains(concat(" ", normalize-space(@class), " "), " centerTopBar ")]'
-                    "//*[@onclick]/@onclick"
+                    '//span[contains(concat(" ", normalize-space(@class), " "), " centerTopBar ")]//*[@onclick]/@onclick'
                 )
                 for route in profile_routes:
                     profile_view = re.search(r"/profile/([^/]+)/view", route)
@@ -73,9 +72,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
             if not StringUtils.is_valid_html_element(html):
                 return
 
-            username_html = html.xpath(
-                '//div[contains(concat(" ", normalize-space(@class), " "), " profile-username ")]/text()'
-            )
+            username_html = html.xpath('//div[contains(concat(" ", normalize-space(@class), " "), " profile-username ")]/text()')
             if not username_html:
                 username_html = html.xpath(
                     '//table[contains(@class, "profileViewTable")]'
@@ -96,9 +93,7 @@ class TorrentLeechSiteUserInfo(SiteParserBase):
                 self.ratio = StringUtils.str_float(ratio_html[0].replace("∞", "0"))
 
             user_level_html = html.xpath(
-                '//table[contains(@class, "profileViewTable")]'
-                '//tr/td[normalize-space()="Class"]/'
-                "following-sibling::td[1]/text()"
+                '//table[contains(@class, "profileViewTable")]//tr/td[normalize-space()="Class"]/following-sibling::td[1]/text()'
             )
             if user_level_html:
                 self.user_level = user_level_html[0].strip()

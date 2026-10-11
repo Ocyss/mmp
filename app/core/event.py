@@ -7,7 +7,7 @@ import time
 import traceback
 import uuid
 from queue import Empty, PriorityQueue
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -201,9 +201,7 @@ class EventManager(metaclass=Singleton):
                 if handler_identifier in handlers:
                     handlers.pop(handler_identifier)
                 else:
-                    logger.debug(
-                        f"Subscribed to chain event: {event_type.value}, Priority: {priority} - {handler_identifier}"
-                    )
+                    logger.debug(f"Subscribed to chain event: {event_type.value}, Priority: {priority} - {handler_identifier}")
                 handlers[handler_identifier] = (priority, handler)
                 # 根据优先级排序
                 self.__chain_subscribers[event_type] = dict(
@@ -403,7 +401,7 @@ class EventManager(metaclass=Singleton):
             return False
 
         self.__log_event_lifecycle(event, "Started")
-        for (priority, handler) in enabled_handlers.values():
+        for priority, handler in enabled_handlers.values():
             start_time = time.time()
             self.__safe_invoke_handler(handler, event)
             logger.debug(
@@ -435,7 +433,7 @@ class EventManager(metaclass=Singleton):
             return False
 
         self.__log_event_lifecycle(event, "Started")
-        for (priority, handler) in enabled_handlers.values():
+        for priority, handler in enabled_handlers.values():
             start_time = time.time()
             await self.__safe_invoke_handler_async(handler, event)
             logger.debug(
@@ -459,9 +457,7 @@ class EventManager(metaclass=Singleton):
             target_plugin_id = event.event_data.get("__mp_target_plugin_id")
         # 为每个处理器提供独立的事件实例，防止某个处理器对 event_data 的修改影响其他处理器
         for handler_id, handler in handlers.items():
-            if target_plugin_id and not self.__should_dispatch_to_target_plugin(
-                handler, handler_id, str(target_plugin_id)
-            ):
+            if target_plugin_id and not self.__should_dispatch_to_target_plugin(handler, handler_id, str(target_plugin_id)):
                 continue
             # 仅浅拷贝顶层字典，避免不必要的深拷贝开销；这样可以隔离键级别的替换/赋值
             if isinstance(event.event_data, dict):
@@ -472,9 +468,7 @@ class EventManager(metaclass=Singleton):
             isolated_event = Event(event_type=event.event_type, event_data=event_data_copy, priority=event.priority)
             if inspect.iscoroutinefunction(handler):
                 # 对于异步函数，直接在事件循环中运行
-                asyncio.run_coroutine_threadsafe(
-                    self.__safe_invoke_handler_async(handler, isolated_event), global_vars.loop
-                )
+                asyncio.run_coroutine_threadsafe(self.__safe_invoke_handler_async(handler, isolated_event), global_vars.loop)
             else:
                 # 对于同步函数，在线程池中运行
                 self.__executor.submit(self.__safe_invoke_handler, handler, isolated_event)
@@ -556,9 +550,7 @@ class EventManager(metaclass=Singleton):
             try:
                 method(event)
             except Exception as e:
-                self.__handle_event_error(
-                    event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e
-                )
+                self.__handle_event_error(event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e)
         elif class_name in module_manager.get_module_ids():
             # 模块处理器
             module = module_manager.get_running_module(class_name)
@@ -596,9 +588,7 @@ class EventManager(metaclass=Singleton):
             try:
                 method(event)
             except Exception as e:
-                self.__handle_event_error(
-                    event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e
-                )
+                self.__handle_event_error(event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e)
 
     async def __invoke_handler_by_type_async(self, handler: Callable, event: Event):
         """
@@ -665,9 +655,7 @@ class EventManager(metaclass=Singleton):
                 # 插件同步函数在异步环境中运行，避免阻塞
                 await run_in_threadpool(method, event)
         except Exception as e:
-            self.__handle_event_error(
-                event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e
-            )
+            self.__handle_event_error(event=event, module_name=plugin.name, class_name=class_name, method_name=method_name, e=e)
 
     async def __invoke_module_method_async(self, handler: Any, class_name: str, method_name: str, event: Event):
         """
@@ -685,9 +673,7 @@ class EventManager(metaclass=Singleton):
             else:
                 method(event)
         except Exception as e:
-            self.__handle_event_error(
-                event=event, module_name=module.get_name(), class_name=class_name, method_name=method_name, e=e
-            )
+            self.__handle_event_error(event=event, module_name=module.get_name(), class_name=class_name, method_name=method_name, e=e)
 
     async def __invoke_global_method_async(self, class_name: str, method_name: str, event: Event):
         """
@@ -705,9 +691,7 @@ class EventManager(metaclass=Singleton):
             else:
                 method(event)
         except Exception as e:
-            self.__handle_event_error(
-                event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e
-            )
+            self.__handle_event_error(event=event, module_name=class_name, class_name=class_name, method_name=method_name, e=e)
 
     @staticmethod
     def __get_class_instance(class_name: str):

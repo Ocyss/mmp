@@ -1,7 +1,7 @@
 import copy
 import json
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 from app.core.event import eventmanager
@@ -270,11 +270,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 userid = msg_json.get("user")
                 text = msg_json.get("text")
                 username = msg_json.get("user")
-                if (
-                    text
-                    and text.startswith("/")
-                    and self._should_reject_admin_command(client_config.config, userid, username)
-                ):
+                if text and text.startswith("/") and self._should_reject_admin_command(client_config.config, userid, username):
                     self._send_admin_denied(client, userid)
                     return None
                 message_id = msg_json.get("ts")
@@ -338,11 +334,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 userid = msg_json.get("user", {}).get("id")
                 text = msg_json.get("callback_id")
                 username = msg_json.get("user", {}).get("username")
-                if (
-                    text
-                    and text.startswith("/")
-                    and self._should_reject_admin_command(client_config.config, userid, username)
-                ):
+                if text and text.startswith("/") and self._should_reject_admin_command(client_config.config, userid, username):
                     self._send_admin_denied(client, userid)
                     return None
             elif msg_json.get("command"):
@@ -389,11 +381,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
             file_type = str(file.get("type", "")).lower()
             file_ext = str(file.get("filetype", "")).lower()
             mime_type = str(file.get("mimetype", "")).lower()
-            if (
-                file_type == "image"
-                or file_ext in ("jpg", "jpeg", "png", "gif", "webp", "bmp")
-                or mime_type.startswith("image/")
-            ):
+            if file_type == "image" or file_ext in ("jpg", "jpeg", "png", "gif", "webp", "bmp") or mime_type.startswith("image/"):
                 url = file.get("url_private") or file.get("url_private_download")
                 if url:
                     images.append(
@@ -674,9 +662,7 @@ class SlackModule(_ModuleBase, _MessageBase[Slack]):
                 event_data: CommandRegisterEventData = event.event_data
                 if event_data.cancel:
                     client.delete_commands()
-                    logger.debug(
-                        f"Command registration for {client_config.name} canceled by event: {event_data.source}"
-                    )
+                    logger.debug(f"Command registration for {client_config.name} canceled by event: {event_data.source}")
                     continue
                 scoped_commands = event_data.commands or {}
                 if not scoped_commands:

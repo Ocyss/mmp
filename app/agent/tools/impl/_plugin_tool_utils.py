@@ -272,9 +272,7 @@ def search_plugin_candidates(query: str, plugins: list[Any]) -> list[dict[str, A
     )
 
 
-def summarize_candidates(
-    matches: list[dict[str, Any]], limit: int = DEFAULT_PLUGIN_CANDIDATE_LIMIT
-) -> list[dict[str, Any]]:
+def summarize_candidates(matches: list[dict[str, Any]], limit: int = DEFAULT_PLUGIN_CANDIDATE_LIMIT) -> list[dict[str, Any]]:
     """
     压缩候选列表，避免一次性把完整市场数据返回给 Agent。
     """

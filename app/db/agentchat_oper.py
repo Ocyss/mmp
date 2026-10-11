@@ -218,9 +218,7 @@ class AgentChatOper(DbOper):
             original_chat_id=original_chat_id,
             client_session_id=client_session_id,
         )
-        normalized_title = (
-            chat.title if self.has_custom_title(chat.title) else self._normalize_title(title, normalized_messages)
-        )
+        normalized_title = chat.title if self.has_custom_title(chat.title) else self._normalize_title(title, normalized_messages)
         chat.update(
             self._db,
             {

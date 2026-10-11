@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.chain.tmdb import TmdbChain
 from app.core.config import settings
@@ -119,11 +119,7 @@ class FileManagerModule(_ModuleBase):
         获取存储操作对象
         """
         for storage_schema in self._storage_schemas:
-            if (
-                storage_schema.schema
-                and storage_schema.schema.value == _storage
-                and (not _func or hasattr(storage_schema, _func))
-            ):
+            if storage_schema.schema and storage_schema.schema.value == _storage and (not _func or hasattr(storage_schema, _func)):
                 return storage_schema()
         return None
 

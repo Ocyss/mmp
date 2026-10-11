@@ -70,9 +70,7 @@ class MetaVideo(MetaBase):
     )
     _resources_pix_re = r"^[SBUHD]*(\d{3,4}[PI]+)|\d{3,4}X(\d{3,4})"
     _resources_pix_re2 = r"(^[248]+K)"
-    _video_encode_re = (
-        r"^(H26[45])$|^(x26[45])$|^AVC$|^HEVC$|^VC\d?$|^MPEG\d?$|^Xvid$|^DivX$|^AV1$|^HDR\d*$|^AVS(\+|[23])$"
-    )
+    _video_encode_re = r"^(H26[45])$|^(x26[45])$|^AVC$|^HEVC$|^VC\d?$|^MPEG\d?$|^Xvid$|^DivX$|^AV1$|^HDR\d*$|^AVS(\+|[23])$"
     _audio_encode_re = r"^DTS\d?$|^DTSHD$|^DTSHDMA$|^Atmos$|^TrueHD\d?$|^AC3$|^\dAudios?$|^DDP\d?$|^DD\+\d?$|^DD\d?$|^LPCM\d?$|^AAC\d?$|^FLAC\d?$|^HD\d?$|^MA\d?$|^HR\d?$|^Opus\d?$|^Vorbis\d?$|^AV[3S]A$"
     _fps_re = r"(\d{2,3})(?=FPS)"
     _season_pattern = re.compile(_season_re, re.IGNORECASE)
@@ -367,13 +365,7 @@ class MetaVideo(MetaBase):
         """
         if not self.name:
             return
-        if (
-            not self.year
-            and self.begin_season is None
-            and not self.begin_episode
-            and not self.resource_pix
-            and not self.resource_type
-        ):
+        if not self.year and self.begin_season is None and not self.begin_episode and not self.resource_pix and not self.resource_type:
             return
         re_res = self._part_pattern.search(token)
         if re_res:
@@ -684,13 +676,7 @@ class MetaVideo(MetaBase):
         """
         if not self.name:
             return
-        if (
-            not self.year
-            and not self.resource_pix
-            and not self.resource_type
-            and self.begin_season is None
-            and not self.begin_episode
-        ):
+        if not self.year and not self.resource_pix and not self.resource_type and self.begin_season is None and not self.begin_episode:
             return
         re_res = self._video_encode_pattern.search(token)
         if re_res:
@@ -730,13 +716,7 @@ class MetaVideo(MetaBase):
         """
         if not self.name:
             return
-        if (
-            not self.year
-            and not self.resource_pix
-            and not self.resource_type
-            and self.begin_season is None
-            and not self.begin_episode
-        ):
+        if not self.year and not self.resource_pix and not self.resource_type and self.begin_season is None and not self.begin_episode:
             return
         video_bit = self.extract_video_bit(token)
         if not video_bit:
@@ -753,13 +733,7 @@ class MetaVideo(MetaBase):
         """
         if not self.name:
             return
-        if (
-            not self.year
-            and not self.resource_pix
-            and not self.resource_type
-            and self.begin_season is None
-            and not self.begin_episode
-        ):
+        if not self.year and not self.resource_pix and not self.resource_type and self.begin_season is None and not self.begin_episode:
             return
         re_res = self._audio_encode_pattern.search(token)
         if re_res:

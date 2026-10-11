@@ -12,7 +12,7 @@ import time
 import urllib.parse
 import uuid
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 try:
     import fcntl
@@ -285,9 +285,7 @@ class SystemUtils:
             return -1, str(err)
 
     @staticmethod
-    def list_files(
-        directory: Path, extensions: list = None, min_filesize: int = 0, recursive: bool = True
-    ) -> list[Path]:
+    def list_files(directory: Path, extensions: list = None, min_filesize: int = 0, recursive: bool = True) -> list[Path]:
         """
         获取目录下所有指定扩展名的文件（包括子目录）
         :param directory: 指定的父目录
@@ -492,9 +490,7 @@ class SystemUtils:
 
         try:
             with os.scandir(directory) as entries:
-                for entry in entries:
-                    if entry.is_file() and pattern.match(entry.name):
-                        files.append(Path(entry.path))
+                files.extend(Path(entry.path) for entry in entries if entry.is_file() and pattern.match(entry.name))
         except OSError:
             pass
 
@@ -535,12 +531,8 @@ class SystemUtils:
         if directory.is_file():
             return [directory]
 
-        items = []
-
         # 遍历目录
-        for path in directory.iterdir():
-            if path.is_file():
-                items.append(path)
+        items = [path for path in directory.iterdir() if path.is_file()]
 
         return items
 
@@ -576,11 +568,7 @@ class SystemUtils:
     @staticmethod
     def _get_btrfs_fsid(dir_path: Path) -> bytes | None:
         """读取目录所属 Btrfs 文件系统的 FSID，无法确认时返回 None。"""
-        if (
-            not sys.platform.startswith("linux")
-            or fcntl is None
-            or not (SystemUtils.is_x86_64() or SystemUtils.is_aarch64())
-        ):
+        if not sys.platform.startswith("linux") or fcntl is None or not (SystemUtils.is_x86_64() or SystemUtils.is_aarch64()):
             return None
 
         fd = None
@@ -623,9 +611,7 @@ class SystemUtils:
             dir_list = [dir_list]
 
         use_btrfs_fsid = (
-            btrfs_fsid_dedup
-            and sys.platform.startswith("linux")
-            and (SystemUtils.is_x86_64() or SystemUtils.is_aarch64())
+            btrfs_fsid_dedup and sys.platform.startswith("linux") and (SystemUtils.is_x86_64() or SystemUtils.is_aarch64())
         )
         if not use_btrfs_fsid:
             # 默认分支保留原有行为，不打开目录或调用 ioctl。
@@ -699,15 +685,11 @@ class SystemUtils:
         for proc in psutil.process_iter(["pid", "name", "create_time", "memory_info", "status"]):
             try:
                 if proc.status() != psutil.STATUS_ZOMBIE:
-                    runtime = datetime.datetime.now() - datetime.datetime.fromtimestamp(
-                        int(getattr(proc, "create_time", 0)())
-                    )
+                    runtime = datetime.datetime.now() - datetime.datetime.fromtimestamp(int(getattr(proc, "create_time", 0)()))
                     mem_info = getattr(proc, "memory_info", None)()
                     if mem_info is not None:
                         mem_mb = round(mem_info.rss / (1024 * 1024), 1)
-                        processes.append(
-                            schemas.ProcessInfo(pid=proc.pid, name=proc.name(), run_time=runtime.seconds, memory=mem_mb)
-                        )
+                        processes.append(schemas.ProcessInfo(pid=proc.pid, name=proc.name(), run_time=runtime.seconds, memory=mem_mb))
             except psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess:
                 pass
         return processes
@@ -928,10 +910,7 @@ class SystemUtils:
         # 遍历目录及子目录中的所有文件和文件夹
         for file in temp_path.rglob("*"):
             # 如果是文件并且符合时间条件，则删除
-            if (
-                file.is_file()
-                and (datetime.datetime.now() - datetime.datetime.fromtimestamp(file.stat().st_mtime)).days > days
-            ):
+            if file.is_file() and (datetime.datetime.now() - datetime.datetime.fromtimestamp(file.stat().st_mtime)).days > days:
                 file.unlink()
         # 删除空的文件夹
         for folder in sorted(temp_path.rglob("*"), reverse=True):

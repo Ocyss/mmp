@@ -10,7 +10,7 @@ import subprocess
 from collections import deque
 from dataclasses import dataclass, field
 from tempfile import NamedTemporaryFile
-from typing import Any, Literal, Optional, TextIO, Type
+from typing import Any, Literal, Optional, TextIO
 
 from pydantic import BaseModel, Field
 

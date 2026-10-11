@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from torrentool.torrent import Torrent
 
@@ -172,10 +172,7 @@ class QbittorrentModule(_ModuleBase, _DownloaderBase[Qbittorrent]):
         torrent_from_file, content = __get_torrent_info()
         # 检查是否为磁力链接
         is_magnet = (
-            isinstance(content, str)
-            and content.startswith("magnet:")
-            or isinstance(content, bytes)
-            and content.startswith(b"magnet:")
+            isinstance(content, str) and content.startswith("magnet:") or isinstance(content, bytes) and content.startswith(b"magnet:")
         )
         if not torrent_from_file and not is_magnet:
             return None, None, None, "添加种子任务失败：无法读取种子文件"
@@ -215,9 +212,9 @@ class QbittorrentModule(_ModuleBase, _DownloaderBase[Qbittorrent]):
                 try:
                     for torrent in torrents:
                         # 名称与大小相等则认为是同一个种子
-                        if torrent.get("name") == getattr(torrent_from_file, "name", "") and torrent.get(
-                            "total_size"
-                        ) == getattr(torrent_from_file, "total_size", 0):
+                        if torrent.get("name") == getattr(torrent_from_file, "name", "") and torrent.get("total_size") == getattr(
+                            torrent_from_file, "total_size", 0
+                        ):
                             torrent_hash = torrent.get("hash")
                             server.delete_torrents_tag(torrent_hash, tag)
                             torrent_tags = [str(tag).strip() for tag in (torrent.get("tags") or "").split(",")]
@@ -379,8 +376,7 @@ class QbittorrentModule(_ModuleBase, _DownloaderBase[Qbittorrent]):
             for name, server in servers.items():
                 torrents, _ = server.get_torrents(ids=hashs, tags=query_tags) or []
                 try:
-                    for torrent_info in torrents:
-                        ret_torrents.append(__build_torrent(name, torrent_info))
+                    ret_torrents.extend(__build_torrent(name, torrent_info) for torrent_info in torrents)
                 finally:
                     torrents.clear()
                     del torrents
@@ -402,8 +398,7 @@ class QbittorrentModule(_ModuleBase, _DownloaderBase[Qbittorrent]):
             for name, server in servers.items():
                 torrents = server.get_downloading_torrents(tags=query_tags) or []
                 try:
-                    for torrent_info in torrents:
-                        ret_torrents.append(__build_torrent(name, torrent_info))
+                    ret_torrents.extend(__build_torrent(name, torrent_info) for torrent_info in torrents)
                 finally:
                     torrents.clear()
                     del torrents
@@ -485,9 +480,7 @@ class QbittorrentModule(_ModuleBase, _DownloaderBase[Qbittorrent]):
         server.set_torrents_tag(ids=hashs, tags=["已整理"])
         return None
 
-    def remove_torrents(
-        self, hashs: str | list, delete_file: bool | None = True, downloader: str | None = None
-    ) -> bool | None:
+    def remove_torrents(self, hashs: str | list, delete_file: bool | None = True, downloader: str | None = None) -> bool | None:
         """
         删除下载器种子
         :param hashs:  种子Hash

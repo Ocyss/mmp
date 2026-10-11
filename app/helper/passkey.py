@@ -8,7 +8,7 @@ import json
 import secrets
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
 from webauthn import (
@@ -227,16 +227,10 @@ class PassKeyHelper:
         """
         if user_verification:
             return UserVerificationRequirement(user_verification)
-        return (
-            UserVerificationRequirement.REQUIRED
-            if settings.PASSKEY_REQUIRE_UV
-            else UserVerificationRequirement.PREFERRED
-        )
+        return UserVerificationRequirement.REQUIRED if settings.PASSKEY_REQUIRE_UV else UserVerificationRequirement.PREFERRED
 
     @staticmethod
-    def _get_verification_params(
-        expected_origin: str | None = None, expected_rp_id: str | None = None
-    ) -> tuple[str, str]:
+    def _get_verification_params(expected_origin: str | None = None, expected_rp_id: str | None = None) -> tuple[str, str]:
         """
         获取验证参数（origin 和 rp_id）
 
@@ -269,9 +263,7 @@ class PassKeyHelper:
             user_id_bytes = str(user_id).encode("utf-8")
 
             # 排除已有的凭证
-            exclude_credentials = (
-                PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
-            )
+            exclude_credentials = PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
 
             # 用户验证要求
             uv_requirement = PassKeyHelper._get_user_verification_requirement()
@@ -378,9 +370,7 @@ class PassKeyHelper:
         """
         try:
             # 允许的凭证
-            allow_credentials = (
-                PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
-            )
+            allow_credentials = PassKeyHelper._parse_credential_list(existing_credentials) if existing_credentials else None
 
             # 用户验证要求
             uv_requirement = PassKeyHelper._get_user_verification_requirement(user_verification)

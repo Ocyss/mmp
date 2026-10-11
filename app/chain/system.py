@@ -27,9 +27,7 @@ class SystemChain(ChainBase):
         清理系统缓存
         """
         self.clear_cache()
-        self.post_message(
-            Notification(channel=channel, source=source, title="缓存清理完成！", userid=userid, save_history=False)
-        )
+        self.post_message(Notification(channel=channel, source=source, title="缓存清理完成！", userid=userid, save_history=False))
 
     def restart(self, channel: MessageChannel, userid: int | str, source: str | None = None):
         """
@@ -181,9 +179,7 @@ class SystemChain(ChainBase):
         查看当前版本、远程版本
         """
         self.post_message(
-            Notification(
-                channel=channel, source=source, title=self.__get_version_message(), userid=userid, save_history=False
-            )
+            Notification(channel=channel, source=source, title=self.__get_version_message(), userid=userid, save_history=False)
         )
 
     def restart_finish(self):
@@ -198,20 +194,14 @@ class SystemChain(ChainBase):
             if not isinstance(restart_channel, dict):
                 restart_channel = json.loads(restart_channel)
             channel = next(
-                (
-                    channel
-                    for channel in MessageChannel.__members__.values()
-                    if channel.value == restart_channel.get("channel")
-                ),
+                (channel for channel in MessageChannel.__members__.values() if channel.value == restart_channel.get("channel")),
                 None,
             )
             userid = restart_channel.get("userid")
 
             # 版本号
             title = self.__get_version_message()
-            self.post_message(
-                Notification(channel=channel, title=f"系统已重启完成！\n{title}", userid=userid, save_history=False)
-            )
+            self.post_message(Notification(channel=channel, title=f"系统已重启完成！\n{title}", userid=userid, save_history=False))
             self.remove_cache(self._restart_file)
 
     @staticmethod

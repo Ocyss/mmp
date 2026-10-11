@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import aiofiles
 import aioshutil
@@ -81,9 +81,7 @@ class CacheBackend(ABC):
         return sum(1 for _ in self.items())
 
     @abstractmethod
-    def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存
 
@@ -158,9 +156,7 @@ class CacheBackend(ABC):
         """
         yield from self.values(region=region)
 
-    def update(
-        self, other: dict[str, Any], region: str | None = DEFAULT_CACHE_REGION, ttl: int | None = None, **kwargs
-    ) -> None:
+    def update(self, other: dict[str, Any], region: str | None = DEFAULT_CACHE_REGION, ttl: int | None = None, **kwargs) -> None:
         """
         更新缓存，类似 dict.update()
         """
@@ -230,9 +226,7 @@ class AsyncCacheBackend(CacheBackend):
     """
 
     @abstractmethod
-    async def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    async def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存
 
@@ -309,9 +303,7 @@ class AsyncCacheBackend(CacheBackend):
         async for value in self.values(region=region):
             yield value
 
-    async def update(
-        self, other: dict[str, Any], region: str | None = DEFAULT_CACHE_REGION, ttl: int | None = None, **kwargs
-    ) -> None:
+    async def update(self, other: dict[str, Any], region: str | None = DEFAULT_CACHE_REGION, ttl: int | None = None, **kwargs) -> None:
         """
         更新缓存，类似 dict.update()（异步）
         """
@@ -334,9 +326,7 @@ class AsyncCacheBackend(CacheBackend):
         """
         弹出最后一个缓存项，类似 dict.popitem()（异步）
         """
-        items = []
-        async for item in self.items(region=region):
-            items.append(item)
+        items = [item async for item in self.items(region=region)]
         if not items:
             raise KeyError("popitem(): cache is empty")
         key, value = items[-1]
@@ -429,9 +419,7 @@ class MemoryBackend(CacheBackend):
         region = self.get_region(region)
         return self._region_caches.get(region)
 
-    def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存值支持每个 key 独立配置 TTL
 
@@ -448,9 +436,7 @@ class MemoryBackend(CacheBackend):
             region_cache = self._region_caches.get(region)
             if region_cache is None:
                 region_cache = (
-                    _MemoryTLRUCache(maxsize=maxsize, ttl=ttl)
-                    if self.cache_type == "ttl"
-                    else MemoryLRUCache(maxsize=maxsize)
+                    _MemoryTLRUCache(maxsize=maxsize, ttl=ttl) if self.cache_type == "ttl" else MemoryLRUCache(maxsize=maxsize)
                 )
                 self._region_caches[region] = region_cache
             elif isinstance(region_cache, _MemoryTLRUCache) != (self.cache_type == "ttl"):
@@ -560,9 +546,7 @@ class AsyncMemoryBackend(AsyncCacheBackend):
         """
         self._backend = MemoryBackend(cache_type=cache_type, maxsize=maxsize, ttl=ttl)
 
-    async def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    async def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存值支持每个 key 独立配置 TTL
 
@@ -641,9 +625,7 @@ class RedisBackend(CacheBackend):
         self.ttl = ttl
         self.redis_helper = RedisHelper()
 
-    def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存
 
@@ -726,9 +708,7 @@ class AsyncRedisBackend(AsyncCacheBackend):
         self.ttl = ttl
         self.redis_helper = AsyncRedisHelper()
 
-    async def set(
-        self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs
-    ) -> None:
+    async def set(self, key: str, value: Any, ttl: int | None = None, region: str | None = DEFAULT_CACHE_REGION, **kwargs) -> None:
         """
         设置缓存
 
@@ -1095,9 +1075,7 @@ def AsyncFileCache(base: Path = settings.TEMP_PATH, ttl: int | None = None) -> A
         return AsyncFileBackend(base=base)
 
 
-def Cache(
-    cache_type: Literal["ttl", "lru"] = "ttl", maxsize: int | None = None, ttl: int | None = None
-) -> CacheBackend:
+def Cache(cache_type: Literal["ttl", "lru"] = "ttl", maxsize: int | None = None, ttl: int | None = None) -> CacheBackend:
     """
     根据配置获取缓存后端实例（内存或Redis），maxsize仅在未启用Redis时生效
 
@@ -1113,9 +1091,7 @@ def Cache(
         return MemoryBackend(cache_type=cache_type, maxsize=maxsize, ttl=ttl)
 
 
-def AsyncCache(
-    cache_type: Literal["ttl", "lru"] = "ttl", maxsize: int | None = None, ttl: int | None = None
-) -> AsyncCacheBackend:
+def AsyncCache(cache_type: Literal["ttl", "lru"] = "ttl", maxsize: int | None = None, ttl: int | None = None) -> AsyncCacheBackend:
     """
     根据配置获取异步缓存后端实例（内存或Redis），maxsize仅在未启用Redis时生效
 
@@ -1155,9 +1131,7 @@ def cached(
         # 函数签名在装饰后不会变化，预计算可避免每次缓存访问都重复反射。
         signature = inspect.signature(func)
         parameter_names = list(signature.parameters.keys())
-        cache_parameter_names = (
-            parameter_names[1:] if parameter_names and parameter_names[0] in ("self", "cls") else parameter_names
-        )
+        cache_parameter_names = parameter_names[1:] if parameter_names and parameter_names[0] in ("self", "cls") else parameter_names
 
         def should_cache(value: Any) -> bool:
             """
@@ -1248,9 +1222,7 @@ def cached(
                 if not is_fresh():
                     # 尝试获取缓存
                     cached_value = await cache_backend.get(cache_key, region=cache_region)
-                    if should_cache(cached_value) and await async_is_valid_cache_value(
-                        cache_key, cached_value, cache_region
-                    ):
+                    if should_cache(cached_value) and await async_is_valid_cache_value(cache_key, cached_value, cache_region):
                         return cached_value
                 # 执行异步函数并缓存结果
                 result = await func(*args, **kwargs)
@@ -1273,9 +1245,7 @@ def cached(
                 """
                 cache_key = __get_cache_key(args, kwargs)
                 cached_value = await cache_backend.get(cache_key, region=cache_region)
-                return should_cache(cached_value) and await async_is_valid_cache_value(
-                    cache_key, cached_value, cache_region
-                )
+                return should_cache(cached_value) and await async_is_valid_cache_value(cache_key, cached_value, cache_region)
 
             async def cache_delete(*args, **kwargs) -> None:
                 """

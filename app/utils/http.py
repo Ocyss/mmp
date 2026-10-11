@@ -7,7 +7,7 @@ import time
 import weakref
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from urllib.parse import quote, unquote
 
 import chardet
@@ -426,9 +426,7 @@ class RequestUtils:
                     self._session.close()
                     return req_method(method, url, **kwargs)
                 except requests.exceptions.RequestException as retry_error:
-                    error_msg = (
-                        str(retry_error) if str(retry_error) else f"未知网络错误 (URL: {url}, Method: {method_upper})"
-                    )
+                    error_msg = str(retry_error) if str(retry_error) else f"未知网络错误 (URL: {url}, Method: {method_upper})"
                     logger.debug(f"重试后同步请求仍失败: {error_msg}")
                     if raise_exception:
                         raise
@@ -876,13 +874,9 @@ class RequestUtils:
                 return decoded
 
         response_encoding = getattr(response, "encoding", None)
-        trusted_response_encoding = (
-            response_encoding if not RequestUtils.is_low_confidence_http_encoding(response_encoding) else None
-        )
+        trusted_response_encoding = response_encoding if not RequestUtils.is_low_confidence_http_encoding(response_encoding) else None
         apparent_encoding = getattr(response, "apparent_encoding", None)
-        trusted_apparent_encoding = (
-            apparent_encoding if not RequestUtils.is_low_confidence_http_encoding(apparent_encoding) else None
-        )
+        trusted_apparent_encoding = apparent_encoding if not RequestUtils.is_low_confidence_http_encoding(apparent_encoding) else None
 
         fallback_encoding = None
         try:

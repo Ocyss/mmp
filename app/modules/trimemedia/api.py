@@ -4,7 +4,7 @@ import random
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Optional, Union
 from urllib.parse import quote
 
 from app.core.config import settings

@@ -1,7 +1,7 @@
 import base64
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 from urllib.parse import urljoin
 
 from lxml import etree
@@ -246,9 +246,9 @@ class SiteChain(ChainBase):
             "Accept": "application/json, text/plain, */*",
             "x-api-key": site.apikey,
         }
-        res = RequestUtils(
-            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
-        ).post_res(url=url)
+        res = RequestUtils(headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15).post_res(
+            url=url
+        )
         if res is None:
             return False, "无法打开网站！"
         if res.status_code == 200:
@@ -338,9 +338,9 @@ class SiteChain(ChainBase):
             "Accept": "application/json, text/plain, */*",
             "x-api-key": site.apikey,
         }
-        res = RequestUtils(
-            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
-        ).get_res(url=url)
+        res = RequestUtils(headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15).get_res(
+            url=url
+        )
         if res is None:
             return False, "无法打开网站！"
         if res.status_code == 200:
@@ -362,9 +362,9 @@ class SiteChain(ChainBase):
             "Accept": "application/json",
             "Authorization": f"Bearer {site.apikey}",
         }
-        res = RequestUtils(
-            headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15
-        ).get_res(url=url)
+        res = RequestUtils(headers=headers, proxies=settings.PROXY if site.proxy else None, timeout=site.timeout or 15).get_res(
+            url=url
+        )
         if res is None:
             return False, "无法打开网站！"
         if res.status_code == 200:
@@ -529,9 +529,7 @@ class SiteChain(ChainBase):
                         # 如果配置了代理，尝试通过代理重试
                         logger.info(f"站点 {indexer.get('name')} 初次连接失败，尝试通过代理重试...")
                         proxy = True
-                        res = RequestUtils(cookies=cookie, ua=settings.USER_AGENT, proxies=settings.PROXY).get_res(
-                            url=domain_url
-                        )
+                        res = RequestUtils(cookies=cookie, ua=settings.USER_AGENT, proxies=settings.PROXY).get_res(url=domain_url)
                         if res and res.status_code in [200, 500, 403]:
                             if not indexer.get("public") and not SiteUtils.is_logged_in(res.text):
                                 logger.warn(f"站点 {indexer.get('name')} 登录失败，即使通过代理，无法添加站点")
@@ -547,9 +545,7 @@ class SiteChain(ChainBase):
                 rss_url = None
                 if not indexer.get("public") and domain_url:
                     # 自动生成rss地址
-                    rss_url, errmsg = rsshelper.get_rss_link(
-                        url=domain_url, cookie=cookie, ua=settings.USER_AGENT, proxy=proxy
-                    )
+                    rss_url, errmsg = rsshelper.get_rss_link(url=domain_url, cookie=cookie, ua=settings.USER_AGENT, proxy=proxy)
                     if errmsg:
                         logger.warn(errmsg)
                 # 插入数据库
@@ -1184,14 +1180,13 @@ class SiteChain(ChainBase):
                 rows=rows,
             )
 
-        lines = []
-        for site in site_list:
-            lines.append(
-                f"{site.id}. {site.name} | 状态：{'启用' if site.is_active else '禁用'}"
-                f" | Cookie：{'已配置' if site.cookie else '未配置'}"
-                f" | 渲染：{'是' if site.render else '否'}"
-                f" | 域名：{site.domain or StringUtils.get_url_domain(site.url or '')}"
-            )
+        lines = [
+            f"{site.id}. {site.name} | 状态：{'启用' if site.is_active else '禁用'}"
+            f" | Cookie：{'已配置' if site.cookie else '未配置'}"
+            f" | 渲染：{'是' if site.render else '否'}"
+            f" | 域名：{site.domain or StringUtils.get_url_domain(site.url or '')}"
+            for site in site_list
+        ]
         return "\n".join(lines)
 
     @staticmethod
@@ -1216,10 +1211,7 @@ class SiteChain(ChainBase):
             return "输入站点 ID、用户名、密码和可选 2FA；输入 `取消` 返回列表，输入 `退出` 结束交互。"
         if awaiting_input in {"enable", "disable"}:
             return "输入一个或多个站点 ID；输入 `取消` 返回列表，输入 `退出` 结束交互。"
-        return (
-            "可输入：`cookie <id> <username> <password> [2fa]`、`启用 <id...>`、`禁用 <id...>`、"
-            "`n`、`p`、`刷新`、`退出`。"
-        )
+        return "可输入：`cookie <id> <username> <password> [2fa]`、`启用 <id...>`、`禁用 <id...>`、`n`、`p`、`刷新`、`退出`。"
 
     @staticmethod
     def _parse_site_ids(arg_str: str) -> list[int]:
@@ -1285,9 +1277,7 @@ class SiteChain(ChainBase):
             return False, f"【{site_info.name}】Cookie&UA 更新失败：{msg}"
         return True, f"【{site_info.name}】Cookie&UA 更新成功"
 
-    def remote_disable(
-        self, arg_str: str, channel: MessageChannel, userid: str | int = None, source: str | None = None
-    ):
+    def remote_disable(self, arg_str: str, channel: MessageChannel, userid: str | int = None, source: str | None = None):
         """
         禁用站点
         """
@@ -1300,9 +1290,7 @@ class SiteChain(ChainBase):
         siteoper = SiteOper()
         site = siteoper.get(site_id)
         if not site:
-            self.post_message(
-                Notification(channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False)
-            )
+            self.post_message(Notification(channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False))
             return
         # 禁用站点
         siteoper.update(site_id, {"is_active": False})
@@ -1325,9 +1313,7 @@ class SiteChain(ChainBase):
             site = siteoper.get(site_id)
             if not site:
                 self.post_message(
-                    Notification(
-                        channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False
-                    )
+                    Notification(channel=channel, title=f"站点编号 {site_id} 不存在！", userid=userid, save_history=False)
                 )
                 return
             # 禁用站点
@@ -1336,9 +1322,7 @@ class SiteChain(ChainBase):
         self.remote_list(channel=channel, userid=userid, source=source)
 
     @staticmethod
-    def update_cookie(
-        site_info: Site, username: str, password: str, two_step_code: str | None = None
-    ) -> tuple[bool, str]:
+    def update_cookie(site_info: Site, username: str, password: str, two_step_code: str | None = None) -> tuple[bool, str]:
         """
         根据用户名密码更新站点Cookie
         :param site_info: 站点信息
@@ -1373,9 +1357,7 @@ class SiteChain(ChainBase):
             "[id]为站点编号，[uername]为站点用户名，[password]为站点密码，[2fa_code/secret]为站点二步验证码或密钥"
         )
         if not arg_str:
-            self.post_message(
-                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
-            )
+            self.post_message(Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False))
             return
         arg_str = str(arg_str).strip()
         args = arg_str.split()
@@ -1384,15 +1366,11 @@ class SiteChain(ChainBase):
         if len(args) == 4:
             two_step_code = args[3]
         elif len(args) != 3:
-            self.post_message(
-                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
-            )
+            self.post_message(Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False))
             return
         site_id = args[0]
         if not site_id.isdigit():
-            self.post_message(
-                Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False)
-            )
+            self.post_message(Notification(channel=channel, source=source, title=err_title, userid=userid, save_history=False))
             return
         # 站点ID
         site_id = int(site_id)
@@ -1423,9 +1401,7 @@ class SiteChain(ChainBase):
         # 密码
         password = args[2]
         # 更新Cookie
-        status, msg = self.update_cookie(
-            site_info=site_info, username=username, password=password, two_step_code=two_step_code
-        )
+        status, msg = self.update_cookie(site_info=site_info, username=username, password=password, two_step_code=two_step_code)
         if not status:
             logger.error(msg)
             self.post_message(

@@ -1,7 +1,7 @@
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, Boolean, Column, Index, Integer, String, func, or_, select
 
@@ -169,9 +169,7 @@ class TransferHistory(Base):
 
     @classmethod
     @async_db_query
-    async def async_list_by_page(
-        cls, db: AsyncSession, page: int | None = 1, count: int | None = 30, status: bool = None
-    ):
+    async def async_list_by_page(cls, db: AsyncSession, page: int | None = 1, count: int | None = 30, status: bool = None):
         if status is not None:
             query = select(cls).filter(cls.status == status).order_by(cls.date.desc())
         else:
@@ -534,9 +532,7 @@ class TransferHistory(Base):
         """
         分批删除指定时间之前的整理历史。
         """
-        ids = [
-            row[0] for row in db.query(cls.id).filter(cls.date < before_time).order_by(cls.id.asc()).limit(limit).all()
-        ]
+        ids = [row[0] for row in db.query(cls.id).filter(cls.date < before_time).order_by(cls.id.asc()).limit(limit).all()]
         if not ids:
             return 0
         return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

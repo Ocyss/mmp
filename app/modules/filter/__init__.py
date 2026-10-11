@@ -1,7 +1,7 @@
 import re
 from copy import deepcopy
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.core.metainfo import MetaInfo, _rust_parse_options, clear_rust_parse_options_cache
 from app.helper.rule import RuleHelper
@@ -170,9 +170,7 @@ class FilterModule(_ModuleBase):
                 metainfo_options=_rust_parse_options() if self.__needs_metainfo_options(group_defs) else None,
             )
             if matched_orders is None:
-                return self.__filter_torrents_with_python(
-                    groups=group_defs, torrent_list=torrent_list, mediainfo=mediainfo
-                )
+                return self.__filter_torrents_with_python(groups=group_defs, torrent_list=torrent_list, mediainfo=mediainfo)
             matched_orders, traces = self.__parse_rust_filter_result(matched_orders)
             self.__log_rust_filter_traces(traces)
             ret_torrents = []
@@ -258,10 +256,7 @@ class FilterModule(_ModuleBase):
         for torrent in torrent_list:
             # 能命中优先级的才返回
             if not self.__get_order(torrent, rule_groups, mediainfo, parser, parsed_rule_cache):
-                logger.debug(
-                    f"种子 {torrent.site_name} - {torrent.title} {torrent.description or ''} "
-                    f"不匹配 {rule_name} 过滤规则"
-                )
+                logger.debug(f"种子 {torrent.site_name} - {torrent.title} {torrent.description or ''} 不匹配 {rule_name} 过滤规则")
                 continue
             ret_torrents.append(torrent)
 
@@ -322,14 +317,10 @@ class FilterModule(_ModuleBase):
             return not self.__match_group(torrent, rule_group[1:], mediainfo)
         elif rule_group[1] == "and":
             # 与操作
-            return self.__match_group(torrent, rule_group[0], mediainfo) and self.__match_group(
-                torrent, rule_group[2:], mediainfo
-            )
+            return self.__match_group(torrent, rule_group[0], mediainfo) and self.__match_group(torrent, rule_group[2:], mediainfo)
         elif rule_group[1] == "or":
             # 或操作
-            return self.__match_group(torrent, rule_group[0], mediainfo) or self.__match_group(
-                torrent, rule_group[2:], mediainfo
-            )
+            return self.__match_group(torrent, rule_group[0], mediainfo) or self.__match_group(torrent, rule_group[2:], mediainfo)
 
     def __match_rule(self, torrent: TorrentInfo, rule_name: str, mediainfo: MediaInfo) -> bool:
         """
@@ -393,8 +384,7 @@ class FilterModule(_ModuleBase):
             if not self.__match_size(torrent, size_range):
                 # 大小范围不匹配
                 logger.debug(
-                    f"种子 {torrent.site_name} - {torrent.title} 大小 "
-                    f"{StringUtils.str_filesize(torrent.size)} 不在范围 {size_range}MB"
+                    f"种子 {torrent.site_name} - {torrent.title} 大小 {StringUtils.str_filesize(torrent.size)} 不在范围 {size_range}MB"
                 )
                 return False
         if seeders:
@@ -417,9 +407,7 @@ class FilterModule(_ModuleBase):
             if len(pub_times) == 1:
                 # 发布时间小于规则
                 if pub_minutes < pub_times[0]:
-                    logger.debug(
-                        f"种子 {torrent.site_name} - {torrent.title} 发布时间 {pub_minutes} 小于 {pub_times[0]}"
-                    )
+                    logger.debug(f"种子 {torrent.site_name} - {torrent.title} 发布时间 {pub_minutes} 小于 {pub_times[0]}")
                     return False
             else:
                 # 区间

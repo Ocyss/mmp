@@ -2,7 +2,7 @@
 
 import copy
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.core.event import eventmanager
 from app.db.subscribe_oper import SubscribeOper

@@ -285,15 +285,10 @@ class Api:
             return None
 
         token = str(
-            login_result.data.get("token")
-            or login_result.data.get("token_id")
-            or login_result.data.get("tokenId")
-            or ""
+            login_result.data.get("token") or login_result.data.get("token_id") or login_result.data.get("tokenId") or ""
         ).strip()
         public_key = (
-            self._decode_public_key(
-                str(login_result.data.get("public_key") or login_result.data.get("publicKey") or "")
-            )
+            self._decode_public_key(str(login_result.data.get("public_key") or login_result.data.get("publicKey") or ""))
             or login_public_key
         )
         if not token or not public_key:
@@ -373,9 +368,7 @@ class Api:
         cookies = state.get("cookies")
         if isinstance(cookies, Mapping):
             try:
-                self._session.cookies.update(
-                    {str(k): str(v) for k, v in cookies.items() if k is not None and v is not None}
-                )
+                self._session.cookies.update({str(k): str(v) for k, v in cookies.items() if k is not None and v is not None})
             except Exception:
                 pass
 

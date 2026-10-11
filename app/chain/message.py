@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import unquote, urlparse
 
 from app.agent import ReplyMode, agent_manager
@@ -417,11 +417,7 @@ class MessageChain(ChainBase):
             ):
                 return False
 
-        if (
-            not no_ai_requested
-            and settings.AI_AGENT_ENABLE
-            and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input)
-        ):
+        if not no_ai_requested and settings.AI_AGENT_ENABLE and (settings.AI_AGENT_GLOBAL or images or files or has_audio_input):
             return self._handle_ai_message(
                 text=text,
                 channel=channel,
@@ -1134,9 +1130,7 @@ class MessageChain(ChainBase):
             if time_diff <= timedelta(minutes=self._session_timeout_minutes):
                 # 更新最后使用时间
                 self._user_sessions[userid] = (session_id, current_time)
-                logger.info(
-                    f"复用会话ID: {session_id}, 用户: {userid}, 距离上次会话: {time_diff.total_seconds() / 60:.1f}分钟"
-                )
+                logger.info(f"复用会话ID: {session_id}, 用户: {userid}, 距离上次会话: {time_diff.total_seconds() / 60:.1f}分钟")
                 return session_id
 
         # 创建新的会话ID
@@ -1750,9 +1744,7 @@ class MessageChain(ChainBase):
                 )
         return data_urls if data_urls else None
 
-    def _build_image_attachments(
-        self, images: list[CommingMessage.MessageImage]
-    ) -> list[CommingMessage.MessageAttachment]:
+    def _build_image_attachments(self, images: list[CommingMessage.MessageImage]) -> list[CommingMessage.MessageAttachment]:
         """
         将图片引用转换为附件描述，以便按文件方式交给 Agent 处理。
         """
@@ -3054,9 +3046,7 @@ class MediaInteractionChain(ChainBase):
             )
         else:
             if total > self._page_size(channel):
-                title = (
-                    f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择 p: 上一页 n: 下一页）"
-                )
+                title = f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择 p: 上一页 n: 下一页）"
             else:
                 title = f"【{request.title}】共找到{total}条相关资源，请回复对应数字下载（0: 自动选择）"
             buttons = None
@@ -3112,8 +3102,7 @@ class MediaInteractionChain(ChainBase):
             buttons = None
 
         text = "\n".join(
-            f"{index}. {self._format_download_dir_label(download_dir)}"
-            for index, download_dir in enumerate(page_items, start=1)
+            f"{index}. {self._format_download_dir_label(download_dir)}" for index, download_dir in enumerate(page_items, start=1)
         )
         self.post_message(
             Notification(
@@ -3379,11 +3368,7 @@ class MediaInteractionChain(ChainBase):
         """
         判断是否为自动匹配下载目录选项。
         """
-        return (
-            download_dir.name == cls._auto_download_dir_name
-            and not download_dir.download_path
-            and not download_dir.save_path
-        )
+        return download_dir.name == cls._auto_download_dir_name and not download_dir.download_path and not download_dir.save_path
 
     @staticmethod
     def _match_download_dir_media(
@@ -3433,9 +3418,7 @@ class MediaInteractionChain(ChainBase):
         判断渠道是否同时支持按钮展示与按钮回调。
         """
         return bool(
-            channel
-            and ChannelCapabilityManager.supports_buttons(channel)
-            and ChannelCapabilityManager.supports_callbacks(channel)
+            channel and ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel)
         )
 
     @staticmethod
@@ -3466,8 +3449,7 @@ class MediaInteractionChain(ChainBase):
         """
         auto_download_user = settings.AUTO_DOWNLOAD_USER
         return bool(
-            auto_download_user
-            and (auto_download_user == "all" or any(userid == user for user in auto_download_user.split(",")))
+            auto_download_user and (auto_download_user == "all" or any(userid == user for user in auto_download_user.split(",")))
         )
 
     def _post_invalid_input(

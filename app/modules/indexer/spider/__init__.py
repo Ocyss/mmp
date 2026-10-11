@@ -1,7 +1,7 @@
 import datetime
 import re
 import traceback
-from typing import Any, List, Optional
+from typing import Any, Optional
 from urllib.parse import parse_qs, quote, urlparse
 
 from fastapi.concurrency import run_in_threadpool
@@ -191,11 +191,7 @@ class SiteSpider:
                         if self.category.get("field"):
                             value = params.get(self.category.get("field"), "")
                             params.update(
-                                {
-                                    "{}".format(self.category.get("field")): value
-                                    + self.category.get("delimiter", " ")
-                                    + cat.get("id")
-                                }
+                                {"{}".format(self.category.get("field")): value + self.category.get("delimiter", " ") + cat.get("id")}
                             )
                         else:
                             params.update({"cat{}".format(cat.get("id")): 1})
@@ -248,9 +244,9 @@ class SiteSpider:
         logger.info(f"开始请求：{searchurl}")
 
         # requests请求
-        ret = RequestUtils(
-            ua=self.ua, cookies=self.cookie, timeout=self._timeout, referer=self.referer, proxies=self.proxies
-        ).get_res(searchurl, allow_redirects=True)
+        ret = RequestUtils(ua=self.ua, cookies=self.cookie, timeout=self._timeout, referer=self.referer, proxies=self.proxies).get_res(
+            searchurl, allow_redirects=True
+        )
         # 解析返回
         return self.parse(
             RequestUtils.get_decoded_html_content(
@@ -338,9 +334,7 @@ class SiteSpider:
                 render_dict.update({"description_normal": description_normal})
             template = self._field_templates.get("description") or Template(selector.get("text"))
             self.torrents_info["description"] = template.render(fields=render_dict)
-        self.torrents_info["description"] = self.__filter_text(
-            self.torrents_info.get("description"), selector.get("filters")
-        )
+        self.torrents_info["description"] = self.__filter_text(self.torrents_info.get("description"), selector.get("filters"))
 
     def __get_detail(self, torrent: Any):
         # details page text
@@ -593,9 +587,7 @@ class SiteSpider:
                 downloadvolumefactor = torrent(downloadvolumefactorselector)
                 try:
                     if len(downloadvolumefactor) > 0:
-                        self.torrents_info["downloadvolumefactor"] = selector.get("case", {}).get(
-                            downloadvolumefactorselector
-                        )
+                        self.torrents_info["downloadvolumefactor"] = selector.get("case", {}).get(downloadvolumefactorselector)
                         break
                 finally:
                     downloadvolumefactor.clear()
@@ -618,9 +610,7 @@ class SiteSpider:
                 uploadvolumefactor = torrent(uploadvolumefactorselector)
                 try:
                     if len(uploadvolumefactor) > 0:
-                        self.torrents_info["uploadvolumefactor"] = selector.get("case", {}).get(
-                            uploadvolumefactorselector
-                        )
+                        self.torrents_info["uploadvolumefactor"] = selector.get("case", {}).get(uploadvolumefactorselector)
                         break
                 finally:
                     uploadvolumefactor.clear()

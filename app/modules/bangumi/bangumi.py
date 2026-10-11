@@ -232,9 +232,7 @@ class BangumiApi:
         获取番剧人物（异步版本）
         """
         ret_list = []
-        result = await self.__async_invoke(
-            self._urls["characters"] % bid, _ts=datetime.strftime(datetime.now(), "%Y%m%d")
-        )
+        result = await self.__async_invoke(self._urls["characters"] % bid, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
         if result:
             for item in result:
                 character_id = item.get("id")
@@ -267,21 +265,16 @@ class BangumiApi:
         """
         获取人物详细信息（异步版本）
         """
-        return await self.__async_invoke(
-            self._urls["person_detail"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d")
-        )
+        return await self.__async_invoke(self._urls["person_detail"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
 
     def person_credits(self, person_id: int):
         """
         获取人物参演作品
         """
         ret_list = []
-        result = self.__invoke(
-            self._urls["person_credits"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d")
-        )
+        result = self.__invoke(self._urls["person_credits"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
         if result:
-            for item in result:
-                ret_list.append(item)
+            ret_list = list(result)
         return ret_list
 
     async def async_person_credits(self, person_id: int):
@@ -289,29 +282,22 @@ class BangumiApi:
         获取人物参演作品（异步版本）
         """
         ret_list = []
-        result = await self.__async_invoke(
-            self._urls["person_credits"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d")
-        )
+        result = await self.__async_invoke(self._urls["person_credits"] % person_id, _ts=datetime.strftime(datetime.now(), "%Y%m%d"))
         if result:
-            for item in result:
-                ret_list.append(item)
+            ret_list = list(result)
         return ret_list
 
     def discover(self, **kwargs):
         """
         发现
         """
-        return self.__invoke(
-            self._urls["discover"], key="data", _ts=datetime.strftime(datetime.now(), "%Y%m%d"), **kwargs
-        )
+        return self.__invoke(self._urls["discover"], key="data", _ts=datetime.strftime(datetime.now(), "%Y%m%d"), **kwargs)
 
     async def async_discover(self, **kwargs):
         """
         发现（异步版本）
         """
-        return await self.__async_invoke(
-            self._urls["discover"], key="data", _ts=datetime.strftime(datetime.now(), "%Y%m%d"), **kwargs
-        )
+        return await self.__async_invoke(self._urls["discover"], key="data", _ts=datetime.strftime(datetime.now(), "%Y%m%d"), **kwargs)
 
     def clear_cache(self):
         """

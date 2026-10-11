@@ -2,7 +2,7 @@ import asyncio
 import re
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote
 
 import discord
@@ -580,9 +580,7 @@ class Discord:
             return False
         stop_event = asyncio.Event()
         max_duration = max_duration_seconds or self._typing_max_duration_seconds
-        initial_delay = (
-            self._typing_initial_delay_seconds if initial_delay_seconds is None else max(initial_delay_seconds, 0)
-        )
+        initial_delay = self._typing_initial_delay_seconds if initial_delay_seconds is None else max(initial_delay_seconds, 0)
 
         async def _typing_worker() -> None:
             started_at = self._loop.time()
@@ -646,9 +644,7 @@ class Discord:
         if not self.get_state():
             return False
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._delete_message(message_id=message_id, chat_id=chat_id), self._loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._delete_message(message_id=message_id, chat_id=chat_id), self._loop)
             return future.result(timeout=15)
         except Exception as err:
             logger.error(f"删除 Discord 消息失败：{err}")
@@ -886,7 +882,7 @@ class Discord:
                             has_book_colon = False
                             for m in matches:
                                 colon_idx = _find_colon_index(line, m)
-                                if colon_idx is not None and any(l < colon_idx < r for l, r in book_spans):
+                                if colon_idx is not None and any(start < colon_idx < end for start, end in book_spans):
                                     has_book_colon = True
                                     break
                             if has_book_colon:

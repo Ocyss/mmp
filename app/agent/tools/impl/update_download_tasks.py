@@ -1,7 +1,7 @@
 """更新下载任务工具"""
 
 import json
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 

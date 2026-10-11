@@ -22,9 +22,7 @@ class Season(TMDb):
         :param append_to_response: str
         :return:
         """
-        return self._request_obj(
-            self._urls["details"] % (tv_id, season_num), params=f"append_to_response={append_to_response}"
-        )
+        return self._request_obj(self._urls["details"] % (tv_id, season_num), params=f"append_to_response={append_to_response}")
 
     def account_states(self, tv_id, season_num):
         """

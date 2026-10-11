@@ -1,6 +1,6 @@
 """运行定时服务工具"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -63,10 +63,7 @@ class RunSchedulerTool(MoviePilotTool):
             from app.scheduler import AGENT_TASK_JOB_PREFIX
 
             if job_id.startswith(f"{AGENT_TASK_JOB_PREFIX}-"):
-                return (
-                    "Agent 自主定时任务不能通过 run_scheduler 运行，"
-                    "请使用 query_agent_tasks 查询整数 task_id 后调用 run_agent_task"
-                )
+                return "Agent 自主定时任务不能通过 run_scheduler 运行，请使用 query_agent_tasks 查询整数 task_id 后调用 run_agent_task"
             job_exists, job_name = await self.run_blocking("workflow", self._run_scheduler_sync, job_id)
             if not job_exists:
                 return f"定时服务 ID {job_id} 不存在，请使用 query_schedulers 工具查询可用的定时服务"

@@ -1,7 +1,7 @@
 """查询插件能力工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -65,21 +65,20 @@ class QueryPluginCapabilitiesTool(MoviePilotTool):
 
         actions = plugin_manager.get_plugin_actions(pid=plugin_id)
         if actions:
-            actions_list = []
-            for action_group in actions:
-                actions_list.append(
-                    {
-                        "plugin_id": action_group.get("plugin_id"),
-                        "plugin_name": action_group.get("plugin_name"),
-                        "actions": [
-                            {
-                                "id": action.get("id"),
-                                "name": action.get("name"),
-                            }
-                            for action in action_group.get("actions", [])
-                        ],
-                    }
-                )
+            actions_list = [
+                {
+                    "plugin_id": action_group.get("plugin_id"),
+                    "plugin_name": action_group.get("plugin_name"),
+                    "actions": [
+                        {
+                            "id": action.get("id"),
+                            "name": action.get("name"),
+                        }
+                        for action in action_group.get("actions", [])
+                    ],
+                }
+                for action_group in actions
+            ]
             result["actions"] = actions_list
 
         services = plugin_manager.get_plugin_services(pid=plugin_id)

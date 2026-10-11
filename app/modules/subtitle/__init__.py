@@ -2,7 +2,7 @@ import re
 import shutil
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 from lxml import etree
@@ -127,9 +127,7 @@ class SubtitleModule(_ModuleBase):
             if sublink_nodes:
                 for sublink_node in sublink_nodes:
                     sublinks = [sublink_node.get(attr) for attr in cls._SUBTITLE_URL_ATTRS]
-                    sublinks.extend(
-                        match.group("url") for match in cls._SCRIPT_URL_RE.finditer(sublink_node.get("onclick") or "")
-                    )
+                    sublinks.extend(match.group("url") for match in cls._SCRIPT_URL_RE.finditer(sublink_node.get("onclick") or ""))
                     for sublink in sublinks:
                         sublink = cls.__normalize_subtitle_link(page_url, sublink)
                         if not sublink or sublink in found_links:

@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app.core.cache import TTLCache
 from app.log import logger
@@ -170,11 +170,7 @@ class WechatClawBotModule(_ModuleBase, _MessageBase[WechatClawBot]):
             )
             return None
 
-        admins = [
-            admin.strip()
-            for admin in str(client_config.config.get("WECHATCLAWBOT_ADMINS") or "").split(",")
-            if admin.strip()
-        ]
+        admins = [admin.strip() for admin in str(client_config.config.get("WECHATCLAWBOT_ADMINS") or "").split(",") if admin.strip()]
         callback_data = text[9:].strip() if text.startswith("CALLBACK:") else ""
         is_admin_command = text.startswith("/") or callback_data.startswith("/")
         if is_admin_command and admins and user_id not in admins:

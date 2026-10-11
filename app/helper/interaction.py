@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app.schemas import Notification
 from app.schemas.message import ChannelCapabilityManager
@@ -112,9 +112,7 @@ def supports_interaction_buttons(channel: MessageChannel | None) -> bool:
     渠道同时支持按钮和回调时，优先使用按钮交互。
     """
     return bool(
-        channel
-        and ChannelCapabilityManager.supports_buttons(channel)
-        and ChannelCapabilityManager.supports_callbacks(channel)
+        channel and ChannelCapabilityManager.supports_buttons(channel) and ChannelCapabilityManager.supports_callbacks(channel)
     )
 
 
@@ -484,16 +482,12 @@ class PluginInputInteractionManager:
             self._cleanup_locked()
             key = self._user_channel_source_key(user_id, channel, source, chat_id)
             old_request_ids = [
-                request_id
-                for stored_key, request_id in self._by_user_channel.items()
-                if self._keys_overlap(stored_key, key)
+                request_id for stored_key, request_id in self._by_user_channel.items() if self._keys_overlap(stored_key, key)
             ]
             for old_request_id in old_request_ids:
                 self._by_id.pop(old_request_id, None)
             self._by_user_channel = {
-                stored_key: request_id
-                for stored_key, request_id in self._by_user_channel.items()
-                if request_id not in old_request_ids
+                stored_key: request_id for stored_key, request_id in self._by_user_channel.items() if request_id not in old_request_ids
             }
             self._expired_by_user_channel = {
                 stored_key: request
@@ -751,11 +745,7 @@ class AgentInteractionManager:
 
     def _cleanup_locked(self) -> None:
         expire_before = datetime.now() - self._ttl
-        expired_ids = [
-            request_id
-            for request_id, request in self._pending_interactions.items()
-            if request.created_at < expire_before
-        ]
+        expired_ids = [request_id for request_id, request in self._pending_interactions.items() if request.created_at < expire_before]
         for request_id in expired_ids:
             self._pending_interactions.pop(request_id, None)
 

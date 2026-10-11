@@ -1,7 +1,7 @@
 """获取推荐工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Union
 
 from pywebpush import WebPushException, webpush
 
@@ -87,9 +87,7 @@ class WebPushModule(_ModuleBase, _MessageBase):
                     try:
                         webpush(
                             subscription_info=sub,
-                            data=json.dumps(
-                                {"title": caption, "body": content, "url": message.link or "/?shotcut=message"}
-                            ),
+                            data=json.dumps({"title": caption, "body": content, "url": message.link or "/?shotcut=message"}),
                             vapid_private_key=settings.VAPID.get("privateKey"),
                             vapid_claims={"sub": settings.VAPID.get("subject")},
                             **webpush_options_for_endpoint(sub.get("endpoint")),

@@ -1,7 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Type
+from typing import Optional
 from urllib.parse import urlparse
 
 from ddgs import DDGS
@@ -61,10 +61,7 @@ class SearchWebInput(BaseModel):
     )
     site_url: str | None = Field(
         None,
-        description=(
-            "Optional website/domain/URL to limit the search to, for example "
-            "'https://docs.python.org/3/' or 'github.com'."
-        ),
+        description=("Optional website/domain/URL to limit the search to, for example 'https://docs.python.org/3/' or 'github.com'."),
     )
 
 
@@ -408,9 +405,7 @@ class SearchWebTool(MoviePilotTool):
                         )
                         if ddgs_results:
                             for result in ddgs_results:
-                                source = (
-                                    DEFAULT_SEARCH_ENGINE if search_engine == DEFAULT_SEARCH_ENGINE else search_engine
-                                )
+                                source = DEFAULT_SEARCH_ENGINE if search_engine == DEFAULT_SEARCH_ENGINE else search_engine
                                 results.append(
                                     {
                                         "title": result.get("title", ""),

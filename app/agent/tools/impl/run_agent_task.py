@@ -1,6 +1,6 @@
 """立即执行 Agent 自主定时任务工具。"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,8 +16,7 @@ class RunAgentTaskInput(BaseModel):
         ...,
         ge=1,
         description=(
-            "Integer autonomous task ID returned by query_agent_tasks. Do not pass a "
-            "runtime scheduler job_id such as agent-task-12."
+            "Integer autonomous task ID returned by query_agent_tasks. Do not pass a runtime scheduler job_id such as agent-task-12."
         ),
     )
 

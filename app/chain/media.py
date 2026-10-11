@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Lock
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app.chain import ChainBase
 from app.chain.storage import StorageChain
@@ -207,9 +207,7 @@ class MediaChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
         :return bool: 是否应该刮削
         """
         if scraping_option.is_skip:
-            logger.info(
-                f"{scraping_option.type.value} {scraping_option.metadata.value} 刮削策略 {scraping_option.policy.value}"
-            )
+            logger.info(f"{scraping_option.type.value} {scraping_option.metadata.value} 刮削策略 {scraping_option.policy.value}")
             return False
 
         if not file_exists:
@@ -1045,9 +1043,7 @@ class MediaChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                         # 3. 刮削每个文件
                         logger.info(f"开始刮削 {len(file_list)} 个文件")
                         for sub_file_path in sorted(file_list):
-                            sub_file_item = self.storagechain.get_file_item(
-                                storage=fileitem.storage, path=Path(sub_file_path)
-                            )
+                            sub_file_item = self.storagechain.get_file_item(storage=fileitem.storage, path=Path(sub_file_path))
                             if sub_file_item:
                                 self.scrape_metadata(
                                     fileitem=sub_file_item,
@@ -1164,11 +1160,7 @@ class MediaChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
                 if item_type == ScrapingTarget.TV and image_name.lower().startswith("season"):
                     logger.info(f"当前为电视剧根目录刮削，跳过季图片：{image_name}")
                     continue
-                if (
-                    item_type == ScrapingTarget.SEASON
-                    and season_number is not None
-                    and image_name.lower().startswith("season")
-                ):
+                if item_type == ScrapingTarget.SEASON and season_number is not None and image_name.lower().startswith("season"):
                     # 检查是否只下载当前刮削季的图片
                     image_season_str = "00" if "specials" in image_name.lower() else image_name[6:8]
 
@@ -1901,9 +1893,7 @@ class MediaChain(ChainBase, ConfigReloadMixin, metaclass=Singleton):
             return tmdbinfo
         return None
 
-    async def async_get_doubaninfo_by_tmdbid(
-        self, tmdbid: int, mtype: MediaType = None, season: int | None = None
-    ) -> dict | None:
+    async def async_get_doubaninfo_by_tmdbid(self, tmdbid: int, mtype: MediaType = None, season: int | None = None) -> dict | None:
         """
         根据TMDBID获取豆瓣信息（异步版本）
         """

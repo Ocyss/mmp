@@ -63,11 +63,7 @@ class TmdbCache(metaclass=WeakSingleton):
                 return
             payload = pickle.loads(content)
             now = time()
-            if (
-                isinstance(payload, dict)
-                and payload.get("version") == PERSISTENCE_VERSION
-                and isinstance(payload.get("items"), dict)
-            ):
+            if isinstance(payload, dict) and payload.get("version") == PERSISTENCE_VERSION and isinstance(payload.get("items"), dict):
                 items = payload["items"]
             elif isinstance(payload, dict):
                 # 旧版缓存没有保存过期时间，迁移时从当前时刻重新计算一次有效期。
@@ -198,9 +194,7 @@ class TmdbCache(metaclass=WeakSingleton):
             # 缓存标题
             cache_title = info.get("title") if info.get("media_type") == MediaType.MOVIE else info.get("name")
             # 缓存年份
-            cache_year = (
-                info.get("release_date") if info.get("media_type") == MediaType.MOVIE else info.get("first_air_date")
-            )
+            cache_year = info.get("release_date") if info.get("media_type") == MediaType.MOVIE else info.get("first_air_date")
             if cache_year:
                 cache_year = cache_year[:4]
 

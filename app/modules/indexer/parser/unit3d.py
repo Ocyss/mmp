@@ -47,9 +47,7 @@ class Unit3dSiteUserInfo(SiteParserBase):
                 return None
 
             # 用户等级
-            user_levels_text = html.xpath(
-                '//div[contains(@class, "content")]//span[contains(@class, "badge-user")]/text()'
-            )
+            user_levels_text = html.xpath('//div[contains(@class, "content")]//span[contains(@class, "badge-user")]/text()')
             if user_levels_text:
                 self.user_level = user_levels_text[0].strip()
 
@@ -122,18 +120,12 @@ class Unit3dSiteUserInfo(SiteParserBase):
 
     def _parse_user_traffic_info(self, html_text: str):
         html_text = self._prepare_html_text(html_text)
-        upload_match = re.search(
-            r"[^总]上[传傳]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE
-        )
+        upload_match = re.search(r"[^总]上[传傳]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE)
         self.upload = StringUtils.num_filesize(upload_match.group(1).strip()) if upload_match else 0
-        download_match = re.search(
-            r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE
-        )
+        download_match = re.search(r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE)
         self.download = StringUtils.num_filesize(download_match.group(1).strip()) if download_match else 0
         ratio_match = re.search(r"分享率[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+)", html_text)
-        self.ratio = (
-            StringUtils.str_float(ratio_match.group(1)) if (ratio_match and ratio_match.group(1).strip()) else 0.0
-        )
+        self.ratio = StringUtils.str_float(ratio_match.group(1)) if (ratio_match and ratio_match.group(1).strip()) else 0.0
 
     def _parse_message_unread_links(self, html_text: str, msg_links: list) -> str | None:
         return None

@@ -6,7 +6,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode, urljoin, urlparse
 
 from app.agent.middleware.skills import _parse_skill_metadata
@@ -237,9 +237,7 @@ class SkillHelper(metaclass=WeakSingleton):
             return False, f"技能源 {self.describe_market_source(source)} 是内置默认源，不能删除"
 
         current_sources = self.get_market_sources()
-        remaining_sources = [
-            item for item in current_sources if self._canonical_market_source(item) != canonical_source
-        ]
+        remaining_sources = [item for item in current_sources if self._canonical_market_source(item) != canonical_source]
         if len(remaining_sources) == len(current_sources):
             return False, "技能源不存在"
 
@@ -377,13 +375,9 @@ class SkillHelper(metaclass=WeakSingleton):
             source_meta = self._read_source_meta(path)
             source_type = "bundled" if bundled else source_meta.get("source", "local")
             if source_type == "market":
-                source_label = self._build_repo_source_label(
-                    source_meta.get("repo_name") or source_meta.get("repo_url")
-                )
+                source_label = self._build_repo_source_label(source_meta.get("repo_name") or source_meta.get("repo_url"))
             elif source_type == "registry":
-                source_label = self._build_registry_source_label(
-                    source_meta.get("registry_name") or source_meta.get("registry_url")
-                )
+                source_label = self._build_registry_source_label(source_meta.get("registry_name") or source_meta.get("registry_url"))
             elif source_type == "bundled":
                 source_label = "内置"
             else:

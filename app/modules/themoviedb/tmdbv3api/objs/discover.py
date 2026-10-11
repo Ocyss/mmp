@@ -49,6 +49,4 @@ class Discover(TMDb):
         :param params_tuple: dict
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["tv"], urlencode(params_tuple), key="results", call_cached=False
-        )
+        return await self._async_request_obj(self._urls["tv"], urlencode(params_tuple), key="results", call_cached=False)

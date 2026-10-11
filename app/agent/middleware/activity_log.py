@@ -102,8 +102,7 @@ class QueryActivityLogInput(BaseModel):
     use_regex: bool | None = Field(
         False,
         description=(
-            "Whether to treat keyword as a regular expression. Defaults to false; enable only for "
-            "alternative or pattern matching."
+            "Whether to treat keyword as a regular expression. Defaults to false; enable only for alternative or pattern matching."
         ),
     )
     date: str | None = Field(
@@ -248,9 +247,7 @@ def query_activity_logs(
             logger.warning(f"读取活动日志失败 {log_path}: {e}")
             continue
         for entry in _parse_activity_entries(date_str, content):
-            if normalized_keyword and not _activity_summary_matches_keyword(
-                entry["summary"], normalized_keyword, regex_pattern
-            ):
+            if normalized_keyword and not _activity_summary_matches_keyword(entry["summary"], normalized_keyword, regex_pattern):
                 continue
             entries.append(entry)
 
@@ -671,9 +668,7 @@ class ActivityLogMiddleware(AgentMiddleware[ActivityLogState, ContextT, Response
         tool_args = tool_call.get("args") or {}
         if not isinstance(tool_args, dict):
             tool_args = {}
-        logger.info(
-            f"开始执行活动日志查询工具: keyword={tool_args.get('keyword') or '-'}, date={tool_args.get('date') or '-'}"
-        )
+        logger.info(f"开始执行活动日志查询工具: keyword={tool_args.get('keyword') or '-'}, date={tool_args.get('date') or '-'}")
         if self.stream_handler and getattr(self.stream_handler, "is_streaming", False):
             self.stream_handler.record_tool_call(
                 tool_name=QUERY_ACTIVITY_LOG_TOOL_NAME,

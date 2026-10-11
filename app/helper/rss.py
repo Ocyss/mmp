@@ -1,6 +1,6 @@
 import re
 import traceback
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 from urllib.parse import urljoin
 
 from lxml import etree
@@ -210,9 +210,7 @@ class RssHelper:
             return False
 
         try:
-            ret = RequestUtils(
-                ua=ua, proxies=settings.PROXY if proxy else None, timeout=timeout or 30, headers=headers
-            ).get_res(url)
+            ret = RequestUtils(ua=ua, proxies=settings.PROXY if proxy else None, timeout=timeout or 30, headers=headers).get_res(url)
             if not ret:
                 logger.error(f"获取RSS失败：请求返回空值，URL: {url}")
                 return False
@@ -435,9 +433,9 @@ class RssHelper:
                     timeout=timeout or 60,
                 )
             else:
-                res = RequestUtils(
-                    cookies=cookie, timeout=timeout or 30, ua=ua, proxies=settings.PROXY if proxy else None
-                ).post_res(url=rss_url, data=rss_params)
+                res = RequestUtils(cookies=cookie, timeout=timeout or 30, ua=ua, proxies=settings.PROXY if proxy else None).post_res(
+                    url=rss_url, data=rss_params
+                )
                 if res:
                     html_text = res.text
                 elif res is not None:

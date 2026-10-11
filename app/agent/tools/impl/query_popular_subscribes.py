@@ -1,7 +1,7 @@
 """查询热门订阅工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 import cn2an
 from pydantic import BaseModel, Field

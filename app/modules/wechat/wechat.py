@@ -5,7 +5,7 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.core.metainfo import MetaInfo
 from app.log import logger
@@ -176,9 +176,7 @@ class WeChat:
 
         return content_chunks
 
-    def __send_message(
-        self, title: str, text: str | None = None, userid: str | None = None, link: str | None = None
-    ) -> bool:
+    def __send_message(self, title: str, text: str | None = None, userid: str | None = None, link: str | None = None) -> bool:
         """
         发送文本消息
         :param title: 消息标题

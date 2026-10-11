@@ -379,17 +379,15 @@ class SiteParserBase(metaclass=ABCMeta):
 
         if method == "post" or params:
             if (req_headers or {}).get("Content-Type") == "application/json":
-                res = RequestUtils(
-                    cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
-                ).post_res(url=url, json=params or {})
+                res = RequestUtils(cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers).post_res(
+                    url=url, json=params or {}
+                )
             else:
-                res = RequestUtils(
-                    cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
-                ).post_res(url=url, data=params or {})
+                res = RequestUtils(cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers).post_res(
+                    url=url, data=params or {}
+                )
         else:
-            res = RequestUtils(
-                cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers
-            ).get_res(url=url)
+            res = RequestUtils(cookies=cookie, session=session, timeout=60, proxies=proxies, headers=req_headers).get_res(url=url)
         if res is not None and res.status_code in (200, 500, 403):
             if req_headers and "application/json" in str(req_headers.get("Accept")):
                 try:

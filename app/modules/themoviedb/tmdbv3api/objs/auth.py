@@ -30,9 +30,7 @@ class Authentication(TMDb):
         """
         You can use this method to create a fully valid session ID once a user has validated the request token.
         """
-        response = self._request_obj(
-            self._urls["create_session"], method="POST", json={"request_token": self.request_token}
-        )
+        response = self._request_obj(self._urls["create_session"], method="POST", json={"request_token": self.request_token})
         self.session_id = response.session_id
 
     def _authorise_request_token_with_login(self):

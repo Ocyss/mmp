@@ -63,9 +63,7 @@ class AgentChat(Base):
 
     @classmethod
     @async_db_query
-    async def async_get_by_session(
-        cls, db: AsyncSession, session_id: str, user_id: str | None = None
-    ) -> AgentChat | None:
+    async def async_get_by_session(cls, db: AsyncSession, session_id: str, user_id: str | None = None) -> AgentChat | None:
         """
         异步根据会话 ID 获取 Agent 会话。
         """
@@ -117,7 +115,5 @@ class AgentChat(Base):
             statement = statement.where(cls.user_id == user_id)
         elif username is not None:
             statement = statement.where(cls.username == username)
-        result = await db.execute(
-            statement.order_by(cls.updated_at.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
-        )
+        result = await db.execute(statement.order_by(cls.updated_at.desc(), cls.id.desc()).offset((page - 1) * count).limit(count))
         return result.scalars().all()

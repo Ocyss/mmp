@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Column, Float, Index, Integer, String
 
@@ -130,14 +130,7 @@ class DownloadFailure(Base):
         """
         分批清理已过期较久的失败冷却记录。
         """
-        ids = [
-            row[0]
-            for row in db.query(cls.id)
-            .filter(cls.next_retry_at < before_time)
-            .order_by(cls.id.asc())
-            .limit(limit)
-            .all()
-        ]
+        ids = [row[0] for row in db.query(cls.id).filter(cls.next_retry_at < before_time).order_by(cls.id.asc()).limit(limit).all()]
         if not ids:
             return 0
         return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

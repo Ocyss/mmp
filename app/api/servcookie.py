@@ -1,7 +1,7 @@
 import gzip
 import hmac
 import json
-from typing import TYPE_CHECKING, Annotated, Any, Dict, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import aiofiles
 from anyio import Path as AsyncPath

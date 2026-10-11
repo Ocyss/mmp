@@ -1,6 +1,6 @@
 import json
 import time
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pywebpush import WebPushException, webpush
@@ -276,10 +276,7 @@ def incoming_verify(
     """
     微信/VoceChat等验证响应
     """
-    logger.info(
-        f"收到验证请求: token={token}, echostr={echostr}, "
-        f"msg_signature={msg_signature}, timestamp={timestamp}, nonce={nonce}"
-    )
+    logger.info(f"收到验证请求: token={token}, echostr={echostr}, msg_signature={msg_signature}, timestamp={timestamp}, nonce={nonce}")
     if echostr and msg_signature and timestamp and nonce:
         return wechat_verify(echostr, msg_signature, timestamp, nonce, source)
     return vocechat_verify()

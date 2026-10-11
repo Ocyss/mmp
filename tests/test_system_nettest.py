@@ -47,7 +47,7 @@ _STUB_MODULES = dict([
     _stub("app.db.systemconfig_oper", SystemConfigOper=_Dummy),
     _stub("app.db.user_oper", get_current_active_superuser=_Dummy,
           get_current_active_superuser_async=_Dummy, get_current_active_user_async=_Dummy),
-    _stub("app.helper.llm", LLMHelper=_Dummy, LLMTestError=_DummyError, LLMTestTimeout=_DummyError),
+    _stub("app.helper.llm", LLMHelper=_Dummy, LLMTestError=_DummyError, LLMTestTimeoutError=_DummyError),
     _stub("app.helper.mediaserver", MediaServerHelper=_Dummy),
     _stub("app.helper.message", MessageHelper=_Dummy),
     _stub("app.helper.progress", ProgressHelper=_Dummy),

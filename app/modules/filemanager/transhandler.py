@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from jinja2 import Template
 
@@ -307,9 +307,7 @@ class TransHandler:
                     # 电视剧
                     if in_meta.begin_episode is None:
                         if __is_special_extra_file(fileitem):
-                            logger.info(
-                                f"文件 {fileitem.path} 未识别到文件集数，识别为特典/附加视频文件，跳过正片集数整理"
-                            )
+                            logger.info(f"文件 {fileitem.path} 未识别到文件集数，识别为特典/附加视频文件，跳过正片集数整理")
                             self.__update_result(
                                 result=result,
                                 success=True,
@@ -450,9 +448,7 @@ class TransHandler:
                                 overflag = True
                         if not overflag:
                             # 目标文件已存在
-                            logger.info(
-                                f"目的文件系统中已经存在同名文件 {target_file}，当前整理覆盖模式设置为 {overwrite_mode}"
-                            )
+                            logger.info(f"目的文件系统中已经存在同名文件 {target_file}，当前整理覆盖模式设置为 {overwrite_mode}")
                             # 触发覆盖检查事件，允许插件提供源/目标文件真实大小
                             # 或直接给出覆盖决策（例如 .strm 文件指向网盘原始文件）
                             overwrite_event_data = TransferOverwriteCheckEventData(
@@ -475,11 +471,7 @@ class TransHandler:
                                 plugin_overwrite = overwrite_event_data.overwrite
                                 plugin_source_size = overwrite_event_data.source_size
                                 plugin_target_size = overwrite_event_data.target_size
-                                if (
-                                    plugin_overwrite is not None
-                                    or plugin_source_size is not None
-                                    or plugin_target_size is not None
-                                ):
+                                if plugin_overwrite is not None or plugin_source_size is not None or plugin_target_size is not None:
                                     logger.info(
                                         f"覆盖检查事件由 {overwrite_event_data.source} 处理："
                                         f"overwrite={plugin_overwrite}, "
@@ -546,9 +538,7 @@ class TransHandler:
                     else:
                         if overwrite_mode == "latest":
                             # 文件不存在，但仅保留最新版本
-                            logger.info(
-                                f"当前整理覆盖模式设置为 {overwrite_mode}，仅保留最新版本，正在删除已有版本文件 ..."
-                            )
+                            logger.info(f"当前整理覆盖模式设置为 {overwrite_mode}，仅保留最新版本，正在删除已有版本文件 ...")
                             self.__delete_version_files(target_oper, new_file)
                 else:
                     # 附加文件 总是需要覆盖
@@ -986,8 +976,7 @@ class TransHandler:
         :param target_oper: 目标存储操作对象
         """
         logger.info(
-            f"正在整理文件：【{fileitem.storage}】{fileitem.path} 到 【{target_storage}】{target_file}，"
-            f"操作类型：{transfer_type}"
+            f"正在整理文件：【{fileitem.storage}】{fileitem.path} 到 【{target_storage}】{target_file}，操作类型：{transfer_type}"
         )
         event_data = TransferInterceptEventData(
             fileitem=fileitem,
@@ -1210,10 +1199,7 @@ class TransHandler:
         if event and event.event_data:
             event_data: TransferRenameEventData = event.event_data
             if event_data.updated and event_data.updated_str:
-                logger.debug(
-                    f"Render string updated by event: "
-                    f"{render_str} -> {event_data.updated_str} (source: {event_data.source})"
-                )
+                logger.debug(f"Render string updated by event: {render_str} -> {event_data.updated_str} (source: {event_data.source})")
                 render_str = event_data.updated_str
 
         # 目的路径

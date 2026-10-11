@@ -1,7 +1,7 @@
 """发送本地附件工具。"""
 
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 

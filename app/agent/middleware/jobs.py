@@ -137,10 +137,9 @@ async def _alist_jobs(source_path: AsyncPath) -> list[JobMetadata]:
         return []
 
     # 查找所有任务目录（包含 JOB.md 的目录）
-    job_dirs: list[AsyncPath] = []
-    async for path in source_path.iterdir():
-        if await path.is_dir() and await (path / "JOB.md").is_file():
-            job_dirs.append(path)
+    job_dirs: list[AsyncPath] = [
+        path async for path in source_path.iterdir() if await path.is_dir() and await (path / "JOB.md").is_file()
+    ]
 
     if not job_dirs:
         return []

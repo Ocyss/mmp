@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 from app.db import DbOper
 from app.db.models.downloadfailure import DownloadFailure

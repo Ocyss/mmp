@@ -74,18 +74,14 @@ class List(TMDb):
         Clear all of the items from a list.
         :param list_id: int
         """
-        self._request_obj(
-            self._urls["clear_list"] % list_id, params=f"session_id={self.session_id}&confirm=true", method="POST"
-        )
+        self._request_obj(self._urls["clear_list"] % list_id, params=f"session_id={self.session_id}&confirm=true", method="POST")
 
     def delete_list(self, list_id):
         """
         Delete a list.
         :param list_id: int
         """
-        self._request_obj(
-            self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        self._request_obj(self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE")
 
     # 异步版本方法
     async def async_details(self, list_id):
@@ -161,6 +157,4 @@ class List(TMDb):
         Delete a list.（异步版本）
         :param list_id: int
         """
-        await self._async_request_obj(
-            self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE"
-        )
+        await self._async_request_obj(self._urls["delete_list"] % list_id, params=f"session_id={self.session_id}", method="DELETE")

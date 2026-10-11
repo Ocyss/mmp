@@ -43,7 +43,7 @@ class Auth:
                     error_msg = "网络连接失败，未收到响应"
                 raise Exception(error_msg)
         except Exception as e:
-            raise Exception(f"TVDB认证失败: {str(e)}")
+            raise Exception(f"TVDB认证失败: {str(e)}") from e
 
     def get_token(self):
         """
@@ -107,7 +107,7 @@ class Request:
         except Exception as e:
             if isinstance(e, ValueError):
                 raise
-            raise ValueError(f"获取 {url} 失败\n  {str(e)}")
+            raise ValueError(f"获取 {url} 失败\n  {str(e)}") from e
 
 
 class Url:

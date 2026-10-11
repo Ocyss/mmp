@@ -24,9 +24,7 @@ class Search(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["companies"], params=f"query={quote(term)}&page={page}", key="results"
-        )
+        return self._request_obj(self._urls["companies"], params=f"query={quote(term)}&page={page}", key="results")
 
     def collections(self, term, page=1):
         """
@@ -35,9 +33,7 @@ class Search(TMDb):
         :param page: int
         :return:
         """
-        return self._request_obj(
-            self._urls["collections"], params=f"query={quote(term)}&page={page}", key="results"
-        )
+        return self._request_obj(self._urls["collections"], params=f"query={quote(term)}&page={page}", key="results")
 
     def keywords(self, term, page=1):
         """
@@ -127,9 +123,7 @@ class Search(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["companies"], params=f"query={quote(term)}&page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["companies"], params=f"query={quote(term)}&page={page}", key="results")
 
     async def async_collections(self, term, page=1):
         """
@@ -138,9 +132,7 @@ class Search(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["collections"], params=f"query={quote(term)}&page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["collections"], params=f"query={quote(term)}&page={page}", key="results")
 
     async def async_keywords(self, term, page=1):
         """
@@ -149,9 +141,7 @@ class Search(TMDb):
         :param page: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["keywords"], params=f"query={quote(term)}&page={page}", key="results"
-        )
+        return await self._async_request_obj(self._urls["keywords"], params=f"query={quote(term)}&page={page}", key="results")
 
     async def async_people(self, term, adult=None, region=None, page=1):
         """

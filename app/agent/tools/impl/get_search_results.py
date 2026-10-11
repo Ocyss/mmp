@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -153,9 +153,7 @@ class GetSearchResultsTool(MoviePilotTool):
                 filtered_items = [
                     item
                     for item in filtered_items
-                    if item.torrent_info
-                    and item.torrent_info.title
-                    and title_regex_pattern.search(item.torrent_info.title)
+                    if item.torrent_info and item.torrent_info.title and title_regex_pattern.search(item.torrent_info.title)
                 ]
             if content_regex_pattern:
                 content_filtered_items = []

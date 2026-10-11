@@ -1,7 +1,7 @@
 import copy
 import json
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app.core.event import eventmanager
 from app.log import logger
@@ -187,9 +187,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
 
         return None
 
-    def _handle_callback_query(
-        self, message: dict, client_config: NotificationConf, client: Telegram
-    ) -> CommingMessage | None:
+    def _handle_callback_query(self, message: dict, client_config: NotificationConf, client: Telegram) -> CommingMessage | None:
         """
         处理按钮回调查询
         """
@@ -234,9 +232,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
             )
         return None
 
-    def _handle_text_message(
-        self, msg: dict, client_config: NotificationConf, client: Telegram
-    ) -> CommingMessage | None:
+    def _handle_text_message(self, msg: dict, client_config: NotificationConf, client: Telegram) -> CommingMessage | None:
         """
         处理普通文本消息
         """
@@ -771,9 +767,7 @@ class TelegramModule(_ModuleBase, _MessageBase[Telegram]):
                 # 如果事件被取消，跳过命令注册，并清理菜单
                 if event_data.cancel:
                     client.delete_commands()
-                    logger.debug(
-                        f"Command registration for {client_config.name} canceled by event: {event_data.source}"
-                    )
+                    logger.debug(f"Command registration for {client_config.name} canceled by event: {event_data.source}")
                     continue
                 scoped_commands = event_data.commands or {}
                 if not scoped_commands:

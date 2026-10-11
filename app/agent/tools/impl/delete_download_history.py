@@ -1,6 +1,6 @@
 """删除下载历史记录工具"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,9 @@ class DeleteDownloadHistoryTool(MoviePilotTool):
         ToolTag.Download,
         ToolTag.Admin,
     ]
-    description: str = "Delete a download history record by ID. This only removes the record from the database, does not delete any actual files."
+    description: str = (
+        "Delete a download history record by ID. This only removes the record from the database, does not delete any actual files."
+    )
     args_schema: type[BaseModel] = DeleteDownloadHistoryInput
     require_admin: bool = True
 

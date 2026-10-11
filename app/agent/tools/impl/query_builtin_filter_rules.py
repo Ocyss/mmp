@@ -1,7 +1,7 @@
 """查询内置过滤规则工具。"""
 
 import json
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -54,9 +54,7 @@ class QueryBuiltinFilterRulesTool(MoviePilotTool):
             builtin_rules = get_builtin_rules()
             if rule_ids:
                 target_ids = set(rule_ids)
-                builtin_rules = {
-                    rule_id: payload for rule_id, payload in builtin_rules.items() if rule_id in target_ids
-                }
+                builtin_rules = {rule_id: payload for rule_id, payload in builtin_rules.items() if rule_id in target_ids}
 
             serialized = [serialize_builtin_rule(rule_id, payload) for rule_id, payload in builtin_rules.items()]
             return json.dumps(

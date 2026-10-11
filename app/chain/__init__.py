@@ -4,7 +4,7 @@ import pickle
 import traceback
 from abc import ABCMeta
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from app.schemas.category import CategoryConfig
 
 
-class ChainBase(metaclass=ABCMeta):
+class ChainBase(metaclass=ABCMeta):  # noqa: B024 使用 ABCMeta 仅为阻止直接实例化
     """
     处理链基类
     """
@@ -142,9 +142,7 @@ class ChainBase(metaclass=ABCMeta):
         启动渠道侧消息输入/处理状态。
         具体表现由消息模块实现，例如 typing 保活或消息 reaction。
         """
-        if not channel or not ChannelCapabilityManager.supports_capability(
-            channel, ChannelCapability.PROCESSING_STATUS
-        ):
+        if not channel or not ChannelCapabilityManager.supports_capability(channel, ChannelCapability.PROCESSING_STATUS):
             return None
         try:
             status = self.run_module(
@@ -180,9 +178,7 @@ class ChainBase(metaclass=ABCMeta):
                 target_channel = MessageChannel(status.get("channel"))
             except Exception:
                 target_channel = channel
-        if not target_channel or not ChannelCapabilityManager.supports_capability(
-            target_channel, ChannelCapability.PROCESSING_STATUS
-        ):
+        if not target_channel or not ChannelCapabilityManager.supports_capability(target_channel, ChannelCapability.PROCESSING_STATUS):
             return
         try:
             self.run_module(
@@ -272,9 +268,7 @@ class ChainBase(metaclass=ABCMeta):
         )
 
     @staticmethod
-    def __handle_rate_limit_error(
-        err: RateLimitExceededException, source_type: str, source_id: str, method: str, **kwargs
-    ) -> None:
+    def __handle_rate_limit_error(err: RateLimitExceededException, source_type: str, source_id: str, method: str, **kwargs) -> None:
         """
         处理本地限流跳过，避免预期的限流状态进入系统错误告警。
         """

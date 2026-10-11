@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -96,9 +96,7 @@ async def get_event_types(_: User = Depends(get_current_active_manage_user_async
 
 
 @router.post("/share", summary="分享工作流", response_model=schemas.Response)
-async def workflow_share(
-    workflow: schemas.WorkflowShare, _: User = Depends(get_current_active_manage_user_async)
-) -> Any:
+async def workflow_share(workflow: schemas.WorkflowShare, _: User = Depends(get_current_active_manage_user_async)) -> Any:
     """
     分享工作流
     """

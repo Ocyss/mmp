@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.db.systemconfig_oper import SystemConfigOper
 from app.schemas import CustomRule, FilterRuleGroup

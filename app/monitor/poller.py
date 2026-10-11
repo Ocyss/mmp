@@ -1,7 +1,7 @@
 import traceback
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.chain.storage import StorageChain
 from app.log import logger
@@ -21,9 +21,7 @@ class RemotePoller:
     # 同一存储连续异常达到该次数后推送告警
     FAILURE_ALERT_THRESHOLD = 3
 
-    def __init__(
-        self, store: SnapshotStore, dispatcher: TransferDispatcher, alert_cb: Callable[[str, str], None] | None = None
-    ):
+    def __init__(self, store: SnapshotStore, dispatcher: TransferDispatcher, alert_cb: Callable[[str, str], None] | None = None):
         """
         初始化远程轮询监控。
         :param store: 快照存储
@@ -94,9 +92,7 @@ class RemotePoller:
                     logger.debug(f"开始对 {storage}:{mon_path} 进行快照...")
 
                     # 生成新快照（增量模式）
-                    snapshot = StorageChain().snapshot_storage(
-                        storage=storage, path=mon_path, last_snapshot_time=last_snapshot_time
-                    )
+                    snapshot = StorageChain().snapshot_storage(storage=storage, path=mon_path, last_snapshot_time=last_snapshot_time)
 
                     if snapshot is None:
                         failed_paths.append(str(mon_path))
@@ -146,13 +142,9 @@ class RemotePoller:
         :param new_snapshot: 本轮增量快照
         """
         changes = SnapshotStore.compare(old_snapshot, new_snapshot)
-        added_files = [
-            file_path for file_path in changes["added"] if self._dispatcher.is_transfer_candidate_path(Path(file_path))
-        ]
+        added_files = [file_path for file_path in changes["added"] if self._dispatcher.is_transfer_candidate_path(Path(file_path))]
         modified_files = [
-            file_path
-            for file_path in changes["modified"]
-            if self._dispatcher.is_transfer_candidate_path(Path(file_path))
+            file_path for file_path in changes["modified"] if self._dispatcher.is_transfer_candidate_path(Path(file_path))
         ]
 
         # 处理新增文件

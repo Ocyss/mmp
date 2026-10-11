@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,9 +21,7 @@ MAX_DIRECTORY_PAGE_SIZE = 200
 class ListDirectoryInput(BaseModel):
     """查询文件系统目录内容工具的输入参数模型"""
 
-    path: str = Field(
-        ..., description="Directory path to list contents (e.g., '/home/user/downloads' or 'C:/Downloads')"
-    )
+    path: str = Field(..., description="Directory path to list contents (e.g., '/home/user/downloads' or 'C:/Downloads')")
     storage: str | None = Field(
         "local", description="Storage type (default: 'local' for local file system, can be 'smb', 'alist', etc.)"
     )
@@ -36,8 +34,7 @@ class ListDirectoryInput(BaseModel):
         ge=1,
         le=MAX_DIRECTORY_PAGE_SIZE,
         description=(
-            f"Maximum items to return in this page (default: {DEFAULT_DIRECTORY_PAGE_SIZE}, "
-            f"maximum: {MAX_DIRECTORY_PAGE_SIZE})"
+            f"Maximum items to return in this page (default: {DEFAULT_DIRECTORY_PAGE_SIZE}, maximum: {MAX_DIRECTORY_PAGE_SIZE})"
         ),
     )
     offset: int | None = Field(
@@ -177,9 +174,7 @@ class ListDirectoryTool(MoviePilotTool):
         logger.info(f"执行工具: {self.name}, 参数: path={path}, storage={storage}, sort_by={sort_by}")
 
         try:
-            resolved_path, access_error = await self._check_local_storage_access(
-                path=path, storage=storage, operation="列出"
-            )
+            resolved_path, access_error = await self._check_local_storage_access(path=path, storage=storage, operation="列出")
             if access_error:
                 return access_error
             if resolved_path:

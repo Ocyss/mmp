@@ -3,7 +3,7 @@ import datetime
 import hashlib
 import random
 import re
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib import parse
 
 import cn2an
@@ -231,7 +231,7 @@ class StringUtils:
         """
         if size is None:
             return ""
-        size = re.sub(r"\s|B|iB", "", str(size), re.I)
+        size = re.sub(r"\s|B|iB", "", str(size), flags=re.I)
         if size.replace(".", "").isdigit():
             try:
                 size = float(size)

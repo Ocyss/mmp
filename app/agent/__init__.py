@@ -1331,8 +1331,7 @@ class MoviePilotAgent:
                     "text": json.dumps(request_payload, ensure_ascii=False, indent=2),
                 }
             ]
-            for img in images or []:
-                content.append({"type": "image_url", "image_url": {"url": img}})
+            content.extend({"type": "image_url", "image_url": {"url": img}} for img in images or [])
             messages.append(HumanMessage(content=content))
             await self.prepare_chat_title(message)
             self._save_display_history_messages(

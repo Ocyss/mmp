@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Any, List, Literal, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends
 

@@ -1,7 +1,7 @@
 """卸载插件工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -32,8 +32,7 @@ class UninstallPluginTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = (
-        "Uninstall an installed plugin by exact plugin_id. "
-        "Use query_installed_plugins first when you need filtering or discovery."
+        "Uninstall an installed plugin by exact plugin_id. Use query_installed_plugins first when you need filtering or discovery."
     )
     require_admin: bool = True
     args_schema: type[BaseModel] = UninstallPluginInput

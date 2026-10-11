@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 
 from app.log import logger
 from app.modules.indexer.parser import SiteParserBase, SiteSchema

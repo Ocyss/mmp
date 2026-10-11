@@ -5,7 +5,7 @@ import inspect
 import json
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlsplit
 
 from langchain_core.messages import AIMessage, AIMessageChunk
@@ -25,7 +25,7 @@ class LLMTestError(RuntimeError):
         self.duration_ms = duration_ms
 
 
-class LLMTestTimeout(TimeoutError):
+class LLMTestTimeoutError(TimeoutError):
     """LLM 测试调用超时，附带请求耗时。"""
 
     def __init__(self, message: str, duration_ms: int | None = None):
@@ -73,9 +73,7 @@ def _patch_gemini_thought_signature():
             return
 
         if not hasattr(_cm, "_is_gemini_3_or_later"):
-            logger.error(
-                "langchain-google-genai 缺少 _is_gemini_3_or_later，无法修补 thought_signature 兼容性，请检查包版本"
-            )
+            logger.error("langchain-google-genai 缺少 _is_gemini_3_or_later，无法修补 thought_signature 兼容性，请检查包版本")
             return
 
         # 补丁 1：扩展 _is_gemini_3_or_later，使 Gemini 2.5 模型也能触发
@@ -115,8 +113,7 @@ def _patch_gemini_thought_signature():
         _cm._parse_chat_history = _patched_parse_chat_history
         _cm._thought_signature_patched = True
         logger.debug(
-            "已修补 langchain-google-genai thought_signature 兼容性"
-            "（覆盖 Gemini 2.5 模型 + 修复并行 function_call 签名缺失）"
+            "已修补 langchain-google-genai thought_signature 兼容性（覆盖 Gemini 2.5 模型 + 修复并行 function_call 签名缺失）"
         )
     except Exception as e:
         logger.warning(f"修补 langchain-google-genai thought_signature 失败: {e}")
@@ -596,9 +593,7 @@ class LLMHelper:
         return {}
 
     @classmethod
-    def _build_thinking_kwargs(
-        cls, provider: str, model: str | None, thinking_level: str | None = None
-    ) -> dict[str, Any]:
+    def _build_thinking_kwargs(cls, provider: str, model: str | None, thinking_level: str | None = None) -> dict[str, Any]:
         """
         按 provider/model 生成思考模式相关参数。
 
@@ -1091,9 +1086,7 @@ class LLMHelper:
         server_tool_resolution = ServerToolRegistry.resolve_web_search(
             provider=provider_name,
             model=model_name,
-            mode=(
-                web_search_mode if web_search_mode is not None else getattr(settings, "LLM_WEB_SEARCH_MODE", "local")
-            ),
+            mode=(web_search_mode if web_search_mode is not None else getattr(settings, "LLM_WEB_SEARCH_MODE", "local")),
             api_protocol=(api_protocol if api_protocol is not None else settings.LLM_API_PROTOCOL),
             base_url=runtime.get("base_url"),
         )
@@ -1239,9 +1232,7 @@ class LLMHelper:
             _patch_openai_responses_instructions_support()
 
             # ChatGPT Codex 端点强制要求 stream: True
-            if runtime.get("use_responses_api") and "chatgpt.com/backend-api/codex" in str(
-                runtime.get("base_url") or ""
-            ):
+            if runtime.get("use_responses_api") and "chatgpt.com/backend-api/codex" in str(runtime.get("base_url") or ""):
                 streaming = True
 
             model = ChatOpenAI(
@@ -1383,7 +1374,7 @@ class LLMHelper:
             response = await asyncio.wait_for(llm.ainvoke(prompt), timeout=timeout)
         except TimeoutError as err:
             duration_ms = round((time.perf_counter() - start) * 1000)
-            raise LLMTestTimeout("LLM 调用超时", duration_ms=duration_ms) from err
+            raise LLMTestTimeoutError("LLM 调用超时", duration_ms=duration_ms) from err
         except Exception as err:
             duration_ms = round((time.perf_counter() - start) * 1000)
             raise LLMTestError(str(err), duration_ms=duration_ms) from err

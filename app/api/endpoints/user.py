@@ -1,6 +1,6 @@
 import base64
 import re
-from typing import TYPE_CHECKING, Annotated, Any, List, Union
+from typing import TYPE_CHECKING, Annotated, Any, Union
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 

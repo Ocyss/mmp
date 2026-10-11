@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from app.core.cache import cached
 from app.core.context import MediaInfo, settings

@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote_plus
 
 from plexapi.exceptions import NotFound
@@ -129,10 +129,7 @@ class Plex:
             if len(items) < total_size:
                 break
             container_start += total_size
-        return [
-            f"{self._host.rstrip('/') + url}?X-Plex-Token={self._token}"
-            for url in list(poster_urls.keys())[:total_size]
-        ]
+        return [f"{self._host.rstrip('/') + url}?X-Plex-Token={self._token}" for url in list(poster_urls.keys())[:total_size]]
 
     def get_librarys(self, hidden: bool | None = False) -> list[schemas.MediaServerLibrary] | None:
         """
@@ -147,12 +144,7 @@ class Plex:
             return None
         libraries = []
         for library in self._libraries:
-            if (
-                hidden
-                and self._sync_libraries
-                and "all" not in self._sync_libraries
-                and str(library.key) not in self._sync_libraries
-            ):
+            if hidden and self._sync_libraries and "all" not in self._sync_libraries and str(library.key) not in self._sync_libraries:
                 continue
             if library.type == "movie":
                 library_type = MediaType.MOVIE.value
@@ -320,9 +312,7 @@ class Plex:
             logger.error(f"获取 Plex 季集条目 ID 出错：{str(e)}")
             return {}
 
-    def __search_show(
-        self, title: str | None = None, original_title: str | None = None, year: str | None = None
-    ) -> Any:
+    def __search_show(self, title: str | None = None, original_title: str | None = None, year: str | None = None) -> Any:
         """
         按标题搜索Plex电视剧条目，供常规查询和缓存item_id失效后的回退查询复用。
         :param title: 标题
@@ -338,9 +328,7 @@ class Plex:
             videos = self._plex.library.search(title=original_title, libtype="show", **kwargs)
         return videos
 
-    def get_remote_image_by_id(
-        self, item_id: str, image_type: str, depth: int | None = 0, plex_url: bool | None = True
-    ) -> str | None:
+    def get_remote_image_by_id(self, item_id: str, image_type: str, depth: int | None = 0, plex_url: bool | None = True) -> str | None:
         """
         根据ItemId从Plex查询图片地址
         :param item_id: 在Plex中的ID
@@ -393,9 +381,7 @@ class Plex:
                 # 如果最后还是找不到，则递归父级进行查找
                 parent_key = getattr(item, "parentKey", None)
                 if not image_url and parent_key:
-                    return self.get_remote_image_by_id(
-                        item_id=parent_key, image_type=image_type, depth=depth + 1, plex_url=plex_url
-                    )
+                    return self.get_remote_image_by_id(item_id=parent_key, image_type=image_type, depth=depth + 1, plex_url=plex_url)
             return image_url
         except Exception as e:
             logger.error("获取封面出错：" + str(e))
@@ -560,9 +546,7 @@ class Plex:
         user_state = schemas.MediaServerItemUserState(
             played=played,
             resume=playback_position > 0,
-            last_played_date=last_played_date.isoformat()
-            if last_played_date and hasattr(last_played_date, "isoformat")
-            else None,
+            last_played_date=last_played_date.isoformat() if last_played_date and hasattr(last_played_date, "isoformat") else None,
             play_count=play_count,
             percentage=percentage,
         )
@@ -867,16 +851,13 @@ class Plex:
             if len(ret_resume) >= num:
                 break
             # 获取所有资料库
-            hubs = self._plex.fetchItems(
-                "/hubs/promoted", container_start=offset, container_size=num, maxresults=num, params=params
-            )
+            hubs = self._plex.fetchItems("/hubs/promoted", container_start=offset, container_size=num, maxresults=num, params=params)
             if len(hubs) == 0:
                 break
 
             # 合并排序
             for hub in hubs:
-                for item in hub.items():
-                    sub_result.append(item)
+                sub_result.extend(hub.items())
             sub_result.sort(key=lambda x: x.addedAt, reverse=True)
 
             for item in sub_result:

@@ -11,9 +11,7 @@ class Find(TMDb):
         :param external_source str
         :return:
         """
-        return self._request_obj(
-            self._urls["find"] % external_id.replace("/", "%2F"), params="external_source=" + external_source
-        )
+        return self._request_obj(self._urls["find"] % external_id.replace("/", "%2F"), params="external_source=" + external_source)
 
     def find_by_imdb_id(self, imdb_id):
         """

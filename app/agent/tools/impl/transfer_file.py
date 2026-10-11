@@ -1,7 +1,7 @@
 """整理文件或目录工具"""
 
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

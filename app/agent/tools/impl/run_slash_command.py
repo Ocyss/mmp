@@ -1,7 +1,7 @@
 """运行斜杠命令工具（系统命令 + 插件命令）"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

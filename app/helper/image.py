@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from PIL import Image
 

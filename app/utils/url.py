@@ -1,6 +1,6 @@
 import mimetypes
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 from urllib import parse
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
@@ -114,7 +114,7 @@ class UrlUtils:
         :param url: str
             需要解析的 URL 字符串
             可以是完整的 URL（例如："http://example.com:8080/path"）或不带协议的地址（例如："example.com:1234"）
-        :return: Optional[Tuple[str, str, int, str]]
+        :return: Optional[tuple[str, str, int, str]]
             - str: 协议（例如："http", "https"）
             - str: 主机名或 IP 地址（例如："example.com", "192.168.1.1"）
             - int: 端口号（例如：80, 443）

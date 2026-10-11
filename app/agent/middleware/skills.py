@@ -2,7 +2,7 @@ import json
 import re
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, List, NotRequired, Optional, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, NotRequired, Optional, TypedDict
 
 import yaml  # noqa
 from anyio import Path as AsyncPath
@@ -233,10 +233,9 @@ async def _alist_skills(source_path: AsyncPath) -> list[SkillMetadata]:
     skills: list[SkillMetadata] = []
 
     # 查找所有技能目录 (包含 SKILL.md 的目录)
-    skill_dirs: list[AsyncPath] = []
-    async for path in source_path.iterdir():
-        if await path.is_dir() and await (path / "SKILL.md").is_file():
-            skill_dirs.append(path)
+    skill_dirs: list[AsyncPath] = [
+        path async for path in source_path.iterdir() if await path.is_dir() and await (path / "SKILL.md").is_file()
+    ]
 
     if not skill_dirs:
         return []
@@ -583,9 +582,7 @@ class SkillsMiddleware(AgentMiddleware[SkillsState, ContextT, ResponseT]):  # no
             StructuredTool.from_function(
                 coroutine=self._skill_provider.load_skill,
                 name=SKILL_TOOL_NAME,
-                description=SKILL_TOOL_DESCRIPTION.format(
-                    skills_catalog=_format_skill_tool_catalog(self._load_skills_metadata())
-                ),
+                description=SKILL_TOOL_DESCRIPTION.format(skills_catalog=_format_skill_tool_catalog(self._load_skills_metadata())),
                 args_schema=SkillToolInput,
                 tags=[ToolTag.Read, ToolTag.Skill],
             )

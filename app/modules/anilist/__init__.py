@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -403,9 +403,7 @@ class AniListModule(_ModuleBase):
 
         :return: 媒体人物列表
         """
-        persons = (
-            self._build_credit_person(edge) for edge in self.anilist_api.credits(anilist_id, page=page, count=count)
-        )
+        persons = (self._build_credit_person(edge) for edge in self.anilist_api.credits(anilist_id, page=page, count=count))
         return [person for person in persons if person]
 
     async def async_anilist_credits(self, anilist_id: int, page: int = 1, count: int = 20) -> list[schemas.MediaPerson]:

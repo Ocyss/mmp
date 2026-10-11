@@ -11,9 +11,7 @@ class NotificationHelper(ServiceBaseHelper[NotificationConf]):
     """
 
     def __init__(self):
-        super().__init__(
-            config_key=SystemConfigKey.Notifications, conf_type=NotificationConf, module_type=ModuleType.Notification
-        )
+        super().__init__(config_key=SystemConfigKey.Notifications, conf_type=NotificationConf, module_type=ModuleType.Notification)
 
     def is_notification(
         self,

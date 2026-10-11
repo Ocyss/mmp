@@ -10,7 +10,7 @@
 
 import sys
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

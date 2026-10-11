@@ -1,6 +1,6 @@
 import threading
 from time import monotonic, sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.core.config import global_vars
 from app.core.event import Event, eventmanager
@@ -120,9 +120,7 @@ class WorkFlowManager(metaclass=Singleton):
         logger.error(f"{action.name} 执行失败！")
         return action_result
 
-    def excute(
-        self, workflow_id: int, action: Action, context: ActionContext = None
-    ) -> tuple[bool, str, ActionContext]:
+    def excute(self, workflow_id: int, action: Action, context: ActionContext = None) -> tuple[bool, str, ActionContext]:
         """
         执行工作流动作，兼容历史拼写错误的方法名。
         """
@@ -197,9 +195,7 @@ class WorkFlowManager(metaclass=Singleton):
             if self._is_cancelled(workflow_id, cancel_token):
                 return ActionResult(success=False, message="工作流已取消", context=action_result.context or context)
             if timeout and monotonic() - started_at >= timeout:
-                return ActionResult(
-                    success=False, message=f"动作执行超时（{timeout}秒）", context=action_result.context or context
-                )
+                return ActionResult(success=False, message=f"动作执行超时（{timeout}秒）", context=action_result.context or context)
             logger.info(f"{action.name} 等待 {loop_interval} 秒后继续执行 ...")
             self._sleep_with_cancel(workflow_id, loop_interval, cancel_token)
             if self._is_cancelled(workflow_id, cancel_token):

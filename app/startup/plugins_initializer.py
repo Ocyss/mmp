@@ -12,9 +12,7 @@ async def sync_plugins() -> bool:
         plugin_manager = PluginManager()
 
         sync_result = await execute_task(loop, plugin_manager.sync, "插件同步到本地")
-        resolved_dependencies = await execute_task(
-            loop, plugin_manager.install_plugin_missing_dependencies, "缺失依赖项安装"
-        )
+        resolved_dependencies = await execute_task(loop, plugin_manager.install_plugin_missing_dependencies, "缺失依赖项安装")
         # 判断是否需要进行插件初始化
         if not sync_result and not resolved_dependencies:
             logger.debug("没有新的插件同步到本地或缺失依赖项需要安装")

@@ -1,7 +1,7 @@
 import threading
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Generic, Optional, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union
 
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
@@ -126,7 +126,7 @@ class ServiceBase[TService: object, TConf](metaclass=ABCMeta):
         初始化服务，获取配置并实例化对应服务
 
         :param service_name: 服务名称，作为配置匹配的依据
-        :param service_type: 服务的类型，可以是类类型（Type[TService]）、工厂函数（Callable）或 None 来跳过实例化
+        :param service_type: 服务的类型，可以是类类型（type[TService]）、工厂函数（Callable）或 None 来跳过实例化
         """
         if not service_name:
             raise Exception("service_name is null")
@@ -271,7 +271,7 @@ class _DownloaderBase(ServiceBase[TService, DownloaderConf]):
         初始化服务，获取配置并实例化对应服务
 
         :param service_name: 服务名称，作为配置匹配的依据
-        :param service_type: 服务的类型，可以是类类型（Type[TService]）、工厂函数（Callable）或 None 来跳过实例化
+        :param service_type: 服务的类型，可以是类类型（type[TService]）、工厂函数（Callable）或 None 来跳过实例化
         """
         # 重置默认配置名称
         self.reset_default_config_name()

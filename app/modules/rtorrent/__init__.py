@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Optional, Union
 
 from torrentool.torrent import Torrent
 
@@ -135,10 +135,7 @@ class RtorrentModule(_ModuleBase, _DownloaderBase[Rtorrent]):
         torrent_from_file, content = __get_torrent_info()
         # 检查是否为磁力链接
         is_magnet = (
-            isinstance(content, str)
-            and content.startswith("magnet:")
-            or isinstance(content, bytes)
-            and content.startswith(b"magnet:")
+            isinstance(content, str) and content.startswith("magnet:") or isinstance(content, bytes) and content.startswith(b"magnet:")
         )
         if not torrent_from_file and not is_magnet:
             return None, None, None, "添加种子任务失败：无法读取种子文件"
@@ -179,9 +176,9 @@ class RtorrentModule(_ModuleBase, _DownloaderBase[Rtorrent]):
                 try:
                     for torrent in torrents:
                         # 名称与大小相等则认为是同一个种子
-                        if torrent.get("name") == getattr(torrent_from_file, "name", "") and torrent.get(
-                            "total_size"
-                        ) == getattr(torrent_from_file, "total_size", 0):
+                        if torrent.get("name") == getattr(torrent_from_file, "name", "") and torrent.get("total_size") == getattr(
+                            torrent_from_file, "total_size", 0
+                        ):
                             torrent_hash = torrent.get("hash")
                             torrent_tags = [str(t).strip() for t in torrent.get("tags", "").split(",") if t.strip()]
                             logger.warn(f"下载器中已存在该种子任务：{torrent_hash} - {torrent.get('name')}")
@@ -331,8 +328,7 @@ class RtorrentModule(_ModuleBase, _DownloaderBase[Rtorrent]):
             for name, server in servers.items():
                 torrents, _ = server.get_torrents(ids=hashs, tags=query_tags) or []
                 try:
-                    for torrent_info in torrents:
-                        ret_torrents.append(__build_torrent(name, torrent_info))
+                    ret_torrents.extend(__build_torrent(name, torrent_info) for torrent_info in torrents)
                 finally:
                     torrents.clear()
                     del torrents
@@ -355,8 +351,7 @@ class RtorrentModule(_ModuleBase, _DownloaderBase[Rtorrent]):
             for name, server in servers.items():
                 torrents = server.get_downloading_torrents(tags=query_tags) or []
                 try:
-                    for torrent_info in torrents:
-                        ret_torrents.append(__build_torrent(name, torrent_info))
+                    ret_torrents.extend(__build_torrent(name, torrent_info) for torrent_info in torrents)
                 finally:
                     torrents.clear()
                     del torrents
@@ -370,9 +365,7 @@ class RtorrentModule(_ModuleBase, _DownloaderBase[Rtorrent]):
                 torrents, _ = server.get_torrents(tags=query_tags) or []
                 try:
                     for torrent_info in torrents:
-                        torrent_state = self.__normalize_torrent_state(
-                            torrent_info.get("state"), torrent_info.get("complete")
-                        )
+                        torrent_state = self.__normalize_torrent_state(torrent_info.get("state"), torrent_info.get("complete"))
                         if query_status != TorrentQueryStatus.ALL and torrent_state != query_status.value:
                             continue
                         ret_torrents.append(__build_torrent(name, torrent_info))

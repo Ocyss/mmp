@@ -5,7 +5,7 @@ QQ Bot 通知模块
 """
 
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote, unquote
 
 from app.log import logger
@@ -173,9 +173,7 @@ class QQBotModule(_ModuleBase, _MessageBase[QQBot]):
             group_openid = msg_body.get("group_openid", "")
             # 群聊用 group:group_openid 作为 userid，便于回复时识别
             userid = f"group:{group_openid}" if group_openid else member_openid
-            if content.startswith("/") and self._should_reject_admin_command(
-                client_config.config, member_openid, userid
-            ):
+            if content.startswith("/") and self._should_reject_admin_command(client_config.config, member_openid, userid):
                 self._send_admin_denied(client, userid)
                 return None
             logger.info(

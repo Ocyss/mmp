@@ -1,7 +1,7 @@
 """更新人格定义工具。"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -110,9 +110,7 @@ class UpdatePersonaDefinitionTool(MoviePilotTool):
                 "created": created,
                 "active_persona": runtime_config.active_persona,
                 "persona": persona.to_dict(is_active=persona.persona_id == runtime_config.active_persona),
-                "message": (
-                    f"已创建人格 `{persona.persona_id}`" if created else f"已更新人格 `{persona.persona_id}` 的定义"
-                ),
+                "message": (f"已创建人格 `{persona.persona_id}`" if created else f"已更新人格 `{persona.persona_id}` 的定义"),
             }
             return json.dumps(payload, ensure_ascii=False, indent=2)
         except Exception as e:  # noqa: BLE001

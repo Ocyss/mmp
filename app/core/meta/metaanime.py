@@ -34,9 +34,7 @@ class MetaAnime(MetaBase):
     """
 
     _anime_no_words = ["CHS&CHT", "MP4", "GB MP4", "WEB-DL"]
-    _name_nostring_re = (
-        r"S\d{2}\s*-\s*S\d{2}|S\d{2}|\s+S\d{1,2}|EP?\d{2,4}\s*-\s*EP?\d{2,4}|EP?\d{2,4}|\s+EP?\d{1,4}|\s+GB"
-    )
+    _name_nostring_re = r"S\d{2}\s*-\s*S\d{2}|S\d{2}|\s+S\d{1,2}|EP?\d{2,4}\s*-\s*EP?\d{2,4}|EP?\d{2,4}|\s+EP?\d{1,4}|\s+GB"
     _fps_re = r"(\d{2,3})(?=FPS)"
     _name_nostring_pattern = re.compile(_name_nostring_re, re.IGNORECASE)
     _fps_pattern = re.compile(rf"({_fps_re})", re.IGNORECASE)
@@ -122,9 +120,7 @@ class MetaAnime(MetaBase):
                 # 季号
                 anime_season = anitopy_info.get("anime_season")
                 if isinstance(anime_season, list):
-                    seasons = [
-                        season for item in anime_season if (season := self._parse_season_number(item)) is not None
-                    ]
+                    seasons = [season for item in anime_season if (season := self._parse_season_number(item)) is not None]
                     begin_season = seasons[0] if seasons else None
                     end_season = seasons[-1] if len(seasons) > 1 else None
                 else:
@@ -188,9 +184,7 @@ class MetaAnime(MetaBase):
                         self.resource_pix = str(self.resource_pix) + "p"
                 # 制作组/字幕组
                 self.resource_team = (
-                    ReleaseGroupsMatcher().match(title=original_title)
-                    or anitopy_info_origin.get("release_group")
-                    or None
+                    ReleaseGroupsMatcher().match(title=original_title) or anitopy_info_origin.get("release_group") or None
                 )
                 # 自定义占位符
                 self.customization = CustomizationMatcher().match(title=original_title) or None

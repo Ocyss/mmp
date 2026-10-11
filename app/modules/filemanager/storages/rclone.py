@@ -4,7 +4,7 @@ import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from app import schemas
 from app.core.config import settings
@@ -217,9 +217,7 @@ class Rclone(StorageBase):
         """
         path = Path(self.__normalize_remote_path(Path(fileitem.path) / name))
         try:
-            retcode = subprocess.run(
-                ["rclone", "mkdir", f"MP:{path}"], startupinfo=self.__get_hidden_shell()
-            ).returncode
+            retcode = subprocess.run(["rclone", "mkdir", f"MP:{path}"], startupinfo=self.__get_hidden_shell()).returncode
             if retcode == 0:
                 folder = self.__wait_for_item(path)
                 if folder:
@@ -267,9 +265,7 @@ class Rclone(StorageBase):
         获取文件或目录，不存在返回None
         """
         try:
-            ret = subprocess.run(
-                ["rclone", "lsjson", f"MP:{path.parent}"], capture_output=True, startupinfo=self.__get_hidden_shell()
-            )
+            ret = subprocess.run(["rclone", "lsjson", f"MP:{path.parent}"], capture_output=True, startupinfo=self.__get_hidden_shell())
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
                 for item in items:
@@ -285,9 +281,7 @@ class Rclone(StorageBase):
         删除文件
         """
         try:
-            retcode = subprocess.run(
-                ["rclone", "deletefile", f"MP:{fileitem.path}"], startupinfo=self.__get_hidden_shell()
-            ).returncode
+            retcode = subprocess.run(["rclone", "deletefile", f"MP:{fileitem.path}"], startupinfo=self.__get_hidden_shell()).returncode
             if retcode == 0:
                 return True
         except Exception as err:
@@ -579,9 +573,7 @@ class Rclone(StorageBase):
             if not any("[MP]" in line.strip() for line in lines):
                 return None
         try:
-            ret = subprocess.run(
-                ["rclone", "about", "MP:/", "--json"], capture_output=True, startupinfo=self.__get_hidden_shell()
-            )
+            ret = subprocess.run(["rclone", "about", "MP:/", "--json"], capture_output=True, startupinfo=self.__get_hidden_shell())
             if ret.returncode == 0:
                 items = json.loads(ret.stdout)
                 return schemas.StorageUsage(total=items.get("total"), available=items.get("free"))

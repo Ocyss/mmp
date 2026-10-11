@@ -1,7 +1,7 @@
 import base64
 import re
 import threading
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import quote
 
 from app.core.metainfo import MetaInfo
@@ -159,9 +159,7 @@ class VoceChat:
         content, mime_type = file_data
         return f"data:{mime_type};base64,{base64.b64encode(content).decode()}"
 
-    def send_medias_msg(
-        self, title: str, medias: list[MediaInfo], userid: str | None = None, link: str | None = None
-    ) -> bool | None:
+    def send_medias_msg(self, title: str, medias: list[MediaInfo], userid: str | None = None, link: str | None = None) -> bool | None:
         """
         发送列表类消息
         """
@@ -228,8 +226,7 @@ class VoceChat:
                 free = torrent.volume_factor
                 seeder = f"{torrent.seeders}↑"
                 caption = (
-                    f"{caption}\n{index}.【{site_name}】[{title}]({link}) "
-                    f"{StringUtils.str_filesize(torrent.size)} {free} {seeder}"
+                    f"{caption}\n{index}.【{site_name}】[{title}]({link}) {StringUtils.str_filesize(torrent.size)} {free} {seeder}"
                 )
                 index += 1
 

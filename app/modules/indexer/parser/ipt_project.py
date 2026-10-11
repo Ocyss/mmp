@@ -71,9 +71,7 @@ class IptSiteUserInfo(SiteParserBase):
 
             page_seeding = 0
             page_seeding_size = 0
-            seeding_torrents = html.xpath(
-                '//tr/td[text() = "Seeders"]/../following-sibling::tr/td[position()=6]/text()'
-            )
+            seeding_torrents = html.xpath('//tr/td[text() = "Seeders"]/../following-sibling::tr/td[position()=6]/text()')
             if seeding_torrents:
                 page_seeding = seeding_end_pos
                 for per_size in seeding_torrents[:seeding_end_pos]:

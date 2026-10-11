@@ -1,7 +1,7 @@
 """查询订阅历史工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -70,22 +70,16 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
                 # 有名称过滤时，获取足够多的记录在内存中过滤，不分页
                 fetch_count = 500
                 if media_type == "all":
-                    movie_history = await subscribe_history_oper.async_list_by_type(
-                        mtype="movie", page=1, count=fetch_count
-                    )
+                    movie_history = await subscribe_history_oper.async_list_by_type(mtype="movie", page=1, count=fetch_count)
                     tv_history = await subscribe_history_oper.async_list_by_type(mtype="tv", page=1, count=fetch_count)
                     all_history = list(movie_history) + list(tv_history)
                     all_history.sort(key=lambda x: x.date or "", reverse=True)
                 else:
-                    all_history = list(
-                        await subscribe_history_oper.async_list_by_type(mtype=media_type, page=1, count=fetch_count)
-                    )
+                    all_history = list(await subscribe_history_oper.async_list_by_type(mtype=media_type, page=1, count=fetch_count))
 
                 # 按名称过滤
                 name_lower = name.lower()
-                filtered_history = [
-                    record for record in all_history if record.name and name_lower in record.name.lower()
-                ]
+                filtered_history = [record for record in all_history if record.name and name_lower in record.name.lower()]
 
                 if not filtered_history:
                     return "未找到相关订阅历史记录"
@@ -97,20 +91,14 @@ class QuerySubscribeHistoryTool(MoviePilotTool):
             else:
                 # 无名称过滤时，直接利用数据库分页
                 if media_type == "all":
-                    movie_history = await subscribe_history_oper.async_list_by_type(
-                        mtype="movie", page=1, count=page * PAGE_SIZE
-                    )
-                    tv_history = await subscribe_history_oper.async_list_by_type(
-                        mtype="tv", page=1, count=page * PAGE_SIZE
-                    )
+                    movie_history = await subscribe_history_oper.async_list_by_type(mtype="movie", page=1, count=page * PAGE_SIZE)
+                    tv_history = await subscribe_history_oper.async_list_by_type(mtype="tv", page=1, count=page * PAGE_SIZE)
                     all_history = list(movie_history) + list(tv_history)
                     all_history.sort(key=lambda x: x.date or "", reverse=True)
                     filtered_history = all_history
                 else:
                     filtered_history = list(
-                        await subscribe_history_oper.async_list_by_type(
-                            mtype=media_type, page=1, count=page * PAGE_SIZE
-                        )
+                        await subscribe_history_oper.async_list_by_type(mtype=media_type, page=1, count=page * PAGE_SIZE)
                     )
 
             if not filtered_history:

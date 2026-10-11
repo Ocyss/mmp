@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import cn2an
 
@@ -200,9 +200,7 @@ class TheMovieDbModule(_ModuleBase):
             return None
         return info_tv or info_movie or None
 
-    async def _async_get_info_by_tmdbid(
-        self, tmdbid: int, mtype: MediaType | None, meta: MetaBase | None
-    ) -> dict | None:
+    async def _async_get_info_by_tmdbid(self, tmdbid: int, mtype: MediaType | None, meta: MetaBase | None) -> dict | None:
         """
         根据tmdbid查询媒体信息，当类型未知且同时存在电影和电视剧时，通过元数据消歧（异步版本）
         """
@@ -341,17 +339,13 @@ class TheMovieDbModule(_ModuleBase):
                 info = await self.tmdb.async_match(name=name, year=meta.year, mtype=MediaType.MOVIE)
                 # 没有再按电视剧查
                 if not info:
-                    info = await self.tmdb.async_match(
-                        name=name, year=meta.year, mtype=MediaType.TV, group_seasons=group_seasons
-                    )
+                    info = await self.tmdb.async_match(name=name, year=meta.year, mtype=MediaType.TV, group_seasons=group_seasons)
                 if not info:
                     # 去掉年份和类型再查一次
                     info = await self.tmdb.async_match_multi(name=name)
                 return info
 
-    def _process_episode_groups(
-        self, mediainfo: MediaInfo, episode_group: str | None, group_seasons: list[dict]
-    ) -> MediaInfo:
+    def _process_episode_groups(self, mediainfo: MediaInfo, episode_group: str | None, group_seasons: list[dict]) -> MediaInfo:
         """
         处理剧集组信息
         """
@@ -637,9 +631,7 @@ class TheMovieDbModule(_ModuleBase):
 
         return None
 
-    def match_tmdbinfo(
-        self, name: str, mtype: MediaType = None, year: str | None = None, season: int | None = None
-    ) -> dict:
+    def match_tmdbinfo(self, name: str, mtype: MediaType = None, year: str | None = None, season: int | None = None) -> dict:
         """
         搜索和匹配TMDB信息
         :param name:  名称
@@ -842,9 +834,7 @@ class TheMovieDbModule(_ModuleBase):
             return [MediaInfo(tmdb_info=info) for info in results]
         return []
 
-    def metadata_nfo(
-        self, meta: MetaBase, mediainfo: MediaInfo, season: int | None = None, episode: int | None = None
-    ) -> str | None:
+    def metadata_nfo(self, meta: MetaBase, mediainfo: MediaInfo, season: int | None = None, episode: int | None = None) -> str | None:
         """
         获取NFO文件内容文本
         :param meta: 元数据
@@ -946,9 +936,7 @@ class TheMovieDbModule(_ModuleBase):
         tmdb_info = self.tmdb.get_info(tmdbid=tmdbid, mtype=MediaType.TV)
         if not tmdb_info:
             return []
-        return [
-            schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None
-        ]
+        return [schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None]
 
     def tmdb_group_seasons(self, group_id: str) -> list[schemas.TmdbSeason]:
         """
@@ -1354,9 +1342,7 @@ class TheMovieDbModule(_ModuleBase):
         tmdb_info = await self.tmdb.async_get_info(tmdbid=tmdbid, mtype=MediaType.TV)
         if not tmdb_info:
             return []
-        return [
-            schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None
-        ]
+        return [schemas.TmdbSeason(**sea) for sea in tmdb_info.get("seasons", []) if sea.get("season_number") is not None]
 
     async def async_tmdb_group_seasons(self, group_id: str) -> list[schemas.TmdbSeason]:
         """
@@ -1376,9 +1362,7 @@ class TheMovieDbModule(_ModuleBase):
             for sea in group_seasons
         ]
 
-    async def async_tmdb_episodes(
-        self, tmdbid: int, season: int, episode_group: str | None = None
-    ) -> list[schemas.TmdbEpisode]:
+    async def async_tmdb_episodes(self, tmdbid: int, season: int, episode_group: str | None = None) -> list[schemas.TmdbEpisode]:
         """
         根据TMDBID查询某季的所有集信息（异步版本）
         :param tmdbid:  TMDBID

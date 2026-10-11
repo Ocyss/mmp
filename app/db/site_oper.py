@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from app.db import DbOper
 from app.db.models import SiteIcon
@@ -180,9 +180,7 @@ class SiteOper(DbOper):
         """
         return SiteUserData.get_by_domain(self._db, domain=domain, workdate=workdate)
 
-    async def async_get_userdata_by_domain(
-        self, domain: str, workdate: str | None = None
-    ) -> builtins.list[SiteUserData]:
+    async def async_get_userdata_by_domain(self, domain: str, workdate: str | None = None) -> builtins.list[SiteUserData]:
         """
         异步获取站点用户数据。
         """
@@ -310,6 +308,4 @@ class SiteOper(DbOper):
         if sta:
             await sta.async_update(self._db, {"fail": sta.fail + 1, "lst_state": 1, "lst_mod_date": lst_date})
         else:
-            await SiteStatistic(domain=domain, success=0, fail=1, lst_state=1, lst_mod_date=lst_date).async_create(
-                self._db
-            )
+            await SiteStatistic(domain=domain, success=0, fail=1, lst_state=1, lst_mod_date=lst_date).async_create(self._db)

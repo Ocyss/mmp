@@ -95,27 +95,17 @@ class NexusPhpSiteUserInfo(SiteParserBase):
         解析用户流量信息
         """
         html_text = self._prepare_html_text(html_text)
-        upload_match = re.search(
-            r"[^总]上[传傳]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE
-        )
+        upload_match = re.search(r"[^总]上[传傳]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE)
         self.upload = self.num_filesize(upload_match.group(1).strip()) if upload_match else 0
-        download_match = re.search(
-            r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE
-        )
+        download_match = re.search(r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)", html_text, re.IGNORECASE)
         self.download = self.num_filesize(download_match.group(1).strip()) if download_match else 0
         ratio_match = re.search(r"分享率[:：_<>/a-zA-Z-=\"'\s#;]+([\d,.\s]+)", html_text)
         # 计算分享率
         calc_ratio = 0.0 if self.download <= 0.0 else round(self.upload / self.download, 3)
         # 优先使用页面上的分享率
-        self.ratio = (
-            StringUtils.str_float(ratio_match.group(1))
-            if (ratio_match and ratio_match.group(1).strip())
-            else calc_ratio
-        )
+        self.ratio = StringUtils.str_float(ratio_match.group(1)) if (ratio_match and ratio_match.group(1).strip()) else calc_ratio
         leeching_match = re.search(r"(Torrents leeching|下载中)[\u4E00-\u9FA5\D\s]+(\d+)[\s\S]+<", html_text)
-        self.leeching = (
-            StringUtils.str_int(leeching_match.group(2)) if leeching_match and leeching_match.group(2).strip() else 0
-        )
+        self.leeching = StringUtils.str_int(leeching_match.group(2)) if leeching_match and leeching_match.group(2).strip() else 0
         html = etree.HTML(html_text)
         try:
             has_ucoin, self.bonus = self._parse_ucoin(html)
@@ -128,9 +118,7 @@ class NexusPhpSiteUserInfo(SiteParserBase):
                 if bonus_match and bonus_match.group(1).strip():
                     self.bonus = StringUtils.str_float(bonus_match.group(1))
                     return
-            bonus_match = re.search(
-                r"mybonus.[\[\]:：<>/a-zA-Z_\-=\"'\s#;.(使用魔力值豆]+\s*([\d,.]+)[<()&\s]", html_text
-            )
+            bonus_match = re.search(r"mybonus.[\[\]:：<>/a-zA-Z_\-=\"'\s#;.(使用魔力值豆]+\s*([\d,.]+)[<()&\s]", html_text)
             try:
                 if bonus_match and bonus_match.group(1).strip():
                     self.bonus = StringUtils.str_float(bonus_match.group(1))
@@ -304,8 +292,7 @@ class NexusPhpSiteUserInfo(SiteParserBase):
             # 做种体积 & 做种数
             # seeding 页面获取不到的话，此处再获取一次
             seeding_sizes = html.xpath(
-                '//tr/td[text()="当前上传"]/following-sibling::td[1]//'
-                'table[tr[1][td[4 and text()="尺寸"]]]//tr[position()>1]/td[4]'
+                '//tr/td[text()="当前上传"]/following-sibling::td[1]//table[tr[1][td[4 and text()="尺寸"]]]//tr[position()>1]/td[4]'
             )
             seeding_seeders = html.xpath(
                 '//tr/td[text()="当前上传"]/following-sibling::td[1]//'
@@ -332,9 +319,7 @@ class NexusPhpSiteUserInfo(SiteParserBase):
             if seeding_sizes:
                 seeding_match = re.search(r"总做种数:\s+(\d+)", seeding_sizes[0], re.IGNORECASE)
                 seeding_size_match = re.search(r"总做种体积:\s+([\d,.\s]+[KMGTPI]*B)", seeding_sizes[0], re.IGNORECASE)
-                tmp_seeding = (
-                    StringUtils.str_int(seeding_match.group(1)) if (seeding_match and seeding_match.group(1)) else 0
-                )
+                tmp_seeding = StringUtils.str_int(seeding_match.group(1)) if (seeding_match and seeding_match.group(1)) else 0
                 tmp_seeding_size = self.num_filesize(seeding_size_match.group(1).strip()) if seeding_size_match else 0
             if not self.seeding_size:
                 self.seeding_size = tmp_seeding_size
@@ -353,15 +338,11 @@ class NexusPhpSiteUserInfo(SiteParserBase):
         :return:
         """
         # 单独的种子页面
-        seeding_url_text = html.xpath(
-            '//a[contains(@href,"getusertorrentlist.php") and contains(@href,"seeding")]/@href'
-        )
+        seeding_url_text = html.xpath('//a[contains(@href,"getusertorrentlist.php") and contains(@href,"seeding")]/@href')
         if seeding_url_text:
             self._torrent_seeding_page = seeding_url_text[0].strip()
         # 从JS调用种获取用户ID
-        seeding_url_text = html.xpath(
-            '//a[contains(@href, "javascript: getusertorrentlistajax") and contains(@href,"seeding")]/@href'
-        )
+        seeding_url_text = html.xpath('//a[contains(@href, "javascript: getusertorrentlistajax") and contains(@href,"seeding")]/@href')
         csrf_text = html.xpath('//meta[@name="x-csrf"]/@content')
         if not self._torrent_seeding_page and seeding_url_text:
             user_js = re.search(r"javascript: getusertorrentlistajax\(\s*'(\d+)", seeding_url_text[0])
@@ -454,8 +435,7 @@ class NexusPhpSiteUserInfo(SiteParserBase):
             # 消息内容
             message_content_text = None
             message_content = html.xpath(
-                '//h1/following-sibling::table[.//tr/td[@class="colhead"]]//tr[3]/td'
-                '|//div[contains(@class,"layui-card-body")]'
+                '//h1/following-sibling::table[.//tr/td[@class="colhead"]]//tr[3]/td|//div[contains(@class,"layui-card-body")]'
             )
             if message_content:
                 message_content_text = message_content[0].xpath("string(.)").strip()

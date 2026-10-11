@@ -1,7 +1,7 @@
 import json
 import re
 from threading import Lock
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import quote
 
 from app.core.metainfo import MetaInfo
@@ -98,9 +98,7 @@ class SynologyChat:
             logger.error(f"SynologyChat发送消息错误：{str(msg_e)}")
             return False
 
-    def send_medias_msg(
-        self, medias: list[MediaInfo], userid: str | None = None, title: str | None = None
-    ) -> bool | None:
+    def send_medias_msg(self, medias: list[MediaInfo], userid: str | None = None, title: str | None = None) -> bool | None:
         """
         发送列表类消息
         """
@@ -196,9 +194,7 @@ class SynologyChat:
         """
         if not self._domain or not self._token:
             return []
-        req_url = (
-            f"{self._domain}/webapi/entry.cgi?api=SYNO.Chat.External&method=user_list&version=2&token={self._token}"
-        )
+        req_url = f"{self._domain}/webapi/entry.cgi?api=SYNO.Chat.External&method=user_list&version=2&token={self._token}"
         ret = self._req.get_res(url=req_url)
         if ret and ret.status_code == 200:
             users = ret.json().get("data", {}).get("users", []) or []

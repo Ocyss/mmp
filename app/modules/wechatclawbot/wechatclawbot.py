@@ -10,7 +10,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import quote
 
 from Crypto.Cipher import AES
@@ -547,9 +547,7 @@ class ILinkClient:
             payload = self._json(resp)
             last_payload = payload or getattr(resp, "text", None)
             upload_param = self._find_first_value(payload, ["upload_param", "uploadParam"]) if payload else None
-            upload_full_url = (
-                self._find_first_value(payload, ["upload_full_url", "uploadFullUrl", "full_url"]) if payload else None
-            )
+            upload_full_url = self._find_first_value(payload, ["upload_full_url", "uploadFullUrl", "full_url"]) if payload else None
             if upload_param or upload_full_url:
                 return (
                     str(upload_param) if upload_param else None,
@@ -587,8 +585,7 @@ class ILinkClient:
         ).post(upload_url, data=ciphertext)
         if getattr(resp, "status_code", None) != 200:
             logger.warning(
-                f"CDN 上传失败: http={getattr(resp, 'status_code', None)}, "
-                f"err={self._short_text(getattr(resp, 'text', ''))}"
+                f"CDN 上传失败: http={getattr(resp, 'status_code', None)}, err={self._short_text(getattr(resp, 'text', ''))}"
             )
             return None, None
         download_param = None
@@ -620,17 +617,13 @@ class ILinkClient:
             for url in url_candidates:
                 for index, body in enumerate(payload_candidates, start=1):
                     request_body = self._with_base_info(body)
-                    resp = RequestUtils(headers=self._headers(auth_required=True), timeout=self.timeout).post(
-                        url, json=request_body
-                    )
+                    resp = RequestUtils(headers=self._headers(auth_required=True), timeout=self.timeout).post(url, json=request_body)
                     payload = self._json(resp)
                     if self._is_send_success(payload) or self._is_send_http_success(resp, payload):
                         logger.info(f"发送消息成功: to_user={user_id}, variant={index}")
                         return True
                     http_code = getattr(resp, "status_code", None)
-                    err_msg = (
-                        self._find_first_value(payload, ["errmsg", "message", "error", "detail"]) if payload else None
-                    )
+                    err_msg = self._find_first_value(payload, ["errmsg", "message", "error", "detail"]) if payload else None
                     if not err_msg and resp is not None:
                         err_msg = self._short_text(getattr(resp, "text", ""))
                     last_error = f"http={http_code}, err={self._short_text(err_msg)}"
@@ -675,9 +668,7 @@ class ILinkClient:
     def get_qrcode_status(self, qrcode: str) -> dict[str, Any]:
         """查询二维码扫描状态并获取登录凭证。"""
         url = f"{self.base_url}/ilink/bot/get_qrcode_status"
-        resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(
-            url, params={"qrcode": qrcode}
-        )
+        resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(url, params={"qrcode": qrcode})
         payload = self._json(resp)
         if not payload:
             retry_resp = RequestUtils(headers=self._headers(auth_required=False), timeout=self.timeout).get_res(
@@ -780,9 +771,7 @@ class ILinkClient:
             logger.warning("发送图文失败：to_user 或 image_bytes 或 text 为空")
             return False
         for user_id in self._build_user_candidates(to_user):
-            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(
-                user_id, image_bytes, media_types=[1]
-            )
+            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(user_id, image_bytes, media_types=[1])
             if (not upload_param and not upload_full_url) or not aeskey or not filekey:
                 continue
             download_param, cipher_size = self._upload_encrypted_to_cdn(
@@ -840,9 +829,7 @@ class ILinkClient:
             logger.warning("发送图片失败：to_user 或 image_bytes 为空")
             return False
         for user_id in self._build_user_candidates(to_user):
-            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(
-                user_id, image_bytes, media_types=[1]
-            )
+            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(user_id, image_bytes, media_types=[1])
             if (not upload_param and not upload_full_url) or not aeskey or not filekey:
                 continue
             download_param, cipher_size = self._upload_encrypted_to_cdn(
@@ -888,9 +875,7 @@ class ILinkClient:
         mime_type = mime_type or "application/octet-stream"
         file_md5 = hashlib.md5(file_bytes).hexdigest()
         for user_id in self._build_user_candidates(to_user):
-            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(
-                user_id, file_bytes, media_types=[2, 6, 1]
-            )
+            upload_param, upload_full_url, aeskey, _, filekey = self._request_upload_param(user_id, file_bytes, media_types=[2, 6, 1])
             if (not upload_param and not upload_full_url) or not aeskey or not filekey:
                 continue
             download_param, cipher_size = self._upload_encrypted_to_cdn(
@@ -924,11 +909,7 @@ class ILinkClient:
     @classmethod
     def _encode_ref_payload(cls, kind: str, payload: dict[str, Any]) -> str:
         """将附件元信息编码为 wxclaw:// 协议链接。"""
-        encoded = (
-            base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-            .decode("ascii")
-            .rstrip("=")
-        )
+        encoded = base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8")).decode("ascii").rstrip("=")
         return f"wxclaw://{kind}/{encoded}"
 
     def _build_attachment_ref(
@@ -979,9 +960,7 @@ class ILinkClient:
     ) -> dict[str, Any]:
         """构建轮询结果摘要。"""
         payload = payload or {}
-        resolved_message = message or self._find_first_value(
-            payload, ["errmsg", "message", "error", "error_msg", "detail"]
-        )
+        resolved_message = message or self._find_first_value(payload, ["errmsg", "message", "error", "error_msg", "detail"])
         return {
             "success": success,
             "raw": payload,
@@ -1069,9 +1048,9 @@ class ILinkClient:
             or self._pick_value(message, ["username", "nickname", "from_name", "fromNick", "sender_name"])
             or str(user_id)
         )
-        message_id = self._pick_value(
-            message, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"]
-        ) or self._pick_value(item, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"])
+        message_id = self._pick_value(message, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"]) or self._pick_value(
+            item, ["message_id", "msg_id", "id", "client_msg_id", "msgId", "seq"]
+        )
         chat_id = self._pick_value(
             message,
             ["chat_id", "conversation_id", "room_id", "chatId", "conversationId", "roomId"],
@@ -1210,12 +1189,8 @@ class ILinkClient:
                     )
 
         if not text_parts:
-            append_text(
-                self._pick_value(message, ["content", "message", "msg", "text", "body", "msg_content", "msgContent"])
-            )
-            append_text(
-                self._pick_value(item, ["content", "message", "msg", "text", "body", "msg_content", "msgContent"])
-            )
+            append_text(self._pick_value(message, ["content", "message", "msg", "text", "body", "msg_content", "msgContent"]))
+            append_text(self._pick_value(item, ["content", "message", "msg", "text", "body", "msg_content", "msgContent"]))
             append_text(self._find_first_value(message, ["content", "text", "message", "msg", "body", "cmd"]))
 
         text = "\n".join(part for part in text_parts if part).strip() or None
@@ -1309,9 +1284,9 @@ class ILinkClient:
         success = bool(payload) and (explicit_success is True or (explicit_success is None and has_canonical_shape))
         last_message = None
         if payload and explicit_success is False:
-            last_message = self._find_first_value(
-                payload, ["errmsg", "message", "error", "error_msg", "detail"]
-            ) or self._short_text(payload)
+            last_message = self._find_first_value(payload, ["errmsg", "message", "error", "error_msg", "detail"]) or self._short_text(
+                payload
+            )
         if not payload:
             return (
                 [],
@@ -1418,7 +1393,9 @@ class WechatClawBot:
         self._stop_event = threading.Event()
         self._poll_thread: threading.Thread | None = None
         self._state = self._load_state()
-        self._message_endpoint = f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={quote(self._config_name, safe='')}"
+        self._message_endpoint = (
+            f"http://127.0.0.1:{settings.PORT}/api/v1/message?token={settings.API_TOKEN}&source={quote(self._config_name, safe='')}"
+        )
         if self._state.get("bot_token") and self._auto_start_polling:
             self._start_polling()
 
@@ -1692,9 +1669,7 @@ class WechatClawBot:
                             json=message.to_message_payload(),
                         )
                         if response is None:
-                            logger.error(
-                                f"转发微信 ClawBot 消息失败：message_id={message.message_id}, 本地消息入口无响应"
-                            )
+                            logger.error(f"转发微信 ClawBot 消息失败：message_id={message.message_id}, 本地消息入口无响应")
                         elif response.status_code != 200:
                             logger.error(
                                 "转发微信 ClawBot 消息失败："

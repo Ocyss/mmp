@@ -11,9 +11,7 @@ class MediaServerHelper(ServiceBaseHelper[MediaServerConf]):
     """
 
     def __init__(self):
-        super().__init__(
-            config_key=SystemConfigKey.MediaServers, conf_type=MediaServerConf, module_type=ModuleType.MediaServer
-        )
+        super().__init__(config_key=SystemConfigKey.MediaServers, conf_type=MediaServerConf, module_type=ModuleType.MediaServer)
 
     def is_media_server(
         self,

@@ -1,7 +1,7 @@
 """查询站点用户数据工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

@@ -1,7 +1,7 @@
 """新增自定义过滤规则工具。"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,8 +43,7 @@ class AddCustomFilterRuleTool(MoviePilotTool):
         ToolTag.Admin,
     ]
     description: str = (
-        "Add a custom filter rule to CustomFilterRules. "
-        "The new rule can then be referenced by rule ID inside filter rule groups."
+        "Add a custom filter rule to CustomFilterRules. The new rule can then be referenced by rule ID inside filter rule groups."
     )
     args_schema: type[BaseModel] = AddCustomFilterRuleInput
     require_admin: bool = True

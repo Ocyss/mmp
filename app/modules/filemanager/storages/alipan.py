@@ -4,7 +4,7 @@ import secrets
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import requests
 
@@ -365,8 +365,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                 break
             next_marker = resp.get("next_marker")
             current_items = resp.get("items") or []
-            for item in current_items:
-                items.append(self.__get_fileitem(item, parent=str(fileitem.path)))
+            items.extend(self.__get_fileitem(item, parent=str(fileitem.path)) for item in current_items)
             if len(current_items) < 100:
                 break
         return items
@@ -432,7 +431,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
         try:
             tmp_int = int(hex_str, 16)
         except ValueError:
-            raise ValueError("【阿里云盘】Invalid hex string for proof code calculation")
+            raise ValueError("【阿里云盘】Invalid hex string for proof code calculation") from None
 
         # Step 5-7: 计算读取范围
         index = tmp_int % file_size
@@ -657,9 +656,7 @@ class AliPan(StorageBase, metaclass=WeakSingleton):
                             success = True
                             break
                         else:
-                            logger.warn(
-                                f"【阿里云盘】{target_name} 分片 {part_num} 第 {attempt + 1} 次上传失败：{response.text}！"
-                            )
+                            logger.warn(f"【阿里云盘】{target_name} 分片 {part_num} 第 {attempt + 1} 次上传失败：{response.text}！")
                     except Exception as e:
                         logger.warn(f"【阿里云盘】{target_name} 分片 {part_num} 上传异常: {str(e)}！")
 

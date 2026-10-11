@@ -11,7 +11,7 @@ from collections import deque
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -170,7 +170,7 @@ def _ensure_superuser(user: User) -> None:
 
 @router.get("/mcp/servers", summary="查询 Agent MCP 服务器配置", response_model=schemas.Response)
 async def list_agent_mcp_servers(
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> schemas.Response:
     """
     查询 Agent 外部 MCP 服务器配置。
@@ -191,7 +191,7 @@ async def list_agent_mcp_servers(
 @router.post("/mcp/servers", summary="保存 Agent MCP 服务器配置", response_model=schemas.Response)
 async def save_agent_mcp_servers(
     request: schemas.AgentMcpServersSaveRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> schemas.Response:
     """
     保存 Agent 外部 MCP 服务器配置。
@@ -207,7 +207,7 @@ async def save_agent_mcp_servers(
 @router.post("/mcp/servers/test", summary="测试 Agent MCP 服务器", response_model=schemas.Response)
 async def test_agent_mcp_server(
     request: schemas.AgentMcpServerTestRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> schemas.Response:
     """
     测试 Agent 外部 MCP 服务器连接并读取工具列表。
@@ -552,9 +552,7 @@ def _save_web_agent_display_snapshot(
             source=(existing_chat.source if existing_chat and existing_chat.source else WEB_AGENT_SOURCE),
             original_chat_id=existing_chat.original_chat_id if existing_chat else None,
             client_session_id=(
-                existing_chat.client_session_id
-                if existing_chat and existing_chat.client_session_id
-                else client_session_id
+                existing_chat.client_session_id if existing_chat and existing_chat.client_session_id else client_session_id
             ),
             messages=messages,
         )
@@ -649,9 +647,7 @@ def _cleanup_web_agent_file_registry() -> None:
     """清理过期或过量的 Web Agent 临时附件引用。"""
     now = time.time()
     expired_ids = [
-        file_id
-        for file_id, info in _WEB_AGENT_FILE_REGISTRY.items()
-        if now - info.get("created_at", now) > WEB_AGENT_FILE_TTL_SECONDS
+        file_id for file_id, info in _WEB_AGENT_FILE_REGISTRY.items() if now - info.get("created_at", now) > WEB_AGENT_FILE_TTL_SECONDS
     ]
     for file_id in expired_ids:
         _WEB_AGENT_FILE_REGISTRY.pop(file_id, None)
@@ -1559,9 +1555,9 @@ async def download_web_agent_file(file_id: str) -> FileResponse:
 
 @router.post("/upload", summary="上传 Web 智能助手附件", response_model=schemas.Response)
 async def upload_web_agent_file(
-    file: UploadFile = File(...),
-    session_id: str | None = Form(None),
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    file: Annotated[UploadFile, File(...)],
+    session_id: Annotated[str | None, Form()] = None,
 ) -> schemas.Response:
     """
     上传 Web 智能助手对话附件。
@@ -1600,7 +1596,7 @@ async def upload_web_agent_file(
 @router.post("/callback", summary="Web 智能助手按钮回调", response_model=schemas.Response)
 async def web_agent_callback(
     payload: schemas.AgentWebChoiceRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> schemas.Response:
     """
     接收 Web 智能助手选择卡片回调。
@@ -1633,7 +1629,7 @@ async def web_agent_callback(
 
 @router.get("/commands", summary="获取 Web 智能助手可用命令", response_model=schemas.Response)
 async def list_web_agent_commands(
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> schemas.Response:
     """
     获取当前 Web 智能助手可补全的斜杠命令。
@@ -1649,8 +1645,8 @@ async def list_web_agent_commands(
 
 @router.get("/sessions", summary="获取 Agent 历史会话", response_model=schemas.Response)
 async def list_agent_chat_sessions(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     page: int | None = 1,
     count: int | None = 30,
 ) -> schemas.Response:
@@ -1680,8 +1676,8 @@ async def list_agent_chat_sessions(
 @router.get("/sessions/{session_id}", summary="获取 Agent 历史会话详情", response_model=schemas.Response)
 async def get_agent_chat_session(
     session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> schemas.Response:
     """
     获取一条 Agent 历史会话详情。
@@ -1719,8 +1715,8 @@ async def get_agent_chat_session(
 async def save_agent_chat_display(
     session_id: str,
     payload: schemas.AgentChatDisplaySaveRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> schemas.Response:
     """
     保存前端聚合后的 Agent 展示消息。
@@ -1753,8 +1749,8 @@ async def save_agent_chat_display(
 @router.delete("/sessions/{session_id}", summary="删除 Agent 历史会话", response_model=schemas.Response)
 async def delete_agent_chat_session(
     session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> schemas.Response:
     """
     删除一条 Agent 历史会话。
@@ -1775,8 +1771,8 @@ async def delete_agent_chat_session(
 @router.post("/sessions/{session_id}/stop", summary="停止 Web 智能助手当前任务", response_model=schemas.Response)
 async def stop_web_agent_session_task(
     session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ) -> schemas.Response:
     """
     停止当前 Web 智能助手会话正在执行的任务。
@@ -1805,7 +1801,7 @@ async def stop_web_agent_session_task(
 async def web_agent_stream(
     payload: schemas.AgentWebChatRequest,
     request: Request,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> StreamingResponse:
     """
     Web 智能助手流式对话。
@@ -1818,9 +1814,7 @@ async def web_agent_stream(
     prompt = payload.text.strip()
     locale = LocaleHelper.get_locale_from_request(request)
     display_prompt = (payload.display_text or payload.text).strip()
-    is_traditional_message = _is_web_agent_traditional_message(prompt) or _has_web_agent_traditional_interaction(
-        str(current_user.id)
-    )
+    is_traditional_message = _is_web_agent_traditional_message(prompt) or _has_web_agent_traditional_interaction(str(current_user.id))
     if is_traditional_message:
         denied_message = _ensure_web_agent_command_allowed(current_user)
         if denied_message:
@@ -2034,8 +2028,7 @@ async def web_agent_stream(
         """
         audio_ref_set = set(payload.audio_refs or [])
         files = [file.model_dump(exclude_none=True) for file in (payload.files or []) if file.ref not in audio_ref_set]
-        for audio_ref in payload.audio_refs or []:
-            files.append({"ref": audio_ref, "mime_type": "audio/*"})
+        files.extend({"ref": audio_ref, "mime_type": "audio/*"} for audio_ref in payload.audio_refs or [])
 
         async def run_agent() -> None:
             """后台执行 Agent，并将结果写入事件队列。"""

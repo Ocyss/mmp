@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Dict, List, Union
+from typing import Annotated, Any, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
@@ -253,7 +253,7 @@ async def list_tools(_: Annotated[str, Depends(verify_apikey)]) -> Any:
         return tools_list
     except Exception as e:
         logger.error(f"获取工具列表失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"获取工具列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取工具列表失败: {str(e)}") from e
 
 
 @router.post("/tools/call", summary="调用工具", response_model=schemas.ToolCallResponse)
@@ -302,7 +302,7 @@ async def get_tool_info(tool_name: str, _: Annotated[str, Depends(verify_apikey)
         raise
     except Exception as e:
         logger.error(f"获取工具信息失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"获取工具信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取工具信息失败: {str(e)}") from e
 
 
 @router.get(
@@ -331,4 +331,4 @@ async def get_tool_schema(tool_name: str, _: Annotated[str, Depends(verify_apike
         raise
     except Exception as e:
         logger.error(f"获取工具Schema失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"获取工具Schema失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取工具Schema失败: {str(e)}") from e

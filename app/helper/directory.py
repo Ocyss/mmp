@@ -1,6 +1,6 @@
 import re
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from app import schemas
 from app.db.systemconfig_oper import SystemConfigOper
@@ -152,9 +152,7 @@ class DirectoryHelper:
                 # 优先源目录同盘
                 for matched_dir in matched_dirs:
                     matched_path = Path(matched_dir.download_path)
-                    if self._is_same_source(
-                        (src_path, storage or "local"), (matched_path, matched_dir.library_storage)
-                    ):
+                    if self._is_same_source((src_path, storage or "local"), (matched_path, matched_dir.library_storage)):
                         return matched_dir
             return matched_dirs[0]
         return None

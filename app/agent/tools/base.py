@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Optional
 from langchain_core.tools import BaseTool
 from pydantic import PrivateAttr
 
+from app.agent import StreamingHandler  # noqa: TC001 pydantic 运行时解析注解需要
 from app.agent.tools.tags import ToolTag
 from app.chain import ChainBase
 from app.core.config import settings
@@ -21,8 +22,6 @@ from app.schemas.types import MessageChannel, NotificationType
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    from app.agent import StreamingHandler
 
 
 class ToolChain(ChainBase):
@@ -70,10 +69,7 @@ def format_tool_result_for_agent(
             "total_chars": len(formatted_result),
             "returned_chars": len(preview),
             "content_preview": preview,
-            "message": (
-                f"工具返回内容超过 {max_chars} 字符，已截断为预览；"
-                "请使用更精确的筛选条件、分页参数或专用查询参数继续获取。"
-            ),
+            "message": (f"工具返回内容超过 {max_chars} 字符，已截断为预览；请使用更精确的筛选条件、分页参数或专用查询参数继续获取。"),
         }
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -351,9 +347,7 @@ class MoviePilotTool(BaseTool, metaclass=ABCMeta):
         try:
             return await asyncio.wait_for(self.run(**kwargs), timeout=timeout)
         except TimeoutError as err:
-            raise ToolExecutionTimeoutError(
-                f"工具 {self.name} 执行超时（超过 {timeout:g} 秒），已停止等待结果。"
-            ) from err
+            raise ToolExecutionTimeoutError(f"工具 {self.name} 执行超时（超过 {timeout:g} 秒），已停止等待结果。") from err
 
     @staticmethod
     async def run_blocking(bucket: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:

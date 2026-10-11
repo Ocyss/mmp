@@ -11,9 +11,7 @@ class DownloaderHelper(ServiceBaseHelper[DownloaderConf]):
     """
 
     def __init__(self):
-        super().__init__(
-            config_key=SystemConfigKey.Downloaders, conf_type=DownloaderConf, module_type=ModuleType.Downloader
-        )
+        super().__init__(config_key=SystemConfigKey.Downloaders, conf_type=DownloaderConf, module_type=ModuleType.Downloader)
 
     def is_downloader(
         self,

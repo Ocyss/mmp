@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,9 +19,7 @@ class Workflow(BaseModel):
     name: str | None = Field(default=None, description="工作流名称")
     description: str | None = Field(default=None, description="工作流描述")
     timer: str | None = Field(default=None, description="定时器")
-    trigger_type: str | None = Field(
-        default="timer", description="触发类型：timer-定时触发 event-事件触发 manual-手动触发"
-    )
+    trigger_type: str | None = Field(default="timer", description="触发类型：timer-定时触发 event-事件触发 manual-手动触发")
     event_type: str | None = Field(default=None, description="事件类型（当trigger_type为event时使用）")
     event_conditions: dict | None = Field(default_factory=dict, description="事件条件（JSON格式，用于过滤事件）")
     state: str | None = Field(default=None, description="状态")

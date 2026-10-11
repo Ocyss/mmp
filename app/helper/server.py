@@ -2,7 +2,7 @@ import json
 import platform
 from pathlib import Path
 from threading import Thread
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import parse_qs, quote, urlparse, urlsplit
 
 from app.core.cache import cached
@@ -210,9 +210,7 @@ class MoviePilotServerHelper:
         """
         permissions = cls.get_user_permissions()
         return bool(
-            permissions.get("is_admin")
-            or permissions.get("subscribe_share_manage")
-            or permissions.get("workflow_share_manage")
+            permissions.get("is_admin") or permissions.get("subscribe_share_manage") or permissions.get("workflow_share_manage")
         )
 
     @classmethod
@@ -222,9 +220,7 @@ class MoviePilotServerHelper:
         """
         permissions = await cls.async_get_user_permissions()
         return bool(
-            permissions.get("is_admin")
-            or permissions.get("subscribe_share_manage")
-            or permissions.get("workflow_share_manage")
+            permissions.get("is_admin") or permissions.get("subscribe_share_manage") or permissions.get("workflow_share_manage")
         )
 
     @staticmethod
@@ -1620,9 +1616,7 @@ class MoviePilotServerHelper:
         """
         if not response or response.status_code != 200:
             if response is not None:
-                logger.warn(
-                    f"查询共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}"
-                )
+                logger.warn(f"查询共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}")
             return None
         try:
             payload = response.json()
@@ -1643,9 +1637,7 @@ class MoviePilotServerHelper:
         """
         if not response or response.status_code != 200:
             if response is not None:
-                logger.warn(
-                    f"上报共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}"
-                )
+                logger.warn(f"上报共享媒体识别失败：status={response.status_code} message={cls._response_message(response)}")
             return False
         try:
             result = response.json()

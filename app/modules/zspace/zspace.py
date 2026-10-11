@@ -3,7 +3,7 @@ import re
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.log import logger
@@ -78,9 +78,7 @@ class ZSpace:
         """
         return f'Emby UserId="{user_id}", Client="MoviePilot", Device="requests", DeviceId="1", Version="1.0.0"'
 
-    def __request_utils(
-        self, timeout: int | None = None, include_token: bool = True, headers: dict | None = None
-    ) -> RequestUtils:
+    def __request_utils(self, timeout: int | None = None, include_token: bool = True, headers: dict | None = None) -> RequestUtils:
         """
         统一构造极影视请求客户端。
 
@@ -236,12 +234,7 @@ class ZSpace:
             return None
         libraries = []
         for library in source_libraries:
-            if (
-                hidden
-                and self._sync_libraries
-                and "all" not in self._sync_libraries
-                and library.get("Id") not in self._sync_libraries
-            ):
+            if hidden and self._sync_libraries and "all" not in self._sync_libraries and library.get("Id") not in self._sync_libraries:
                 continue
             if library.get("CollectionType") == "movies":
                 library_type = MediaType.MOVIE.value
@@ -441,9 +434,7 @@ class ZSpace:
         """
         count_url = f"{self._host}emby/Users/{self.user}/Items"
         try:
-            res = self.__request_utils().get_res(
-                count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 0}
-            )
+            res = self.__request_utils().get_res(count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 0})
             if not res:
                 return 0, None
             total = res.json().get("TotalRecordCount") or 0
@@ -458,9 +449,7 @@ class ZSpace:
             return total, "tvshows"
         # CollectionType 缺失时采样一条目按 Type 兜底分类
         try:
-            res = self.__request_utils().get_res(
-                count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 1}
-            )
+            res = self.__request_utils().get_res(count_url, params={"ParentId": view_id, "Recursive": "true", "Limit": 1})
             items = (res.json().get("Items") if res else None) or []
             sample_type = items[0].get("Type") if items else None
         except Exception as e:
@@ -497,18 +486,14 @@ class ZSpace:
                 res_items = res.json().get("Items")
                 if res_items:
                     for res_item in res_items:
-                        if res_item.get("Name") == name and (
-                            not year or str(res_item.get("ProductionYear")) == str(year)
-                        ):
+                        if res_item.get("Name") == name and (not year or str(res_item.get("ProductionYear")) == str(year)):
                             return res_item.get("Id")
         except Exception as e:
             logger.error(f"连接Items出错：{e}")
             return None
         return ""
 
-    def get_movies(
-        self, title: str, year: str | None = None, tmdb_id: int | None = None
-    ) -> list[schemas.MediaServerItem] | None:
+    def get_movies(self, title: str, year: str | None = None, tmdb_id: int | None = None) -> list[schemas.MediaServerItem] | None:
         """
         根据标题和年份，检查电影是否在极影视中存在，存在则返回列表
         :param title: 标题
@@ -769,8 +754,7 @@ class ZSpace:
                 user_state = None
             else:
                 resume = (
-                    item.get("UserData", {}).get("PlaybackPositionTicks")
-                    and item.get("UserData", {}).get("PlaybackPositionTicks") > 0
+                    item.get("UserData", {}).get("PlaybackPositionTicks") and item.get("UserData", {}).get("PlaybackPositionTicks") > 0
                 )
                 last_played_date = item.get("UserData", {}).get("LastPlayedDate")
                 if last_played_date is not None and "." in last_played_date:
@@ -778,9 +762,7 @@ class ZSpace:
                 user_state = schemas.MediaServerItemUserState(
                     played=item.get("UserData", {}).get("Played"),
                     resume=resume,
-                    last_played_date=datetime.strptime(last_played_date, "%Y-%m-%dT%H:%M:%S").strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                    last_played_date=datetime.strptime(last_played_date, "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
                     if last_played_date
                     else None,
                     play_count=item.get("UserData", {}).get("PlayCount"),
@@ -873,8 +855,7 @@ class ZSpace:
                 "Recursive": "true",
                 "StartIndex": current_start_index,
                 "Limit": page_size,
-                "Fields": "ProviderIds,OriginalTitle,ProductionYear,Path,"
-                "UserDataPlayCount,UserDataLastPlayedDate,ParentId",
+                "Fields": "ProviderIds,OriginalTitle,ProductionYear,Path,UserDataPlayCount,UserDataLastPlayedDate,ParentId",
             }
             try:
                 res = self.__request_utils().get_res(url, params=params)
@@ -893,9 +874,7 @@ class ZSpace:
                     if item.get("Type") not in ["Movie", "Series"]:
                         continue
                     provider_ids = item.get("ProviderIds") or {}
-                    needs_detail = (
-                        not provider_ids.get("Tmdb") or not item.get("ProductionYear") or not item.get("Path")
-                    )
+                    needs_detail = not provider_ids.get("Tmdb") or not item.get("ProductionYear") or not item.get("Path")
                     if needs_detail and item.get("Id"):
                         detail_item = self.get_iteminfo(item.get("Id"))
                         if detail_item:
@@ -992,9 +971,7 @@ class ZSpace:
             if not event_item.percentage:
                 if message.get("PlaybackInfo", {}).get("PositionTicks") and message.get("Item", {}).get("RunTimeTicks"):
                     event_item.percentage = (
-                        message.get("PlaybackInfo", {}).get("PositionTicks")
-                        / message.get("Item", {}).get("RunTimeTicks")
-                        * 100
+                        message.get("PlaybackInfo", {}).get("PositionTicks") / message.get("Item", {}).get("RunTimeTicks") * 100
                     )
         if message.get("Session"):
             event_item.ip = message.get("Session").get("RemoteEndPoint")
@@ -1026,11 +1003,7 @@ class ZSpace:
         """
         if not self._host or not self._apikey:
             return None
-        url = (
-            url.replace("[HOST]", self._host or "")
-            .replace("[APIKEY]", self._apikey or "")
-            .replace("[USER]", self.user or "")
-        )
+        url = url.replace("[HOST]", self._host or "").replace("[APIKEY]", self._apikey or "").replace("[USER]", self.user or "")
         try:
             return self.__request_utils(headers={"Content-Type": "application/json"}).get_res(url=url)
         except Exception as e:
@@ -1047,11 +1020,7 @@ class ZSpace:
         """
         if not self._host or not self._apikey:
             return None
-        url = (
-            url.replace("[HOST]", self._host or "")
-            .replace("[APIKEY]", self._apikey or "")
-            .replace("[USER]", self.user or "")
-        )
+        url = url.replace("[HOST]", self._host or "").replace("[APIKEY]", self._apikey or "").replace("[USER]", self.user or "")
         try:
             return self.__request_utils(headers=headers).post_res(url=url, data=data)
         except Exception as e:
@@ -1117,11 +1086,7 @@ class ZSpace:
                     if item.get("Type") not in ["Movie", "Episode"]:
                         continue
                     item_path = item.get("Path")
-                    if (
-                        item_path
-                        and library_folders
-                        and not any(str(item_path).startswith(folder) for folder in library_folders)
-                    ):
+                    if item_path and library_folders and not any(str(item_path).startswith(folder) for folder in library_folders):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))
@@ -1133,15 +1098,11 @@ class ZSpace:
                         subtitle = f"S{item.get('ParentIndexNumber')}:{item.get('IndexNumber')} - {item.get('Name')}"
                     if item_type == MediaType.MOVIE.value:
                         if item.get("BackdropImageTags"):
-                            image = self.get_backdrop_url(
-                                item_id=item.get("Id"), image_tag=item.get("BackdropImageTags")[0]
-                            )
+                            image = self.get_backdrop_url(item_id=item.get("Id"), image_tag=item.get("BackdropImageTags")[0])
                         else:
                             image = self.__get_local_image_by_id(item.get("Id"))
                     else:
-                        image = self.get_backdrop_url(
-                            item_id=item.get("SeriesId"), image_tag=item.get("SeriesPrimaryImageTag")
-                        )
+                        image = self.get_backdrop_url(item_id=item.get("SeriesId"), image_tag=item.get("SeriesPrimaryImageTag"))
                         if not image:
                             image = self.__get_local_image_by_id(item.get("SeriesId"))
                     ret_resume.append(
@@ -1206,11 +1167,7 @@ class ZSpace:
                     if item.get("Type") not in ["Movie", "Series"]:
                         continue
                     item_path = item.get("Path")
-                    if (
-                        item_path
-                        and library_folders
-                        and not any(str(item_path).startswith(folder) for folder in library_folders)
-                    ):
+                    if item_path and library_folders and not any(str(item_path).startswith(folder) for folder in library_folders):
                         continue
                     item_type = MediaType.MOVIE.value if item.get("Type") == "Movie" else MediaType.TV.value
                     link = self.get_play_url(item.get("Id"))

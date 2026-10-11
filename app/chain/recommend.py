@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import pillow_avif  # noqa 用于自动注册AVIF支持
 
@@ -239,9 +239,7 @@ class RecommendChain(ChainBase, metaclass=Singleton):
 
     @log_execution_time(logger=logger)
     @cached(ttl=recommend_ttl, region=recommend_cache_region, skip_empty=True)
-    def douban_movies(
-        self, sort: str | None = "R", tags: str | None = "", page: int | None = 1, count: int | None = 30
-    ) -> list[dict]:
+    def douban_movies(self, sort: str | None = "R", tags: str | None = "", page: int | None = 1, count: int | None = 30) -> list[dict]:
         """
         豆瓣最新电影
         """
@@ -250,9 +248,7 @@ class RecommendChain(ChainBase, metaclass=Singleton):
 
     @log_execution_time(logger=logger)
     @cached(ttl=recommend_ttl, region=recommend_cache_region, skip_empty=True)
-    def douban_tvs(
-        self, sort: str | None = "R", tags: str | None = "", page: int | None = 1, count: int | None = 30
-    ) -> list[dict]:
+    def douban_tvs(self, sort: str | None = "R", tags: str | None = "", page: int | None = 1, count: int | None = 30) -> list[dict]:
         """
         豆瓣最新电视剧
         """

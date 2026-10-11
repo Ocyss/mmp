@@ -2,7 +2,7 @@ import hashlib
 from collections import deque
 from collections.abc import Generator, Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import parse_qs, urlparse
 
 from app import schemas
@@ -82,12 +82,7 @@ class Ugreen:
 
     def is_authenticated(self) -> bool:
         """检查绿联影视会话是否已认证"""
-        return (
-            self.is_configured()
-            and self._api is not None
-            and self._api.token is not None
-            and self._userinfo is not None
-        )
+        return self.is_configured() and self._api is not None and self._api.token is not None and self._userinfo is not None
 
     def is_inactive(self) -> bool:
         """检查绿联影视会话是否已失效"""
@@ -392,9 +387,7 @@ class Ugreen:
             subtitle = "电影" if video_info.get("type") == 1 else "视频"
             media_type = MediaType.MOVIE.value
 
-        image = self.__resolve_image(video_info.get("poster_path")) or self.__resolve_image(
-            video_info.get("backdrop_path")
-        )
+        image = self.__resolve_image(video_info.get("poster_path")) or self.__resolve_image(video_info.get("backdrop_path"))
 
         return schemas.MediaServerPlayItem(
             id=str(item_id),
@@ -421,11 +414,7 @@ class Ugreen:
     def __is_library_blocked(self, library_id: str) -> bool:
         return (
             True
-            if (
-                self._sync_libraries
-                and "all" not in self._sync_libraries
-                and str(library_id) not in self._sync_libraries
-            )
+            if (self._sync_libraries and "all" not in self._sync_libraries and str(library_id) not in self._sync_libraries)
             else False
         )
 
@@ -517,9 +506,7 @@ class Ugreen:
 
         if page > self.LIBRARY_PATH_PAGE_LIMIT:
             # 部分固件分页标志异常时会无限返回下一页，这里加硬限制避免阻塞调用方。
-            logger.warning(
-                f"绿联影视 {self._username} 媒体库目录分页超过上限 {self.LIBRARY_PATH_PAGE_LIMIT} 页，停止继续加载"
-            )
+            logger.warning(f"绿联影视 {self._username} 媒体库目录分页超过上限 {self.LIBRARY_PATH_PAGE_LIMIT} 页，停止继续加载")
 
         return paths
 
@@ -632,9 +619,7 @@ class Ugreen:
                 result.append(dict(info))
         return result
 
-    def get_movies(
-        self, title: str, year: str | None = None, tmdb_id: int | None = None
-    ) -> list[schemas.MediaServerItem] | None:
+    def get_movies(self, title: str, year: str | None = None, tmdb_id: int | None = None) -> list[schemas.MediaServerItem] | None:
         if not self.is_authenticated() or not self._api or not title:
             return None
 
@@ -1016,9 +1001,7 @@ class Ugreen:
             if self.__is_library_blocked(library_id):
                 continue
 
-            image = self.__resolve_image(video_info.get("backdrop_path")) or self.__resolve_image(
-                video_info.get("poster_path")
-            )
+            image = self.__resolve_image(video_info.get("backdrop_path")) or self.__resolve_image(video_info.get("poster_path"))
             if image:
                 images.append(image)
 

@@ -7,7 +7,7 @@ import multiprocessing
 import threading
 import traceback
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import pytz
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -1222,9 +1222,7 @@ class Scheduler(ConfigReloadMixin, metaclass=SingletonClass):
                 jobs_to_remove = [(job_id, service)]
             else:
                 # 移除插件的所有服务
-                jobs_to_remove = [
-                    (job_id, service) for job_id, service in self._jobs.items() if service.get("pid") == pid
-                ]
+                jobs_to_remove = [(job_id, service) for job_id, service in self._jobs.items() if service.get("pid") == pid]
                 for job_id, _ in jobs_to_remove:
                     self._jobs.pop(job_id, None)
             if not jobs_to_remove:

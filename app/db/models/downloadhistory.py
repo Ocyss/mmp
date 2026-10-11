@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, Column, Index, Integer, String, func, select
 
@@ -116,9 +116,7 @@ class DownloadHistory(Base):
             if history.download_hash and history.download_hash not in latest_histories:
                 latest_histories[history.download_hash] = history
 
-        return [
-            latest_histories[download_hash] for download_hash in normalized_hashes if download_hash in latest_histories
-        ]
+        return [latest_histories[download_hash] for download_hash in normalized_hashes if download_hash in latest_histories]
 
     @classmethod
     @db_query
@@ -163,9 +161,7 @@ class DownloadHistory(Base):
     @classmethod
     @async_db_query
     async def async_list_by_page(cls, db: AsyncSession, page: int | None = 1, count: int | None = 30):
-        result = await db.execute(
-            select(cls).order_by(cls.date.desc(), cls.id.desc()).offset((page - 1) * count).limit(count)
-        )
+        result = await db.execute(select(cls).order_by(cls.date.desc(), cls.id.desc()).offset((page - 1) * count).limit(count))
         return result.scalars().all()
 
     @classmethod
@@ -302,9 +298,7 @@ class DownloadHistory(Base):
                 .all()
             )
         else:
-            return (
-                db.query(DownloadHistory).filter(DownloadHistory.date < date).order_by(DownloadHistory.id.desc()).all()
-            )
+            return db.query(DownloadHistory).filter(DownloadHistory.date < date).order_by(DownloadHistory.id.desc()).all()
 
     @classmethod
     @db_query
@@ -350,8 +344,7 @@ class DownloadHistory(Base):
             db.query(DownloadHistory)
             .filter(
                 DownloadHistory.type == mtype,
-                DownloadHistory.date
-                >= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400 * int(days))),
+                DownloadHistory.date >= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400 * int(days))),
             )
             .all()
         )
@@ -367,9 +360,7 @@ class DownloadHistory(Base):
         """
         分批删除指定时间之前的下载历史。
         """
-        ids = [
-            row[0] for row in db.query(cls.id).filter(cls.date < before_time).order_by(cls.id.asc()).limit(limit).all()
-        ]
+        ids = [row[0] for row in db.query(cls.id).filter(cls.date < before_time).order_by(cls.id.asc()).limit(limit).all()]
         if not ids:
             return 0
         return db.query(cls).filter(cls.id.in_(ids)).delete(synchronize_session=False)

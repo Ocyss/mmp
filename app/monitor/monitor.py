@@ -1,7 +1,7 @@
 import traceback
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -327,9 +327,7 @@ class Monitor(ConfigReloadMixin, metaclass=SingletonClass):
                         self.__clear_alert(watcher.watch_path, f"目录监控已恢复正常: {watcher.watch_path}")
                 continue
             logger.error(f"目录监控异常: {watcher.watch_path} - {reason}，正在重建监控线程 ...")
-            self.__send_alert(
-                watcher.watch_path, f"目录监控异常: {watcher.watch_path}\n原因: {reason}\n正在自动重建监控"
-            )
+            self.__send_alert(watcher.watch_path, f"目录监控异常: {watcher.watch_path}\n原因: {reason}\n正在自动重建监控")
             self.__rebuild_watcher(watcher)
 
     def __rebuild_watcher(self, watcher: LocalDirectoryWatcher):

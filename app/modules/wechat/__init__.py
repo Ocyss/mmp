@@ -2,7 +2,7 @@ import copy
 import json
 import re
 import xml.dom.minidom
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import quote
 
 from app.core.event import eventmanager
@@ -142,9 +142,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                 logger.debug("微信请求数据为空")
                 return None
             logger.debug(f"收到微信请求：{body}")
-            ret, sMsg = wxcpt.DecryptMsg(
-                sPostData=body, sMsgSignature=sVerifyMsgSig, sTimeStamp=sVerifyTimeStamp, sNonce=sVerifyNonce
-            )
+            ret, sMsg = wxcpt.DecryptMsg(sPostData=body, sMsgSignature=sVerifyMsgSig, sTimeStamp=sVerifyTimeStamp, sNonce=sVerifyNonce)
             if ret != 0:
                 logger.error(f"解密微信消息失败 DecryptMsg ret = {ret}")
                 return None
@@ -206,9 +204,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                     images = [CommingMessage.MessageImage(ref=f"wxwork://media_id/{media_id}")]
                 elif pic_url:
                     images = [CommingMessage.MessageImage(ref=pic_url)]
-                logger.info(
-                    f"收到来自 {client_config.name} 的微信图片消息：userid={user_id}, images={len(images) if images else 0}"
-                )
+                logger.info(f"收到来自 {client_config.name} 的微信图片消息：userid={user_id}, images={len(images) if images else 0}")
             elif msg_type == "voice":
                 media_id = DomUtils.tag_value(root_node, "MediaId")
                 recognition = DomUtils.tag_value(root_node, "Recognition", default="")
@@ -229,9 +225,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                             name=file_name,
                         )
                     ]
-                logger.info(
-                    f"收到来自 {client_config.name} 的微信文件消息：userid={user_id}, files={len(files) if files else 0}"
-                )
+                logger.info(f"收到来自 {client_config.name} 的微信文件消息：userid={user_id}, files={len(files) if files else 0}")
             else:
                 return None
 
@@ -354,9 +348,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                             link=message.link,
                         )
                 else:
-                    client.send_msg(
-                        title=message.title, text=message.text, image=message.image, userid=userid, link=message.link
-                    )
+                    client.send_msg(title=message.title, text=message.text, image=message.image, userid=userid, link=message.link)
 
     def download_wechat_image_to_data_url(self, image_ref: str, source: str) -> str | None:
         """
@@ -426,9 +418,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                 continue
             client: WeChat = self.get_instance(conf.name)
             if client:
-                client.send_torrents_msg(
-                    title=message.title, torrents=torrents, userid=message.userid, link=message.link
-                )
+                client.send_torrents_msg(title=message.title, torrents=torrents, userid=message.userid, link=message.link)
 
     def register_commands(self, commands: dict[str, dict]):
         """
@@ -461,9 +451,7 @@ class WechatModule(_ModuleBase, _MessageBase[WeChat]):
                 # 如果事件被取消，跳过命令注册，并清理菜单
                 if event_data.cancel:
                     client.delete_menus()
-                    logger.debug(
-                        f"Command registration for {client_config.name} canceled by event: {event_data.source}"
-                    )
+                    logger.debug(f"Command registration for {client_config.name} canceled by event: {event_data.source}")
                     continue
                 scoped_commands = event_data.commands or {}
                 if not scoped_commands:

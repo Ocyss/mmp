@@ -1,7 +1,7 @@
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import smbclient
 from smbclient import ClientConfig, register_session, reset_connection_cache
@@ -127,13 +127,13 @@ class SMB(StorageBase, metaclass=WeakSingleton):
             # 尝试列出根目录来测试连接
             smbclient.listdir(self._server_path)
         except SMBAuthenticationError as e:
-            raise SMBConnectionError(f"SMB认证失败：{e}")
+            raise SMBConnectionError(f"SMB认证失败：{e}") from e
         except SMBResponseException as e:
-            raise SMBConnectionError(f"SMB响应错误：{e}")
+            raise SMBConnectionError(f"SMB响应错误：{e}") from e
         except SMBException as e:
-            raise SMBConnectionError(f"SMB连接错误：{e}")
+            raise SMBConnectionError(f"SMB连接错误：{e}") from e
         except Exception as e:
-            raise SMBConnectionError(f"连接测试失败：{e}")
+            raise SMBConnectionError(f"连接测试失败：{e}") from e
 
     def _is_anonymous_access(self) -> bool:
         """
@@ -468,17 +468,17 @@ class SMB(StorageBase, metaclass=WeakSingleton):
                     except Exception as remove_error:
                         # 如果还是失败，记录错误并抛出异常
                         logger.error(f"【SMB】无法删除非空目录: {smb_path} - {remove_error}")
-                        raise SMBConnectionError(f"无法删除非空目录 {smb_path}: {remove_error}")
+                        raise SMBConnectionError(f"无法删除非空目录 {smb_path}: {remove_error}") from remove_error
                 except SMBException as e:
                     logger.error(f"【SMB】SMB操作失败: {smb_path} - {e}")
-                    raise SMBConnectionError(f"SMB操作失败 {smb_path}: {e}")
+                    raise SMBConnectionError(f"SMB操作失败 {smb_path}: {e}") from e
 
         except SMBConnectionError:
             # 重新抛出SMB连接错误
             raise
         except Exception as e:
             logger.error(f"【SMB】递归删除失败: {smb_path} - {e}")
-            raise SMBConnectionError(f"递归删除失败 {smb_path}: {e}")
+            raise SMBConnectionError(f"递归删除失败 {smb_path}: {e}") from e
 
     def rename(self, fileitem: schemas.FileItem, name: str) -> bool:
         """

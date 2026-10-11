@@ -14,8 +14,7 @@ class AsObj:
             self._list_only = True
         elif dict_key:
             self._obj_list = [
-                AsObj({k: v}, key=k, dict_key_name=dict_key_name) if isinstance(v, (dict, list)) else v
-                for k, v in self._json.items()
+                AsObj({k: v}, key=k, dict_key_name=dict_key_name) if isinstance(v, (dict, list)) else v for k, v in self._json.items()
             ]
             self._list_only = True
         else:

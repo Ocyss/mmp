@@ -8,7 +8,7 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from time import sleep
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
 
@@ -131,9 +131,7 @@ class WorkflowExecutor:
         self.node_attempts = self.get_restored_attempts()
         self.node_states = self.get_restored_node_states()
         self.completed_actions = {action_id for action_id, state in self.node_states.items() if state == "success"}
-        self.finished_actions = len(
-            [state for state in self.node_states.values() if state in ("success", "failed", "skipped")]
-        )
+        self.finished_actions = len([state for state in self.node_states.values() if state in ("success", "failed", "skipped")])
         self.flow_finished = set()
         self.flow_satisfied = set()
         self.flow_failed = set()
@@ -216,9 +214,7 @@ class WorkflowExecutor:
         """
         获取结构化节点状态，兼容旧版 current_action 字符串。
         """
-        legacy_actions = {
-            action_id for action_id in (self.workflow.current_action or "").split(",") if action_id in self.actions
-        }
+        legacy_actions = {action_id for action_id in (self.workflow.current_action or "").split(",") if action_id in self.actions}
         states = {}
         for action_id in self.actions:
             metadata = self.node_metadata.get(action_id) or {}
@@ -248,9 +244,7 @@ class WorkflowExecutor:
                     context = ActionContext.model_validate(self.workflow.context)
             except Exception:
                 context = ActionContext()
-        outputs = (
-            self.restored_execution_state.get("outputs") if isinstance(self.restored_execution_state, dict) else {}
-        )
+        outputs = self.restored_execution_state.get("outputs") if isinstance(self.restored_execution_state, dict) else {}
         if outputs and not getattr(context, "node_outputs", None):
             context.node_outputs = outputs
         return context
@@ -491,9 +485,7 @@ class WorkflowExecutor:
         self.finished_actions += 1
         self.update_progress()
         self.set_node_state(node_id, "skipped", message=message)
-        self.context.execute_history.append(
-            ActionExecution(action=self.actions[node_id].name, result=True, message=message)
-        )
+        self.context.execute_history.append(ActionExecution(action=self.actions[node_id].name, result=True, message=message))
         self.call_step_callback(self.actions[node_id], completed=False)
         self.release_successors(node_id, source_success=False)
 
@@ -632,9 +624,7 @@ class WorkflowExecutor:
         context.runtime_state = context.runtime_state or {}
         context.artifacts = context.artifacts or {}
 
-    def normalize_action_outputs(
-        self, action: Action, action_result: ActionResult, result_context: ActionContext
-    ) -> dict:
+    def normalize_action_outputs(self, action: Action, action_result: ActionResult, result_context: ActionContext) -> dict:
         """
         根据动作输出声明整理当前节点输出。
         """

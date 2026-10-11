@@ -185,10 +185,7 @@ def is_subagent_stream_metadata(metadata: Any) -> bool:
         return True
 
     nested_metadata = metadata.get("metadata")
-    if (
-        isinstance(nested_metadata, dict)
-        and nested_metadata.get(SUBAGENT_STREAM_MARKER_KEY) == SUBAGENT_STREAM_MARKER_VALUE
-    ):
+    if isinstance(nested_metadata, dict) and nested_metadata.get(SUBAGENT_STREAM_MARKER_KEY) == SUBAGENT_STREAM_MARKER_VALUE:
         return True
 
     configurable = metadata.get("configurable")
@@ -426,9 +423,7 @@ class _SubAgentAgentProvider:
             logger.error(f"子代理调用失败: subagent_type={agent_name}, task_id={log_task_id}, error={err}")
             raise
         final_text = _extract_final_text(result)
-        logger.info(
-            f"子代理调用完成: subagent_type={agent_name}, task_id={log_task_id}, result_chars={len(final_text)}"
-        )
+        logger.info(f"子代理调用完成: subagent_type={agent_name}, task_id={log_task_id}, result_chars={len(final_text)}")
         return final_text or "The subagent did not return a usable result."
 
 
@@ -752,9 +747,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
             return
 
         return_when = asyncio.FIRST_COMPLETED if wait_mode == "any" else asyncio.ALL_COMPLETED
-        logger.info(
-            f"开始等待子代理任务: tasks={len(pending_tasks)}, wait_mode={wait_mode}, timeout_ms={normalized_timeout_ms}"
-        )
+        logger.info(f"开始等待子代理任务: tasks={len(pending_tasks)}, wait_mode={wait_mode}, timeout_ms={normalized_timeout_ms}")
         await asyncio.wait(
             pending_tasks,
             timeout=timeout,
@@ -793,9 +786,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
                 SUBAGENT_RESULT_MAX_CHARS,
             )
             truncated_note = "\n[Result truncated]" if result_truncated else ""
-            context_parts.append(
-                f"Step {step_index} ({record.subagent_type}) result:\n{clipped_result}{truncated_note}"
-            )
+            context_parts.append(f"Step {step_index} ({record.subagent_type}) result:\n{clipped_result}{truncated_note}")
         context_text, context_truncated = _clip_text(
             "\n\n".join(context_parts),
             SUBAGENT_PIPELINE_CONTEXT_MAX_CHARS,
@@ -896,10 +887,7 @@ class SubAgentTaskControlMiddleware(AgentMiddleware):
                 name=record.task_id,
             )
             self._track_pipeline_task(record, task)
-            logger.info(
-                f"已启动管道子代理任务: step={step_index}, task_id={record.task_id}, "
-                f"subagent_type={record.subagent_type}"
-            )
+            logger.info(f"已启动管道子代理任务: step={step_index}, task_id={record.task_id}, subagent_type={record.subagent_type}")
 
             try:
                 result = await asyncio.wait_for(task, timeout=timeout)

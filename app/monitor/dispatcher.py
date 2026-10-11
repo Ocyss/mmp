@@ -2,7 +2,7 @@ import re
 import traceback
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.chain.transfer import TransferChain
 from app.core.cache import TTLCache
@@ -28,9 +28,7 @@ class TransferDispatcher:
         :param all_exts: 监控的文件扩展名，默认取系统配置
         :param cache: 去重缓存，默认使用 10 秒 TTL 缓存
         """
-        self.all_exts = (
-            all_exts if all_exts is not None else (settings.RMT_MEDIAEXT + settings.RMT_SUBEXT + settings.RMT_AUDIOEXT)
-        )
+        self.all_exts = all_exts if all_exts is not None else (settings.RMT_MEDIAEXT + settings.RMT_SUBEXT + settings.RMT_AUDIOEXT)
         self._cache = cache if cache is not None else TTLCache(region="monitor", maxsize=1024, ttl=10)
         self._lock = Lock()
         # 历史查询失败待重试的文件

@@ -6,7 +6,7 @@ import re
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -71,9 +71,7 @@ class SearchChain(ChainBase):
         start_page = max(start_page, 0)
         return list(range(start_page, start_page + cls._get_search_resource_pages()))
 
-    def _should_continue_search_pages(
-        self, site: dict, page_results: list[Any] | None, keyword: str | None = None
-    ) -> bool:
+    def _should_continue_search_pages(self, site: dict, page_results: list[Any] | None, keyword: str | None = None) -> bool:
         """
         判断是否继续抓取下一页；少于站点单页容量时视为当前站点已到末页。
         """
@@ -441,12 +439,8 @@ class SearchChain(ChainBase):
                         state._ai_recommend_error = "没有可用于AI推荐的资源"
                     return
 
-                user_preference = (
-                    settings.AI_RECOMMEND_USER_PREFERENCE or "Prefer high-quality resources with more seeders"
-                )
-                search_results_text = (
-                    f"User Preference: {user_preference}\n\nCandidate Resources:\n{chr(10).join(items)}"
-                )
+                user_preference = settings.AI_RECOMMEND_USER_PREFERENCE or "Prefer high-quality resources with more seeders"
+                search_results_text = f"User Preference: {user_preference}\n\nCandidate Resources:\n{chr(10).join(items)}"
                 ai_response = await self._invoke_recommend_llm(search_results_text)
                 if not ai_response:
                     if is_current_request():
@@ -534,9 +528,7 @@ class SearchChain(ChainBase):
             mtype=mtype,
         )
         if not mediainfo:
-            logger.error(
-                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！"
-            )
+            logger.error(f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！")
             return []
         no_exists = None
         if season is not None:
@@ -727,10 +719,7 @@ class SearchChain(ChainBase):
             mtype=mtype,
         )
         if not mediainfo:
-            logger.error(
-                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
-                "媒体信息识别失败！"
-            )
+            logger.error(f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！")
             return []
         subtitles = await self.__async_search_subtitles_for_media(
             mediainfo=mediainfo,
@@ -786,10 +775,7 @@ class SearchChain(ChainBase):
             mtype=mtype,
         )
         if not mediainfo:
-            logger.error(
-                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
-                "媒体信息识别失败！"
-            )
+            logger.error(f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！")
             yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
             return
 
@@ -861,10 +847,7 @@ class SearchChain(ChainBase):
             mtype=mtype,
         )
         if not mediainfo:
-            logger.error(
-                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
-                "媒体信息识别失败！"
-            )
+            logger.error(f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！")
             return []
         no_exists = None
         if season is not None:
@@ -976,9 +959,7 @@ class SearchChain(ChainBase):
             "total_items": len(contexts),
         }
 
-    def __filter_title_search_torrents(
-        self, torrents: list[TorrentInfo], rule_groups: list[str] | None = None
-    ) -> list[TorrentInfo]:
+    def __filter_title_search_torrents(self, torrents: list[TorrentInfo], rule_groups: list[str] | None = None) -> list[TorrentInfo]:
         """
         对标题搜索结果应用默认搜索过滤规则，不执行媒体识别和标题精确匹配。
         """
@@ -1038,10 +1019,7 @@ class SearchChain(ChainBase):
             mtype=mtype,
         )
         if not mediainfo:
-            logger.error(
-                f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} "
-                "媒体信息识别失败！"
-            )
+            logger.error(f"{self._build_search_keyword(source, mediaid, tmdbid, doubanid, bangumiid, anilistid)} 媒体信息识别失败！")
             yield {"type": "error", "success": False, "message": "媒体信息识别失败"}
             return
 
@@ -1217,17 +1195,13 @@ class SearchChain(ChainBase):
         _match_torrents = []
         try:
             # 英文标题应该在别名/原标题中，不需要再匹配
-            logger.info(
-                f"开始匹配结果 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}"
-            )
+            logger.info(f"开始匹配结果 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}")
             progress.update(value=51, text=f"开始匹配，总 {_total} 个资源 ...")
             for torrent in torrents:
                 if global_vars.is_system_stopped:
                     break
                 _count += 1
-                progress.update(
-                    value=(_count / _total) * 96, text=f"正在匹配 {torrent.site_name}，已完成 {_count} / {_total} ..."
-                )
+                progress.update(value=(_count / _total) * 96, text=f"正在匹配 {torrent.site_name}，已完成 {_count} / {_total} ...")
                 if not torrent.title:
                     continue
 
@@ -1295,11 +1269,7 @@ class SearchChain(ChainBase):
         :param _torrents: 种子列表
         :return: 去重后的种子列表
         """
-        return list(
-            {
-                f"{t.torrent_info.site_name}_{t.torrent_info.title}_{t.torrent_info.description}": t for t in _torrents
-            }.values()
-        )
+        return list({f"{t.torrent_info.site_name}_{t.torrent_info.title}_{t.torrent_info.description}": t for t in _torrents}.values())
 
     def process(
         self,
@@ -1435,8 +1405,7 @@ class SearchChain(ChainBase):
                 await asyncio.sleep(random.randint(1, 10))
             # 搜索站点
             torrents.extend(
-                await self.__async_search_all_sites(mediainfo=mediainfo, keyword=search_word, sites=sites, area=area)
-                or []
+                await self.__async_search_all_sites(mediainfo=mediainfo, keyword=search_word, sites=sites, area=area) or []
             )
             search_count += 1
             # 未开启多名称搜索时，有结果则停止
@@ -1501,9 +1470,7 @@ class SearchChain(ChainBase):
                 logger.info(f"已搜索 {search_count} 次，强制休眠 1-10 秒 ...")
                 await asyncio.sleep(random.randint(1, 10))
 
-            async for event in self.__async_search_all_sites_stream(
-                mediainfo=mediainfo, keyword=search_word, sites=sites, area=area
-            ):
+            async for event in self.__async_search_all_sites_stream(mediainfo=mediainfo, keyword=search_word, sites=sites, area=area):
                 result = event.pop("items", []) or []
                 torrents.extend(result)
                 batch_contexts = [
@@ -1607,11 +1574,7 @@ class SearchChain(ChainBase):
         提取字幕标题、下载文件名和描述，作为精确匹配的名称候选。
         """
         return list(
-            dict.fromkeys(
-                name.strip()
-                for name in (subtitle.title, subtitle.file_name, subtitle.description)
-                if name and name.strip()
-            )
+            dict.fromkeys(name.strip() for name in (subtitle.title, subtitle.file_name, subtitle.description) if name and name.strip())
         )
 
     @staticmethod
@@ -1626,18 +1589,14 @@ class SearchChain(ChainBase):
         )
 
     @staticmethod
-    def __match_subtitle_episode(
-        meta: MetaInfo, season_episodes: dict[int, list[int]] | None, episode: int | None = None
-    ) -> bool:
+    def __match_subtitle_episode(meta: MetaInfo, season_episodes: dict[int, list[int]] | None, episode: int | None = None) -> bool:
         """
         判断字幕识别出的季集是否落在目标媒体季集内。
         """
         if not season_episodes:
             return True
         subtitle_torrent = TorrentInfo(title=meta.org_string)
-        if not TorrentHelper.match_season_episodes(
-            torrent=subtitle_torrent, meta=meta, season_episodes=season_episodes
-        ):
+        if not TorrentHelper.match_season_episodes(torrent=subtitle_torrent, meta=meta, season_episodes=season_episodes):
             return False
         if episode is not None:
             return bool(meta.episode_list) and episode in meta.episode_list
@@ -1660,9 +1619,7 @@ class SearchChain(ChainBase):
             return []
 
         match_subtitles = []
-        logger.info(
-            f"开始匹配字幕 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}"
-        )
+        logger.info(f"开始匹配字幕 标题：{mediainfo.title}，原标题：{mediainfo.original_title}，别名：{mediainfo.names}")
         for subtitle in subtitles:
             if global_vars.is_system_stopped:
                 break
@@ -1676,18 +1633,14 @@ class SearchChain(ChainBase):
                     subtitle=subtitle,
                     custom_words=custom_words,
                 )
-                if not self.__match_subtitle_episode(
-                    meta=subtitle_meta, season_episodes=season_episodes, episode=episode
-                ):
+                if not self.__match_subtitle_episode(meta=subtitle_meta, season_episodes=season_episodes, episode=episode):
                     continue
 
                 subtitle_torrent = self.__build_subtitle_torrent(
                     subtitle=subtitle,
                     title=subtitle_name,
                 )
-                if TorrentHelper.match_torrent(
-                    mediainfo=mediainfo, torrent_meta=subtitle_meta, torrent=subtitle_torrent
-                ):
+                if TorrentHelper.match_torrent(mediainfo=mediainfo, torrent_meta=subtitle_meta, torrent=subtitle_torrent):
                     match_subtitles.append(subtitle)
                     break
 
@@ -1750,9 +1703,7 @@ class SearchChain(ChainBase):
                 anilistid=anilistid,
             )
             no_exists = {
-                build_media_key(media_source, media_id): {
-                    season: NotExistMediaInfo(episodes=[episode] if episode is not None else [])
-                }
+                build_media_key(media_source, media_id): {season: NotExistMediaInfo(episodes=[episode] if episode is not None else [])}
             }
         season_episodes, keywords = self.__prepare_params(
             mediainfo=mediainfo,
@@ -1840,9 +1791,7 @@ class SearchChain(ChainBase):
                 anilistid=anilistid,
             )
             no_exists = {
-                build_media_key(media_source, media_id): {
-                    season: NotExistMediaInfo(episodes=[episode] if episode is not None else [])
-                }
+                build_media_key(media_source, media_id): {season: NotExistMediaInfo(episodes=[episode] if episode is not None else [])}
             }
         season_episodes, keywords = self.__prepare_params(
             mediainfo=mediainfo,
@@ -1932,16 +1881,16 @@ class SearchChain(ChainBase):
         :reutrn: 资源列表
         """
         # 未开启的站点不搜索
-        indexer_sites = []
-
         # 配置的索引站点
         if not sites:
             sites = SystemConfigOper().get(SystemConfigKey.IndexerSites) or []
 
-        for indexer in SitesHelper().get_indexers():
+        indexer_sites = [
+            indexer
             # 检查站点索引开关
-            if not sites or indexer.get("id") in sites:
-                indexer_sites.append(indexer)
+            for indexer in SitesHelper().get_indexers()
+            if not sites or indexer.get("id") in sites
+        ]
         if not indexer_sites:
             logger.warn("未开启任何有效站点，无法搜索资源")
             return []
@@ -2010,9 +1959,7 @@ class SearchChain(ChainBase):
                         ) and page_index + 1 < len(search_pages):
                             submit_site_page(site=site, page_index=page_index + 1)
                         else:
-                            logger.debug(
-                                f"{site.get('name')} 第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页"
-                            )
+                            logger.debug(f"{site.get('name')} 第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页")
                         logger.info(f"站点搜索进度：{finish_count} / {total_num}")
                         progress.update(
                             value=finish_count / total_num * 100,
@@ -2024,9 +1971,7 @@ class SearchChain(ChainBase):
         # 计算耗时
         end_time = datetime.now()
         # 更新进度
-        progress.update(
-            value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
-        )
+        progress.update(value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         logger.info(f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         # 结束进度
         progress.end()
@@ -2052,16 +1997,16 @@ class SearchChain(ChainBase):
         :reutrn: 资源列表
         """
         # 未开启的站点不搜索
-        indexer_sites = []
-
         # 配置的索引站点
         if not sites:
             sites = SystemConfigOper().get(SystemConfigKey.IndexerSites) or []
 
-        for indexer in await SitesHelper().async_get_indexers():
+        indexer_sites = [
+            indexer
             # 检查站点索引开关
-            if not sites or indexer.get("id") in sites:
-                indexer_sites.append(indexer)
+            for indexer in await SitesHelper().async_get_indexers()
+            if not sites or indexer.get("id") in sites
+        ]
         if not indexer_sites:
             logger.warn("未开启任何有效站点，无法搜索资源")
             return []
@@ -2149,9 +2094,7 @@ class SearchChain(ChainBase):
         # 计算耗时
         end_time = datetime.now()
         # 更新进度
-        progress.update(
-            value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
-        )
+        progress.update(value=100, text=f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         logger.info(f"站点搜索完成，有效资源数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         # 结束进度
         progress.end()
@@ -2175,14 +2118,14 @@ class SearchChain(ChainBase):
         :param page:  搜索页码
         :param area:  搜索区域 title or imdbid
         """
-        indexer_sites = []
-
         if not sites:
             sites = SystemConfigOper().get(SystemConfigKey.IndexerSites) or []
 
-        for indexer in await SitesHelper().async_get_indexers():
-            if not sites or indexer.get("id") in sites:
-                indexer_sites.append(indexer)
+        indexer_sites = [
+            indexer
+            for indexer in await SitesHelper().async_get_indexers()
+            if not sites or indexer.get("id") in sites
+        ]
         if not indexer_sites:
             logger.warn("未开启任何有效站点，无法搜索资源")
             yield {
@@ -2292,9 +2235,7 @@ class SearchChain(ChainBase):
                 await asyncio.gather(*tasks.keys(), return_exceptions=True)
 
         end_time = datetime.now()
-        progress.update(
-            value=100, text=f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒"
-        )
+        progress.update(value=100, text=f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
         logger.info(f"站点搜索完成，有效资源数：{results_count}，总耗时 {(end_time - start_time).seconds} 秒")
         progress.end()
 
@@ -2366,14 +2307,12 @@ class SearchChain(ChainBase):
                     result = await future
                     if result:
                         results.extend(result)
-                    if self._should_continue_subtitle_search_pages(
-                        site=site, page_results=result
-                    ) and page_index + 1 < len(search_pages):
+                    if self._should_continue_subtitle_search_pages(site=site, page_results=result) and page_index + 1 < len(
+                        search_pages
+                    ):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
-                        logger.debug(
-                            f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页"
-                        )
+                        logger.debug(f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result or [])} 条，停止继续翻页")
                     logger.info(f"站点字幕搜索进度：{finish_count} / {total_num}")
                     progress.update(
                         value=finish_count / total_num * 100,
@@ -2387,9 +2326,7 @@ class SearchChain(ChainBase):
                 await asyncio.gather(*pending_tasks.keys(), return_exceptions=True)
 
         end_time = datetime.now()
-        progress.update(
-            value=100, text=f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒"
-        )
+        progress.update(value=100, text=f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         logger.info(f"站点字幕搜索完成，有效字幕数：{len(results)}，总耗时 {(end_time - start_time).seconds} 秒")
         progress.end()
         return results
@@ -2480,9 +2417,9 @@ class SearchChain(ChainBase):
                     finish_count += 1
                     result = await future
                     results_count += len(result)
-                    if self._should_continue_subtitle_search_pages(
-                        site=site, page_results=result
-                    ) and page_index + 1 < len(search_pages):
+                    if self._should_continue_subtitle_search_pages(site=site, page_results=result) and page_index + 1 < len(
+                        search_pages
+                    ):
                         submit_site_page(site=site, page_index=page_index + 1)
                     else:
                         logger.debug(f"{site.get('name')} 字幕第 {search_page} 页返回 {len(result)} 条，停止继续翻页")

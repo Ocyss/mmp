@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import psutil
 
@@ -109,9 +109,7 @@ class SystemHelper(ConfigReloadMixin):
         """
         判断给定模式或当前配置是否启用了启动时自动升级。
         """
-        effective_mode = (
-            SystemHelper.get_auto_update_mode() if mode is None else SystemHelper.normalize_auto_update_mode(mode)
-        )
+        effective_mode = SystemHelper.get_auto_update_mode() if mode is None else SystemHelper.normalize_auto_update_mode(mode)
         return effective_mode in SystemHelper.AUTO_UPDATE_ENABLED_VALUES
 
     @staticmethod

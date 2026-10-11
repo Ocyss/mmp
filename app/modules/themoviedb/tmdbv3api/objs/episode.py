@@ -146,9 +146,7 @@ class Episode(TMDb):
         return self._request_obj(self._urls["videos"] % (tv_id, season_num, episode_num), params=params)
 
     # 异步版本方法
-    async def async_details(
-        self, tv_id, season_num, episode_num, append_to_response="trailers,images,casts,translations"
-    ):
+    async def async_details(self, tv_id, season_num, episode_num, append_to_response="trailers,images,casts,translations"):
         """
         Get the TV episode details by id.（异步版本）
         :param tv_id: int
@@ -234,9 +232,7 @@ class Episode(TMDb):
         :param episode_num: int
         :return:
         """
-        return await self._async_request_obj(
-            self._urls["translations"] % (tv_id, season_num, episode_num), key="translations"
-        )
+        return await self._async_request_obj(self._urls["translations"] % (tv_id, season_num, episode_num), key="translations")
 
     async def async_rate_tv_episode(self, tv_id, season_num, episode_num, rating):
         """

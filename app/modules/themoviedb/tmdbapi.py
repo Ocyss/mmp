@@ -1,6 +1,6 @@
 import re
 import traceback
-from typing import List, Optional
+from typing import Optional
 
 from app.core.config import settings
 from app.log import logger
@@ -188,8 +188,7 @@ class TmdbApi:
         return sorted(
             multis,
             key=lambda x: (
-                ("1" if x.get("media_type") == "movie" else "0")
-                + (x.get("release_date") or x.get("first_air_date") or "0000-00-00")
+                ("1" if x.get("media_type") == "movie" else "0") + (x.get("release_date") or x.get("first_air_date") or "0000-00-00")
             ),
             reverse=True,
         )
@@ -471,9 +470,9 @@ class TmdbApi:
             for tv in tvs:
                 # 使用年份、名称匹配
                 tv_year = tv.get("first_air_date")[0:4] if tv.get("first_air_date") else None
-                if (
-                    self.__compare_names(name, tv.get("name")) or self.__compare_names(name, tv.get("original_name"))
-                ) and (tv_year == str(season_year)):
+                if (self.__compare_names(name, tv.get("name")) or self.__compare_names(name, tv.get("original_name"))) and (
+                    tv_year == str(season_year)
+                ):
                     return tv
                 # 获取别名、译名重新匹配
                 if not tv.get("names"):
@@ -584,10 +583,7 @@ class TmdbApi:
             """
             if not genres:
                 return []
-            genre_ids = []
-            for genre in genres:
-                genre_ids.append(genre.get("id"))
-            return genre_ids
+            return [genre.get("id") for genre in genres]
 
         # 查询TMDB详情
         if mtype == MediaType.MOVIE:
@@ -759,9 +755,7 @@ class TmdbApi:
 
         # 原标题
         org_title = (
-            tmdb_info.get("original_title")
-            if tmdb_info.get("media_type") == MediaType.MOVIE
-            else tmdb_info.get("original_name")
+            tmdb_info.get("original_title") if tmdb_info.get("media_type") == MediaType.MOVIE else tmdb_info.get("original_name")
         )
         # 查找英文名
         if tmdb_info.get("original_language") == "en":
@@ -890,13 +884,7 @@ class TmdbApi:
     def __get_tv_detail(
         self,
         tmdbid: int,
-        append_to_response: str | None = "images,"
-        "credits,"
-        "alternative_titles,"
-        "translations,"
-        "content_ratings,"
-        "external_ids,"
-        "episode_groups",
+        append_to_response: str | None = "images,credits,alternative_titles,translations,content_ratings,external_ids,episode_groups",
     ) -> dict | None:
         """
         获取电视剧的详情
@@ -1460,9 +1448,7 @@ class TmdbApi:
             cast = (movies.get("cast") or []) + (tvs.get("cast") or [])
             if cast:
                 # 按年份降序排列
-                cast = sorted(
-                    cast, key=lambda x: x.get("release_date") or x.get("first_air_date") or "1900-01-01", reverse=True
-                )
+                cast = sorted(cast, key=lambda x: x.get("release_date") or x.get("first_air_date") or "1900-01-01", reverse=True)
                 return cast[(page - 1) * count : page * count]
             return []
         except Exception as e:
@@ -1621,9 +1607,9 @@ class TmdbApi:
             for tv in tvs:
                 # 年份
                 tv_year = tv.get("first_air_date")[0:4] if tv.get("first_air_date") else None
-                if (
-                    self.__compare_names(name, tv.get("name")) or self.__compare_names(name, tv.get("original_name"))
-                ) and (tv_year == str(season_year)):
+                if (self.__compare_names(name, tv.get("name")) or self.__compare_names(name, tv.get("original_name"))) and (
+                    tv_year == str(season_year)
+                ):
                     return tv
                 # 匹配别名、译名
                 if not tv.get("names"):
@@ -1659,13 +1645,7 @@ class TmdbApi:
     async def __async_get_tv_detail(
         self,
         tmdbid: int,
-        append_to_response: str | None = "images,"
-        "credits,"
-        "alternative_titles,"
-        "translations,"
-        "content_ratings,"
-        "external_ids,"
-        "episode_groups",
+        append_to_response: str | None = "images,credits,alternative_titles,translations,content_ratings,external_ids,episode_groups",
     ) -> dict | None:
         """
         获取电视剧的详情（异步版本）
@@ -1903,10 +1883,7 @@ class TmdbApi:
             """
             if not genres:
                 return []
-            genre_ids = []
-            for genre in genres:
-                genre_ids.append(genre.get("id"))
-            return genre_ids
+            return [genre.get("id") for genre in genres]
 
         # 查询TMDB详情
         if mtype == MediaType.MOVIE:
@@ -2171,9 +2148,7 @@ class TmdbApi:
             logger.error(str(e))
             return {}
 
-    async def async_get_person_credits(
-        self, person_id: int, page: int | None = 1, count: int | None = 24
-    ) -> list[dict]:
+    async def async_get_person_credits(self, person_id: int, page: int | None = 1, count: int | None = 24) -> list[dict]:
         """
         获取人物参演作品（异步版本）
         """
@@ -2186,9 +2161,7 @@ class TmdbApi:
             cast = (movies.get("cast") or []) + (tvs.get("cast") or [])
             if cast:
                 # 按年份降序排列
-                cast = sorted(
-                    cast, key=lambda x: x.get("release_date") or x.get("first_air_date") or "1900-01-01", reverse=True
-                )
+                cast = sorted(cast, key=lambda x: x.get("release_date") or x.get("first_air_date") or "1900-01-01", reverse=True)
                 return cast[(page - 1) * count : page * count]
             return []
         except Exception as e:

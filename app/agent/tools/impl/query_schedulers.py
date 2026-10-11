@@ -1,7 +1,7 @@
 """查询定时服务工具"""
 
 import json
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -44,9 +44,7 @@ class QuerySchedulersTool(MoviePilotTool):
             scheduler = Scheduler()
             agent_task_prefix = f"{AGENT_TASK_JOB_PREFIX}-"
             schedulers = [
-                scheduler_item
-                for scheduler_item in scheduler.list()
-                if not str(scheduler_item.id or "").startswith(agent_task_prefix)
+                scheduler_item for scheduler_item in scheduler.list() if not str(scheduler_item.id or "").startswith(agent_task_prefix)
             ]
             if schedulers:
                 schedulers_list = [
@@ -68,10 +66,7 @@ class QuerySchedulersTool(MoviePilotTool):
                         ensure_ascii=False,
                         indent=2,
                     )
-                    return (
-                        f"注意：查询结果共找到 {total_count} 条，为节省上下文空间，"
-                        f"仅显示前 30 条结果。\n\n{limited_json}"
-                    )
+                    return f"注意：查询结果共找到 {total_count} 条，为节省上下文空间，仅显示前 30 条结果。\n\n{limited_json}"
                 return result_json
             return "未找到系统、插件或工作流定时服务"
         except Exception as e:

@@ -9,7 +9,7 @@ import sys
 import threading
 from asyncio import AbstractEventLoop
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Any, Optional, Union, get_args, get_origin
 from urllib.parse import quote, urlencode, urlparse
 
 from dotenv import set_key, unset_key
@@ -742,9 +742,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
         except (ValueError, TypeError) as e:
             if raise_exception:
                 raise ValueError(f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型") from e
-            logger.error(
-                f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型，使用默认值 '{default}'，错误信息: {e}"
-            )
+            logger.error(f"配置项 '{field_name}' 的值 '{value}' 无法转换成正确的类型，使用默认值 '{default}'，错误信息: {e}")
         return default, True
 
     @model_validator(mode="before")
@@ -773,9 +771,7 @@ class Settings(BaseSettings, ConfigModel, LogConfigModel):
 
             field = cls.model_fields.get(field_name)
             if field:
-                converted_value, needs_update = cls.generic_type_converter(
-                    value, value, field.annotation, field.default, field_name
-                )
+                converted_value, needs_update = cls.generic_type_converter(value, value, field.annotation, field.default, field_name)
                 if needs_update:
                     cls.update_env_config(field_name, value, converted_value)
                     data[field_name] = converted_value

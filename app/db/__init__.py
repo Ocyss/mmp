@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, List, Optional, Self, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
 from sqlalchemy import (
     Column,
@@ -236,9 +236,7 @@ def _get_postgresql_engine(is_async: bool = False):
         # 创建异步数据库引擎
         async_engine = create_async_engine(**_db_kwargs)
         _register_database_error_logging(async_engine.sync_engine)
-        print(
-            f"Async PostgreSQL database connected to {settings.DB_POSTGRESQL_TARGET}/{settings.DB_POSTGRESQL_DATABASE}"
-        )
+        print(f"Async PostgreSQL database connected to {settings.DB_POSTGRESQL_TARGET}/{settings.DB_POSTGRESQL_DATABASE}")
 
         return async_engine
 

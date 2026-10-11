@@ -2,7 +2,7 @@ import socket
 import traceback
 import xmlrpc.client
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 from app.log import logger
@@ -19,12 +19,7 @@ class SCGITransport(xmlrpc.client.Transport):
         sock = socket.create_connection((parsed.hostname, parsed.port or 5000), timeout=60)
         try:
             # 构造SCGI请求头
-            headers = (
-                f"CONTENT_LENGTH\x00{len(request_body)}\x00"
-                f"SCGI\x001\x00"
-                f"REQUEST_METHOD\x00POST\x00"
-                f"REQUEST_URI\x00/RPC2\x00"
-            )
+            headers = f"CONTENT_LENGTH\x00{len(request_body)}\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/RPC2\x00"
             # netstring格式: "len:headers,"
             netstring = f"{len(headers)}:{headers},".encode()
             # 发送请求

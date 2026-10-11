@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 
 from app.log import logger
 from app.modules.indexer.parser import SiteParserBase, SiteSchema
@@ -162,10 +162,7 @@ class HDDolbySiteUserInfo(SiteParserBase):
         """
         if not self._site_cookie:
             if self.message_unread:
-                logger.warn(
-                    f"{self._site_name} 未配置 Cookie，无法读取站点消息正文"
-                    f"（API 仅提供未读数量：{self.message_unread}）"
-                )
+                logger.warn(f"{self._site_name} 未配置 Cookie，无法读取站点消息正文（API 仅提供未读数量：{self.message_unread}）")
             return
 
         nexus = NexusPhpSiteUserInfo(

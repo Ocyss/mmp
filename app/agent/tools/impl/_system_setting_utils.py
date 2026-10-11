@@ -149,7 +149,6 @@ SYSTEMCONFIG_SETTING_METADATA = {
     },
 }
 
-
 LIST_ITEM_MATCH_FIELD_DEFAULTS = {
     SystemConfigKey.Downloaders.value: "name",
     SystemConfigKey.MediaServers.value: "name",
@@ -158,7 +157,6 @@ LIST_ITEM_MATCH_FIELD_DEFAULTS = {
     SystemConfigKey.Directories.value: "name",
     SystemConfigKey.Storages.value: "name",
 }
-
 
 GROUP_ALIASES = {
     "all": "all",
@@ -227,10 +225,7 @@ def _normalize_token(value: str) -> str:
 
 
 def _build_specs() -> tuple[dict[str, SettingSpec], dict[str, SettingSpec]]:
-    core_specs = {
-        key: SettingSpec(key=key, source="settings", group="settings", label=key)
-        for key in Settings.model_fields.keys()
-    }
+    core_specs = {key: SettingSpec(key=key, source="settings", group="settings", label=key) for key in Settings.model_fields.keys()}
     system_specs = {}
     for item in SystemConfigKey:
         metadata = SYSTEMCONFIG_SETTING_METADATA.get(item.value, {})
@@ -246,7 +241,6 @@ def _build_specs() -> tuple[dict[str, SettingSpec], dict[str, SettingSpec]]:
 
 CORE_SETTING_SPECS, SYSTEMCONFIG_SETTING_SPECS = _build_specs()
 ALL_SETTING_SPECS = {**CORE_SETTING_SPECS, **SYSTEMCONFIG_SETTING_SPECS}
-
 
 SETTING_KEY_ALIASES = {}
 for key in CORE_SETTING_SPECS:

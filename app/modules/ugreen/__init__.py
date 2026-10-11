@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
 from app.core.event import eventmanager
@@ -83,9 +83,7 @@ class UgreenModule(_ModuleBase, _MediaServerBase[Ugreen]):
                 return False, f"无法连接绿联影视：{name}"
         return True, ""
 
-    def user_authenticate(
-        self, credentials: AuthCredentials, service_name: str | None = None
-    ) -> AuthCredentials | None:
+    def user_authenticate(self, credentials: AuthCredentials, service_name: str | None = None) -> AuthCredentials | None:
         """
         使用绿联影视用户辅助完成用户认证
         """
@@ -284,13 +282,9 @@ class UgreenModule(_ModuleBase, _MediaServerBase[Ugreen]):
         _, seasoninfo = server_obj.get_tv_episodes(item_id=str(item_id))
         if not seasoninfo:
             return []
-        return [
-            schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()
-        ]
+        return [schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()]
 
-    def mediaserver_playing(
-        self, server: str, count: int | None = 20, **kwargs
-    ) -> list[schemas.MediaServerPlayItem] | None:
+    def mediaserver_playing(self, server: str, count: int | None = 20, **kwargs) -> list[schemas.MediaServerPlayItem] | None:
         """
         获取媒体服务器正在播放信息
         """

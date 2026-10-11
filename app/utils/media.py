@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 MEDIA_SOURCE_ALIASES = {
     "tmdb": "themoviedb",

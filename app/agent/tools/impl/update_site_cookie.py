@@ -1,6 +1,6 @@
 """更新站点Cookie和UA工具"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

@@ -1,7 +1,7 @@
 """搜索订阅缺失剧集工具"""
 
 import json
-from typing import List, Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -49,12 +49,8 @@ class SearchSubscribeTool(MoviePilotTool):
 
         return message
 
-    async def run(
-        self, subscribe_id: int, manual: bool | None = False, filter_groups: list[str] | None = None, **kwargs
-    ) -> str:
-        logger.info(
-            f"执行工具: {self.name}, 参数: subscribe_id={subscribe_id}, manual={manual}, filter_groups={filter_groups}"
-        )
+    async def run(self, subscribe_id: int, manual: bool | None = False, filter_groups: list[str] | None = None, **kwargs) -> str:
+        logger.info(f"执行工具: {self.name}, 参数: subscribe_id={subscribe_id}, manual={manual}, filter_groups={filter_groups}")
 
         try:
             # 先验证订阅是否存在
@@ -134,6 +130,4 @@ class SearchSubscribeTool(MoviePilotTool):
         except Exception as e:
             error_message = f"搜索订阅缺失剧集失败: {str(e)}"
             logger.error(f"搜索订阅缺失剧集失败: {e}", exc_info=True)
-            return json.dumps(
-                {"success": False, "message": error_message, "subscribe_id": subscribe_id}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "message": error_message, "subscribe_id": subscribe_id}, ensure_ascii=False)

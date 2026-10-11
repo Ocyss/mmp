@@ -1,5 +1,5 @@
 from threading import Lock
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from app.core.config import settings
 from app.log import logger

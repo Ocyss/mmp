@@ -1,6 +1,6 @@
 """删除订阅工具"""
 
-from typing import Optional, Type
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,7 +29,9 @@ class DeleteSubscribeTool(MoviePilotTool):
         ToolTag.Subscription,
         ToolTag.Admin,
     ]
-    description: str = "Delete a media subscription by its ID. This will remove the subscription and stop automatic downloads for that media."
+    description: str = (
+        "Delete a media subscription by its ID. This will remove the subscription and stop automatic downloads for that media."
+    )
     args_schema: type[BaseModel] = DeleteSubscribeInput
     require_admin: bool = True
 

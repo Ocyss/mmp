@@ -1,6 +1,6 @@
 import threading
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app.chain import ChainBase
 from app.core.config import global_vars
@@ -53,9 +53,7 @@ class MediaServerChain(ChainBase):
                 item.image = self._sign_image_url(item.image)
         return items
 
-    def librarys(
-        self, server: str, username: str | None = None, hidden: bool = False
-    ) -> list[MediaServerLibrary] | None:
+    def librarys(self, server: str, username: str | None = None, hidden: bool = False) -> list[MediaServerLibrary] | None:
         """
         获取媒体服务器所有媒体库
         """
@@ -68,9 +66,7 @@ class MediaServerChain(ChainBase):
             )
         )
 
-    def items(
-        self, server: str, library_id: str | int, start_index: int | None = 0, limit: int | None = -1
-    ) -> Generator[Any]:
+    def items(self, server: str, library_id: str | int, start_index: int | None = 0, limit: int | None = -1) -> Generator[Any]:
         """
         获取媒体服务器项目列表，支持分页和不分页逻辑，默认不分页获取所有数据
 
@@ -108,9 +104,7 @@ class MediaServerChain(ChainBase):
                     break
                 start_index += page_size
         """
-        yield from self.run_module(
-            "mediaserver_items", server=server, library_id=library_id, start_index=start_index, limit=limit
-        )
+        yield from self.run_module("mediaserver_items", server=server, library_id=library_id, start_index=start_index, limit=limit)
 
     def items_count(self, server: str, library_id: str | int) -> int | None:
         """
@@ -150,9 +144,7 @@ class MediaServerChain(ChainBase):
         """
         return self.run_module("mediaserver_tv_episodes", server=server, item_id=item_id)
 
-    def playing(
-        self, server: str, count: int | None = 20, username: str | None = None
-    ) -> list[MediaServerPlayItem] | None:
+    def playing(self, server: str, count: int | None = 20, username: str | None = None) -> list[MediaServerPlayItem] | None:
         """
         获取媒体服务器正在播放信息
         """
@@ -165,9 +157,7 @@ class MediaServerChain(ChainBase):
             )
         )
 
-    def latest(
-        self, server: str, count: int | None = 20, username: str | None = None
-    ) -> list[MediaServerPlayItem] | None:
+    def latest(self, server: str, count: int | None = 20, username: str | None = None) -> list[MediaServerPlayItem] | None:
         """
         获取媒体服务器最新入库条目
         """
@@ -195,9 +185,7 @@ class MediaServerChain(ChainBase):
         )
         return [self._sign_image_url(wallpaper) for wallpaper in wallpapers or [] if wallpaper]
 
-    def get_latest_wallpaper(
-        self, server: str | None = None, remote: bool = True, username: str | None = None
-    ) -> str | None:
+    def get_latest_wallpaper(self, server: str | None = None, remote: bool = True, username: str | None = None) -> str | None:
         """
         获取最新最新入库条目海报作为壁纸，缓存1小时
         """
@@ -255,16 +243,12 @@ class MediaServerChain(ChainBase):
             total_count = 0
             dboper = MediaServerOper()
             enabled_servers = [
-                mediaserver.name
-                for mediaserver in mediaservers
-                if mediaserver and mediaserver.enabled and mediaserver.name
+                mediaserver.name for mediaserver in mediaservers if mediaserver and mediaserver.enabled and mediaserver.name
             ]
             dboper.delete_excluded_servers(enabled_servers)
             if server:
                 mediaservers = [
-                    mediaserver
-                    for mediaserver in mediaservers
-                    if mediaserver and mediaserver.enabled and mediaserver.name == server
+                    mediaserver for mediaserver in mediaservers if mediaserver and mediaserver.enabled and mediaserver.name == server
                 ]
             total_servers = len(enabled_servers)
             if server:
@@ -319,9 +303,7 @@ class MediaServerChain(ChainBase):
                         library_media_counts[str(library.id)] = media_count
                         if media_count is None:
                             global_counts_available = False
-                            logger.warning(
-                                f"未获取到 {server_name} 媒体库 {library.name} 的媒体总数，同步进度将按媒体库完成度计算"
-                            )
+                            logger.warning(f"未获取到 {server_name} 媒体库 {library.name} 的媒体总数，同步进度将按媒体库完成度计算")
                         else:
                             global_media_total += media_count
                             logger.info(f"{server_name} 媒体库 {library.name}共 {media_count} 个媒体待同步")
@@ -423,16 +405,13 @@ class MediaServerChain(ChainBase):
                                     * 100
                                 )
                             else:
-                                library_progress = (
-                                    min(library_count / library_media_total, 1) if library_media_total else 0
-                                )
+                                library_progress = min(library_count / library_media_total, 1) if library_media_total else 0
                                 server_progress = (library_index - 1 + library_progress) / total_libraries
                                 progress_value = (server_index - 1 + server_progress) / total_servers * 100
                             progress_callback(
                                 value=progress_value,
                                 text=(
-                                    f"正在同步 {server_name} 媒体库 {library.name}"
-                                    f"（{library_count}/{library_media_total}）"
+                                    f"正在同步 {server_name} 媒体库 {library.name}（{library_count}/{library_media_total}）"
                                     if library_media_total is not None
                                     else f"正在同步 {server_name} 媒体库 {library.name}"
                                 ),

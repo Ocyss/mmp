@@ -5,7 +5,7 @@
 #
 # -*- coding: utf-8 -*-
 import re
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode, urljoin
 
 from bs4 import BeautifulSoup
@@ -60,9 +60,7 @@ class BitptSiteUserInfo(SiteParserBase):
         self.download = StringUtils.num_filesize(info_dict.get("下载流量")) if "下载流量" in info_dict else 0
         self.ratio = float(info_dict.get("共享率")) if "共享率" in info_dict else 0
         bonus_str = info_dict.get("星辰", "")
-        self.bonus = (
-            float(re.search(r"累计([\d\.]+)", bonus_str).group(1)) if re.search(r"累计([\d\.]+)", bonus_str) else 0
-        )
+        self.bonus = float(re.search(r"累计([\d\.]+)", bonus_str).group(1)) if re.search(r"累计([\d\.]+)", bonus_str) else 0
         self.message_unread = 0
 
         if hasattr(self, "_torrent_seeding_base") and self._torrent_seeding_base:

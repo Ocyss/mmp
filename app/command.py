@@ -1,7 +1,7 @@
 import copy
 import threading
 import traceback
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from app.chain import ChainBase
 from app.chain.download import DownloadChain

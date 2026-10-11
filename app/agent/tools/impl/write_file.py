@@ -1,7 +1,7 @@
 """文件写入工具"""
 
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from anyio import Path as AsyncPath
 from pydantic import BaseModel, Field
@@ -24,8 +24,7 @@ class WriteFileInput(BaseModel):
     overwrite: bool = Field(
         False,
         description=(
-            "Allow replacing an existing file in full. Keep false when creating a "
-            "new file; prefer edit_file for localized changes."
+            "Allow replacing an existing file in full. Keep false when creating a new file; prefer edit_file for localized changes."
         ),
     )
     expected_sha256: str | None = Field(
@@ -82,10 +81,7 @@ class WriteFileTool(MoviePilotTool):
             if exists and not await path.is_file():
                 return f"错误：{resolved_path} 路径已存在但不是一个文件"
             if exists and not overwrite:
-                return (
-                    f"错误：文件 {resolved_path} 已存在，拒绝完整覆盖。"
-                    "局部修改请使用 edit_file；确需重写时设置 overwrite=true。"
-                )
+                return f"错误：文件 {resolved_path} 已存在，拒绝完整覆盖。局部修改请使用 edit_file；确需重写时设置 overwrite=true。"
             if expected_sha256 and not exists:
                 return f"错误：文件 {resolved_path} 不存在，无法校验 expected_sha256。请确认路径和最新文件状态。"
 
@@ -95,9 +91,7 @@ class WriteFileTool(MoviePilotTool):
                 current_sha256 = await self.run_blocking("default", calculate_file_sha256, local_path)
             if expected_sha256:
                 if current_sha256.casefold() != expected_sha256.casefold():
-                    return (
-                        f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。请重新读取文件并基于最新内容写入。"
-                    )
+                    return f"错误：文件 {resolved_path} 已在读取后发生变化，拒绝覆盖。请重新读取文件并基于最新内容写入。"
 
             await self.run_blocking(
                 "default",

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Dict, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Annotated, NotRequired, TypedDict
 
 from anyio import Path as AsyncPath
 from langchain.agents.middleware.types import (
@@ -287,12 +287,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):  # no
         if not await dir_path.exists():
             return []
 
-        md_files: list[str] = []
-        async for entry in dir_path.iterdir():
-            if await entry.is_file() and entry.name.lower().endswith(".md"):
-                md_files.append(str(entry))
-
-        return md_files
+        return [str(entry) async for entry in dir_path.iterdir() if await entry.is_file() and entry.name.lower().endswith(".md")]
 
     async def abefore_agent(  # noqa
         self,

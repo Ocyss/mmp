@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -183,9 +183,7 @@ def _update_site_cookie(
             detail=f"站点 {site_id} 不存在！",
         )
     logger.info(f"开始更新站点【{site_info.name}】Cookie&UA")
-    state, message = SiteChain().update_cookie(
-        site_info=site_info, username=username, password=password, two_step_code=code
-    )
+    state, message = SiteChain().update_cookie(site_info=site_info, username=username, password=password, two_step_code=code)
     if state:
         logger.info(f"站点【{site_info.name}】Cookie&UA更新成功")
     else:

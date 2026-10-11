@@ -78,11 +78,7 @@ class AuthTicketStore(metaclass=Singleton):
         :param now: 当前时间戳，未传入时自动读取
         """
         current = now or time.time()
-        expired = [
-            key
-            for key, value in self._tickets.items()
-            if current - float(value.get("created_at") or 0) > self._ttl_seconds
-        ]
+        expired = [key for key, value in self._tickets.items() if current - float(value.get("created_at") or 0) > self._ttl_seconds]
         for key in expired:
             self._tickets.pop(key, None)
         if len(self._tickets) <= self._max_items:

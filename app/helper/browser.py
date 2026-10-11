@@ -635,9 +635,7 @@ class BrowserSessionHelper:
             if element.get("tag") == "a" and element.get("href")
         ][:30]
         forms = [
-            element
-            for element in result["interactive_elements"]
-            if element.get("tag") in {"input", "textarea", "select", "button"}
+            element for element in result["interactive_elements"] if element.get("tag") in {"input", "textarea", "select", "button"}
         ][:30]
         if links:
             result["links"] = links
@@ -708,9 +706,7 @@ class BrowserSessionHelper:
         now = time.monotonic()
         with cls._sessions_lock:
             expired_keys = [
-                session_key
-                for session_key, session in cls._sessions.items()
-                if now - session.last_used_at > cls.SESSION_TTL_SECONDS
+                session_key for session_key, session in cls._sessions.items() if now - session.last_used_at > cls.SESSION_TTL_SECONDS
             ]
         for session_key in expired_keys:
             cls.close_session(session_key)
@@ -851,9 +847,7 @@ class PlaywrightHelper:
         return (settings.BROWSER_EMULATION or "cloakbrowser").lower()
 
     @staticmethod
-    def __launch_cloakbrowser_context(
-        headless: bool, user_agent: str | None = None, proxies: dict | None = None
-    ) -> BrowserContext:
+    def __launch_cloakbrowser_context(headless: bool, user_agent: str | None = None, proxies: dict | None = None) -> BrowserContext:
         """
         启动 CloakBrowser 上下文。
         """
@@ -891,9 +885,7 @@ class PlaywrightHelper:
         try:
             # 检查是否需要代理认证
             need_proxy_auth = (
-                proxy_config
-                and proxy_config.get("server")
-                and (proxy_config.get("username") or proxy_config.get("password"))
+                proxy_config and proxy_config.get("server") and (proxy_config.get("username") or proxy_config.get("password"))
             )
 
             if need_proxy_auth:
@@ -918,9 +910,7 @@ class PlaywrightHelper:
                     url=fs_api, json=create_payload
                 )
                 if not create_result or create_result.get("status") != "ok":
-                    logger.error(
-                        f"创建 FlareSolverr 会话失败: {create_result.get('message') if create_result else '无响应'}"
-                    )
+                    logger.error(f"创建 FlareSolverr 会话失败: {create_result.get('message') if create_result else '无响应'}")
                     return None
 
                 # 2. 使用会话发送请求
@@ -949,9 +939,7 @@ class PlaywrightHelper:
                     logger.debug(f"解析 cookies 失败，忽略: {str(e)}")
 
             # 发送请求
-            data = RequestUtils(content_type="application/json", timeout=timeout or 60).post_json(
-                url=fs_api, json=request_payload
-            )
+            data = RequestUtils(content_type="application/json", timeout=timeout or 60).post_json(url=fs_api, json=request_payload)
             if not data:
                 logger.error("FlareSolverr 返回空响应")
                 return None
@@ -967,9 +955,7 @@ class PlaywrightHelper:
             if session_id:
                 try:
                     destroy_payload = {"cmd": "sessions.destroy", "session": session_id}
-                    RequestUtils(content_type="application/json", timeout=10).post_json(
-                        url=fs_api, json=destroy_payload
-                    )
+                    RequestUtils(content_type="application/json", timeout=10).post_json(url=fs_api, json=destroy_payload)
                     logger.debug(f"已清理 FlareSolverr 会话: {session_id}")
                 except Exception as e:
                     logger.warning(f"清理 FlareSolverr 会话失败: {str(e)}")
@@ -1003,9 +989,7 @@ class PlaywrightHelper:
                 fs_cookie_header = None
                 fs_ua = None
                 if self.__browser_emulation() == "flaresolverr":
-                    solution = self.__flaresolverr_request(
-                        url=url, cookies=cookies, proxy_config=proxies, timeout=timeout
-                    )
+                    solution = self.__flaresolverr_request(url=url, cookies=cookies, proxy_config=proxies, timeout=timeout)
                     if solution:
                         fs_cookie_header = self.__fs_cookie_str(solution.get("cookies", []))
                         fs_ua = solution.get("userAgent")

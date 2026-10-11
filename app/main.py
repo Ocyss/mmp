@@ -29,9 +29,9 @@ elif SystemUtils.is_frozen():
     sys.stdout = open(os.devnull, "w")
     sys.stderr = open(os.devnull, "w")
 
-from app.core.config import global_vars, settings
-from app.db.init import init_db, update_db
-from app.factory import app
+from app.core.config import global_vars, settings  # noqa: E402 需先重定向 stdio
+from app.db.init import init_db, update_db  # noqa: E402
+from app.factory import app  # noqa: E402
 
 # 设置进程名
 setproctitle.setproctitle(settings.PROJECT_NAME)
