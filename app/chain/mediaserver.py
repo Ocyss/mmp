@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from app.chain import ChainBase
 from app.core.config import global_vars
 from app.db.mediaserver_oper import MediaServerOper
+from app.db.systemconfig_oper import SystemConfigOper
 from app.helper.service import ServiceConfigHelper
 from app.log import logger
+from app.schemas.types import SystemConfigKey
 from app.utils.security import SecurityUtils
 
 if TYPE_CHECKING:
@@ -215,11 +217,43 @@ class MediaServerChain(ChainBase):
         )
         return result or {}
 
+    def tv_episodes_by_tmdb(self, server: str, tmdb_id: int) -> dict[int, list[int]] | None:
+        """
+        根据 TMDB ID 获取媒体服务器中剧集每季已入库的集数
+
+        :param server: 媒体服务器名称
+        :param tmdb_id: TMDB ID
+        :return: 每季已入库集数列表 {季号: [集号]}，未入库返回 {}，服务器不可用或模块未实现时返回 None
+        """
+        return self.run_module("mediaserver_tv_episodes_by_tmdb", server=server, tmdb_id=tmdb_id)
+
     def get_image_cookies(self, server: str | None, image_url: str) -> str | dict | None:
         """
         获取图片的Cookies
         """
         return self.run_module("mediaserver_image_cookies", server=server, image_url=image_url)
+
+    def __sync_subscribe_existing_episodes(self, servers: list[str]) -> None:
+        """
+        媒体服务器同步完成后，按需将媒体服务器已入库集数回写到订阅 note
+
+        仅在系统配置开启“订阅同步媒体服务器已有集”时执行；具体逐订阅回写逻辑
+        由订阅链完成，避免本链直接操作订阅表。
+
+        :param servers: 已启用的媒体服务器名称列表
+        """
+        if not SystemConfigOper().get(SystemConfigKey.SubscribeMediaServerSync):
+            return
+        if not servers:
+            return
+        try:
+            # 延迟导入避免与订阅链循环依赖
+            # pylint: disable=import-outside-toplevel
+            from app.chain.subscribe import SubscribeChain
+
+            SubscribeChain().sync_existing_episodes_from_mediaserver(servers)
+        except Exception as err:
+            logger.error(f"同步订阅媒体服务器已有集失败：{err}")
 
     def sync(
         self,
@@ -478,5 +512,7 @@ class MediaServerChain(ChainBase):
                             "media_finished": global_media_finished,
                         },
                     )
+            # 同步订阅的媒体服务器已有集（开关关闭时跳过）
+            self.__sync_subscribe_existing_episodes(enabled_servers)
             if progress_callback:
                 progress_callback(value=100, text="媒体服务器同步完成")

@@ -283,6 +283,8 @@ class SystemConfigKey(Enum):
     UgreenSessionCache = "UgreenSessionCache"
     # 共享媒体识别成功次数
     MediaRecognizeShareCount = "MediaRecognizeShareCount"
+    # 订阅同步媒体服务器已有集开关
+    SubscribeMediaServerSync = "SubscribeMediaServerSync"
 
 
 # 处理进度Key字典

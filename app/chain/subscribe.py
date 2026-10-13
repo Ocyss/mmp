@@ -2705,6 +2705,50 @@ class SubscribeChain(ChainBase):
             summary["updated"] = summary["updated"] or bool(progress_summary.get("updated"))
         return summary
 
+    def sync_existing_episodes_from_mediaserver(self, servers: list[str]) -> None:
+        """
+        将媒体服务器中已入库的剧集同步为订阅 note（已下载事实）
+
+        以媒体服务器为权威数据源，MoviePilot 侧只做后置更新：仅当服务器查询到
+        订阅对应季的已入库集数时，才把缺失的集补写进 note，避免覆盖或清空订阅
+        现有进度。媒体服务器不可用时跳过对应订阅，不做任何写库。
+
+        :param servers: 已启用的媒体服务器名称列表
+        """
+        subscribes = SubscribeOper().list()
+        if not subscribes:
+            return
+        mediaserver_chain = MediaServerChain()
+        for subscribe in subscribes:
+            if global_vars.is_system_stopped:
+                return
+            if subscribe.type != MediaType.TV.value or not subscribe.tmdbid:
+                continue
+            # 汇总各媒体服务器上该季的已入库集数
+            existing_episodes: set[int] = set()
+            server_available = False
+            for server in servers:
+                season_episodes = mediaserver_chain.tv_episodes_by_tmdb(server=server, tmdb_id=subscribe.tmdbid)
+                if season_episodes is None:
+                    continue
+                server_available = True
+                episodes = season_episodes.get(subscribe.season) or []
+                if episodes:
+                    existing_episodes.update(int(episode) for episode in episodes)
+            if not server_available:
+                continue
+            if not existing_episodes:
+                continue
+            summary = self.backfill_existing_episodes(
+                subscribe=subscribe,
+                episodes=sorted(existing_episodes),
+                scene="mediaserver_sync",
+            )
+            if summary.get("accepted"):
+                logger.info(
+                    f"订阅 {subscribe.name} 第{subscribe.season}季 已从媒体服务器同步已有集：{summary.get('accepted')}"
+                )
+
     def __record_subscribe_download_facts(
         self,
         subscribe: Subscribe,

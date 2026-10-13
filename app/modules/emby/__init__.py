@@ -265,6 +265,19 @@ class EmbyModule(_ModuleBase, _MediaServerBase[Emby]):
             return []
         return [schemas.MediaServerSeasonInfo(season=season, episodes=episodes) for season, episodes in seasoninfo.items()]
 
+    def mediaserver_tv_episodes_by_tmdb(self, server: str, tmdb_id: int) -> dict[int, list[int]] | None:
+        """
+        根据 TMDB ID 获取媒体服务器中剧集每季已入库的集数
+
+        :param server: 媒体服务器名称
+        :param tmdb_id: TMDB ID
+        :return: 每季已入库集数列表 {季号: [集号]}，未入库返回 {}，服务器不可用时返回 None
+        """
+        server_obj: Emby = self.get_instance(server)
+        if not server_obj:
+            return None
+        return server_obj.get_tv_episodes_by_tmdb(tmdb_id)
+
     def mediaserver_playing(
         self, server: str, count: int | None = 20, username: str | None = None
     ) -> list[schemas.MediaServerPlayItem] | None:

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from app import schemas
+from app.core.cache import Cache
 from app.core.config import settings
 from app.log import logger
 from app.schemas.types import MediaType
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from requests import Response
 
     from app.schemas import MediaServerItem
+
+# Emby 查询结果 KV 缓存（启用 Redis 时自动走 Redis，否则使用内存缓存）
+_emby_kv_cache = Cache("ttl", maxsize=1024, ttl=7 * 24 * 3600)
+# KV 缓存区域
+_EMBY_CACHE_REGION = "emby"
 
 
 class Emby:
@@ -195,14 +201,21 @@ class Emby:
         获取用于查询用户范围数据的用户ID
 
         优先匹配指定用户名，其次匹配媒体服务器配置用户名，最后回退管理员。
+        首次查询成功后，结果会同时写入实例内存（self.user 由初始化赋值）与 KV 缓存，
+        后续查询优先命中 KV 缓存，避免重复请求用户列表接口。
 
         :param user_name: 优先匹配的用户名
         :return: 匹配到的用户ID，未找到可用用户时返回None
         """
         if not self._host or not self._apikey:
             return None
+        cache_key = f"user:{self._host}:{user_name or self._username or settings.SUPERUSER}"
+        cached_user_id = _emby_kv_cache.get(cache_key, region=_EMBY_CACHE_REGION)
+        if cached_user_id:
+            return cached_user_id
         url = f"{self._host}Users"
         params = {"api_key": self._apikey}
+        user_id = None
         try:
             res = RequestUtils().get_res(url, params)
             if res:
@@ -214,16 +227,23 @@ class Emby:
                 for candidate_username in candidate_usernames:
                     for emby_user in users:
                         if emby_user.get("Name") == candidate_username:
-                            return emby_user.get("Id")
+                            user_id = emby_user.get("Id")
+                            break
+                    if user_id:
+                        break
                 # 查询管理员
-                for emby_user in users:
-                    if emby_user.get("Policy", {}).get("IsAdministrator"):
-                        return emby_user.get("Id")
+                if not user_id:
+                    for emby_user in users:
+                        if emby_user.get("Policy", {}).get("IsAdministrator"):
+                            user_id = emby_user.get("Id")
+                            break
             else:
                 logger.error("Users 未获取到返回数据")
         except Exception as e:
             logger.error("连接Users出错：" + str(e))
-        return None
+        if user_id:
+            _emby_kv_cache.set(cache_key, user_id, ttl=24 * 3600, region=_EMBY_CACHE_REGION)
+        return user_id
 
     def authenticate(self, username: str, password: str) -> str | None:
         """
@@ -474,6 +494,90 @@ class Emby:
             logger.error("连接Shows/Id/Episodes出错：" + str(e))
             return None, None
         return None, {}
+
+    def get_item_id_by_tmdb(self, tmdb_id: int) -> str | None:
+        """
+        根据 TMDB ID 查询 Emby 中电影/剧集的条目 ID
+
+        查询结果会写入 KV 缓存，后续同一 TMDB ID 直接命中缓存，不再请求 Emby。
+
+        :param tmdb_id: TMDB ID
+        :return: Emby 条目 ID，未找到或查询失败返回 None
+        """
+        if not self._host or not self._apikey or not tmdb_id:
+            return None
+        cache_key = f"tmdb_item:{self._host}:{tmdb_id}"
+        cached_item_id = _emby_kv_cache.get(cache_key, region=_EMBY_CACHE_REGION)
+        if cached_item_id:
+            return cached_item_id
+        if not self.user:
+            return None
+        url = f"{self._host}emby/Users/{self.user}/Items"
+        params = {
+            "Recursive": "true",
+            "Fields": "ProviderIds",
+            "IncludeItemTypes": "Movie,Series",
+            "AnyProviderIdEquals": f"Tmdb.{tmdb_id}",
+            "api_key": self._apikey,
+        }
+        try:
+            res = RequestUtils().get_res(url, params)
+            if res:
+                res_items = res.json().get("Items") or []
+                for item in res_items:
+                    item_id = item.get("Id")
+                    if item_id:
+                        _emby_kv_cache.set(cache_key, item_id, region=_EMBY_CACHE_REGION)
+                        return item_id
+        except Exception as e:
+            logger.error(f"连接Users/Items（AnyProviderIdEquals）出错：{str(e)}")
+        return None
+
+    def get_series_season_episodes(self, item_id: str) -> dict[int, list[int]] | None:
+        """
+        根据剧集条目 ID 查询 Emby 中已入库的分集信息
+
+        :param item_id: Emby 剧集条目 ID
+        :return: 每季已入库集数列表 {季号: [集号]}，查询失败返回 None
+        """
+        if not self._host or not self._apikey or not item_id or not self.user:
+            return None
+        url = f"{self._host}emby/Users/{self.user}/Items"
+        params = {
+            "Recursive": "true",
+            "ParentId": item_id,
+            "IncludeItemTypes": "Episode",
+            "EnableImages": "false",
+            "EnableUserData": "false",
+            "api_key": self._apikey,
+        }
+        try:
+            res = RequestUtils().get_res(url, params)
+            if res:
+                season_episodes: dict[int, list[int]] = {}
+                for res_item in res.json().get("Items") or []:
+                    season_index = res_item.get("ParentIndexNumber")
+                    episode_index = res_item.get("IndexNumber")
+                    if season_index is None or episode_index is None:
+                        continue
+                    season_episodes.setdefault(int(season_index), []).append(int(episode_index))
+                return season_episodes
+            logger.error("Users/Items（ParentId）未获取到返回数据")
+        except Exception as e:
+            logger.error(f"连接Users/Items（ParentId）出错：{str(e)}")
+        return None
+
+    def get_tv_episodes_by_tmdb(self, tmdb_id: int) -> dict[int, list[int]] | None:
+        """
+        根据 TMDB ID 查询 Emby 中剧集每季已入库的集数
+
+        :param tmdb_id: TMDB ID
+        :return: 每季已入库集数列表 {季号: [集号]}，未入库返回 {}，查询失败返回 None
+        """
+        item_id = self.get_item_id_by_tmdb(tmdb_id)
+        if not item_id:
+            return {}
+        return self.get_series_season_episodes(item_id)
 
     def get_season_episode_ids(self, item_id: str, season: int) -> dict[int, str]:
         """

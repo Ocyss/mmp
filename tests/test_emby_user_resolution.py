@@ -1,9 +1,11 @@
 from unittest.mock import Mock, patch
 
-from app.modules.emby.emby import Emby
+from app.modules.emby.emby import _EMBY_CACHE_REGION, Emby, _emby_kv_cache
 
 
 def _resolve_user(users: list[dict], requested_username: str, configured_username: str):
+    # 每个用例独立清理 KV 缓存，避免用户 ID 命中缓存导致断言失真
+    _emby_kv_cache.clear(region=_EMBY_CACHE_REGION)
     emby = Emby.__new__(Emby)
     emby._host = "http://emby.local/"
     emby._apikey = "test-api-key"
